@@ -1,0 +1,43 @@
+# KIAS Configuration
+
+control_plane:
+  api_port: 8080
+  scheduler_interval: 10s
+  etcd_endpoints: ["http://localhost:2379"]
+  log_level: "info"
+
+node_agent:
+  node_id: "node1"
+  resource_limit:
+    cpu: "4"
+    memory: "8Gi"
+    gpu: "1"
+  heartbeat_interval: 5s
+
+agents:
+  default_image: "python:3.11"
+  max_agents_per_node: 10
+  default_resource_request:
+    cpu: "0.5"
+    memory: "512Mi"
+  restart_policy: "Always"
+
+scheduler:
+  algorithm: "round-robin"  # Options: round-robin, least-loaded, resource-aware
+  preemption_enabled: false
+  priority_classes:
+    - name: "high"
+      value: 100
+    - name: "medium"
+      value: 50
+    - name: "low"
+      value: 10
+
+monitoring:
+  metrics_port: 9090
+  log_file: "logs/kias.log"
+  retention_days: 30
+
+storage:
+  etcd_prefix: "/kias"
+  snapshot_interval: 1h

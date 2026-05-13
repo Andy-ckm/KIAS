@@ -1,0 +1,100 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/api-server",
+    "crates/scheduler",
+    "crates/controller",
+    "crates/knowledge",
+    "crates/cache",
+    "crates/monitor",
+    "crates/executor",
+    "crates/skills",
+    "crates/kias-main",
+    "crates/team-engine",
+    "crates/goal-engine",
+    "crates/agent-view",
+    "crates/workflow-engine",
+    "crates/autonomy-controller",
+    "crates/mcp-protocol",
+    # "crates/agentsight",
+    # "crates/cache-hub",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/kias-project/kias"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+toml = "0.8"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging / Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Metrics
+prometheus = "0.13"
+once_cell = "1"
+
+# Config
+config = "0.14"
+
+# Hashing
+sha2 = "0.10"
+blake3 = "1"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Async utilities
+futures = "0.3"
+
+# Network
+tonic = "0.12"
+prost = "0.13"
+
+# HTTP
+axum = "0.7"
+hyper = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Storage
+etcd-client = "0.3"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+redis = { version = "0.26", features = ["tokio-comp"] }
+
+# Utils
+dashmap = "6"
+url = "2"
+
+# HTTP middleware / utilities
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Validation
+validator = { version = "0.19", features = ["derive"] }
+
+# Async traits
+async-trait = "0.1"
+
+# JWT
+jsonwebtoken = "9"
+
+# Internal crates
+kias-common = { path = "crates/common" }

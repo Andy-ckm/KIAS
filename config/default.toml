@@ -1,0 +1,38 @@
+# KIAS default configuration
+# Override via environment variables: KIAS_API_SERVER_PORT=9090
+
+[logging]
+level = "info"
+format = "text"
+
+[api_server]
+host = "0.0.0.0"
+port = 8080
+tls = false
+
+[scheduler]
+algorithm = "cache_aware"
+interval_ms = 1000
+
+[controller]
+heartbeat_interval_secs = 15
+failure_timeout_secs = 60
+max_retries = 3
+
+[agentsight]
+enabled = true
+metrics_port = 9090
+
+[cache_hub]
+enabled = true
+max_entries = 10000
+ttl_secs = 3600
+
+[knowledge]
+enabled = false
+embedding_model = "text-embedding-ada-002"
+
+[storage]
+etcd_endpoints = "http://localhost:2379"
+sqlite_url = "sqlite://kias.db"
+redis_url = "redis://localhost:6379"

@@ -1,0 +1,17 @@
+[package]
+name = "kias-langgraph-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kias-common = { path = "../common" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"

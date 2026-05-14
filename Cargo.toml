@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/langgraph-engine",
     "crates/common",
     "crates/api-server",
     "crates/scheduler",

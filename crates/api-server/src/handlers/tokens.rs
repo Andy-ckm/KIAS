@@ -198,7 +198,8 @@ mod tests {
         assert_eq!(result.time_series.len(), 24);
         // All entries should have non-negative values
         for ts in &result.time_series {
-            assert!(ts.total_tokens >= 0);
+            // total_tokens is u64, always >= 0; verify it's reasonable
+            let _ = ts.total_tokens;
         }
     }
 }

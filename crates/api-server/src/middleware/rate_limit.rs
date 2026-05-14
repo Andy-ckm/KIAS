@@ -480,7 +480,7 @@ mod tests {
         match result {
             RateLimitResult::Deny { retry_after } => {
                 // With 1 token/sec refill and deficit of 1 token → retry_after ≈ 1
-                assert!(retry_after >= 1 && retry_after <= 2);
+                assert!((1..=2).contains(&retry_after));
             }
             other => panic!("Expected Deny, got {:?}", other),
         }

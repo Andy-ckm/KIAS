@@ -432,8 +432,7 @@ mod tests {
             make_node("node-2", labels, vec![]),
         ];
 
-        let mut avoid_types = Vec::new();
-        avoid_types.push("web".to_string());
+        let avoid_types = vec!["web".to_string()];
         let agent = make_agent_with_anti_affinity(
             "a1",
             AntiAffinity {

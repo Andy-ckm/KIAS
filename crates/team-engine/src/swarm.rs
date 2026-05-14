@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_swarm_strategies() {
-        let strategies = vec![
+          let strategies = [
             SwarmStrategy::FanOut,
             SwarmStrategy::Pipeline,
             SwarmStrategy::Race,

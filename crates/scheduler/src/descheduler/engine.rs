@@ -246,7 +246,7 @@ impl DeschedulerEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kias_common::{Agent, AntiAffinity, Node, Priority, Resources};
+    use kias_common::{Agent, Node, Priority, Resources};
 
     fn make_node(id: &str, cpu_total: f64, cpu_avail: f64, mem_total: u64, mem_avail: u64) -> Node {
         Node {

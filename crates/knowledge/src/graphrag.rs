@@ -887,7 +887,6 @@ mod tests {
             strategy: RetrievalStrategy::GraphFirst,
             max_depth: 2,
             min_relevance: 0.0,
-            ..Default::default()
         };
 
         let results = engine.graph_enhanced_search(&query);
@@ -944,7 +943,7 @@ mod tests {
 
         let communities = engine.community_detection();
         // Should find at least 2 communities
-        assert!(communities.len() >= 1);
+        assert!(!communities.is_empty());
         // All nodes should be assigned
         let total: usize = communities.iter().map(|c| c.len()).sum();
         assert_eq!(total, 6);

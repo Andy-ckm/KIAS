@@ -180,7 +180,7 @@ async fn test_router_dynamic_branching() {
 async fn test_router_fallback_to_low() {
     let graph = StateGraph::builder("classify")
         .add_node("classify", |state| async move {
-            let mut state = state;
+            let state = state;
             // Don't set priority — should fall through to low_handler
             Ok(state)
         })
@@ -297,7 +297,7 @@ async fn test_checkpoint_save_and_load() {
     let run_id = &result.metadata.run_id;
     let checkpoints = store.load_history(run_id).await.unwrap();
     assert!(!checkpoints.is_empty(), "Expected at least one checkpoint");
-    assert!(checkpoints[0].id.len() > 0);
+    assert!(!checkpoints[0].id.is_empty());
 }
 
 #[tokio::test]

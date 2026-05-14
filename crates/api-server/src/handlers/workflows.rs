@@ -268,7 +268,7 @@ mod tests {
         let created = create_workflow(State(state.clone()), Json(req))
             .await
             .unwrap();
-        delete_workflow(State(state.clone()), Path(created.id.clone()))
+        let _ = delete_workflow(State(state.clone()), Path(created.id.clone()))
             .await
             .unwrap();
 

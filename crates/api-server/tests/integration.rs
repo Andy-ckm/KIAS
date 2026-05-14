@@ -753,7 +753,7 @@ async fn test_update_config_with_valid_key_succeeds() {
     assert_eq!(resp.status(), StatusCode::OK);
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let json: Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(json["changes"].as_array().unwrap().len() > 0);
+    assert!(!json["changes"].as_array().unwrap().is_empty());
 }
 
 #[tokio::test]

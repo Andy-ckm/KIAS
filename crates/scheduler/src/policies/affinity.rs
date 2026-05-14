@@ -140,7 +140,7 @@ mod tests {
         let mut labels2 = HashMap::new();
         labels2.insert("zone".to_string(), "us-east".to_string());
 
-        let nodes = vec![make_node("n1", labels1), make_node("n2", labels2)];
+        let nodes = [make_node("n1", labels1), make_node("n2", labels2)];
         let node_refs: Vec<&Node> = nodes.iter().collect();
 
         let agent = Agent {

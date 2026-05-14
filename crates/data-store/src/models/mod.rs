@@ -60,7 +60,7 @@ pub struct TaskRow {
     pub name: String,
     pub status: String,
     pub task_type: String,
-    pub input: String,  // JSON
+    pub input: String,          // JSON
     pub output: Option<String>, // JSON
     pub error_message: Option<String>,
     pub priority: i32,
@@ -237,7 +237,6 @@ impl ComponentRow {
     }
 }
 
-
 /// Persistent experience replay entry for agent learning.
 ///
 /// Stores state-action-reward-next_state (SARS) transitions used in
@@ -247,8 +246,8 @@ pub struct ExperienceReplayRow {
     pub id: String,
     pub agent_id: String,
     pub task_id: Option<String>,
-    pub state_snapshot: String,  // JSON
-    pub action_taken: String,    // JSON
+    pub state_snapshot: String, // JSON
+    pub action_taken: String,   // JSON
     pub reward: f64,
     pub next_state: Option<String>, // JSON
     pub done: i32,

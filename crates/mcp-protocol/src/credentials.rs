@@ -133,10 +133,7 @@ pub trait CredentialStore: Send + Sync {
     async fn get(&self, id: &str) -> Result<Option<Credential>, McpError>;
 
     /// List credentials with optional filters.
-    async fn list(
-        &self,
-        filter: Option<CredentialFilter>,
-    ) -> Result<Vec<Credential>, McpError>;
+    async fn list(&self, filter: Option<CredentialFilter>) -> Result<Vec<Credential>, McpError>;
 
     /// Update a credential.
     async fn update(&self, credential: &Credential) -> Result<(), McpError>;
@@ -191,10 +188,7 @@ impl CredentialStore for InMemoryCredentialStore {
         Ok(store.get(id).cloned())
     }
 
-    async fn list(
-        &self,
-        filter: Option<CredentialFilter>,
-    ) -> Result<Vec<Credential>, McpError> {
+    async fn list(&self, filter: Option<CredentialFilter>) -> Result<Vec<Credential>, McpError> {
         let store = self.credentials.read().await;
         let creds: Vec<Credential> = store.values().cloned().collect();
 
@@ -497,11 +491,10 @@ impl CredentialManager {
 
     /// Retrieve and decrypt a credential.
     pub async fn get(&self, id: &str, actor: &str) -> Result<Vec<u8>, McpError> {
-        let mut credential = self
-            .store
-            .get(id)
-            .await?
-            .ok_or_else(|| McpError::ResourceNotFound(format!("Credential not found: {}", id)))?;
+        let mut credential =
+            self.store.get(id).await?.ok_or_else(|| {
+                McpError::ResourceNotFound(format!("Credential not found: {}", id))
+            })?;
 
         // Check status
         match credential.status {
@@ -554,17 +547,11 @@ impl CredentialManager {
     }
 
     /// Rotate a credential.
-    pub async fn rotate(
-        &self,
-        id: &str,
-        new_data: &[u8],
-        actor: &str,
-    ) -> Result<(), McpError> {
-        let mut credential = self
-            .store
-            .get(id)
-            .await?
-            .ok_or_else(|| McpError::ResourceNotFound(format!("Credential not found: {}", id)))?;
+    pub async fn rotate(&self, id: &str, new_data: &[u8], actor: &str) -> Result<(), McpError> {
+        let mut credential =
+            self.store.get(id).await?.ok_or_else(|| {
+                McpError::ResourceNotFound(format!("Credential not found: {}", id))
+            })?;
 
         let (encrypted, iv) = self.encryptor.encrypt(new_data).await?;
 
@@ -596,11 +583,10 @@ impl CredentialManager {
 
     /// Revoke a credential.
     pub async fn revoke(&self, id: &str, actor: &str) -> Result<(), McpError> {
-        let mut credential = self
-            .store
-            .get(id)
-            .await?
-            .ok_or_else(|| McpError::ResourceNotFound(format!("Credential not found: {}", id)))?;
+        let mut credential =
+            self.store.get(id).await?.ok_or_else(|| {
+                McpError::ResourceNotFound(format!("Credential not found: {}", id))
+            })?;
 
         credential.status = CredentialStatus::Revoked;
         self.store.update(&credential).await?;
@@ -695,11 +681,7 @@ mod tests {
     async fn test_credential_store_and_retrieve() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(
-            CredentialManagerConfig::default(),
-            store,
-            encryptor,
-        );
+        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
 
         let id = manager
             .store(
@@ -723,11 +705,7 @@ mod tests {
     async fn test_credential_revocation() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(
-            CredentialManagerConfig::default(),
-            store,
-            encryptor,
-        );
+        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
 
         let id = manager
             .store(
@@ -753,11 +731,7 @@ mod tests {
     async fn test_credential_rotation() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(
-            CredentialManagerConfig::default(),
-            store,
-            encryptor,
-        );
+        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
 
         let id = manager
             .store(
@@ -779,10 +753,7 @@ mod tests {
             .await
             .unwrap();
 
-        manager
-            .rotate(&id, b"new-secret", "admin")
-            .await
-            .unwrap();
+        manager.rotate(&id, b"new-secret", "admin").await.unwrap();
 
         let data = manager.get(&id, "user-1").await.unwrap();
         assert_eq!(data, b"new-secret");
@@ -792,11 +763,7 @@ mod tests {
     async fn test_audit_log() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(
-            CredentialManagerConfig::default(),
-            store,
-            encryptor,
-        );
+        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
 
         let id = manager
             .store(

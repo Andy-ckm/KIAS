@@ -490,17 +490,27 @@ impl SandboxManager {
     }
 
     /// Register a sandbox backend.
-    pub async fn register_backend(&self, backend: SandboxBackend, impl_: Arc<dyn SandboxBackendTrait>) {
+    pub async fn register_backend(
+        &self,
+        backend: SandboxBackend,
+        impl_: Arc<dyn SandboxBackendTrait>,
+    ) {
         let mut backends = self.backends.write().await;
         backends.insert(backend, impl_);
     }
 
     /// Create and start a sandbox.
-    pub async fn execute(&self, config: SandboxConfig, actor: &str) -> Result<SandboxResult, McpError> {
+    pub async fn execute(
+        &self,
+        config: SandboxConfig,
+        actor: &str,
+    ) -> Result<SandboxResult, McpError> {
         // Check limit
         let sandboxes = self.sandboxes.read().await;
         if sandboxes.len() >= self.config.max_sandboxes {
-            return Err(McpError::Internal("Maximum sandbox limit reached".to_string()));
+            return Err(McpError::Internal(
+                "Maximum sandbox limit reached".to_string(),
+            ));
         }
         drop(sandboxes);
 
@@ -549,10 +559,7 @@ impl SandboxManager {
         drop(sandboxes);
 
         // Wait for completion with timeout
-        let timeout = config
-            .limits
-            .timeout
-            .unwrap_or(self.config.max_lifetime);
+        let timeout = config.limits.timeout.unwrap_or(self.config.max_lifetime);
 
         let result = match tokio::time::timeout(timeout, backend.wait(&instance)).await {
             Ok(Ok(result)) => {
@@ -641,11 +648,9 @@ impl SandboxManager {
             .ok_or_else(|| McpError::ResourceNotFound(format!("Sandbox not found: {}", id)))?;
 
         let backends = self.backends.read().await;
-        let backend = backends
-            .get(&instance.config.backend)
-            .ok_or_else(|| {
-                McpError::Internal(format!("Backend not found: {}", instance.config.backend))
-            })?;
+        let backend = backends.get(&instance.config.backend).ok_or_else(|| {
+            McpError::Internal(format!("Backend not found: {}", instance.config.backend))
+        })?;
 
         backend.terminate(instance).await?;
 
@@ -718,14 +723,15 @@ impl Clone for SandboxManager {
 // ---------------------------------------------------------------------------
 
 use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::AsyncReadExt;
+use tokio::io::BufReader;
 use tokio::process::{Child, Command};
 
 /// Active child process info.
 struct ProcessInfo {
     child: Child,
-    stdout: tokio::sync::Mutex<String>,
-    stderr: tokio::sync::Mutex<String>,
+    stdout: Arc<tokio::sync::Mutex<String>>,
+    stderr: Arc<tokio::sync::Mutex<String>>,
     start_time: std::time::Instant,
 }
 
@@ -750,19 +756,27 @@ impl ProcessSandboxBackend {
     /// Read CPU time from /proc/[pid]/stat (utime + stime in clock ticks).
     fn read_cpu_time(pid: u32) -> Option<u64> {
         let stat = std::fs::read_to_string(format!("/proc/{}/stat", pid)).ok()?;
-        stat.split_whitespace().nth(14).and_then(|s| s.parse::<u64>().ok())
+        stat.split_whitespace()
+            .nth(14)
+            .and_then(|s| s.parse::<u64>().ok())
     }
 
     /// Read peak memory (VmPeak) from /proc/[pid]/status.
     fn read_peak_memory(pid: u32) -> u64 {
-        let status = std::fs::read_to_string(format!("/proc/{}/status", pid)).ok()?;
+        let status = match std::fs::read_to_string(format!("/proc/{}/status", pid)) {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
         for line in status.lines() {
             if line.starts_with("VmPeak:") {
-                let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-                return Some(kb * 1024);
+                if let Some(kb) = line.split_whitespace().nth(1) {
+                    if let Ok(kb) = kb.parse::<u64>() {
+                        return kb.saturating_mul(1024);
+                    }
+                }
             }
         }
-        None
+        0
     }
 }
 
@@ -779,9 +793,9 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
 
         // Create sandbox working directory
         let sandbox_dir = self.base_dir.join(&id);
-        tokio::fs::create_dir_all(&sandbox_dir).await.map_err(|e| {
-            McpError::internal(&format!("failed to create sandbox dir: {}", e))
-        })?;
+        tokio::fs::create_dir_all(&sandbox_dir)
+            .await
+            .map_err(|e| McpError::Internal(&format!("failed to create sandbox dir: {}", e)))?;
 
         Ok(SandboxInstance {
             id,
@@ -798,7 +812,9 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
 
     async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
         if instance.state != SandboxState::Ready {
-            return Err(McpError::invalid_request("sandbox not in Ready state"));
+            return Err(McpError::InvalidRequest(
+                "sandbox not in Ready state".to_string(),
+            ));
         }
 
         let sandbox_dir = self.base_dir.join(&instance.id);
@@ -830,9 +846,9 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
         cmd.stdin(Stdio::null());
 
         // Spawn child process
-        let mut child = cmd.spawn().map_err(|e| {
-            McpError::internal(&format!("failed to spawn process: {}", e))
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| McpError::Internal(&format!("failed to spawn process: {}", e)))?;
 
         let pid = child.id();
         instance.pid = pid;
@@ -869,15 +885,21 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
             stderr,
             start_time: std::time::Instant::now(),
         };
-        self.processes.write().await.insert(instance.id.clone(), info);
+        self.processes
+            .write()
+            .await
+            .insert(instance.id.clone(), info);
 
         Ok(())
     }
 
     async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        let info = self.processes.write().await
+        let info = self
+            .processes
+            .write()
+            .await
             .remove(&instance.id)
-            .ok_or_else(|| McpError::internal("no running process found"))?;
+            .ok_or_else(|| McpError::Internal("no running process found".to_string()))?;
 
         let start = info.start_time;
         let (exit_code, terminated, reason) = match info.child.wait().await {
@@ -892,7 +914,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
         // Read resource usage from /proc
         let mut resource_usage = ResourceUsage::default();
         if let Some(pid) = instance.pid {
-            resource_usage.peak_memory_bytes = Self::read_peak_memory(pid).unwrap_or(0);
+            resource_usage.peak_memory_bytes = Self::read_peak_memory(pid);
             // CPU time in jiffies -> nanoseconds (assuming 100Hz clk)
             if let Some(jiffies) = Self::read_cpu_time(pid) {
                 resource_usage.cpu_time_ns = jiffies.saturating_mul(10_000_000);
@@ -911,7 +933,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
     }
 
     async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
-        if let Some(info) = self.processes.write().await.remove(&instance.id) {
+        if let Some(mut info) = self.processes.write().await.remove(&instance.id) {
             let _ = info.child.kill().await;
             let _ = info.child.wait().await;
         }
@@ -928,7 +950,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
     async fn resource_usage(&self, instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
         let mut usage = ResourceUsage::default();
         if let Some(pid) = instance.pid {
-            usage.peak_memory_bytes = Self::read_peak_memory(pid).unwrap_or(0);
+            usage.peak_memory_bytes = Self::read_peak_memory(pid);
             if let Some(jiffies) = Self::read_cpu_time(pid) {
                 usage.cpu_time_ns = jiffies.saturating_mul(10_000_000);
             }
@@ -946,7 +968,11 @@ mod tests {
         let config = SandboxConfig::docker(
             "test",
             "python:3.11",
-            vec!["python".to_string(), "-c".to_string(), "print('hello')".to_string()],
+            vec![
+                "python".to_string(),
+                "-c".to_string(),
+                "print('hello')".to_string(),
+            ],
         );
 
         assert_eq!(config.backend, SandboxBackend::Docker);
@@ -956,10 +982,7 @@ mod tests {
 
     #[test]
     fn test_sandbox_config_process() {
-        let config = SandboxConfig::process(
-            "test",
-            vec!["echo".to_string(), "hello".to_string()],
-        );
+        let config = SandboxConfig::process("test", vec!["echo".to_string(), "hello".to_string()]);
 
         assert_eq!(config.backend, SandboxBackend::Process);
         assert_eq!(config.uid, Some(65534));
@@ -986,7 +1009,10 @@ mod tests {
 
         // Register process backend
         manager
-            .register_backend(SandboxBackend::Process, Arc::new(ProcessSandboxBackend))
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
             .await;
 
         let config = SandboxConfig::process("test", vec!["echo".to_string()]);

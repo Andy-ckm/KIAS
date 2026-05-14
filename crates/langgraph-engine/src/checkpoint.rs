@@ -37,10 +37,8 @@ pub trait CheckpointStore: Send + Sync {
     async fn save(&self, checkpoint: Checkpoint) -> Result<String, kias_common::KiasError>;
 
     /// Load the latest checkpoint for a given run.
-    async fn load_latest(
-        &self,
-        run_id: &str,
-    ) -> Result<Option<Checkpoint>, kias_common::KiasError>;
+    async fn load_latest(&self, run_id: &str)
+        -> Result<Option<Checkpoint>, kias_common::KiasError>;
 
     /// Load a specific checkpoint by ID.
     async fn load_by_id(
@@ -49,10 +47,7 @@ pub trait CheckpointStore: Send + Sync {
     ) -> Result<Option<Checkpoint>, kias_common::KiasError>;
 
     /// Load all checkpoints for a given run, ordered by version.
-    async fn load_history(
-        &self,
-        run_id: &str,
-    ) -> Result<Vec<Checkpoint>, kias_common::KiasError>;
+    async fn load_history(&self, run_id: &str) -> Result<Vec<Checkpoint>, kias_common::KiasError>;
 
     /// Delete all checkpoints for a given run.
     async fn delete_run(&self, run_id: &str) -> Result<(), kias_common::KiasError>;
@@ -96,16 +91,18 @@ impl CheckpointStore for InMemoryCheckpointStore {
         let run_id = checkpoint.run_id.clone();
 
         {
-            let mut by_id = self.by_id.write().map_err(|e| {
-                kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-            })?;
+            let mut by_id = self
+                .by_id
+                .write()
+                .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
             by_id.insert(id.clone(), checkpoint);
         }
 
         {
-            let mut by_run = self.by_run.write().map_err(|e| {
-                kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-            })?;
+            let mut by_run = self
+                .by_run
+                .write()
+                .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
             by_run.entry(run_id).or_default().push(id.clone());
         }
 
@@ -116,9 +113,10 @@ impl CheckpointStore for InMemoryCheckpointStore {
         &self,
         run_id: &str,
     ) -> Result<Option<Checkpoint>, kias_common::KiasError> {
-        let by_run = self.by_run.read().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+        let by_run = self
+            .by_run
+            .read()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
 
         let ids = match by_run.get(run_id) {
             Some(ids) => ids,
@@ -130,9 +128,10 @@ impl CheckpointStore for InMemoryCheckpointStore {
             None => return Ok(None),
         };
 
-        let by_id = self.by_id.read().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+        let by_id = self
+            .by_id
+            .read()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
 
         Ok(by_id.get(latest_id).cloned())
     }
@@ -141,33 +140,31 @@ impl CheckpointStore for InMemoryCheckpointStore {
         &self,
         checkpoint_id: &str,
     ) -> Result<Option<Checkpoint>, kias_common::KiasError> {
-        let by_id = self.by_id.read().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+        let by_id = self
+            .by_id
+            .read()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
         Ok(by_id.get(checkpoint_id).cloned())
     }
 
-    async fn load_history(
-        &self,
-        run_id: &str,
-    ) -> Result<Vec<Checkpoint>, kias_common::KiasError> {
-        let by_run = self.by_run.read().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+    async fn load_history(&self, run_id: &str) -> Result<Vec<Checkpoint>, kias_common::KiasError> {
+        let by_run = self
+            .by_run
+            .read()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
 
         let ids = match by_run.get(run_id) {
             Some(ids) => ids,
             None => return Ok(Vec::new()),
         };
 
-        let by_id = self.by_id.read().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+        let by_id = self
+            .by_id
+            .read()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
 
-        let mut checkpoints: Vec<Checkpoint> = ids
-            .iter()
-            .filter_map(|id| by_id.get(id).cloned())
-            .collect();
+        let mut checkpoints: Vec<Checkpoint> =
+            ids.iter().filter_map(|id| by_id.get(id).cloned()).collect();
 
         checkpoints.sort_by_key(|c| c.version);
         Ok(checkpoints)
@@ -175,15 +172,17 @@ impl CheckpointStore for InMemoryCheckpointStore {
 
     async fn delete_run(&self, run_id: &str) -> Result<(), kias_common::KiasError> {
         let ids = {
-            let mut by_run = self.by_run.write().map_err(|e| {
-                kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-            })?;
+            let mut by_run = self
+                .by_run
+                .write()
+                .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
             by_run.remove(run_id).unwrap_or_default()
         };
 
-        let mut by_id = self.by_id.write().map_err(|e| {
-            kias_common::KiasError::Storage(format!("Lock poisoned: {}", e))
-        })?;
+        let mut by_id = self
+            .by_id
+            .write()
+            .map_err(|e| kias_common::KiasError::Storage(format!("Lock poisoned: {}", e)))?;
         for id in ids {
             by_id.remove(&id);
         }

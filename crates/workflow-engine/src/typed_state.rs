@@ -143,7 +143,11 @@ impl ChannelReducer<i64> for Sum {
 struct ErasedChannel {
     value: Box<dyn Any + Send + Sync>,
     #[allow(clippy::type_complexity)]
-    reduce_fn: Box<dyn Fn(Box<dyn Any + Send + Sync>, Box<dyn Any + Send + Sync>) -> Box<dyn Any + Send + Sync> + Send + Sync>,
+    reduce_fn: Box<
+        dyn Fn(Box<dyn Any + Send + Sync>, Box<dyn Any + Send + Sync>) -> Box<dyn Any + Send + Sync>
+            + Send
+            + Sync,
+    >,
     reducer_name: String,
 }
 
@@ -163,15 +167,20 @@ impl ErasedChannel {
     {
         let reducer_name = reducer.name().to_string();
         let reducer_for_closure = reducer.clone();
-        let reduce_fn = Arc::new(move |current: Box<dyn Any + Send + Sync>,
-                                        incoming: Box<dyn Any + Send + Sync>|
-              -> Box<dyn Any + Send + Sync>
-        {
-            let current = current.downcast::<T>().expect("type mismatch in reduce (current)");
-            let incoming = incoming.downcast::<T>().expect("type mismatch in reduce (incoming)");
-            let result = reducer_for_closure.reduce(*current, *incoming);
-            Box::new(result)
-        });
+        let reduce_fn = Arc::new(
+            move |current: Box<dyn Any + Send + Sync>,
+                  incoming: Box<dyn Any + Send + Sync>|
+                  -> Box<dyn Any + Send + Sync> {
+                let current = current
+                    .downcast::<T>()
+                    .expect("type mismatch in reduce (current)");
+                let incoming = incoming
+                    .downcast::<T>()
+                    .expect("type mismatch in reduce (incoming)");
+                let result = reducer_for_closure.reduce(*current, *incoming);
+                Box::new(result)
+            },
+        );
 
         Self {
             value: Box::new(value),
@@ -224,7 +233,12 @@ impl TypedState {
     /// Register a new channel with an initial value and reducer.
     ///
     /// Returns `Err` if the channel already exists.
-    pub fn register<T, R>(&mut self, key: impl Into<String>, initial: T, reducer: R) -> Result<(), StateError>
+    pub fn register<T, R>(
+        &mut self,
+        key: impl Into<String>,
+        initial: T,
+        reducer: R,
+    ) -> Result<(), StateError>
     where
         T: Send + Sync + Clone + 'static,
         R: ChannelReducer<T> + Clone,
@@ -233,7 +247,8 @@ impl TypedState {
         if self.channels.contains_key(&key) {
             return Err(StateError::ChannelExists(key));
         }
-        self.channels.insert(key, ErasedChannel::new(initial, reducer));
+        self.channels
+            .insert(key, ErasedChannel::new(initial, reducer));
         Ok(())
     }
 
@@ -244,7 +259,8 @@ impl TypedState {
         R: ChannelReducer<T> + Clone,
     {
         let key = key.into();
-        self.channels.insert(key, ErasedChannel::new(initial, reducer));
+        self.channels
+            .insert(key, ErasedChannel::new(initial, reducer));
     }
 
     /// Update a channel's value by applying `incoming` through its reducer.
@@ -575,8 +591,12 @@ mod tests {
     fn test_typed_state_register_and_get() {
         let mut state = TypedState::new();
         state.register("count", 0u64, Sum).unwrap();
-        state.register("messages", Vec::<String>::new(), Append).unwrap();
-        state.register("name", "initial".to_string(), Replace).unwrap();
+        state
+            .register("messages", Vec::<String>::new(), Append)
+            .unwrap();
+        state
+            .register("name", "initial".to_string(), Replace)
+            .unwrap();
 
         assert_eq!(*state.get::<u64>("count").unwrap(), 0);
         assert!(state.get::<Vec<String>>("messages").unwrap().is_empty());
@@ -601,12 +621,8 @@ mod tests {
             .register("messages", Vec::<String>::new(), Append)
             .unwrap();
 
-        state
-            .update("messages", vec!["hello".to_string()])
-            .unwrap();
-        state
-            .update("messages", vec!["world".to_string()])
-            .unwrap();
+        state.update("messages", vec!["hello".to_string()]).unwrap();
+        state.update("messages", vec!["world".to_string()]).unwrap();
 
         let msgs = state.get::<Vec<String>>("messages").unwrap();
         assert_eq!(msgs, &vec!["hello".to_string(), "world".to_string()]);

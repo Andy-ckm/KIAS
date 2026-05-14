@@ -2,6 +2,8 @@
 //!
 //! 封装与 KIAS API Server 的 HTTP 通信。
 
+#[allow(unused_imports)]
+use futures_util::StreamExt; // TODO: WebSocket streaming 待实现
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

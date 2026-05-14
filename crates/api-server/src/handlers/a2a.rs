@@ -45,9 +45,7 @@ use std::convert::Infallible;
 use tokio::sync::watch;
 use uuid::Uuid;
 
-use kias_common::a2a::{
-    A2aMessage, A2aPart, A2aRole, A2aTask, A2aTaskStatus, A2aArtifact,
-};
+use kias_common::a2a::{A2aArtifact, A2aMessage, A2aPart, A2aRole, A2aTask, A2aTaskStatus};
 
 use crate::error::ApiError;
 use crate::models::request::{ApiResponse, ListResponse};
@@ -199,7 +197,11 @@ impl A2aTaskStore {
     }
 
     /// List all tasks, optionally filtered by status.
-    pub async fn list(&self, status_filter: Option<&str>, _session_filter: Option<&str>) -> Vec<A2aTask> {
+    pub async fn list(
+        &self,
+        status_filter: Option<&str>,
+        _session_filter: Option<&str>,
+    ) -> Vec<A2aTask> {
         let tasks = self.tasks.read().await;
         tasks
             .values()

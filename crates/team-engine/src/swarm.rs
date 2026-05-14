@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_swarm_strategies() {
-          let strategies = [
+        let strategies = [
             SwarmStrategy::FanOut,
             SwarmStrategy::Pipeline,
             SwarmStrategy::Race,

@@ -46,12 +46,7 @@ pub struct ProviderConfig {
 
 impl ProviderConfig {
     /// Create a new provider configuration.
-    pub fn new(
-        name: &str,
-        provider_type: &str,
-        endpoint: &str,
-        models: Vec<String>,
-    ) -> Self {
+    pub fn new(name: &str, provider_type: &str, endpoint: &str, models: Vec<String>) -> Self {
         Self {
             name: name.to_string(),
             provider_type: provider_type.to_string(),
@@ -291,9 +286,8 @@ impl OpenAICompatibleProvider {
 
         for (key, value) in &config.headers {
             headers.insert(
-                reqwest::header::HeaderName::from_bytes(key.as_bytes()).map_err(|_| {
-                    RouterError::InvalidRequest(format!("Invalid header: {}", key))
-                })?,
+                reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|_| RouterError::InvalidRequest(format!("Invalid header: {}", key)))?,
                 value.parse().map_err(|_| {
                     RouterError::InvalidRequest(format!("Invalid header value: {}", value))
                 })?,
@@ -389,12 +383,14 @@ impl Provider for OpenAICompatibleProvider {
         }
 
         // Parse response
-        let json: serde_json::Value = response.json().await.map_err(|e| {
-            RouterError::ProviderError {
-                provider: self.config.name.clone(),
-                message: format!("Failed to parse response: {}", e),
-            }
-        })?;
+        let json: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| RouterError::ProviderError {
+                    provider: self.config.name.clone(),
+                    message: format!("Failed to parse response: {}", e),
+                })?;
 
         let usage = Usage {
             prompt_tokens: json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32,
@@ -439,9 +435,9 @@ impl Provider for OpenAICompatibleProvider {
                         .unwrap_or("")
                         .to_string(),
                     tool_call_id: None,
-                    tool_calls: choice["message"]["tool_calls"].as_array().map(|tc| {
-                        tc.to_vec()
-                    }),
+                    tool_calls: choice["message"]["tool_calls"]
+                        .as_array()
+                        .map(|tc| tc.to_vec()),
                 },
                 finish_reason: choice["finish_reason"].as_str().map(|s| s.to_string()),
             })
@@ -485,12 +481,14 @@ impl Provider for OpenAICompatibleProvider {
             });
         }
 
-        let json: serde_json::Value = response.json().await.map_err(|e| {
-            RouterError::ProviderError {
-                provider: self.config.name.clone(),
-                message: format!("Failed to parse response: {}", e),
-            }
-        })?;
+        let json: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| RouterError::ProviderError {
+                    provider: self.config.name.clone(),
+                    message: format!("Failed to parse response: {}", e),
+                })?;
 
         let embeddings = json["data"]
             .as_array()

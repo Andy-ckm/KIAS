@@ -126,10 +126,9 @@ impl MigrationRunner {
             .map_err(|e| KiasError::Config(format!("Failed to begin transaction: {e}")))?;
 
         for stmt in statements {
-            sqlx::query(stmt)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| KiasError::Config(format!("Migration v{} failed: {e}", migration.version)))?;
+            sqlx::query(stmt).execute(&mut *tx).await.map_err(|e| {
+                KiasError::Config(format!("Migration v{} failed: {e}", migration.version))
+            })?;
         }
 
         // Record the migration
@@ -187,7 +186,10 @@ mod tests {
         assert_eq!(version, 4, "Should be at version 4");
 
         // Running again should be a no-op
-        let applied_again = runner.run_all().await.expect("Failed to run migrations again");
+        let applied_again = runner
+            .run_all()
+            .await
+            .expect("Failed to run migrations again");
         assert!(applied_again.is_empty(), "Should not re-apply migrations");
     }
 
@@ -210,10 +212,16 @@ mod tests {
         let table_names: Vec<&str> = tables.iter().map(|(name,)| name.as_str()).collect();
         assert!(table_names.contains(&"agents"), "agents table missing");
         assert!(table_names.contains(&"tasks"), "tasks table missing");
-        assert!(table_names.contains(&"workflows"), "workflows table missing");
+        assert!(
+            table_names.contains(&"workflows"),
+            "workflows table missing"
+        );
         assert!(table_names.contains(&"configs"), "configs table missing");
         assert!(table_names.contains(&"skills"), "skills table missing");
-        assert!(table_names.contains(&"components"), "components table missing");
+        assert!(
+            table_names.contains(&"components"),
+            "components table missing"
+        );
         assert!(
             table_names.contains(&"vector_entries"),
             "vector_entries table missing"

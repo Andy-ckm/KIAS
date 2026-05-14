@@ -54,12 +54,7 @@ impl PersistentVectorStore {
     }
 
     /// Initialize a vector index if it doesn't exist.
-    pub async fn create_index(
-        &self,
-        name: &str,
-        dimension: usize,
-        metric: &str,
-    ) -> KiasResult<()> {
+    pub async fn create_index(&self, name: &str, dimension: usize, metric: &str) -> KiasResult<()> {
         let id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
             "INSERT OR IGNORE INTO vector_indices (id, name, dimension, metric) VALUES (?, ?, ?, ?)",
@@ -81,11 +76,10 @@ impl PersistentVectorStore {
 
     /// Load all vectors from SQLite into memory.
     pub async fn load_from_db(&self) -> KiasResult<usize> {
-        let indices: Vec<(String, String)> =
-            sqlx::query_as("SELECT id, name FROM vector_indices")
-                .fetch_all(&self.pool)
-                .await
-                .map_err(|e| KiasError::Config(format!("Failed to load vector indices: {e}")))?;
+        let indices: Vec<(String, String)> = sqlx::query_as("SELECT id, name FROM vector_indices")
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| KiasError::Config(format!("Failed to load vector indices: {e}")))?;
 
         let mut total_loaded = 0;
 
@@ -101,8 +95,8 @@ impl PersistentVectorStore {
             let mut entries = Vec::with_capacity(rows.len());
             for (_entry_id, external_id, embedding_bytes, metadata_str) in rows {
                 let embedding = bytes_to_embedding(&embedding_bytes);
-                let metadata: serde_json::Value =
-                    serde_json::from_str(&metadata_str).unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+                let metadata: serde_json::Value = serde_json::from_str(&metadata_str)
+                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
                 entries.push(IndexEntry {
                     external_id,
                     embedding,
@@ -129,12 +123,11 @@ impl PersistentVectorStore {
         metadata: serde_json::Value,
     ) -> KiasResult<String> {
         // Get index ID
-        let index_id: (String,) =
-            sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
-                .bind(index_name)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|_| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
+        let index_id: (String,) = sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
+            .bind(index_name)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
 
         let entry_id = uuid::Uuid::new_v4().to_string();
         let embedding_bytes = embedding_to_bytes(embedding);
@@ -184,9 +177,10 @@ impl PersistentVectorStore {
         query: &[f32],
         top_k: usize,
     ) -> KiasResult<Vec<VectorSearchResult>> {
-        let entries = self.indices.get(index_name).ok_or_else(|| {
-            KiasError::NotFound(format!("Vector index '{index_name}' not found"))
-        })?;
+        let entries = self
+            .indices
+            .get(index_name)
+            .ok_or_else(|| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
 
         let mut results: Vec<VectorSearchResult> = entries
             .iter()
@@ -232,15 +226,15 @@ impl PersistentVectorStore {
 
     /// Get the number of vectors in an index.
     pub fn count(&self, index_name: &str) -> usize {
-        self.indices
-            .get(index_name)
-            .map(|e| e.len())
-            .unwrap_or(0)
+        self.indices.get(index_name).map(|e| e.len()).unwrap_or(0)
     }
 
     /// List all index names.
     pub fn list_indices(&self) -> Vec<String> {
-        self.indices.iter().map(|entry| entry.key().clone()).collect()
+        self.indices
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 }
 
@@ -257,9 +251,21 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }
-    let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| (*x as f64) * (*y as f64)).sum();
-    let norm_a: f64 = a.iter().map(|x| (*x as f64) * (*x as f64)).sum::<f64>().sqrt();
-    let norm_b: f64 = b.iter().map(|x| (*x as f64) * (*x as f64)).sum::<f64>().sqrt();
+    let dot: f64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| (*x as f64) * (*y as f64))
+        .sum();
+    let norm_a: f64 = a
+        .iter()
+        .map(|x| (*x as f64) * (*x as f64))
+        .sum::<f64>()
+        .sqrt();
+    let norm_b: f64 = b
+        .iter()
+        .map(|x| (*x as f64) * (*x as f64))
+        .sum::<f64>()
+        .sqrt();
     if norm_a == 0.0 || norm_b == 0.0 {
         0.0
     } else {
@@ -327,7 +333,10 @@ mod tests {
     #[tokio::test]
     async fn test_create_index() {
         let store = setup_store().await;
-        store.create_index("test-idx", 128, "cosine").await.expect("Failed to create index");
+        store
+            .create_index("test-idx", 128, "cosine")
+            .await
+            .expect("Failed to create index");
 
         let indices = store.list_indices();
         assert_eq!(indices.len(), 1);
@@ -337,12 +346,39 @@ mod tests {
     #[tokio::test]
     async fn test_insert_and_search() {
         let store = setup_store().await;
-        store.create_index("test", 3, "cosine").await.expect("Failed to create index");
+        store
+            .create_index("test", 3, "cosine")
+            .await
+            .expect("Failed to create index");
 
         // Insert some vectors
-        store.insert("test", "doc1", &[1.0, 0.0, 0.0], serde_json::json!({"type": "a"})).await.unwrap();
-        store.insert("test", "doc2", &[0.0, 1.0, 0.0], serde_json::json!({"type": "b"})).await.unwrap();
-        store.insert("test", "doc3", &[0.7, 0.7, 0.0], serde_json::json!({"type": "c"})).await.unwrap();
+        store
+            .insert(
+                "test",
+                "doc1",
+                &[1.0, 0.0, 0.0],
+                serde_json::json!({"type": "a"}),
+            )
+            .await
+            .unwrap();
+        store
+            .insert(
+                "test",
+                "doc2",
+                &[0.0, 1.0, 0.0],
+                serde_json::json!({"type": "b"}),
+            )
+            .await
+            .unwrap();
+        store
+            .insert(
+                "test",
+                "doc3",
+                &[0.7, 0.7, 0.0],
+                serde_json::json!({"type": "c"}),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(store.count("test"), 3);
 
@@ -367,8 +403,14 @@ mod tests {
         {
             let store = PersistentVectorStore::new(pool.clone());
             store.create_index("persist", 3, "cosine").await.unwrap();
-            store.insert("persist", "v1", &[1.0, 2.0, 3.0], serde_json::json!({})).await.unwrap();
-            store.insert("persist", "v2", &[4.0, 5.0, 6.0], serde_json::json!({})).await.unwrap();
+            store
+                .insert("persist", "v1", &[1.0, 2.0, 3.0], serde_json::json!({}))
+                .await
+                .unwrap();
+            store
+                .insert("persist", "v2", &[4.0, 5.0, 6.0], serde_json::json!({}))
+                .await
+                .unwrap();
         }
 
         // Reload in a new store instance
@@ -387,8 +429,14 @@ mod tests {
     async fn test_remove() {
         let store = setup_store().await;
         store.create_index("rm-test", 3, "cosine").await.unwrap();
-        store.insert("rm-test", "a", &[1.0, 0.0, 0.0], serde_json::json!({})).await.unwrap();
-        store.insert("rm-test", "b", &[0.0, 1.0, 0.0], serde_json::json!({})).await.unwrap();
+        store
+            .insert("rm-test", "a", &[1.0, 0.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
+        store
+            .insert("rm-test", "b", &[0.0, 1.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
 
         assert_eq!(store.count("rm-test"), 2);
 

@@ -201,10 +201,7 @@ impl RoutingFilter for LatencyFilter {
         providers: &[Box<dyn Provider>],
         request: &ChatRequest,
     ) -> RouterResult<Vec<usize>> {
-        let max_latency = request
-            .routing
-            .as_ref()
-            .and_then(|r| r.max_latency_ms);
+        let max_latency = request.routing.as_ref().and_then(|r| r.max_latency_ms);
 
         let max_latency = match max_latency {
             Some(max) => max,
@@ -249,10 +246,7 @@ impl RoutingFilter for CostFilter {
         _providers: &[Box<dyn Provider>],
         request: &ChatRequest,
     ) -> RouterResult<Vec<usize>> {
-        let max_cost = request
-            .routing
-            .as_ref()
-            .and_then(|r| r.max_cost);
+        let max_cost = request.routing.as_ref().and_then(|r| r.max_cost);
 
         let _max_cost = match max_cost {
             Some(max) => max,

@@ -45,10 +45,7 @@ pub enum EdgeType {
         condition: EdgeCondition,
     },
     /// Router edge: the router function returns the name of the next node.
-    Router {
-        from: String,
-        router: RouterFn,
-    },
+    Router { from: String, router: RouterFn },
     /// Fan-out edge: executes multiple branches in parallel, then merges.
     FanOut {
         from: String,
@@ -188,7 +185,10 @@ impl StateGraphBuilder {
                     }
                 }
                 EdgeType::FanOut {
-                    from, targets, join_node, ..
+                    from,
+                    targets,
+                    join_node,
+                    ..
                 } => {
                     for target in targets {
                         reachability_hints.push((from.clone(), target.clone()));
@@ -276,10 +276,7 @@ impl StateGraph {
     }
 
     /// Execute the graph from the given initial state.
-    pub async fn execute(
-        &self,
-        initial_state: GraphState,
-    ) -> kias_common::KiasResult<GraphState> {
+    pub async fn execute(&self, initial_state: GraphState) -> kias_common::KiasResult<GraphState> {
         let start_time = Instant::now();
         let mut state = initial_state;
         let mut current = self.entry.clone();
@@ -369,10 +366,7 @@ impl StateGraph {
                     current = next_node;
                     step += 1;
                 }
-                Some(NextNode::FanOut {
-                    targets,
-                    join_node,
-                }) => {
+                Some(NextNode::FanOut { targets, join_node }) => {
                     state = self
                         .execute_fan_out(&current, &targets, &join_node, state, &mut step)
                         .await?;
@@ -510,10 +504,7 @@ impl StateGraph {
                     current = next_node;
                     step += 1;
                 }
-                Some(NextNode::FanOut {
-                    targets,
-                    join_node,
-                }) => {
+                Some(NextNode::FanOut { targets, join_node }) => {
                     state = self
                         .execute_fan_out(&current, &targets, &join_node, state, &mut step)
                         .await?;
@@ -558,7 +549,9 @@ impl StateGraph {
         // 1. Conditional edges (evaluated in order, first match wins)
         for edge in &self.edges {
             if let EdgeType::Conditional {
-                from, to, condition,
+                from,
+                to,
+                condition,
             } = edge
             {
                 if from == current && condition(state) {
@@ -609,7 +602,9 @@ impl StateGraph {
     fn is_conditional_edge(&self, from: &str) -> bool {
         self.edges.iter().any(|e| match e {
             EdgeType::Conditional {
-                from: f, condition: _, ..
+                from: f,
+                condition: _,
+                ..
             } => f == from,
             _ => false,
         })
@@ -634,10 +629,7 @@ impl StateGraph {
 
         for target in targets.iter().cloned() {
             let node = self.nodes.get(&target).ok_or_else(|| {
-                kias_common::KiasError::Validation(format!(
-                    "Fan-out target '{}' not found",
-                    target
-                ))
+                kias_common::KiasError::Validation(format!("Fan-out target '{}' not found", target))
             })?;
             let handler = node.handler.clone();
             let branch_state = state.clone();
@@ -653,9 +645,9 @@ impl StateGraph {
         let mut any_error: Option<(String, kias_common::KiasError)> = None;
 
         for handle in handles {
-            let (branch_name, result) = handle.await.map_err(|e| {
-                kias_common::KiasError::Storage(format!("Join error: {}", e))
-            })?;
+            let (branch_name, result) = handle
+                .await
+                .map_err(|e| kias_common::KiasError::Storage(format!("Join error: {}", e)))?;
 
             match result {
                 Ok(branch_state) => {
@@ -686,11 +678,7 @@ impl StateGraph {
         Ok(merged)
     }
 
-    async fn save_checkpoint(
-        &self,
-        node: &str,
-        state: &GraphState,
-    ) -> kias_common::KiasResult<()> {
+    async fn save_checkpoint(&self, node: &str, state: &GraphState) -> kias_common::KiasResult<()> {
         let checkpoint = Checkpoint {
             id: Uuid::new_v4().to_string(),
             run_id: state.metadata.run_id.clone(),

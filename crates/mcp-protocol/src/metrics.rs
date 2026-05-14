@@ -300,9 +300,9 @@ impl MetricsCollector {
                 entry.failures += 1;
             }
             entry.error_rate = entry.failures as f64 / entry.invocations as f64;
-            entry.avg_latency_us =
-                (entry.avg_latency_us * (entry.invocations - 1) as f64 + latency_us as f64)
-                    / entry.invocations as f64;
+            entry.avg_latency_us = (entry.avg_latency_us * (entry.invocations - 1) as f64
+                + latency_us as f64)
+                / entry.invocations as f64;
         }
     }
 
@@ -365,7 +365,10 @@ impl MetricsCollector {
 
         output.push_str("# HELP mcp_requests_active Active requests\n");
         output.push_str("# TYPE mcp_requests_active gauge\n");
-        output.push_str(&format!("mcp_requests_active {}\n", snapshot.requests.active));
+        output.push_str(&format!(
+            "mcp_requests_active {}\n",
+            snapshot.requests.active
+        ));
 
         output.push_str("# HELP mcp_request_rate Requests per second\n");
         output.push_str("# TYPE mcp_request_rate gauge\n");

@@ -110,13 +110,11 @@ impl SqliteCacheStrategy {
 
     /// Count entries in this namespace.
     pub async fn size(&self) -> KiasResult<i64> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM cache_entries WHERE namespace = ?",
-        )
-        .bind(&self.namespace)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to count cache entries: {e}")))?;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM cache_entries WHERE namespace = ?")
+            .bind(&self.namespace)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| KiasError::Config(format!("Failed to count cache entries: {e}")))?;
         Ok(row.0)
     }
 
@@ -157,7 +155,9 @@ impl CacheStrategy for SqliteCacheStrategy {
                             .bind(&self.namespace)
                             .execute(&self.pool)
                             .await
-                            .map_err(|e| KiasError::Config(format!("Failed to delete expired entry: {e}")))?;
+                            .map_err(|e| {
+                                KiasError::Config(format!("Failed to delete expired entry: {e}"))
+                            })?;
                         return Ok(None);
                     }
                 }
@@ -256,7 +256,10 @@ mod tests {
     async fn test_evict() {
         let cache = setup_cache().await;
 
-        cache.set(CacheEntry::new("key1", b"val".to_vec())).await.unwrap();
+        cache
+            .set(CacheEntry::new("key1", b"val".to_vec()))
+            .await
+            .unwrap();
         assert!(cache.get("key1").await.unwrap().is_some());
 
         cache.evict("key1").await.unwrap();
@@ -267,8 +270,14 @@ mod tests {
     async fn test_overwrite() {
         let cache = setup_cache().await;
 
-        cache.set(CacheEntry::new("key1", b"first".to_vec())).await.unwrap();
-        cache.set(CacheEntry::new("key1", b"second".to_vec())).await.unwrap();
+        cache
+            .set(CacheEntry::new("key1", b"first".to_vec()))
+            .await
+            .unwrap();
+        cache
+            .set(CacheEntry::new("key1", b"second".to_vec()))
+            .await
+            .unwrap();
 
         let result = cache.get("key1").await.unwrap().unwrap();
         assert_eq!(result.value, b"second");
@@ -276,16 +285,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_namespace_isolation() {
-        let pool = SqlitePool::connect("sqlite::memory:")
-            .await
-            .unwrap();
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
         MigrationRunner::new(pool.clone()).run_all().await.unwrap();
 
         let cache_a = SqliteCacheStrategy::with_namespace(pool.clone(), "ns-a");
         let cache_b = SqliteCacheStrategy::with_namespace(pool, "ns-b");
 
-        cache_a.set(CacheEntry::new("shared-key", b"from-a".to_vec())).await.unwrap();
-        cache_b.set(CacheEntry::new("shared-key", b"from-b".to_vec())).await.unwrap();
+        cache_a
+            .set(CacheEntry::new("shared-key", b"from-a".to_vec()))
+            .await
+            .unwrap();
+        cache_b
+            .set(CacheEntry::new("shared-key", b"from-b".to_vec()))
+            .await
+            .unwrap();
 
         let val_a = cache_a.get("shared-key").await.unwrap().unwrap();
         let val_b = cache_b.get("shared-key").await.unwrap().unwrap();
@@ -298,8 +311,14 @@ mod tests {
     async fn test_clear() {
         let cache = setup_cache().await;
 
-        cache.set(CacheEntry::new("k1", b"v1".to_vec())).await.unwrap();
-        cache.set(CacheEntry::new("k2", b"v2".to_vec())).await.unwrap();
+        cache
+            .set(CacheEntry::new("k1", b"v1".to_vec()))
+            .await
+            .unwrap();
+        cache
+            .set(CacheEntry::new("k2", b"v2".to_vec()))
+            .await
+            .unwrap();
         assert_eq!(cache.size().await.unwrap(), 2);
 
         cache.clear().await.unwrap();
@@ -309,18 +328,20 @@ mod tests {
     #[tokio::test]
     async fn test_access_count() {
         let cache = setup_cache().await;
-        cache.set(CacheEntry::new("key1", b"val".to_vec())).await.unwrap();
+        cache
+            .set(CacheEntry::new("key1", b"val".to_vec()))
+            .await
+            .unwrap();
 
         cache.get("key1").await.unwrap();
         cache.get("key1").await.unwrap();
         cache.get("key1").await.unwrap();
 
-        let count: (i64,) = sqlx::query_as(
-            "SELECT access_count FROM cache_entries WHERE key = 'key1'"
-        )
-        .fetch_one(&cache.pool)
-        .await
-        .unwrap();
+        let count: (i64,) =
+            sqlx::query_as("SELECT access_count FROM cache_entries WHERE key = 'key1'")
+                .fetch_one(&cache.pool)
+                .await
+                .unwrap();
         assert_eq!(count.0, 3);
     }
 

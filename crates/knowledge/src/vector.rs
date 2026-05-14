@@ -86,7 +86,10 @@ impl LocalEmbeddingEngine {
     /// Create a new local embedding engine
     pub fn new(dimension: usize) -> Self {
         let projection = Self::generate_projection_matrix(dimension);
-        Self { dimension, projection }
+        Self {
+            dimension,
+            projection,
+        }
     }
 
     /// Create with default dimension
@@ -327,8 +330,7 @@ impl VectorStore {
             let selected: Vec<String> =
                 neighbors.iter().take(m).map(|(id, _)| id.clone()).collect();
 
-            self.layers[layer]
-                .insert(node_id.clone(), selected.iter().cloned().collect());
+            self.layers[layer].insert(node_id.clone(), selected.iter().cloned().collect());
             for neighbor_id in &selected {
                 if let Some(neighbor_conns) = self.layers[layer].get_mut(neighbor_id) {
                     neighbor_conns.insert(node_id.clone());
@@ -489,7 +491,9 @@ impl VectorStore {
         }
         // Mix with entry count to avoid pathological cases
         hash ^= self.entries.len() as u64;
-        hash = hash.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        hash = hash
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
 
         // Map to [0, 1)
         let rand_val = ((hash >> 11) as f64) / ((1u64 << 53) as f64);
@@ -606,7 +610,11 @@ impl VectorStore {
 
         scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        let keep: HashSet<String> = scored.into_iter().take(max_conn).map(|(id, _)| id).collect();
+        let keep: HashSet<String> = scored
+            .into_iter()
+            .take(max_conn)
+            .map(|(id, _)| id)
+            .collect();
 
         if let Some(conns) = self.layers[layer].get_mut(node_id) {
             conns.retain(|id| keep.contains(id));
@@ -1060,7 +1068,8 @@ mod tests {
         });
         graph.add_node(KnowledgeNode {
             id: "n4".to_string(),
-            content: "Kubernetes orchestrates containerized applications across clusters".to_string(),
+            content: "Kubernetes orchestrates containerized applications across clusters"
+                .to_string(),
             node_type: NodeType::Document,
             metadata: HashMap::new(),
         });

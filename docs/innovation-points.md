@@ -113,25 +113,30 @@
   - 调度决策最大化缓存利用率
 - **优先级**: 中
 
-### 12. Rig Rust Agent 框架 📋
-- **来源**: Rig (Rust AI 框架)
-- **核心**: 基于 trait 的 LLM Agent 构建
-- **集成点**: KIAS 的核心 Agent 运行时
-- **实现计划**:
-  - 类型安全的工具定义
-  - MCP 客户端集成
-  - 多 Agent 编排
-- **优先级**: 高
+### 13. Chidori Reactive Agent Runtime ⭐1341 🆕
+- **来源**: ThousandBirdsInc/chidori (Rust)
+- **核心**: Durable AI agents with reactive runtime
+- **可借鉴点**:
+  - 持久化 Agent 状态（类似 LangGraph checkpoint）→ KIAS workflow-engine 可借鉴
+  - 事件驱动架构 → KIAS team-engine 可增强
+  - 长期运行 Agent 的容错机制
+- **优先级**: 中
 
-### 13. CrewAI 声明式编排 📋
-- **来源**: CrewAI
-- **核心**: 角色/目标声明式定义
-- **集成点**: KIAS 的简单 Agent 团队层
-- **实现计划**:
-  - 声明式角色/目标定义
-  - CrewAI Flows 确定性工作流
-  - 知识管理集成
+### 14. Arbiter Multi-Agent Framework ⭐740 🆕
+- **来源**: harnesslabs/arbiter
+- **核心**: Multi-agent framework for design, simulation, and auditing
+- **可借鉴点**:
+  - 设计/仿真/审计三位一体 → KIAS 可用于仿真测试环境
+  - 多 Agent 协调审计日志
 - **优先级**: 低
+
+### 15. YoMo Serverless Edge AI ⭐1903 🆕
+- **来源**: yomorun/yomo
+- **核心**: Geo-distributed Edge AI infrastructure
+- **可借鉴点**:
+  - 边缘 AI 调度 → KIAS 节点调度可参考
+  - 地理分布感知调度
+- **优先级**: 中
 
 ## 创新点优先级排序
 
@@ -141,9 +146,10 @@
 | P0 | DeepSeek Prefix Cache | ✅ 已完成 | - |
 | P0 | MiniMax Agent Team | ✅ 已完成 | - |
 | P0 | Claude Code /goal | ✅ 已完成 | - |
-| P1 | Google A2A 协议 | 📋 待实现 | 2 周 |
-| P1 | Anthropic MCP | ✅ 已完成 | - |
-| P1 | Rig 框架集成 | 📋 待实现 | 1 周 |
+| P1 | Google A2A 协议 | ✅ 已完成 | - |
+| P1 | Anthropic MCP (mcp-protocol crate) | ✅ 已完成 | - |
+| P1 | Chidori 持久化 Agent 状态 | 📋 待研究 | 1 周 |
+| P1 | YoMo 边缘 AI 调度 | 📋 待研究 | 2 周 |
 | P2 | Volcano GPU 调度 | 📋 待实现 | 3 周 |
 | P2 | DeepSeek MLA | 📋 待实现 | 2 周 |
 | P3 | CrewAI 声明式编排 | 📋 待实现 | 2 周 |

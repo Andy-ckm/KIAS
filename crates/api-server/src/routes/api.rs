@@ -3,7 +3,7 @@ use axum::Router;
 
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::handlers::{agents, config, health, knowledge, metrics, nodes};
+use crate::handlers::{agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows};
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
 use crate::AppState;
@@ -28,6 +28,12 @@ use crate::AppState;
 ///   /api/v1/config     GET  — get sanitized config
 ///   /api/v1/config     PATCH — update config (Admin only)
 ///   /api/v1/config/audit-log GET — config audit log
+///   /api/v1/tokens     GET  — token usage analytics
+///   /api/v1/workflows  GET  — list workflows
+///   /api/v1/workflows  POST — create workflow
+///   /api/v1/workflows/:id GET — get workflow
+///   /api/v1/workflows/:id DELETE — delete workflow
+///   /api/v1/scheduler/status GET — scheduler status
 pub fn create_router(state: AppState) -> Router {
     // --- Rate limiter ---
     let rate_limiter = RateLimiter::new(RateLimiterConfig {
@@ -96,12 +102,36 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::get(config::config_audit_log),
         );
 
+    // --- Token analytics routes ---
+    let token_routes = Router::new()
+        .route("/api/v1/tokens", axum::routing::get(tokens::token_analytics));
+
+    // --- Workflow routes ---
+    let workflow_routes = Router::new()
+        .route(
+            "/api/v1/workflows",
+            axum::routing::get(workflows::list_workflows).post(workflows::create_workflow),
+        )
+        .route(
+            "/api/v1/workflows/:id",
+            axum::routing::get(workflows::get_workflow).delete(workflows::delete_workflow),
+        );
+
+    // --- Scheduler routes ---
+    let scheduler_routes = Router::new().route(
+        "/api/v1/scheduler/status",
+        axum::routing::get(scheduler::scheduler_status),
+    );
+
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes
         .merge(node_routes)
         .merge(knowledge_routes)
         .merge(metrics_routes)
         .merge(config_routes)
+        .merge(token_routes)
+        .merge(workflow_routes)
+        .merge(scheduler_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(
             rate_limiter,

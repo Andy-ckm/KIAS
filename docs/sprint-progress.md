@@ -1,18 +1,17 @@
 # KIAS Sprint 进度报告
 
-## 最新更新：2026-05-14 08:14 (Sprint 8 — 前端 Dashboard + 可视化)
+## 最新更新：2026-05-14 08:46 (Sprint 8 — 前端 Dashboard + 可视化)
 
 ### 🎯 本次成果
 
-**核心目标**：增强 MCP Server 协议层、实现优先级/亲和性调度、GraphRAG 混合检索、技能流水线组合、事件驱动生命周期管理
+**核心目标**：实现 Token Analytics、Workflow 管理、Scheduler 状态三个完整前后端功能模块
 
 **结果**：
-- ✅ `cargo check` — **0 errors, 0 warnings**
-- ✅ `cargo test` — **822/822 tests pass** (从 645+ 增长到 822，+27%)
-- ✅ 总代码量从 ~25,000 → 32,798 行 (+31%)
-- ✅ MCP Server 增强：Tool/Resource/Prompt 三大注册中心
-- ✅ 高级调度：优先级感知 + 亲和性/反亲和性 + 区域感知
-- ✅ GraphRAG 混合检索引擎（文本 + 图遍历）
+- ✅ `cargo build` — **0 errors, 0 warnings**
+- ✅ `cargo test` — **834/834 tests pass** (从 822 增长到 834，+12)
+- ✅ 新增 3 个 API 端点（tokens, workflows CRUD, scheduler status）
+- ✅ 新增 3 个前端页面（Token Analytics, Workflows, Scheduler）
+- ✅ TypeScript 零类型错误，Vite 构建成功
 
 ### 📊 开发统计
 

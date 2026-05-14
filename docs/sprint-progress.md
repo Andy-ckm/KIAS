@@ -1,5 +1,34 @@
 # KIAS Sprint 进度报告
 
+## 最新更新：2026-05-15 00:42 (Sprint 13 — KIAS CLI Agent Invocation Fix)
+
+### 🎯 本次成果
+
+**核心目标**：修复 CLI agent run/invoke 命令错误地调用 create_agent API
+
+**结果**：
+- ✅ `cargo build` — **0 errors, 0 warnings**
+- ✅ `cargo test` — **49 tests pass** in kias-cli
+- ✅ `cargo clippy --all-targets -- -D warnings` — **0 warnings**
+- ✅ **关键 Bug 修复**：handle_agent_run() 和 handle_agent_invoke() 原本错误调用 `create_agent()`（创建新 Agent），现已修正为调用 `invoke_agent()`（执行已有 Agent）
+- ✅ 新增 `ApiClient::invoke_agent(id, prompt, timeout_secs)` 方法，对应 `POST /api/v1/agents/{id}/invoke`
+- ✅ 修正 `AgentRunResult` 结构体字段以匹配真实 API 响应（`InvokeResponse`）
+- ✅ Agent name → ID 解析（支持通过名称或 ID 调用 Agent）
+- ✅ 完善错误码语义化：404=NotFound, 401=AuthError, timeout=Timeout
+- ✅ 新增 `AgentRunResult` 反序列化测试（验证字段映射正确）
+
+**代码变更**：
+- `kias-cli/src/client.rs`: +22 行（invoke_agent 方法 + 结构体修正）
+- `kias-cli/src/main.rs`: +48/-0 行（run/invoke 路由修正）
+- `kias-cli` 测试: 48/48 通过
+
+**下一步待办**：
+- [ ] agent logs --follow（需要 API Server 端日志流式推送）
+- [ ] agent events --stream（需要 WebSocket 事件订阅）
+- [ ] 沙箱执行集成（sandbox exec）
+
+---
+
 ## 最新更新：2026-05-15 (Sprint 12 — Data Layer Architecture)
 
 ### 🎯 本次成果

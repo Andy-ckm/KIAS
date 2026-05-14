@@ -2,6 +2,7 @@
 
 pub mod algorithms;
 pub mod config;
+pub mod descheduler;
 pub mod edge;
 pub mod engine;
 pub mod optimizer;

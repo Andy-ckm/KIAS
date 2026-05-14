@@ -213,10 +213,10 @@ impl CredentialStore for InMemoryCredentialStore {
                                 return false;
                             }
                         }
-                        if !filter.tags.is_empty() {
-                            if !filter.tags.iter().all(|t| c.tags.contains(t)) {
-                                return false;
-                            }
+                        if !filter.tags.is_empty()
+                            && !filter.tags.iter().all(|t| c.tags.contains(t))
+                        {
+                            return false;
                         }
                         if let Some(ref created_by) = filter.created_by {
                             if c.created_by != *created_by {
@@ -446,6 +446,7 @@ impl CredentialManager {
     }
 
     /// Store a new credential.
+    #[allow(clippy::too_many_arguments)]
     pub async fn store(
         &self,
         name: &str,

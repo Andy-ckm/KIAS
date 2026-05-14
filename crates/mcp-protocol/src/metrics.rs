@@ -557,11 +557,11 @@ mod tests {
         let collector = MetricsCollector::with_defaults();
 
         collector.inc_counter("custom_counter", 42).await;
-        collector.set_gauge("custom_gauge", 3.14).await;
+        collector.set_gauge("custom_gauge", 3.15).await;
 
         let snapshot = collector.snapshot().await;
         assert_eq!(snapshot.counters.get("custom_counter"), Some(&42));
-        assert_eq!(snapshot.gauges.get("custom_gauge"), Some(&3.14));
+        assert_eq!(snapshot.gauges.get("custom_gauge"), Some(&3.15));
     }
 
     #[tokio::test]

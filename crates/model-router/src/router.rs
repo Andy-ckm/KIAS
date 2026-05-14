@@ -106,6 +106,74 @@ impl RequestCache {
 }
 
 // ---------------------------------------------------------------------------
+// Circuit Breaker
+// ---------------------------------------------------------------------------
+
+/// Circuit breaker state per provider.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CircuitState {
+    /// Normal operation — requests flow through.
+    Closed,
+    /// Too many failures — requests are blocked.
+    Open,
+    /// Testing recovery — limited requests allowed.
+    HalfOpen,
+}
+
+/// Per-provider circuit breaker tracker.
+struct CircuitBreaker {
+    state: CircuitState,
+    failure_count: u32,
+    threshold: u32,
+    last_failure: Option<Instant>,
+    recovery_timeout: Duration,
+}
+
+impl CircuitBreaker {
+    fn new(threshold: u32, recovery_secs: u64) -> Self {
+        Self {
+            state: CircuitState::Closed,
+            failure_count: 0,
+            threshold,
+            last_failure: None,
+            recovery_timeout: Duration::from_secs(recovery_secs),
+        }
+    }
+
+    /// Check if the circuit allows a request through.
+    fn allow_request(&mut self) -> bool {
+        match self.state {
+            CircuitState::Closed => true,
+            CircuitState::Open => {
+                if let Some(last) = self.last_failure {
+                    if last.elapsed() >= self.recovery_timeout {
+                        self.state = CircuitState::HalfOpen;
+                        return true;
+                    }
+                }
+                false
+            }
+            CircuitState::HalfOpen => true,
+        }
+    }
+
+    /// Record a successful request.
+    fn record_success(&mut self) {
+        self.failure_count = 0;
+        self.state = CircuitState::Closed;
+    }
+
+    /// Record a failed request.
+    fn record_failure(&mut self) {
+        self.failure_count += 1;
+        self.last_failure = Some(Instant::now());
+        if self.failure_count >= self.threshold {
+            self.state = CircuitState::Open;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Model Router
 // ---------------------------------------------------------------------------
 
@@ -123,6 +191,8 @@ pub struct ModelRouter {
     user_costs: Arc<DashMap<String, f64>>,
     /// Total cost.
     total_cost: Arc<RwLock<f64>>,
+    /// Per-provider circuit breakers.
+    circuit_breakers: DashMap<usize, std::sync::Mutex<CircuitBreaker>>,
 }
 
 impl ModelRouter {
@@ -135,6 +205,7 @@ impl ModelRouter {
             cache: RequestCache::new(),
             user_costs: Arc::new(DashMap::new()),
             total_cost: Arc::new(RwLock::new(0.0)),
+            circuit_breakers: DashMap::new(),
         }
     }
 
@@ -142,14 +213,34 @@ impl ModelRouter {
     pub async fn add_provider(&self, config: ProviderConfig) -> RouterResult<()> {
         let provider = OpenAICompatibleProvider::new(config)?;
         let mut providers = self.providers.write().await;
+        let idx = providers.len();
         providers.push(Box::new(provider));
+        if self.config.circuit_breaker_enabled {
+            self.circuit_breakers.insert(
+                idx,
+                std::sync::Mutex::new(CircuitBreaker::new(
+                    self.config.circuit_breaker_threshold,
+                    self.config.circuit_breaker_recovery_secs,
+                )),
+            );
+        }
         Ok(())
     }
 
     /// Add a custom provider.
     pub async fn add_custom_provider(&self, provider: Box<dyn Provider>) {
         let mut providers = self.providers.write().await;
+        let idx = providers.len();
         providers.push(provider);
+        if self.config.circuit_breaker_enabled {
+            self.circuit_breakers.insert(
+                idx,
+                std::sync::Mutex::new(CircuitBreaker::new(
+                    self.config.circuit_breaker_threshold,
+                    self.config.circuit_breaker_recovery_secs,
+                )),
+            );
+        }
     }
 
     /// Get available providers for a model.
@@ -159,6 +250,17 @@ impl ModelRouter {
 
         for (i, provider) in providers.iter().enumerate() {
             if provider.supports_model(model) {
+                // Check circuit breaker
+                if self.config.circuit_breaker_enabled {
+                    if let Some(cb) = self.circuit_breakers.get(&i) {
+                        if let Ok(mut breaker) = cb.lock() {
+                            if !breaker.allow_request() {
+                                debug!(provider = i, "Circuit breaker open, skipping");
+                                continue;
+                            }
+                        }
+                    }
+                }
                 let health = provider.health().await;
                 if health.healthy {
                     available.push(i);
@@ -377,6 +479,15 @@ impl ModelRouter {
                         );
                     }
 
+                    // Record success in circuit breaker
+                    if self.config.circuit_breaker_enabled {
+                        if let Some(cb) = self.circuit_breakers.get(&provider_idx) {
+                            if let Ok(mut breaker) = cb.lock() {
+                                breaker.record_success();
+                            }
+                        }
+                    }
+
                     return Ok(response);
                 }
                 Err(e) => {
@@ -387,6 +498,14 @@ impl ModelRouter {
                         "Provider failed, retrying"
                     );
                     last_error = Some(e);
+                    // Record failure in circuit breaker
+                    if self.config.circuit_breaker_enabled {
+                        if let Some(cb) = self.circuit_breakers.get(&provider_idx) {
+                            if let Ok(mut breaker) = cb.lock() {
+                                breaker.record_failure();
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -567,5 +686,72 @@ mod tests {
 
         let key = router.cache_key(&request);
         assert!(!key.is_empty());
+    }
+
+    // ── Circuit Breaker Tests ─────────────────────────────────────
+
+    #[test]
+    fn test_circuit_breaker_starts_closed() {
+        let mut cb = CircuitBreaker::new(3, 60);
+        assert_eq!(cb.state, CircuitState::Closed);
+        assert!(cb.allow_request());
+    }
+
+    #[test]
+    fn test_circuit_breaker_opens_after_threshold() {
+        let mut cb = CircuitBreaker::new(3, 60);
+
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Closed);
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Closed);
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+        assert!(!cb.allow_request());
+    }
+
+    #[test]
+    fn test_circuit_breaker_resets_on_success() {
+        let mut cb = CircuitBreaker::new(3, 60);
+
+        cb.record_failure();
+        cb.record_failure();
+        cb.record_success();
+        assert_eq!(cb.state, CircuitState::Closed);
+        assert_eq!(cb.failure_count, 0);
+    }
+
+    #[test]
+    fn test_circuit_breaker_half_open_after_recovery() {
+        let mut cb = CircuitBreaker::new(2, 0); // 0s recovery = immediate
+
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+
+        // With 0s recovery timeout, should transition to HalfOpen
+        assert!(cb.allow_request());
+        assert_eq!(cb.state, CircuitState::HalfOpen);
+    }
+
+    #[test]
+    fn test_circuit_breaker_half_open_allows_request() {
+        let mut cb = CircuitBreaker::new(2, 0);
+
+        cb.record_failure();
+        cb.record_failure();
+        // Force to half-open
+        let _ = cb.allow_request();
+        assert_eq!(cb.state, CircuitState::HalfOpen);
+        // Half-open still allows requests
+        assert!(cb.allow_request());
+    }
+
+    #[test]
+    fn test_router_config_circuit_breaker_defaults() {
+        let config = RouterConfig::default();
+        assert!(config.circuit_breaker_enabled);
+        assert_eq!(config.circuit_breaker_threshold, 5);
+        assert_eq!(config.circuit_breaker_recovery_secs, 60);
     }
 }

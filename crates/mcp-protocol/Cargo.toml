@@ -8,6 +8,11 @@ description = "MCP (Model Context Protocol) client/server framework for KIAS"
 [features]
 default = []
 http = ["dep:axum", "dep:async-stream", "dep:futures"]
+auth = ["dep:base64", "dep:rand"]
+resilience = []
+metrics = []
+credentials = ["dep:aes-gcm", "dep:rand"]
+full = ["http", "auth", "resilience", "metrics", "credentials"]
 
 [dependencies]
 serde = { workspace = true }
@@ -16,6 +21,15 @@ tokio = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+
+# HTTP transport
 axum = { workspace = true, optional = true }
 async-stream = { version = "0.3", optional = true }
 futures = { version = "0.3", optional = true }
+
+# Auth dependencies
+base64 = { version = "0.22", optional = true }
+rand = { version = "0.8", optional = true }
+
+# Credentials dependencies
+aes-gcm = { version = "0.10", optional = true }

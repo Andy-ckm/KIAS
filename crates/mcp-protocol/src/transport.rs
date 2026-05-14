@@ -187,12 +187,10 @@ impl HttpTransport {
     /// or started standalone with `axum::serve`.
     #[cfg(feature = "http")]
     pub fn router(&self) -> axum::Router {
-        use axum::extract::State;
         use axum::http::StatusCode;
         use axum::response::sse::{Event, Sse};
         use axum::response::IntoResponse;
         use axum::routing::{get, post};
-        use futures::stream::Stream;
 
         let state = Arc::new(HttpTransportState {
             pending_requests: self.request_tx.clone(),
@@ -212,7 +210,7 @@ impl HttpTransport {
                                 .into_response();
                         }
                     };
-                    if let Err(_) = rpc_state.pending_requests.send(request).await {
+                    if rpc_state.pending_requests.send(request).await.is_err() {
                         return (
                             StatusCode::INTERNAL_SERVER_ERROR,
                             "Request queue full".to_string(),

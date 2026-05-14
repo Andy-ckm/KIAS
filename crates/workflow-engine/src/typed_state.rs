@@ -579,7 +579,7 @@ mod tests {
         state.register("name", "initial".to_string(), Replace).unwrap();
 
         assert_eq!(*state.get::<u64>("count").unwrap(), 0);
-        assert!(state.get::<String>("messages").unwrap().is_empty());
+        assert!(state.get::<Vec<String>>("messages").unwrap().is_empty());
         assert_eq!(state.get::<String>("name").unwrap(), "initial");
     }
 

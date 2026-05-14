@@ -1,5 +1,31 @@
 # KIAS Sprint 进度报告
 
+## 最新更新：2026-05-15 02:41 (Sprint 13 — Data-Store Borrowck Fix + Clippy Zero Warnings)
+
+### 🎯 本次成果
+
+**核心目标**：修复 data-store 编译错误 + 实现 HNSW/Exact 混合搜索策略 + clippy 全零警告
+
+**结果**：
+- ✅ `cargo build` — **0 errors, 0 warnings**
+- ✅ `cargo test` — **1197/1197 tests pass**
+- ✅ `cargo clippy -- -D warnings` — **0 warnings** (workspace-wide)
+- ✅ **E0597 borrowck 修复**：vector_persist insert() 中 `indices_w.get().clone()` 临时值生命周期问题，改为先克隆再 Arc::new()
+- ✅ **4× `mut` 移除**：create_index, load_from_db, insert, remove 中的 RwLock guard 不需要 `mut`
+- ✅ **`#[allow(dead_code)]` 添加**：HnswIndex::remove 未使用但保留以备将来删除功能
+- ✅ **HNSW/Exact 混合搜索**：小索引（<1000向量）用精确搜索保证准确率，大索引用 HNSW 近似搜索保证 O(log N) 性能
+
+### 📊 开发统计
+
+| 指标 | 之前 | 之后 | 变化 |
+|------|------|------|------|
+| 总测试数 | 1197 | 1197 | 保持 |
+| 编译错误 | 1 | 0 | ✅ |
+| Clippy 警告 | 5 | 0 | ✅ |
+| data-store 测试 | 39 | 40 | +1 |
+
+---
+
 ## 最新更新：2026-05-15 00:42 (Sprint 13 — KIAS CLI Agent Invocation Fix)
 
 ### 🎯 本次成果

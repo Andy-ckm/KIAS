@@ -28,6 +28,9 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid
 # DashMap for in-memory vector persistence
 dashmap.workspace = true
 
+# Knowledge crate for HNSW vector index
+kias-knowledge = { path = "../knowledge" }
+
 [dev-dependencies]
 tempfile = "3"
 tokio = { workspace = true, features = ["test-util"] }

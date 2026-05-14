@@ -1977,6 +1977,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "kias-common",
+ "kias-knowledge",
  "serde",
  "serde_json",
  "sqlx",

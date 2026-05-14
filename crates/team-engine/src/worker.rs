@@ -183,7 +183,7 @@ impl Worker for LlmWorker {
                 let status = resp.status().as_u16();
                 let body = resp.text().await.unwrap_or_default();
 
-                if status >= 200 && status < 300 {
+                if (200..300).contains(&status) {
                     let parsed: serde_json::Result<serde_json::Value> = serde_json::from_str(&body);
                     let content = parsed.ok()
                         .and_then(|v| v["choices"].as_array()?.first()?.get("message")?.get("content")?.as_str().map(|s| s.to_string()));

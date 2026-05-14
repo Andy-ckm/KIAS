@@ -190,7 +190,7 @@ fn extract_date_field(pem_str: &str, field_name: &str) -> Option<String> {
     for line in pem_str.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix(field_name) {
-            let value = rest.trim_start_matches(|c: char| c == ':' || c == ' ');
+            let value = rest.trim_start_matches([':', ' ']);
             return Some(value.trim().to_string());
         }
     }

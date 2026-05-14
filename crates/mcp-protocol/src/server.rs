@@ -175,7 +175,7 @@ where
     F: Fn(Option<Value>) -> Result<ToolResult, String> + Send + Sync,
 {
     async fn execute(&self, params: Option<Value>) -> Result<ToolResult, McpError> {
-        (self.0)(params).map_err(|e| McpError::InvalidRequest(e))
+        (self.0)(params).map_err(McpError::InvalidRequest)
     }
 }
 
@@ -219,15 +219,14 @@ pub trait ResourceHandler: Send + Sync {
 }
 
 /// A static resource handler that returns content from a map.
+#[derive(Default)]
 pub struct StaticResourceHandler {
     contents: HashMap<String, ResourceContent>,
 }
 
 impl StaticResourceHandler {
     pub fn new() -> Self {
-        Self {
-            contents: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add(&mut self, uri: impl Into<String>, content: ResourceContent) {
@@ -284,15 +283,14 @@ pub trait PromptHandler: Send + Sync {
 }
 
 /// A static prompt handler that returns pre-defined prompts.
+#[derive(Default)]
 pub struct StaticPromptHandler {
     prompts: HashMap<String, PromptResult>,
 }
 
 impl StaticPromptHandler {
     pub fn new() -> Self {
-        Self {
-            prompts: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add(&mut self, name: impl Into<String>, result: PromptResult) {
@@ -327,7 +325,7 @@ pub struct LoggingCapability {
 // ---------------------------------------------------------------------------
 
 /// Extended server capabilities with logging support.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EnhancedServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<ToolsCapability>,
@@ -339,16 +337,7 @@ pub struct EnhancedServerCapabilities {
     pub logging: Option<LoggingCapability>,
 }
 
-impl Default for EnhancedServerCapabilities {
-    fn default() -> Self {
-        Self {
-            tools: None,
-            resources: None,
-            prompts: None,
-            logging: None,
-        }
-    }
-}
+
 
 impl EnhancedServerCapabilities {
     pub fn new() -> Self {

@@ -65,6 +65,7 @@ impl PerformanceAnalyzer {
     }
 
     /// Build a performance profile from task data
+    #[allow(clippy::too_many_arguments)]
     pub fn analyze(
         &self,
         agent_id: &str,

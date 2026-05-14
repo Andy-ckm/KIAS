@@ -9,6 +9,7 @@ use kias_common::KiasResult;
 
 /// Schema validation for skill inputs/outputs.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SchemaValidation {
     /// Required keys that must be present.
     pub required_keys: Vec<String>,
@@ -18,10 +19,7 @@ pub struct SchemaValidation {
 
 impl SchemaValidation {
     pub fn new() -> Self {
-        Self {
-            required_keys: Vec::new(),
-            key_types: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn with_required_keys(mut self, keys: Vec<String>) -> Self {

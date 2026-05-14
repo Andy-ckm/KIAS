@@ -218,6 +218,7 @@ mod tests {
             nodes: Arc::new(RwLock::new(HashMap::new())),
             workflows: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            event_bus: crate::websocket::EventBus::default(),
         };
 
         let result = scheduler_status(State(state)).await;

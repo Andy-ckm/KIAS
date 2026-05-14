@@ -8,18 +8,14 @@ use crate::AppState;
 /// Workflow status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
+#[derive(Default)]
 pub enum WorkflowStatus {
+    #[default]
     Draft,
     Running,
     Completed,
     Failed,
     Cancelled,
-}
-
-impl Default for WorkflowStatus {
-    fn default() -> Self {
-        Self::Draft
-    }
 }
 
 /// A node in the workflow DAG

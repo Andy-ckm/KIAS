@@ -107,7 +107,7 @@ impl AffinityScheduler {
         rules
             .iter()
             .filter(|r| r.affinity_type == AffinityType::Required)
-            .all(|r| node.labels.get(&r.label).map_or(false, |v| v == &r.value))
+            .all(|r| node.labels.get(&r.label) == Some(&r.value))
     }
 
     /// Score a node for Preferred rules (higher = better).
@@ -116,7 +116,7 @@ impl AffinityScheduler {
             .iter()
             .filter(|r| r.affinity_type == AffinityType::Preferred)
             .map(|r| {
-                if node.labels.get(&r.label).map_or(false, |v| v == &r.value) {
+                if node.labels.get(&r.label) == Some(&r.value) {
                     r.weight
                 } else {
                     0.0
@@ -136,7 +136,7 @@ impl AffinityScheduler {
         if let Some(ref anti) = agent.anti_affinity {
             // Avoid nodes with specific labels
             for (key, value) in &anti.avoid_labels {
-                if node.labels.get(key).map_or(false, |v| v == value) {
+                if node.labels.get(key) == Some(value) {
                     return false;
                 }
             }

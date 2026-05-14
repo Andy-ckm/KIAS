@@ -298,7 +298,7 @@ impl A2ARouter {
     fn route_chain(&self, agents: &HashMap<String, AgentRegistration>, task: &A2ATask) -> Vec<String> {
         // Return chain agents in order, filtering out unavailable ones
         task.chain_agents.iter()
-            .filter(|id| agents.get(*id).map_or(false, |a| a.is_available()))
+            .filter(|id| agents.get(*id).is_some_and(|a| a.is_available()))
             .cloned()
             .collect()
     }

@@ -110,11 +110,13 @@ impl Default for GoalCancelToken {
 /// 2. 定义验证标准（GoalCondition）
 /// 3. 定义约束（Constraint）
 /// 4. 运行训练循环（GoalLoopRunner）
+type CheckpointCallback = Box<dyn Fn(&GoalCheckpoint) + Send + Sync>;
+
 pub struct GoalLoopRunner {
     evaluator: Box<dyn GoalEvaluator>,
     executor: Box<dyn RoundExecutor>,
     cancel_token: Option<GoalCancelToken>,
-    checkpoint_callback: Option<Box<dyn Fn(&GoalCheckpoint) + Send + Sync>>,
+    checkpoint_callback: Option<CheckpointCallback>,
 }
 
 impl GoalLoopRunner {

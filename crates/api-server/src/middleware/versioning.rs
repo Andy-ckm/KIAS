@@ -7,7 +7,9 @@ use axum::http::StatusCode;
 
 /// Supported API versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum ApiVersion {
+    #[default]
     V1,
     V2,
 }
@@ -19,12 +21,6 @@ impl ApiVersion {
             ApiVersion::V1 => 1,
             ApiVersion::V2 => 2,
         }
-    }
-}
-
-impl Default for ApiVersion {
-    fn default() -> Self {
-        ApiVersion::V1
     }
 }
 
@@ -100,9 +96,9 @@ fn parse_accept_version(accept: &str) -> Option<ApiVersion> {
     // Look for "application/vnd.kias.vN+json" anywhere in the Accept value
     // (may contain multiple comma-separated types).
     for media_type in accept.split(',').map(str::trim) {
-        if media_type.starts_with("application/vnd.kias.v") {
+        if let Some(rest) = media_type.strip_prefix("application/vnd.kias.v") {
             // Extract "N" from "application/vnd.kias.vN+json"
-            let rest = &media_type["application/vnd.kias.v".len()..];
+
             let num_str: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
             if let Ok(v) = num_str.parse::<u32>() {
                 return match v {

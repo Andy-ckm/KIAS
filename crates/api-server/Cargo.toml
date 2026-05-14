@@ -33,6 +33,9 @@ rustls.workspace = true
 tokio-rustls.workspace = true
 rustls-pemfile.workspace = true
 
+# WebSocket
+futures.workspace = true
+
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }
 axum-test = "16"

@@ -149,5 +149,6 @@
 - ✅ Dashboard 概览页（集群状态、任务统计）
 - ✅ Agents 管理页（列表、创建、删除）
 - ✅ Nodes 页面 + Cluster 页面
+- ✅ WebSocket 实时推送（EventBus + 9 种事件类型 + 客户端订阅过滤）
 
-下一步：Token Analytics 图表页 + WebSocket 实时推送 + TLS 1.3 + 压力测试
+下一步：Agent 协作协议（CrewAI delegation）+ 调度算法优化 + 压力测试

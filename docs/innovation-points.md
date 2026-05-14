@@ -50,13 +50,23 @@
 
 ## 2026-05 研究发现的新创新点
 
-### microsandbox (superradcompany/microsandbox) ⭐6081 安全的本地沙箱
+### microsandbox (superradcompany/microsandbox) ⭐6083 安全的本地沙箱
 - **架构特点**: 安全的本地和可编程沙箱，支持 AI agents，支持 Docker
 - **可借鉴点**:
   - KIAS 的 sandbox 模块（mcp-protocol/sandbox.rs）已有基础，但 microsandbox 的"安全本地沙箱"模式更成熟
   - 隔离执行环境 → KIAS sandbox 可增强资源限制和网络隔离
   - Docker 容器化 → KIAS 可支持容器级别的 sandbox 部署
 - **差距**: KIAS sandbox 是进程级，microsandbox 是容器级，隔离性更强
+- **集成状态**: ✅ 已在 Sprint 14 sandbox 模块中参考
+
+### Plano (katanemo/plano) ⭐6478 AI-Native Proxy & Data Plane 🆕
+- **架构特点**: AI-native proxy and data plane for agentic apps, built-in orchestration
+- **可借鉴点**:
+  - **统一数据平面**: 所有 Agent 流量通过 proxy 统一管理 → KIAS 可增加 API gateway 层
+  - **内置编排**: 支持 agent 流量治理（rate limit, auth, observability）→ KIAS api-server 可对标
+  - **多租户支持**: 企业级隔离
+- **KIAS 差距**: KIAS 目前没有统一的 proxy/gateway 层，api-server 直接处理请求
+- **集成优先级**: P1（gateway 层增强）
 
 ### agentos (iii-experimental/agentos) ⭐140 Agent OS
 - **架构特点**: The agent OS that evolves itself，内置 MCP 支持
@@ -170,6 +180,43 @@
   - 纯 Rust 实现 → KIAS workflow-engine 可对标性能
   - Agentic pipeline 特定优化
 - **优先级**: 低
+
+### 18. OpenAgentsControl Plan-First Framework ⭐4012 🆕
+- **来源**: darrenhinde/OpenAgentsControl (TypeScript)
+- **核心**: AI agent framework with plan-first development workflows and approval-based execution
+- **可借鉴点**:
+  - **Plan-first 模式**: Agent 执行前先生成计划，用户审批后再执行 → KIAS 可在 autonomy-controller 中增加 plan-approve 模式
+  - **多语言支持**: TypeScript/Python/Go/Rust → KIAS 可扩展多语言 SDK
+  - **代码验证内置**: 自动测试、代码审查、验证 → KIAS team-engine 可集成验证阶段
+- **差距**: KIAS 是纯 Rust，缺少 plan-approve 工作流
+- **优先级**: 中（plan-approve 模式可补充 KIAS autonomy-controller）
+
+### 19. anda Rust AGI Framework ⭐426 🆕
+- **来源**: ldclabs/anda (Rust)
+- **核心**: 🤖 An AI agent framework built with Rust for AGI
+- **可借鉴点**:
+  - 去中心化 Agent → KIAS 可研究分布式 Agent 协调
+  - AGI 级别的自主性 → KIAS goal-engine 可对标
+- **优先级**: 低（KIAS 架构类似）
+
+### 20. swarms-rs Enterprise Multi-Agent ⭐157 🆕
+- **来源**: The-Swarm-Corporation/swarms-rs (Rust)
+- **核心**: Enterprise-Grade Production-Ready Multi-Agent Orchestration Framework
+- **可借鉴点**:
+  - **企业级就绪**: 金融级稳定性、async 设计 → KIAS 可学习其并发模型
+  - **Agora 协议**: Agent 间通信协议 → KIAS A2A 协议可对标
+- **差距**: KIAS 已有类似架构，但 swarms-rs 的金融场景设计值得借鉴
+- **优先级**: 中（金融级稳定性设计）
+
+### 21. adk-rust Google ADK Rust Port ⭐325 🆕
+- **来源**: zavora-ai/adk-rust (Rust)
+- **核心**: Google ADK port — modular components for models, tools, memory, realtime voice
+- **可借鉴点**:
+  - **Realtime voice**: 实时语音 Agent → KIAS 目前只有文本，可扩展语音
+  - **Model-agnostic**: 统一抽象多模型 → KIAS model-router 可对标
+  - **Artifact system**: Code/artifacts 生成 → KIAS 可增加 artifact 存储
+- **差距**: KIAS 缺实时语音和 artifact 生成
+- **优先级**: 低（短期不涉及语音）
 
 ## 创新点优先级排序
 

@@ -24,7 +24,7 @@
 
 ---
 
-## Sprint 12：Data Layer Architecture ✅ 已完成
+## Sprint 14：Data Layer Architecture + LangGraph Engine ✅ 已完成
 
 ### 目标
 数据层架构：SQLite Repository + HNSW vector storage + Cache + Experience Replay + PrefixCache
@@ -47,7 +47,7 @@
 | 2.12 | data-store Experience Replay | 2h | ✅ 已完成 (batch insert + episode 追踪 + 随机采样) |
 | 2.13 | data-store PrefixCache | 2h | ✅ 已完成 (DeepSeek 风格 KV 缓存 + hit tracking + LRU) |
 
-### 验收标准（Sprint 12）
+### 验收标准（Sprint 14）
 - [x] SQLite Repository trait + SqliteRepository 实现
 - [x] 8 个数据模型（Agent, Task, Workflow, Config, Skill, Component, ExperienceReplay, PrefixCache）
 - [x] HNSW vector search (kias-knowledge VectorStore 实现, O(log N) ANN)
@@ -56,7 +56,7 @@
 - [x] Experience Replay: batch insert + episode 追踪
 - [x] Prefix Cache: DeepSeek 风格 token-level KV cache
 - [x] 迁移系统：4 个迁移 (core, vector, cache, experience_replay)
-- [x] 测试覆盖：1197 tests (从 1047 → 1197, +14%)
+- [x] 测试覆盖：1198 tests (从 1047 → 1198, +14%)
 
 ### 验收标准（Sprint 2）
 - [ ] API 响应 < 200ms (P95)
@@ -94,8 +94,8 @@
 | 3.5 | 审计日志 | 2h | ✅ 已完成 (Sprint 6) |
 | 3.6 | Prometheus + Grafana 集成 | 4h | 🔶 部分完成 (Sprint 5: 指标端点 + 告警引擎已实现) |
 | 3.7 | 压力测试 + 性能基准 | 3h | ✅ 已完成 (Sprint 10: Criterion benchmarks + concurrent stress) |
-| 3.8 | DeepSeek MLA Cache 优化 | 6h | ⏳ 待开始 |
-| 3.9 | LangGraph 状态图编排 | 4h | ⏳ 待开始 |
+| 3.8 | DeepSeek MLA Cache 优化 | 6h | ✅ 已完成 (refs: references/deepseek-mla-cache-pattern.md) |
+| 3.9 | LangGraph 状态图编排 | 4h | ✅ 已完成 (crates/langgraph-engine, 状态图引擎 + 创新功能) |
 
 ### 验收标准（Sprint 3）
 - [ ] API QPS > 10,000
@@ -121,8 +121,8 @@
 | A2A 协议 | Google | 跨系统互操作 | ✅ 已完成 (HTTP API + SSE + routing) |
 | MCP 协议 | Anthropic | LLM 工具集成 | ✅ 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests) |
 | Rig 框架 | Rust 社区 | 原生 AI 能力 | 📋 设计中 |
-| DeepSeek MLA | DeepSeek | 显存优化 90% | 📋 设计中 |
-| Volcano GPU 调度 | K8S | GPU 利用率 +50% | 📋 设计中 |
+| DeepSeek MLA | DeepSeek | 显存优化 90% | ✅ 已完成 (refs: references/deepseek-mla-cache-pattern.md) |
+| LangGraph 状态图 | LangChain | 复杂任务编排 | ✅ 已完成 (crates/langgraph-engine) |
 
 ---
 
@@ -152,9 +152,9 @@
 
 ## 当前任务
 
-**Sprint 12 — Data Layer Architecture**
+**Sprint 14 — Data Layer Architecture + LangGraph State Graph Engine + Innovations**
 
-当前状态：1047 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
+当前状态：1198 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
 
 已完成：
 - ✅ kias-data-store crate 完整实现（L1 架构层）
@@ -168,6 +168,8 @@
 - ✅ 健康检查 + 连接池统计
 - ✅ 集成到 KiasServiceManager（kias-main）
 - ✅ 设计文档：docs/design-docs/data-layer-architecture.md
-- ✅ 1047 tests passing, 0 clippy warnings, lint-arch OK
+- ✅ LangGraph 状态图引擎 (crates/langgraph-engine)
+- ✅ DeepSeek MLA Cache 优化 (references/deepseek-mla-cache-pattern.md)
+- ✅ 1198 tests passing, 0 clippy warnings, lint-arch OK
 
-下一步：LangGraph 状态图引擎 / DeepSeek MLA Cache 优化 / Agent 详情页
+下一步：前端 Agent 详情页 / Volcano GPU 调度 / 其他创新功能

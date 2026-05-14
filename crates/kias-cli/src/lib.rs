@@ -2,6 +2,7 @@
 //! 超越阿里云 AgentRun CLI
 
 pub mod agent;
+pub mod client;
 pub mod config;
 pub mod output;
 pub mod sandbox;
@@ -37,6 +38,14 @@ pub struct Cli {
     /// 配置文件路径
     #[arg(long, global = true)]
     pub config: Option<String>,
+
+    /// KIAS API Server 地址
+    #[arg(long, global = true, env = "KIAS_SERVER")]
+    pub server: Option<String>,
+
+    /// API Key
+    #[arg(long, global = true, env = "KIAS_API_KEY")]
+    pub api_key: Option<String>,
 
     /// 详细输出
     #[arg(short, long, global = true)]

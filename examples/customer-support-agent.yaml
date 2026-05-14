@@ -1,0 +1,46 @@
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: customer-support
+  namespace: production
+  labels:
+    team: support
+    tier: critical
+spec:
+  prompt: |
+    你是客服助手，负责处理用户工单。
+    分析工单内容，给出分类和建议。
+  model:
+    name: qwen-max
+    service: svc-qwen-prod
+    temperature: 0.7
+    max_tokens: 4096
+  tools:
+    - mcp-ticket-system
+    - mcp-knowledge-base
+  skills:
+    - skill-ticket-policy
+    - skill-escalation
+  sandboxes:
+    - sb-python-analysis
+  resources:
+    memory: 512Mi
+    cpu: 0.5
+  permissions:
+    read:
+      - tickets/*
+      - knowledge/*
+    write:
+      - tickets/status
+    deny:
+      - tickets/delete
+  cost:
+    max_tokens_per_run: 10000
+    max_cost_per_day: 100.00
+  audit:
+    log_level: detailed
+    retention: 90d
+  retry:
+    max_retries: 3
+    backoff_ms: 1000
+  timeout: 300

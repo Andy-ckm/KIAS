@@ -19,6 +19,7 @@ use crate::AppState;
 ///   /api/v1/agents     POST — create agent
 ///   /api/v1/agents/:id GET  — get agent
 ///   /api/v1/agents/:id DELETE — delete agent
+///   /api/v1/agents/:id/invoke POST — invoke agent with prompt (CI-friendly)
 ///   /api/v1/agents/:id/status PATCH — update agent status
 ///   /api/v1/nodes      GET  — list nodes
 ///   /api/v1/nodes/:id  GET  — get node
@@ -64,12 +65,16 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::get(agents::list_agents).post(agents::create_agent),
         )
         .route(
-            "/api/v1/agents/:id",
-            axum::routing::get(agents::get_agent).delete(agents::delete_agent),
+            "/api/v1/agents/:id/invoke",
+            axum::routing::post(agents::invoke_agent),
         )
         .route(
             "/api/v1/agents/:id/status",
             axum::routing::patch(agents::update_agent_status),
+        )
+        .route(
+            "/api/v1/agents/:id",
+            axum::routing::get(agents::get_agent).delete(agents::delete_agent),
         );
 
     // --- Node routes ---

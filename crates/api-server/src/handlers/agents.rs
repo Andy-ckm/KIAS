@@ -5,12 +5,32 @@ use std::time::Instant;
 use uuid::Uuid;
 use validator::Validate;
 
-use kias_executor::{Task, TaskRuntime, ShellExecutor, TaskStatus as ExecutorTaskStatus};
+use kias_executor::{ShellExecutor, Task, TaskRuntime, TaskStatus as ExecutorTaskStatus};
 
 use crate::error::ApiError;
 use crate::models::agent::{Agent, AgentSpec, AgentStatus, AgentSummary};
 use crate::models::request::{ActionResponse, ApiResponse, ListResponse, PaginationParams};
 use crate::AppState;
+
+/// Request body for agent invocation
+#[derive(Debug, serde::Deserialize)]
+pub struct InvokeRequest {
+    /// The prompt to send to the agent
+    pub prompt: String,
+    /// Optional timeout override in seconds (default: 300)
+    pub timeout_secs: Option<u64>,
+}
+
+/// Response body for agent invocation
+#[derive(Debug, serde::Serialize)]
+pub struct InvokeResponse {
+    pub run_id: String,
+    pub agent_id: String,
+    pub output: String,
+    pub tokens_used: Option<u64>,
+    pub cost: Option<f64>,
+    pub duration_ms: u64,
+}
 
 /// POST /api/v1/agents
 /// Create a new agent
@@ -158,4 +178,137 @@ pub async fn update_agent_status(
     state.event_replay_buffer.push(event).await;
 
     Ok(Json(ApiResponse { data: agent_clone }))
+}
+
+/// POST /api/v1/agents/:id/invoke
+/// Invoke an agent with a prompt (CI-friendly, non-interactive execution).
+///
+/// Returns the agent's output along with metadata about the run.
+pub async fn invoke_agent(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<InvokeRequest>,
+) -> Result<Json<ApiResponse<InvokeResponse>>, ApiError> {
+    // Verify agent exists
+    let agent = {
+        let agents = state.agents.read().await;
+        agents
+            .get(&id)
+            .ok_or_else(|| ApiError::not_found(format!("Agent '{id}' not found")))?
+            .clone()
+    };
+
+    let run_id = Uuid::new_v4().to_string();
+    let timeout = req.timeout_secs.unwrap_or(300);
+    let timeout_dur = std::time::Duration::from_secs(timeout);
+    let start = Instant::now();
+
+    tracing::info!(
+        agent_id = %id,
+        run_id = %run_id,
+        prompt_len = req.prompt.len(),
+        timeout = timeout,
+        "Invoking agent"
+    );
+
+    // Build and execute task using the shell executor (CI mode: runs agent command)
+    let task = Task {
+        id: run_id.clone(),
+        name: format!("invoke-{}", agent.spec.name),
+        agent_id: id.clone(),
+        payload: serde_json::json!({
+            "prompt": req.prompt,
+            "image": agent.spec.image,
+            "command": agent.spec.command,
+        }),
+        created_at: Utc::now(),
+        timeout: Some(timeout_dur),
+    };
+
+    let shell_executor = ShellExecutor::new(timeout_dur);
+    let runtime = TaskRuntime::new(Box::new(shell_executor));
+    let result = runtime.run_task(&task).await;
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    let output = match result {
+        Ok(task_result) => {
+            let status = if task_result.status == ExecutorTaskStatus::Completed {
+                "success"
+            } else {
+                "failed"
+            };
+
+            let output_text = task_result
+                .output
+                .and_then(|v| v.get("stdout").and_then(|s| s.as_str().map(|ss| ss.to_string())))
+                .unwrap_or_default();
+
+            let error_text = task_result.error.unwrap_or_default();
+
+            let final_output = if task_result.status == ExecutorTaskStatus::Failed && !error_text.is_empty() {
+                format!("{}: {}", status, error_text)
+            } else {
+                output_text
+            };
+
+            tracing::info!(
+                run_id = %run_id,
+                status = %status,
+                duration_ms = duration_ms,
+                "Agent invocation complete"
+            );
+
+            InvokeResponse {
+                run_id,
+                agent_id: id,
+                output: final_output,
+                tokens_used: None,
+                cost: None,
+                duration_ms,
+            }
+        }
+        Err(e) => {
+            tracing::error!(run_id = %run_id, error = %e, "Agent invocation failed");
+            return Err(ApiError::internal(format!("Execution error: {e}")));
+        }
+    };
+
+    Ok(Json(ApiResponse { data: output }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_invoke_request_deserialize() {
+        let json = r#"{"prompt": "Hello world", "timeout_secs": 60}"#;
+        let req: InvokeRequest = serde_json::from_str(json).expect("should parse");
+        assert_eq!(req.prompt, "Hello world");
+        assert_eq!(req.timeout_secs, Some(60));
+    }
+
+    #[test]
+    fn test_invoke_request_deserialize_without_timeout() {
+        let json = r#"{"prompt": "Hello world"}"#;
+        let req: InvokeRequest = serde_json::from_str(json).expect("should parse");
+        assert_eq!(req.prompt, "Hello world");
+        assert!(req.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn test_invoke_response_serialize() {
+        let resp = InvokeResponse {
+            run_id: "run-1".to_string(),
+            agent_id: "agent-1".to_string(),
+            output: "Hello!".to_string(),
+            tokens_used: Some(150),
+            cost: Some(0.003),
+            duration_ms: 1200,
+        };
+        let json = serde_json::to_string(&resp).expect("should serialize");
+        assert!(json.contains("run-1"));
+        assert!(json.contains("Hello!"));
+    }
 }

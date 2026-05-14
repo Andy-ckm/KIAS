@@ -1,6 +1,6 @@
+use super::state::Task;
 use async_trait::async_trait;
 use kias_common::KiasResult;
-use super::state::Task;
 
 /// Worker - 执行面（借鉴 MiniMax 设计）
 ///
@@ -45,7 +45,8 @@ impl Worker for CodeWorker {
         tracing::info!(worker = %self.name, task_id = %task.id, "Executing code task");
 
         // Extract command from task context
-        let command = task.context
+        let command = task
+            .context
             .get("command")
             .and_then(|v| v.as_str())
             .unwrap_or("echo 'no command specified'");
@@ -71,7 +72,10 @@ impl Worker for CodeWorker {
                 if exit_code == 0 {
                     Ok(format!("{}\n{}", stdout, stderr).trim().to_string())
                 } else {
-                    Ok(format!("EXIT_CODE={}\nSTDOUT:\n{}\nSTDERR:\n{}", exit_code, stdout, stderr))
+                    Ok(format!(
+                        "EXIT_CODE={}\nSTDOUT:\n{}\nSTDERR:\n{}",
+                        exit_code, stdout, stderr
+                    ))
                 }
             }
             Err(e) => Ok(format!("EXECUTION_ERROR: {}", e)),
@@ -109,7 +113,8 @@ impl Worker for ResearchWorker {
         tracing::info!(worker = %self.name, task_id = %task.id, "Executing research task");
 
         // Extract query from task context
-        let query = task.context
+        let query = task
+            .context
             .get("query")
             .and_then(|v| v.as_str())
             .unwrap_or(&task.description);
@@ -160,7 +165,8 @@ impl Worker for LlmWorker {
     async fn execute(&self, task: &Task) -> KiasResult<String> {
         tracing::info!(worker = %self.name, task_id = %task.id, model = %self.model, "Executing LLM task");
 
-        let prompt = task.context
+        let prompt = task
+            .context
             .get("prompt")
             .and_then(|v| v.as_str())
             .unwrap_or(&task.description);
@@ -171,7 +177,8 @@ impl Worker for LlmWorker {
             "max_tokens": 2048,
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&self.api_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&request_body)
@@ -185,12 +192,23 @@ impl Worker for LlmWorker {
 
                 if (200..300).contains(&status) {
                     let parsed: serde_json::Result<serde_json::Value> = serde_json::from_str(&body);
-                    let content = parsed.ok()
-                        .and_then(|v| v["choices"].as_array()?.first()?.get("message")?.get("content")?.as_str().map(|s| s.to_string()));
+                    let content = parsed.ok().and_then(|v| {
+                        v["choices"]
+                            .as_array()?
+                            .first()?
+                            .get("message")?
+                            .get("content")?
+                            .as_str()
+                            .map(|s| s.to_string())
+                    });
 
                     Ok(content.unwrap_or(body))
                 } else {
-                    Ok(format!("LLM_ERROR (status {}): {}", status, &body[..body.len().min(200)]))
+                    Ok(format!(
+                        "LLM_ERROR (status {}): {}",
+                        status,
+                        &body[..body.len().min(200)]
+                    ))
                 }
             }
             Err(e) => Ok(format!("LLM_REQUEST_FAILED: {}", e)),

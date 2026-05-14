@@ -1,9 +1,9 @@
+use super::state::TeamState;
 use async_trait::async_trait;
 use kias_common::KiasResult;
-use super::state::TeamState;
 
 /// Owner - 控制面（借鉴 MiniMax 设计）
-/// 
+///
 /// 职责：
 /// 1. 理解用户目标
 /// 2. 拆分子任务
@@ -15,16 +15,16 @@ use super::state::TeamState;
 pub trait Owner: Send + Sync {
     /// 理解用户目标
     async fn understand_goal(&self, input: &str) -> KiasResult<String>;
-    
+
     /// 拆分子任务
     async fn decompose_tasks(&self, goal: &str) -> KiasResult<Vec<String>>;
-    
+
     /// 决定执行顺序
     async fn determine_order(&self, tasks: &[String]) -> KiasResult<Vec<usize>>;
-    
+
     /// 合并结果
     async fn merge_results(&self, results: &[String]) -> KiasResult<String>;
-    
+
     /// 控制停止条件
     fn should_stop(&self, state: &TeamState) -> bool;
 }
@@ -67,8 +67,9 @@ impl Owner for DefaultOwner {
 
     fn should_stop(&self, state: &TeamState) -> bool {
         // 所有任务都验证通过
-        state.tasks.iter().all(|t| {
-            t.status == super::state::TaskStatus::Verified
-        })
+        state
+            .tasks
+            .iter()
+            .all(|t| t.status == super::state::TaskStatus::Verified)
     }
 }

@@ -155,17 +155,15 @@ impl SwarmOrchestrator {
         }
 
         let agent_results = match task.strategy {
-            SwarmStrategy::FanOut => {
-                self.execute_fan_out(&task, &capable_agents, executor).await
-            }
+            SwarmStrategy::FanOut => self.execute_fan_out(&task, &capable_agents, executor).await,
             SwarmStrategy::Pipeline => {
-                self.execute_pipeline(&task, &capable_agents, executor).await
+                self.execute_pipeline(&task, &capable_agents, executor)
+                    .await
             }
-            SwarmStrategy::Race => {
-                self.execute_race(&task, &capable_agents, executor).await
-            }
+            SwarmStrategy::Race => self.execute_race(&task, &capable_agents, executor).await,
             SwarmStrategy::MapReduce => {
-                self.execute_map_reduce(&task, &capable_agents, executor).await
+                self.execute_map_reduce(&task, &capable_agents, executor)
+                    .await
             }
         };
 
@@ -293,7 +291,9 @@ impl SwarmOrchestrator {
         let mut handles = Vec::new();
 
         for agent in agents {
-            let handle = executor.execute_on_agent(&agent.agent_id, task.payload.clone(), task.timeout_ms).await;
+            let handle = executor
+                .execute_on_agent(&agent.agent_id, task.payload.clone(), task.timeout_ms)
+                .await;
             handles.push(handle);
         }
 
@@ -334,7 +334,9 @@ impl SwarmOrchestrator {
                 items[i * chunk_size..std::cmp::min((i + 1) * chunk_size, items.len())].to_vec();
 
             let payload = serde_json::json!({"items": chunk});
-            let handle = executor.execute_on_agent(&agent.agent_id, payload, task.timeout_ms).await;
+            let handle = executor
+                .execute_on_agent(&agent.agent_id, payload, task.timeout_ms)
+                .await;
             handles.push(handle);
         }
 

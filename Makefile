@@ -18,7 +18,7 @@ RESET  := \033[0m
 # ==============================================================================
 # Phony targets
 # ==============================================================================
-.PHONY: all build release test test-verbose check clippy fmt fmt-check lint clean doc
+.PHONY: all build release test test-verbose check clippy fmt fmt-check lint lint-arch clean doc
 .PHONY: run-api run-monitor test-api test-scheduler test-controller
 .PHONY: count help
 
@@ -92,6 +92,22 @@ fmt-check:
 ## Run fmt-check + clippy
 lint: fmt-check clippy
 	@printf "$(GREEN)$(BOLD)✔ Lint passed$(RESET)\n"
+
+## Check architecture layer dependencies (L0←L1←L2←L3)
+lint-arch:
+	@printf "$(YELLOW)$(BOLD)▶ Checking architecture layers...$(RESET)\n"
+	@# L0: common - should not depend on any other crate
+	@# L1: models/cache/knowledge - depend only on common
+	@# L2: services (scheduler/controller/etc) - depend on L0+L1
+	@# L3: handlers/api-server - depend on L0+L1+L2
+	@echo "Checking L0 (common) has no internal deps..."
+	@! grep -r 'use kias_' crates/common/src/ 2>/dev/null || (echo "ERROR: common depends on other crates!" && exit 1)
+	@echo "Checking L1 crates only depend on common..."
+	@for crate in cache knowledge skills; do \
+		grep -r 'use kias_' crates/$$crate/src/ 2>/dev/null | grep -v 'kias_common' | grep -v 'kias_'$$crate && \
+		(echo "ERROR: $$crate has wrong dependency!" && exit 1) || true; \
+	done
+	@printf "$(GREEN)$(BOLD)✔ Architecture layers OK$(RESET)\n"
 
 # ==============================================================================
 # Run targets

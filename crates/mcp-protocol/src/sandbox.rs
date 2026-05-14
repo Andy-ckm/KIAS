@@ -747,7 +747,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
         Ok(())
     }
 
-    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
         // Simulate execution
         tokio::time::sleep(Duration::from_millis(100)).await;
 

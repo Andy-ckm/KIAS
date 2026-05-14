@@ -20,6 +20,7 @@ pub mod a2a;
 pub mod utils;
 pub mod data_mask;
 pub mod audit;
+pub mod tls;
 
 // Re-export the most commonly used items at crate root for convenience.
 pub use config::KiasConfig;

@@ -54,6 +54,15 @@ pub struct ApiServerConfig {
     pub port: u16,
     /// Whether to enable TLS.
     pub tls: bool,
+    /// Path to the TLS certificate file (PEM format). Required when `tls=true`.
+    pub tls_cert_path: Option<String>,
+    /// Path to the TLS private key file (PEM format). Required when `tls=true`.
+    pub tls_key_path: Option<String>,
+    /// Path to the CA certificate for mutual TLS (mTLS). If set, client
+    /// certificates signed by this CA are required.
+    pub tls_client_ca_path: Option<String>,
+    /// Minimum TLS version: `1.2` or `1.3`.  Default: `1.3`.
+    pub tls_min_version: String,
     /// Whether to enable API key authentication.
     pub auth_enabled: bool,
     /// List of valid API keys.
@@ -129,7 +138,6 @@ pub struct StorageConfig {
 
 // ── Default implementations ───────────────────────────────────────────
 
-
 impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
@@ -145,6 +153,10 @@ impl Default for ApiServerConfig {
             host: "0.0.0.0".into(),
             port: 8080,
             tls: false,
+            tls_cert_path: None,
+            tls_key_path: None,
+            tls_client_ca_path: None,
+            tls_min_version: "1.3".into(),
             auth_enabled: false,
             api_keys: vec![],
             jwt_secret: None,
@@ -217,8 +229,8 @@ impl KiasConfig {
     /// Load configuration from the default path (`config/default.toml`) or
     /// from the path in the `KIAS_CONFIG` env var, with env-var overrides.
     pub fn load() -> Result<Self, KiasError> {
-        let config_path = std::env::var("KIAS_CONFIG")
-            .unwrap_or_else(|_| "config/default.toml".to_string());
+        let config_path =
+            std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
         Self::from_file(&config_path)
     }
 

@@ -60,3 +60,11 @@ htmlcov/
 
 # Documentation
 docs/_build/
+
+# Rust
+target/
+
+# Node.js
+node_modules/
+dashboard/node_modules/
+dashboard/dist/

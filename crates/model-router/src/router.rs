@@ -257,6 +257,37 @@ impl ModelRouter {
                 }
                 Ok(available[0])
             }
+            RoutingStrategy::LeastBusy => {
+                // Route to provider with fewest active requests
+                let mut best_idx = available[0];
+                let mut best_requests = u64::MAX;
+
+                for &idx in &available {
+                    let health = providers[idx].health().await;
+                    if health.total_requests < best_requests {
+                        best_requests = health.total_requests;
+                        best_idx = idx;
+                    }
+                }
+
+                Ok(best_idx)
+            }
+            RoutingStrategy::UsageBased => {
+                // Route based on usage (TPM/RPM) - select provider with lowest usage
+                let mut best_idx = available[0];
+                let mut best_usage = u64::MAX;
+
+                for &idx in &available {
+                    let health = providers[idx].health().await;
+                    // Use total_requests as proxy for usage
+                    if health.total_requests < best_usage {
+                        best_usage = health.total_requests;
+                        best_idx = idx;
+                    }
+                }
+
+                Ok(best_idx)
+            }
         }
     }
 

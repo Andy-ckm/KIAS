@@ -103,8 +103,8 @@ lint-arch:
 	@echo "Checking L0 (common) has no internal deps..."
 	@! grep -r 'use kias_' crates/common/src/ 2>/dev/null || (echo "ERROR: common depends on other crates!" && exit 1)
 	@echo "Checking L1 crates only depend on common..."
-	@for crate in cache knowledge skills; do \
-		grep -r 'use kias_' crates/$$crate/src/ 2>/dev/null | grep -v 'kias_common' | grep -v 'kias_'$$crate && \
+	@for crate in cache knowledge skills data-store; do \
+		grep -r 'use kias_' crates/$$crate/src/ 2>/dev/null | grep -v 'kias_common' | grep -v "kias_$$(echo $$crate | tr '-' '_')" && \
 		(echo "ERROR: $$crate has wrong dependency!" && exit 1) || true; \
 	done
 	@printf "$(GREEN)$(BOLD)✔ Architecture layers OK$(RESET)\n"

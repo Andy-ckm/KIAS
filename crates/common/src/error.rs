@@ -18,6 +18,10 @@ pub enum KiasError {
     #[error("Node not found: {0}")]
     NodeNotFound(String),
 
+    /// A generic not-found error for any resource type.
+    #[error("Not found: {0}")]
+    NotFound(String),
+
     /// No nodes are available for scheduling.
     #[error("No available nodes")]
     NoAvailableNodes,

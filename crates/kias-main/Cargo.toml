@@ -21,6 +21,7 @@ kias-team-engine = { path = "../team-engine" }
 kias-goal-engine = { path = "../goal-engine" }
 kias-workflow-engine = { path = "../workflow-engine" }
 kias-autonomy-controller = { path = "../autonomy-controller" }
+kias-data-store = { path = "../data-store" }
 
 tokio.workspace = true
 serde.workspace = true

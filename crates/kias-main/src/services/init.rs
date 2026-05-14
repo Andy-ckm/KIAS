@@ -139,6 +139,15 @@ pub struct KiasServiceManager {
     team_engine: kias_team_engine::TeamEngine,
     #[allow(dead_code)]
     goal_runner: kias_goal_engine::GoalLoopRunner,
+    /// Persistent data store (SQLite-backed repositories, vector store, cache).
+    #[allow(dead_code)]
+    data_store: kias_data_store::SqliteRepository,
+    /// Persistent vector store for embedding retrieval.
+    #[allow(dead_code)]
+    vector_store: kias_data_store::PersistentVectorStore,
+    /// Persistent cache strategy.
+    #[allow(dead_code)]
+    cache_strategy: kias_data_store::SqliteCacheStrategy,
     shutdown: Arc<ShutdownCoordinator>,
     started_at: Instant,
 }
@@ -228,6 +237,23 @@ impl KiasServiceManager {
         let goal_runner = kias_goal_engine::GoalLoopRunner::with_default_executor(evaluator);
         tracing::info!("Goal engine initialized");
 
+        // ── Data Store (SQLite persistence) ────────────────────────────
+        let db_path = std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
+        let data_store = match kias_data_store::SqliteRepository::open(&db_path).await {
+            Ok(store) => {
+                tracing::info!(path = %db_path, "Data store initialized (SQLite)");
+                store
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to open file-backed SQLite, falling back to in-memory");
+                kias_data_store::SqliteRepository::in_memory().await?
+            }
+        };
+
+        let vector_store = kias_data_store::PersistentVectorStore::new(data_store.pool.clone());
+        let cache_strategy = kias_data_store::SqliteCacheStrategy::new(data_store.pool.clone());
+        tracing::info!("Vector store and cache strategy initialized");
+
         tracing::info!("All KIAS subsystems initialized successfully");
 
         let started_at = Instant::now();
@@ -245,6 +271,9 @@ impl KiasServiceManager {
             autonomy_controller,
             team_engine,
             goal_runner,
+            data_store,
+            vector_store,
+            cache_strategy,
             shutdown,
             started_at,
         })
@@ -275,6 +304,16 @@ impl KiasServiceManager {
     /// Immutable reference to the metrics collector.
     pub fn metrics(&self) -> &kias_monitor::MetricsCollector {
         &self.metrics
+    }
+
+    /// Immutable reference to the data store.
+    pub fn data_store(&self) -> &kias_data_store::SqliteRepository {
+        &self.data_store
+    }
+
+    /// Immutable reference to the vector store.
+    pub fn vector_store(&self) -> &kias_data_store::PersistentVectorStore {
+        &self.vector_store
     }
 
     /// The shutdown coordinator.

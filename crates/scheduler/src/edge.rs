@@ -324,7 +324,8 @@ mod tests {
     #[test]
     fn test_label_constraint() {
         let mut node = make_node("gpu-1", NodeTier::Edge, "us-east-1", 0.2);
-        node.labels.insert("gpu".to_string(), "nvidia-a100".to_string());
+        node.labels
+            .insert("gpu".to_string(), "nvidia-a100".to_string());
         let nodes = vec![node];
 
         let constraints = EdgeSchedulingConstraints {

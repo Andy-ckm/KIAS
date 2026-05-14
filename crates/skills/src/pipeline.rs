@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
+use std::time::Instant;
 
 /// A condition function that evaluates whether a pipeline step should execute.
 /// Receives the current accumulated output and returns true if the step should run.
@@ -107,7 +107,10 @@ impl PipelineStep {
         self
     }
 
-    pub fn with_condition(mut self, condition: impl Fn(&Value) -> bool + Send + Sync + 'static) -> Self {
+    pub fn with_condition(
+        mut self,
+        condition: impl Fn(&Value) -> bool + Send + Sync + 'static,
+    ) -> Self {
         self.condition = Some(Arc::new(Box::new(condition)));
         self
     }
@@ -229,7 +232,11 @@ impl SkillPipeline {
             }
         }
 
-        let steps_executed = if success { self.steps.len() } else { step_results.len() };
+        let steps_executed = if success {
+            self.steps.len()
+        } else {
+            step_results.len()
+        };
         let final_output = step_results.last().cloned().unwrap_or(Value::Null);
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -339,9 +346,9 @@ fn resolve_json_path(data: &Value, path: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use crate::registry::SkillRegistry;
     use crate::skill::Skill;
+    use async_trait::async_trait;
     use kias_common::KiasResult;
 
     // ── helpers ──────────────────────────────────────────────────────────
@@ -349,13 +356,14 @@ mod tests {
     struct DoubleSkill;
     #[async_trait]
     impl Skill for DoubleSkill {
-        fn name(&self) -> &str { "double" }
-        fn description(&self) -> &str { "Doubles the numeric 'value' field" }
+        fn name(&self) -> &str {
+            "double"
+        }
+        fn description(&self) -> &str {
+            "Doubles the numeric 'value' field"
+        }
         async fn execute(&self, params: Value) -> KiasResult<Value> {
-            let v = params
-                .get("value")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
+            let v = params.get("value").and_then(|v| v.as_f64()).unwrap_or(0.0);
             let mut output = params.clone();
             if let Some(obj) = output.as_object_mut() {
                 obj.insert("value".to_string(), serde_json::json!(v * 2.0));
@@ -367,8 +375,12 @@ mod tests {
     struct AddSkill;
     #[async_trait]
     impl Skill for AddSkill {
-        fn name(&self) -> &str { "add" }
-        fn description(&self) -> &str { "Adds 'amount' to 'value'" }
+        fn name(&self) -> &str {
+            "add"
+        }
+        fn description(&self) -> &str {
+            "Adds 'amount' to 'value'"
+        }
         async fn execute(&self, params: Value) -> KiasResult<Value> {
             let v = params.get("value").and_then(|v| v.as_f64()).unwrap_or(0.0);
             let a = params.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
@@ -379,18 +391,28 @@ mod tests {
     struct FailSkill;
     #[async_trait]
     impl Skill for FailSkill {
-        fn name(&self) -> &str { "fail" }
-        fn description(&self) -> &str { "Always fails" }
+        fn name(&self) -> &str {
+            "fail"
+        }
+        fn description(&self) -> &str {
+            "Always fails"
+        }
         async fn execute(&self, _params: Value) -> KiasResult<Value> {
-            Err(kias_common::KiasError::Validation("intentional failure".into()))
+            Err(kias_common::KiasError::Validation(
+                "intentional failure".into(),
+            ))
         }
     }
 
     struct EchoSkill;
     #[async_trait]
     impl Skill for EchoSkill {
-        fn name(&self) -> &str { "echo" }
-        fn description(&self) -> &str { "Echoes input" }
+        fn name(&self) -> &str {
+            "echo"
+        }
+        fn description(&self) -> &str {
+            "Echoes input"
+        }
         async fn execute(&self, params: Value) -> KiasResult<Value> {
             Ok(params)
         }
@@ -599,9 +621,7 @@ mod tests {
     #[tokio::test]
     async fn test_pipeline_duration_recorded() {
         let reg = test_registry();
-        let pipeline = PipelineBuilder::new("timed")
-            .then("echo")
-            .build();
+        let pipeline = PipelineBuilder::new("timed").then("echo").build();
 
         let result = pipeline
             .execute(&reg, serde_json::json!({ "value": 1 }))

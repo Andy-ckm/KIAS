@@ -134,10 +134,7 @@ impl HandoffManager {
     ) -> Result<String, String> {
         // Check handoff chain length
         let history = self.task_history.read().await;
-        let chain_length = history
-            .get(task_id)
-            .map(|h| h.len() as u32)
-            .unwrap_or(0);
+        let chain_length = history.get(task_id).map(|h| h.len() as u32).unwrap_or(0);
 
         if chain_length >= self.policy.max_handoffs {
             return Err(format!(
@@ -319,11 +316,18 @@ impl HandoffManager {
     pub async fn stats(&self) -> HandoffStats {
         let records = self.records.read().await;
         let total = records.len();
-        let pending = records.values().filter(|r| r.status == HandoffStatus::Pending).count();
-        let completed = records.values().filter(|r| r.status == HandoffStatus::Completed).count();
-        let failed = records.values().filter(|r| {
-            r.status == HandoffStatus::Failed || r.status == HandoffStatus::TimedOut
-        }).count();
+        let pending = records
+            .values()
+            .filter(|r| r.status == HandoffStatus::Pending)
+            .count();
+        let completed = records
+            .values()
+            .filter(|r| r.status == HandoffStatus::Completed)
+            .count();
+        let failed = records
+            .values()
+            .filter(|r| r.status == HandoffStatus::Failed || r.status == HandoffStatus::TimedOut)
+            .count();
 
         HandoffStats {
             total_handoffs: total,
@@ -532,7 +536,8 @@ mod tests {
         let score = mgr.calculate_skill_match(&skills, &["review".to_string()]);
         assert!((score - 1.0).abs() < f64::EPSILON);
 
-        let score = mgr.calculate_skill_match(&skills, &["review".to_string(), "deploy".to_string()]);
+        let score =
+            mgr.calculate_skill_match(&skills, &["review".to_string(), "deploy".to_string()]);
         assert!((score - 0.5).abs() < f64::EPSILON);
 
         let score = mgr.calculate_skill_match(&skills, &[]);
@@ -544,7 +549,14 @@ mod tests {
         let mgr = make_manager();
 
         let _ = mgr
-            .initiate_handoff("t1", "a", "b", HandoffReason::LoadBalancing, serde_json::json!(null), vec![])
+            .initiate_handoff(
+                "t1",
+                "a",
+                "b",
+                HandoffReason::LoadBalancing,
+                serde_json::json!(null),
+                vec![],
+            )
             .await
             .unwrap();
 

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// 自主级别（借鉴 Codex CLI 三模式）
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -56,10 +56,7 @@ impl AutonomyLadder {
 
     /// 检查工具是否可以自动执行
     pub fn can_auto_execute(&self, tool: &str) -> bool {
-        matches!(
-            self.get_tool_level(tool),
-            AutonomyLevel::FullAuto
-        )
+        matches!(self.get_tool_level(tool), AutonomyLevel::FullAuto)
     }
 
     /// 检查工具是否可以自动编辑

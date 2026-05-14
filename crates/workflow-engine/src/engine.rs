@@ -1,9 +1,9 @@
-use kias_common::KiasResult;
-use super::graph::WorkflowGraph;
-use super::node::{Node, NodeType, RetryPolicy, ExecutionResult};
-use super::state::{WorkflowState, WorkflowStatus};
 use super::checkpoint::{Checkpoint, CheckpointStore};
 use super::executor::ExecutorRegistry;
+use super::graph::WorkflowGraph;
+use super::node::{ExecutionResult, Node, NodeType, RetryPolicy};
+use super::state::{WorkflowState, WorkflowStatus};
+use kias_common::KiasResult;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -153,11 +153,7 @@ impl WorkflowEngine {
 
     /// Execute a single node. Returns `true` if the workflow should continue,
     /// `false` if it should stop (paused or failed).
-    async fn execute_node(
-        &self,
-        node: &Node,
-        state: &mut WorkflowState,
-    ) -> KiasResult<bool> {
+    async fn execute_node(&self, node: &Node, state: &mut WorkflowState) -> KiasResult<bool> {
         match node.node_type {
             NodeType::Process => self.execute_process_node(node, state).await,
             NodeType::Condition => self.execute_condition_node(node, state).await,
@@ -442,9 +438,7 @@ impl WorkflowEngine {
         checkpoint_id: Option<&str>,
     ) -> Option<WorkflowState> {
         if let Some(id) = checkpoint_id {
-            self.checkpoint_store
-                .get(workflow_id, id)
-                .map(|c| c.state)
+            self.checkpoint_store.get(workflow_id, id).map(|c| c.state)
         } else {
             self.checkpoint_store
                 .get_latest(workflow_id)
@@ -485,15 +479,13 @@ mod tests {
             }),
         );
         graph.add_node(
-            Node::new("middle", "Middle", NodeType::Process).with_executor(
-                ExecutorConfig::Shell {
-                    command: "echo".into(),
-                    args: vec!["processed".into()],
-                    env: HashMap::new(),
-                    working_dir: None,
-                    timeout_secs: None,
-                },
-            ),
+            Node::new("middle", "Middle", NodeType::Process).with_executor(ExecutorConfig::Shell {
+                command: "echo".into(),
+                args: vec!["processed".into()],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: None,
+            }),
         );
         graph.add_node(Node::new("end", "End", NodeType::Process));
         graph.add_edge(Edge::new("start", "middle"));
@@ -523,24 +515,24 @@ mod tests {
             Node::new("decide", "Decide", NodeType::Condition)
                 .with_config(serde_json::json!({"condition_key": "route"})),
         );
-        graph.add_node(Node::new("path_a", "PathA", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
+        graph.add_node(
+            Node::new("path_a", "PathA", NodeType::Process).with_executor(ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["path A".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            },
-        ));
-        graph.add_node(Node::new("path_b", "PathB", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
+            }),
+        );
+        graph.add_node(
+            Node::new("path_b", "PathB", NodeType::Process).with_executor(ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["path B".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            },
-        ));
+            }),
+        );
         graph.add_node(Node::new("end", "End", NodeType::Process));
 
         graph.add_edge(Edge::new("decide", "path_a").with_condition("route == \"a\"", "Go to A"));
@@ -600,15 +592,15 @@ mod tests {
     #[tokio::test]
     async fn test_workflow_node_execution_failure() {
         let mut graph = WorkflowGraph::new("test-fail");
-        graph.add_node(
-            Node::new("fail", "Fail", NodeType::Process).with_executor(ExecutorConfig::Shell {
+        graph.add_node(Node::new("fail", "Fail", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
                 command: "false".into(),
                 args: vec![],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            }),
-        );
+            },
+        ));
         graph.add_node(Node::new("end", "End", NodeType::Process));
         graph.add_edge(Edge::new("fail", "end"));
         graph.set_entry("fail");
@@ -730,25 +722,27 @@ mod tests {
     #[tokio::test]
     async fn test_workflow_fork_join() {
         let mut graph = WorkflowGraph::new("test-fork");
-        graph.add_node(Node::new("start", "Start", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
+        graph.add_node(
+            Node::new("start", "Start", NodeType::Process).with_executor(ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["go".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            },
-        ));
+            }),
+        );
         graph.add_node(Node::new("fork1", "Fork", NodeType::Fork));
-        graph.add_node(Node::new("branch_a", "BranchA", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
-                command: "echo".into(),
-                args: vec!["A".into()],
-                env: HashMap::new(),
-                working_dir: None,
-                timeout_secs: None,
-            },
-        ));
+        graph.add_node(
+            Node::new("branch_a", "BranchA", NodeType::Process).with_executor(
+                ExecutorConfig::Shell {
+                    command: "echo".into(),
+                    args: vec!["A".into()],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                },
+            ),
+        );
         graph.add_node(Node::new("join1", "Join", NodeType::Join));
         graph.add_node(Node::new("end", "End", NodeType::Process));
 
@@ -798,15 +792,17 @@ mod tests {
     async fn test_condition_fallback_to_unconditional() {
         let mut graph = WorkflowGraph::new("test-fallback");
         graph.add_node(Node::new("start", "Start", NodeType::Condition));
-        graph.add_node(Node::new("default_path", "Default", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
-                command: "echo".into(),
-                args: vec!["default".into()],
-                env: HashMap::new(),
-                working_dir: None,
-                timeout_secs: None,
-            },
-        ));
+        graph.add_node(
+            Node::new("default_path", "Default", NodeType::Process).with_executor(
+                ExecutorConfig::Shell {
+                    command: "echo".into(),
+                    args: vec!["default".into()],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                },
+            ),
+        );
         graph.add_node(Node::new("end", "End", NodeType::Process));
 
         // Conditional edge that won't match

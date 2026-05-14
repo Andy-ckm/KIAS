@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnowledgeNode {
@@ -87,14 +87,16 @@ impl KnowledgeGraph {
     /// Search nodes by content (case-insensitive substring match)
     pub fn search_by_content(&self, query: &str) -> Vec<&KnowledgeNode> {
         let query_lower = query.to_lowercase();
-        self.nodes.values()
+        self.nodes
+            .values()
             .filter(|n| n.content.to_lowercase().contains(&query_lower))
             .collect()
     }
 
     /// Search nodes by node type
     pub fn search_by_type(&self, node_type: &NodeType) -> Vec<&KnowledgeNode> {
-        self.nodes.values()
+        self.nodes
+            .values()
             .filter(|n| &n.node_type == node_type)
             .collect()
     }
@@ -217,7 +219,10 @@ mod tests {
         let mut graph = KnowledgeGraph::new();
         let node = make_typed_node("c1", "concept", NodeType::Concept);
         graph.add_node(node);
-        assert!(matches!(graph.get_node("c1").unwrap().node_type, NodeType::Concept));
+        assert!(matches!(
+            graph.get_node("c1").unwrap().node_type,
+            NodeType::Concept
+        ));
     }
 
     #[test]
@@ -263,8 +268,18 @@ mod tests {
         graph.add_node(make_node("n1", "A"));
         graph.add_node(make_node("n2", "B"));
         graph.add_node(make_node("n3", "C"));
-        graph.add_edge(Edge { from: "n1".to_string(), to: "n2".to_string(), relationship: "rel".to_string(), weight: 1.0 });
-        graph.add_edge(Edge { from: "n2".to_string(), to: "n3".to_string(), relationship: "rel".to_string(), weight: 1.0 });
+        graph.add_edge(Edge {
+            from: "n1".to_string(),
+            to: "n2".to_string(),
+            relationship: "rel".to_string(),
+            weight: 1.0,
+        });
+        graph.add_edge(Edge {
+            from: "n2".to_string(),
+            to: "n3".to_string(),
+            relationship: "rel".to_string(),
+            weight: 1.0,
+        });
 
         let outgoing = graph.get_outgoing_edges("n1");
         assert_eq!(outgoing.len(), 1);
@@ -278,7 +293,12 @@ mod tests {
         let mut graph = KnowledgeGraph::new();
         graph.add_node(make_node("n1", "A"));
         graph.add_node(make_node("n2", "B"));
-        graph.add_edge(Edge { from: "n1".to_string(), to: "n2".to_string(), relationship: "rel".to_string(), weight: 1.0 });
+        graph.add_edge(Edge {
+            from: "n1".to_string(),
+            to: "n2".to_string(),
+            relationship: "rel".to_string(),
+            weight: 1.0,
+        });
 
         let removed = graph.remove_node("n1");
         assert!(removed.is_some());
@@ -293,9 +313,24 @@ mod tests {
         graph.add_node(make_node("b", "B"));
         graph.add_node(make_node("c", "C"));
         graph.add_node(make_node("d", "D"));
-        graph.add_edge(Edge { from: "a".to_string(), to: "b".to_string(), relationship: "r".to_string(), weight: 1.0 });
-        graph.add_edge(Edge { from: "b".to_string(), to: "c".to_string(), relationship: "r".to_string(), weight: 1.0 });
-        graph.add_edge(Edge { from: "c".to_string(), to: "d".to_string(), relationship: "r".to_string(), weight: 1.0 });
+        graph.add_edge(Edge {
+            from: "a".to_string(),
+            to: "b".to_string(),
+            relationship: "r".to_string(),
+            weight: 1.0,
+        });
+        graph.add_edge(Edge {
+            from: "b".to_string(),
+            to: "c".to_string(),
+            relationship: "r".to_string(),
+            weight: 1.0,
+        });
+        graph.add_edge(Edge {
+            from: "c".to_string(),
+            to: "d".to_string(),
+            relationship: "r".to_string(),
+            weight: 1.0,
+        });
 
         let path = graph.shortest_path("a", "d");
         assert!(path.is_some());

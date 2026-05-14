@@ -208,7 +208,9 @@ mod tests {
             }],
         };
 
-        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let created = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert_eq!(created.name, "test-workflow");
         assert_eq!(created.status, WorkflowStatus::Draft);
         assert_eq!(created.nodes.len(), 1);
@@ -233,7 +235,9 @@ mod tests {
             nodes: vec![],
         };
 
-        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let created = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         delete_workflow(State(state.clone()), Path(created.id.clone()))
             .await
             .unwrap();

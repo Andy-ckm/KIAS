@@ -117,7 +117,11 @@ mod tests {
     #[test]
     fn test_request_with_params() {
         let params = json!({"name": "test"});
-        let req = McpRequest::new(RequestId::String("abc".into()), "tools/call", Some(params.clone()));
+        let req = McpRequest::new(
+            RequestId::String("abc".into()),
+            "tools/call",
+            Some(params.clone()),
+        );
         assert_eq!(req.params, Some(params));
         assert_eq!(req.id, RequestId::String("abc".into()));
     }

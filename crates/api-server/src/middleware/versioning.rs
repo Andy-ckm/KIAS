@@ -6,8 +6,7 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 
 /// Supported API versions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ApiVersion {
     #[default]
     V1,

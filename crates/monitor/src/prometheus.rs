@@ -49,7 +49,9 @@ impl Default for PrometheusRegistry {
 
 impl PrometheusRegistry {
     pub fn new() -> Self {
-        Self { families: Vec::new() }
+        Self {
+            families: Vec::new(),
+        }
     }
 
     pub fn register_counter(&mut self, name: &str, help: &str) {
@@ -111,7 +113,11 @@ impl PrometheusRegistry {
 
         for family in &self.families {
             output.push_str(&format!("# HELP {} {}\n", family.name, family.help));
-            output.push_str(&format!("# TYPE {} {}\n", family.name, prom_type_str(&family.metric_type)));
+            output.push_str(&format!(
+                "# TYPE {} {}\n",
+                family.name,
+                prom_type_str(&family.metric_type)
+            ));
 
             for metric in &family.metrics {
                 let labels_str = render_labels(&metric.labels);
@@ -122,14 +128,24 @@ impl PrometheusRegistry {
                     PrometheusValue::Gauge(v) => {
                         output.push_str(&format!("{}{} {}\n", family.name, labels_str, v));
                     }
-                    PrometheusValue::Histogram { buckets, sum, count } => {
+                    PrometheusValue::Histogram {
+                        buckets,
+                        sum,
+                        count,
+                    } => {
                         for (le, count) in buckets {
-                            output.push_str(&format!("{}{}_bucket{{le=\"{}\",{}}} {}\n",
-                                family.name, labels_str.trim_start_matches('{').trim_end_matches('}'),
-                                le, labels_str.trim_start_matches('{').trim_end_matches('}'), count));
+                            output.push_str(&format!(
+                                "{}{}_bucket{{le=\"{}\",{}}} {}\n",
+                                family.name,
+                                labels_str.trim_start_matches('{').trim_end_matches('}'),
+                                le,
+                                labels_str.trim_start_matches('{').trim_end_matches('}'),
+                                count
+                            ));
                         }
                         output.push_str(&format!("{}_sum{} {}\n", family.name, labels_str, sum));
-                        output.push_str(&format!("{}_count{} {}\n", family.name, labels_str, count));
+                        output
+                            .push_str(&format!("{}_count{} {}\n", family.name, labels_str, count));
                     }
                 }
             }
@@ -162,7 +178,8 @@ fn render_labels(labels: &HashMap<String, String>) -> String {
     if labels.is_empty() {
         return String::new();
     }
-    let pairs: Vec<String> = labels.iter()
+    let pairs: Vec<String> = labels
+        .iter()
         .map(|(k, v)| format!("{}=\"{}\"", k, v))
         .collect();
     format!("{{{}}}", pairs.join(","))
@@ -280,7 +297,11 @@ mod tests {
     fn test_kias_registry() {
         let registry = build_kias_registry();
         assert!(registry.families().len() >= 15);
-        let names: Vec<&str> = registry.families().iter().map(|f| f.name.as_str()).collect();
+        let names: Vec<&str> = registry
+            .families()
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect();
         assert!(names.contains(&"kias_agents_total"));
         assert!(names.contains(&"kias_tasks_total"));
         assert!(names.contains(&"kias_api_requests_total"));
@@ -330,7 +351,11 @@ mod tests {
                 count: 100,
             },
         };
-        if let Some(family) = registry.families.iter_mut().find(|f| f.name == "request_duration") {
+        if let Some(family) = registry
+            .families
+            .iter_mut()
+            .find(|f| f.name == "request_duration")
+        {
             family.metrics.push(metric);
         }
         let output = registry.render();

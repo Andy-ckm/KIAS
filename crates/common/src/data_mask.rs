@@ -360,10 +360,7 @@ mod tests {
     #[test]
     fn test_mask_token_standard() {
         let long_token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0";
-        assert_eq!(
-            mask_token(long_token),
-            "eyJhbGci***"
-        );
+        assert_eq!(mask_token(long_token), "eyJhbGci***");
     }
 
     #[test]

@@ -1,6 +1,6 @@
+use super::hub::{CacheEntry, CacheStrategy};
 use async_trait::async_trait;
 use kias_common::KiasResult;
-use super::hub::{CacheStrategy, CacheEntry};
 use std::collections::{HashMap, VecDeque};
 use std::sync::RwLock;
 use std::time::Instant;
@@ -83,7 +83,8 @@ impl LRUStrategy {
     fn purge_expired(&self) {
         let expired_keys: Vec<String> = {
             let cache = self.cache.read().unwrap();
-            cache.iter()
+            cache
+                .iter()
                 .filter(|(k, v)| self.is_expired(k, v))
                 .map(|(k, _)| k.clone())
                 .collect()
@@ -235,7 +236,8 @@ impl PrefixCacheStrategy {
     fn evict_least_popular(&self) {
         let least_key = {
             let counts = self.access_counts.read().unwrap();
-            counts.iter()
+            counts
+                .iter()
                 .min_by_key(|(_, &count)| count)
                 .map(|(k, _)| k.clone())
         };
@@ -410,7 +412,10 @@ mod tests {
     async fn test_lru_ttl_expiry() {
         let strategy = LRUStrategy::new();
         // Entry with 1ms TTL
-        strategy.set(make_entry_with_ttl("k1", b"data", Duration::from_millis(1))).await.unwrap();
+        strategy
+            .set(make_entry_with_ttl("k1", b"data", Duration::from_millis(1)))
+            .await
+            .unwrap();
         // Wait for expiry
         tokio::time::sleep(Duration::from_millis(10)).await;
         let result = strategy.get("k1").await.unwrap();
@@ -420,7 +425,10 @@ mod tests {
     #[tokio::test]
     async fn test_lru_ttl_not_expired() {
         let strategy = LRUStrategy::new();
-        strategy.set(make_entry_with_ttl("k1", b"data", Duration::from_secs(60))).await.unwrap();
+        strategy
+            .set(make_entry_with_ttl("k1", b"data", Duration::from_secs(60)))
+            .await
+            .unwrap();
         let result = strategy.get("k1").await.unwrap();
         assert!(result.is_some());
     }
@@ -450,7 +458,10 @@ mod tests {
     async fn test_prefix_match() {
         let strategy = PrefixCacheStrategy::new();
         // Cache the prefix "hello"
-        strategy.set(make_entry("hello", b"prefix_cache")).await.unwrap();
+        strategy
+            .set(make_entry("hello", b"prefix_cache"))
+            .await
+            .unwrap();
         // Query with a longer key that starts with "hello"
         let result = strategy.get("hello_world_extra").await.unwrap();
         assert!(result.is_some());
@@ -496,7 +507,9 @@ mod tests {
     async fn test_prefix_cache_hub_integration() {
         let strategy = Box::new(PrefixCacheStrategy::new());
         let hub = CacheHub::new(strategy);
-        hub.set(make_entry("prompt_prefix", b"kv_cache")).await.unwrap();
+        hub.set(make_entry("prompt_prefix", b"kv_cache"))
+            .await
+            .unwrap();
         let result = hub.get("prompt_prefix_extended").await.unwrap();
         assert!(result.is_some());
     }

@@ -81,8 +81,7 @@ impl Node {
 }
 
 /// Scheduling priority
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Priority {
     Low = 10,
     #[default]
@@ -90,7 +89,6 @@ pub enum Priority {
     High = 100,
     Critical = 200,
 }
-
 
 /// Represents an agent to be scheduled
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,11 +7,11 @@
 //! - Broadcast: Send to all agents, aggregate responses
 //! - Chain: Sequential agent pipeline
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 
 /// Task routing strategy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -161,8 +161,11 @@ impl AgentRegistration {
     }
 
     pub fn load_factor(&self) -> f64 {
-        if self.max_concurrent_tasks == 0 { 1.0 }
-        else { self.current_tasks as f64 / self.max_concurrent_tasks as f64 }
+        if self.max_concurrent_tasks == 0 {
+            1.0
+        } else {
+            self.current_tasks as f64 / self.max_concurrent_tasks as f64
+        }
     }
 }
 
@@ -228,7 +231,11 @@ impl A2ARouter {
             task_id: task.task_id.clone(),
             strategy: task.strategy.clone(),
             selected_agents: selected.clone(),
-            reason: format!("{} agents selected via {:?} strategy", selected.len(), task.strategy),
+            reason: format!(
+                "{} agents selected via {:?} strategy",
+                selected.len(),
+                task.strategy
+            ),
             timestamp: Utc::now(),
         };
 
@@ -242,7 +249,11 @@ impl A2ARouter {
         selected
     }
 
-    fn route_direct(&self, agents: &HashMap<String, AgentRegistration>, task: &A2ATask) -> Vec<String> {
+    fn route_direct(
+        &self,
+        agents: &HashMap<String, AgentRegistration>,
+        task: &A2ATask,
+    ) -> Vec<String> {
         if let Some(ref target) = task.target_agent {
             if let Some(agent) = agents.get(target) {
                 if agent.is_available() {
@@ -253,51 +264,86 @@ impl A2ARouter {
         Vec::new()
     }
 
-    fn route_by_capability(&self, agents: &HashMap<String, AgentRegistration>, task: &A2ATask) -> Vec<String> {
-        let mut candidates: Vec<(&String, &AgentRegistration)> = agents.iter()
+    fn route_by_capability(
+        &self,
+        agents: &HashMap<String, AgentRegistration>,
+        task: &A2ATask,
+    ) -> Vec<String> {
+        let mut candidates: Vec<(&String, &AgentRegistration)> = agents
+            .iter()
             .filter(|(_, a)| a.is_available() && a.has_capabilities(&task.required_capabilities))
             .collect();
 
         // Sort by health score (best first), then by load factor (lowest first)
         candidates.sort_by(|a, b| {
-            b.1.health_score.partial_cmp(&a.1.health_score)
+            b.1.health_score
+                .partial_cmp(&a.1.health_score)
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then(a.1.load_factor().partial_cmp(&b.1.load_factor())
-                    .unwrap_or(std::cmp::Ordering::Equal))
+                .then(
+                    a.1.load_factor()
+                        .partial_cmp(&b.1.load_factor())
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
         });
 
-        candidates.into_iter().take(1).map(|(id, _)| id.clone()).collect()
+        candidates
+            .into_iter()
+            .take(1)
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
-    fn route_load_balanced(&self, agents: &HashMap<String, AgentRegistration>, _task: &A2ATask) -> Vec<String> {
-        let mut candidates: Vec<(&String, &AgentRegistration)> = agents.iter()
-            .filter(|(_, a)| a.is_available())
-            .collect();
+    fn route_load_balanced(
+        &self,
+        agents: &HashMap<String, AgentRegistration>,
+        _task: &A2ATask,
+    ) -> Vec<String> {
+        let mut candidates: Vec<(&String, &AgentRegistration)> =
+            agents.iter().filter(|(_, a)| a.is_available()).collect();
 
         // Sort by load factor (lowest first), then health score (highest first)
         candidates.sort_by(|a, b| {
-            a.1.load_factor().partial_cmp(&b.1.load_factor())
+            a.1.load_factor()
+                .partial_cmp(&b.1.load_factor())
                 .unwrap_or(std::cmp::Ordering::Equal)
-                .then(b.1.health_score.partial_cmp(&a.1.health_score)
-                    .unwrap_or(std::cmp::Ordering::Equal))
+                .then(
+                    b.1.health_score
+                        .partial_cmp(&a.1.health_score)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
         });
 
-        candidates.into_iter().take(1).map(|(id, _)| id.clone()).collect()
+        candidates
+            .into_iter()
+            .take(1)
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
-    fn route_broadcast(&self, agents: &HashMap<String, AgentRegistration>, task: &A2ATask) -> Vec<String> {
-        agents.iter()
+    fn route_broadcast(
+        &self,
+        agents: &HashMap<String, AgentRegistration>,
+        task: &A2ATask,
+    ) -> Vec<String> {
+        agents
+            .iter()
             .filter(|(_, a)| a.is_available())
             .filter(|(_, a)| {
-                task.required_capabilities.is_empty() || a.has_capabilities(&task.required_capabilities)
+                task.required_capabilities.is_empty()
+                    || a.has_capabilities(&task.required_capabilities)
             })
             .map(|(id, _)| id.clone())
             .collect()
     }
 
-    fn route_chain(&self, agents: &HashMap<String, AgentRegistration>, task: &A2ATask) -> Vec<String> {
+    fn route_chain(
+        &self,
+        agents: &HashMap<String, AgentRegistration>,
+        task: &A2ATask,
+    ) -> Vec<String> {
         // Return chain agents in order, filtering out unavailable ones
-        task.chain_agents.iter()
+        task.chain_agents
+            .iter()
             .filter(|id| agents.get(*id).is_some_and(|a| a.is_available()))
             .cloned()
             .collect()
@@ -322,7 +368,11 @@ impl A2ARouter {
     /// Get available agents (not overloaded, healthy)
     pub async fn available_agents(&self) -> Vec<AgentRegistration> {
         let agents = self.agents.read().await;
-        agents.values().filter(|a| a.is_available()).cloned().collect()
+        agents
+            .values()
+            .filter(|a| a.is_available())
+            .cloned()
+            .collect()
     }
 
     /// Get routing log
@@ -347,7 +397,8 @@ impl A2ARouter {
     pub async fn evict_stale(&self, timeout_secs: i64) -> Vec<String> {
         let now = Utc::now();
         let mut agents = self.agents.write().await;
-        let stale: Vec<String> = agents.iter()
+        let stale: Vec<String> = agents
+            .iter()
             .filter(|(_, a)| (now - a.last_heartbeat).num_seconds() > timeout_secs)
             .map(|(id, _)| id.clone())
             .collect();
@@ -367,7 +418,11 @@ mod tests {
     use serde_json::json;
 
     fn make_agent(id: &str, caps: Vec<String>) -> AgentRegistration {
-        AgentRegistration::new(id, caps, &format!("http://localhost:808{}", id.chars().last().unwrap_or('0')))
+        AgentRegistration::new(
+            id,
+            caps,
+            &format!("http://localhost:808{}", id.chars().last().unwrap_or('0')),
+        )
     }
 
     fn make_task(id: &str) -> A2ATask {
@@ -435,7 +490,9 @@ mod tests {
     #[tokio::test]
     async fn test_router_register_unregister() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
         assert_eq!(router.agent_count().await, 1);
         router.unregister_agent("a1").await;
         assert_eq!(router.agent_count().await, 0);
@@ -444,8 +501,12 @@ mod tests {
     #[tokio::test]
     async fn test_route_direct() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
-        router.register_agent(make_agent("a2", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a2", vec!["code".into()]))
+            .await;
 
         let task = make_task("t1").with_target("a1");
         let selected = router.route(&task).await;
@@ -468,8 +529,12 @@ mod tests {
     #[tokio::test]
     async fn test_route_by_capability() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into(), "review".into()])).await;
-        router.register_agent(make_agent("a2", vec!["deploy".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into(), "review".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a2", vec!["deploy".into()]))
+            .await;
 
         let task = make_task("t1").with_capabilities(vec!["code".into()]);
         let selected = router.route(&task).await;
@@ -479,7 +544,9 @@ mod tests {
     #[tokio::test]
     async fn test_route_by_capability_no_match() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
 
         let task = make_task("t1").with_capabilities(vec!["deploy".into()]);
         let selected = router.route(&task).await;
@@ -505,9 +572,15 @@ mod tests {
     #[tokio::test]
     async fn test_route_broadcast() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
-        router.register_agent(make_agent("a2", vec!["code".into()])).await;
-        router.register_agent(make_agent("a3", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a2", vec!["code".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a3", vec!["code".into()]))
+            .await;
 
         let task = make_task("t1").with_strategy(RoutingStrategy::Broadcast);
         let selected = router.route(&task).await;
@@ -517,9 +590,15 @@ mod tests {
     #[tokio::test]
     async fn test_route_chain() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
-        router.register_agent(make_agent("a2", vec!["review".into()])).await;
-        router.register_agent(make_agent("a3", vec!["deploy".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a2", vec!["review".into()]))
+            .await;
+        router
+            .register_agent(make_agent("a3", vec!["deploy".into()]))
+            .await;
 
         let task = make_task("t1").with_chain(vec!["a1".into(), "a2".into(), "a3".into()]);
         let selected = router.route(&task).await;
@@ -529,7 +608,9 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
         router.heartbeat("a1", 0.95, 3).await;
         let agents = router.list_agents().await;
         assert!((agents[0].health_score - 0.95).abs() < f64::EPSILON);
@@ -539,7 +620,9 @@ mod tests {
     #[tokio::test]
     async fn test_routing_log() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
 
         let task = make_task("t1");
         router.route(&task).await;
@@ -564,7 +647,9 @@ mod tests {
     #[tokio::test]
     async fn test_available_agents() {
         let router = A2ARouter::new();
-        router.register_agent(make_agent("a1", vec!["code".into()])).await;
+        router
+            .register_agent(make_agent("a1", vec!["code".into()]))
+            .await;
         let mut a2 = make_agent("a2", vec!["code".into()]);
         a2.current_tasks = 100;
         a2.max_concurrent_tasks = 5;

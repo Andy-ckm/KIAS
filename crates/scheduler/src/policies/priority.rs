@@ -15,10 +15,7 @@ impl PrioritySorter {
     /// Filter agents that can preempt lower-priority workloads.
     /// Returns agents with priority >= threshold.
     pub fn preemptable_agents(agents: &[Agent], threshold: Priority) -> Vec<&Agent> {
-        agents
-            .iter()
-            .filter(|a| a.priority >= threshold)
-            .collect()
+        agents.iter().filter(|a| a.priority >= threshold).collect()
     }
 }
 

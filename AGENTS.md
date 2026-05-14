@@ -99,6 +99,7 @@ crates/
 ├── skills/              # 技能注册表
 ├── executor/            # 任务执行框架
 ├── agent-view/          # Agent 视图 CLI
+├── benchmarks/        # Criterion 性能基准（scheduler/controller/concurrent）
 └── kias-main/           # 主服务编排
 ```
 
@@ -188,7 +189,7 @@ make lint         # clippy 检查
 make format       # rustfmt 格式化
 make test         # 单元测试 + 集成测试
 make lint-arch    # 分层依赖检查
-make bench        # 性能测试
+make bench         # Criterion 性能基准（scheduler + controller + concurrent stress）
 ```
 
 **自动化**：CI 中自动运行以上所有检查

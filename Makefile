@@ -20,7 +20,7 @@ RESET  := \033[0m
 # ==============================================================================
 .PHONY: all build release test test-verbose check clippy fmt fmt-check lint lint-arch clean doc
 .PHONY: run-api run-monitor test-api test-scheduler test-controller
-.PHONY: count help
+.PHONY: count bench help
 
 # ==============================================================================
 # Build targets
@@ -137,6 +137,12 @@ doc:
 	@printf "$(BLUE)$(BOLD)▶ Generating docs...$(RESET)\n"
 	cargo doc --open
 
+## Run benchmarks
+bench:
+	@printf "$(CYAN)$(BOLD)▶ Running benchmarks...$(RESET)\n"
+	cargo bench -p kias-benchmarks -- --output-format bencher | tee /tmp/kias-bench.txt
+	@printf "$(GREEN)$(BOLD)✔ Benchmarks complete$(RESET)\n"
+
 ## Count lines of Rust code
 count:
 	@printf "$(CYAN)$(BOLD)▶ Lines of Rust code:$(RESET)\n"
@@ -185,5 +191,6 @@ help:
 	@printf "$(BOLD)Utility:$(RESET)\n"
 	@printf "  $(GREEN)clean$(RESET)              Clean build artifacts\n"
 	@printf "  $(GREEN)doc$(RESET)                Generate and open docs\n"
+	@printf "  $(GREEN)bench$(RESET)             Run performance benchmarks\n"
 	@printf "  $(GREEN)count$(RESET)              Count lines of Rust code\n"
 	@printf "  $(GREEN)help$(RESET)               Show this help\n"

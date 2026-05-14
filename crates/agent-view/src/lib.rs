@@ -1,13 +1,13 @@
-pub mod view;
-pub mod session;
-pub mod resource;
-pub mod task_history;
-pub mod performance;
 pub mod dashboard;
+pub mod performance;
+pub mod resource;
+pub mod session;
+pub mod task_history;
+pub mod view;
 
-pub use view::AgentView;
-pub use session::{Session, SessionStatus};
+pub use dashboard::{AgentSummary, Alert, AlertLevel, DashboardGenerator, DashboardSummary};
+pub use performance::{PerformanceAnalyzer, PerformanceProfile, PerformanceTracker, Trend};
 pub use resource::{ResourceSnapshot, ResourceTracker};
-pub use task_history::{TaskRecord, TaskOutcome, TaskHistory, TaskFilter, TaskStats};
-pub use performance::{PerformanceProfile, PerformanceAnalyzer, PerformanceTracker, Trend};
-pub use dashboard::{DashboardSummary, DashboardGenerator, AgentSummary, Alert, AlertLevel};
+pub use session::{Session, SessionStatus};
+pub use task_history::{TaskFilter, TaskHistory, TaskOutcome, TaskRecord, TaskStats};
+pub use view::AgentView;

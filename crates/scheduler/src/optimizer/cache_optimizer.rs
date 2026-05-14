@@ -75,10 +75,7 @@ impl CacheOptimizer {
     /// that doesn't already have the prefix.
     pub fn suggest_warm_target(&self, prefix_hash: u64, node_ids: &[String]) -> Option<String> {
         let locations: Vec<String> = self.find_prefix_locations(prefix_hash);
-        node_ids
-            .iter()
-            .find(|id| !locations.contains(id))
-            .cloned()
+        node_ids.iter().find(|id| !locations.contains(id)).cloned()
     }
 }
 

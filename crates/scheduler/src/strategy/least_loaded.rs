@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use super::ScheduleStrategy;
+use async_trait::async_trait;
 use kias_common::KiasResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

@@ -135,12 +135,7 @@ impl Default for EventBus {
 
 impl EventBus {
     /// Publish an agent status change event.
-    pub fn publish_agent_status_changed(
-        &self,
-        agent_id: &str,
-        old_status: &str,
-        new_status: &str,
-    ) {
+    pub fn publish_agent_status_changed(&self, agent_id: &str, old_status: &str, new_status: &str) {
         self.publish(WsEvent {
             event_type: EventType::AgentStatusChanged,
             data: serde_json::json!({
@@ -273,10 +268,7 @@ async fn handle_socket(socket: WebSocket, event_bus: EventBus) {
         "message": "KIAS WebSocket connected. Send {\"subscribe\": [...]} to filter events.",
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
-    if let Err(e) = sender
-        .send(Message::Text(welcome.to_string()))
-        .await
-    {
+    if let Err(e) = sender.send(Message::Text(welcome.to_string())).await {
         warn!("Failed to send welcome message: {}", e);
         return;
     }
@@ -286,7 +278,8 @@ async fn handle_socket(socket: WebSocket, event_bus: EventBus) {
     let event_bus_clone = event_bus.clone();
 
     // Shared filter state between recv task and message handler
-    let (filter_tx, mut filter_rx) = tokio::sync::watch::channel::<Option<HashSet<EventType>>>(None);
+    let (filter_tx, mut filter_rx) =
+        tokio::sync::watch::channel::<Option<HashSet<EventType>>>(None);
 
     // Spawn a task to forward events from bus → WebSocket
     let (tx, mut rx_local) = tokio::sync::mpsc::channel::<WsEvent>(64);
@@ -358,7 +351,8 @@ async fn handle_socket(socket: WebSocket, event_bus: EventBus) {
                             info!("Client cleared subscription filter (all events)");
                         } else {
                             info!("Client subscribed to: {:?}", client_msg.subscribe);
-                            let _ = filter_tx.send(Some(client_msg.subscribe.into_iter().collect()));
+                            let _ =
+                                filter_tx.send(Some(client_msg.subscribe.into_iter().collect()));
                         }
                     }
                     Err(e) => {

@@ -77,7 +77,7 @@
 | 3.4 | 数据脱敏 | 2h | ✅ 已完成 (Sprint 6) |
 | 3.5 | 审计日志 | 2h | ✅ 已完成 (Sprint 6) |
 | 3.6 | Prometheus + Grafana 集成 | 4h | 🔶 部分完成 (Sprint 5: 指标端点 + 告警引擎已实现) |
-| 3.7 | 压力测试 | 3h | ⏳ 待开始 |
+| 3.7 | 压力测试 + 性能基准 | 3h | ✅ 已完成 (Sprint 10: Criterion benchmarks + concurrent stress) |
 | 3.8 | DeepSeek MLA Cache 优化 | 6h | ⏳ 待开始 |
 | 3.9 | LangGraph 状态图编排 | 4h | ⏳ 待开始 |
 
@@ -136,19 +136,21 @@
 
 ## 当前任务
 
-**Sprint 9 — TLS 1.3 + 安全加固 + 性能优化**
+**Sprint 10 — 压力测试 + 性能基准**
 
-当前状态：931 tests, ~33,800 行(Rust) + 979 行(TS), 0 errors, 0 warnings, 16 crates + 1 前端项目
+当前状态：955 tests, ~34,500 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
 
 已完成：
 - ✅ TLS 1.3 加密支持（rustls + tokio-rustls + mTLS + 自签名证书）
-- ✅ 32 个新 TLS 测试（16 common + 16 api-server）
-- ✅ React + TypeScript + Vite + TailwindCSS v4 Dashboard 脚手架
-- ✅ API 客户端 + TypeScript 类型系统
-- ✅ Dashboard 概览页（集群状态、任务统计）
-- ✅ Agents 管理页（列表、创建、删除）
-- ✅ Nodes 页面 + Cluster 页面
 - ✅ WebSocket 实时推送（EventBus + 9 种事件类型 + 客户端订阅过滤）
-- ✅ Agent 协作协议 - CrewAI 风格委托代理（delegation + memory + skill_matcher + crew 模块，55 新测试）
+- ✅ Agent 协作协议 - CrewAI 风格委托代理（delegation + memory + skill_matcher + crew 模块）
+- ✅ Descheduler 集群重平衡（3 策略 + PDB + dry-run）
+- ✅ 压力测试 + 性能基准（Criterion benchmarks，3 个 benchmark suite）
 
-下一步：调度算法优化（K8S descheduler）+ 压力测试 + 性能基准
+性能基准结果：
+- 单 Agent 调度：1.5-2.1µs（621K ops/sec）
+- 批量 500 Agent：1.4ms（线性扩展）
+- 并发 500 Agent：1.1ms（455K agents/sec）
+- 控制器 10K Agent 扫描：40µs
+
+下一步：Knowledge 向量检索 / A2A 协议集成 / DeepSeek MLA Cache 优化

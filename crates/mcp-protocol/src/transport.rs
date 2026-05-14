@@ -208,10 +208,7 @@ impl HttpTransport {
                     let request: McpRequest = match serde_json::from_str(&body) {
                         Ok(r) => r,
                         Err(e) => {
-                            return (
-                                StatusCode::BAD_REQUEST,
-                                format!("Invalid JSON-RPC: {}", e),
-                            )
+                            return (StatusCode::BAD_REQUEST, format!("Invalid JSON-RPC: {}", e))
                                 .into_response();
                         }
                     };
@@ -345,8 +342,8 @@ impl McpTransport for InMemoryTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
     use crate::types::RequestId;
+    use serde_json::json;
 
     #[test]
     fn test_stdio_transport_creation() {

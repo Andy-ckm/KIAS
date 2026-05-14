@@ -1,7 +1,7 @@
+use super::state::{AgentStatus, ControllerState};
 use async_trait::async_trait;
-use kias_common::KiasResult;
-use super::state::{ControllerState, AgentStatus};
 use chrono::Utc;
+use kias_common::KiasResult;
 
 #[async_trait]
 pub trait Reconciler: Send + Sync {
@@ -26,7 +26,7 @@ impl DefaultReconciler {
 impl Reconciler for DefaultReconciler {
     async fn reconcile(&self, state: &mut ControllerState) -> KiasResult<()> {
         tracing::info!("Reconciling controller state");
-        
+
         // Simplified reconciliation logic
         if state.actual.running_replicas < state.desired.replicas {
             tracing::info!(
@@ -39,7 +39,7 @@ impl Reconciler for DefaultReconciler {
             state.actual.agent_status = AgentStatus::Running;
             state.actual.last_updated = Utc::now();
         }
-        
+
         Ok(())
     }
 }

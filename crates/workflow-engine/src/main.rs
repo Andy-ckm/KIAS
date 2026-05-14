@@ -1,5 +1,5 @@
 use kias_workflow_engine::{
-    WorkflowEngine, WorkflowGraph, Node, NodeType, Edge, WorkflowState, ExecutorConfig,
+    Edge, ExecutorConfig, Node, NodeType, WorkflowEngine, WorkflowGraph, WorkflowState,
 };
 use std::collections::HashMap;
 
@@ -59,8 +59,14 @@ async fn main() -> anyhow::Result<()> {
     // Wire up edges
     graph.add_edge(Edge::new("start", "analyze"));
     graph.add_edge(Edge::new("analyze", "decide"));
-    graph.add_edge(Edge::new("decide", "approve").with_condition("recommendation == \"approve\"", "Auto-approve"));
-    graph.add_edge(Edge::new("decide", "review").with_condition("recommendation == \"review\"", "Needs review"));
+    graph.add_edge(
+        Edge::new("decide", "approve")
+            .with_condition("recommendation == \"approve\"", "Auto-approve"),
+    );
+    graph.add_edge(
+        Edge::new("decide", "review")
+            .with_condition("recommendation == \"review\"", "Needs review"),
+    );
     graph.add_edge(Edge::new("approve", "end"));
     graph.add_edge(Edge::new("review", "end"));
 
@@ -80,7 +86,10 @@ async fn main() -> anyhow::Result<()> {
     let final_state = engine.execute(&graph, initial_state).await?;
 
     println!("Workflow completed with status: {:?}", final_state.status);
-    println!("Final state data keys: {:?}", final_state.data.keys().collect::<Vec<_>>());
+    println!(
+        "Final state data keys: {:?}",
+        final_state.data.keys().collect::<Vec<_>>()
+    );
 
     Ok(())
 }

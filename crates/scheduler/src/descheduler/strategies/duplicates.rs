@@ -41,8 +41,7 @@ impl DeschedulerStrategy for DuplicateAgentStrategy {
         let mut evictions = Vec::new();
 
         // Build agent lookup
-        let agent_map: HashMap<&str, &Agent> =
-            agents.iter().map(|a| (a.id.as_str(), a)).collect();
+        let agent_map: HashMap<&str, &Agent> = agents.iter().map(|a| (a.id.as_str(), a)).collect();
 
         for node in nodes {
             if node.status != kias_common::NodeStatus::Ready {
@@ -163,10 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_eviction_when_different_nodes() {
-        let nodes = vec![
-            make_node("n1", vec!["a1"]),
-            make_node("n2", vec!["a2"]),
-        ];
+        let nodes = vec![make_node("n1", vec!["a1"]), make_node("n2", vec!["a2"])];
         let agents = vec![
             make_agent("a1", 100, kias_common::Priority::Medium),
             make_agent("a2", 100, kias_common::Priority::Medium),

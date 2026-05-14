@@ -110,7 +110,10 @@ impl HeartbeatMonitor {
             };
 
             // Skip agents already in terminal states.
-            if matches!(agent.status, AgentStatus::Failed | AgentStatus::Succeeded | AgentStatus::Unresponsive) {
+            if matches!(
+                agent.status,
+                AgentStatus::Failed | AgentStatus::Succeeded | AgentStatus::Unresponsive
+            ) {
                 actions.push((agent_id.clone(), HeartbeatAction::NoAction));
                 continue;
             }

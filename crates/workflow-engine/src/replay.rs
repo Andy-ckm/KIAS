@@ -9,9 +9,9 @@
 //! - ReplayMode: can replay from any checkpoint with cached results
 //! - Deterministic execution: all side effects go through logged host functions
 
+use crate::state::WorkflowState;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::state::WorkflowState;
 
 /// A logged side effect during workflow execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,7 +109,10 @@ impl ExecutionLog {
 
     /// Get entries for a specific node
     pub fn entries_for_node(&self, node_id: &str) -> Vec<&ExecutionEntry> {
-        self.entries.iter().filter(|e| e.node_id == node_id).collect()
+        self.entries
+            .iter()
+            .filter(|e| e.node_id == node_id)
+            .collect()
     }
 
     /// Get the last entry for a specific node and effect type
@@ -196,17 +199,14 @@ impl ReplayEngine {
         let log = self.store.get(workflow_id, run_id)?;
         log.entries
             .iter()
-            .find(|e| {
-                e.node_id == node_id
-                    && e.effect_type == *effect_type
-                    && e.input == *input
-            })
+            .find(|e| e.node_id == node_id && e.effect_type == *effect_type && e.input == *input)
             .map(|e| e.output.clone())
     }
 
     /// Create a replay execution log from an original log
     pub fn create_replay_log(&self, original: &ExecutionLog) -> ExecutionLog {
-        let mut replay = ExecutionLog::new(&original.workflow_id, &uuid::Uuid::new_v4().to_string());
+        let mut replay =
+            ExecutionLog::new(&original.workflow_id, &uuid::Uuid::new_v4().to_string());
         replay.is_replay = true;
         replay
     }

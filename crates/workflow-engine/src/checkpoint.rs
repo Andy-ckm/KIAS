@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use super::state::WorkflowState;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// 检查点（借鉴 LangGraph Checkpointing）
 ///
@@ -54,9 +54,9 @@ impl CheckpointStore {
 
     /// 获取指定检查点
     pub fn get(&self, workflow_id: &str, checkpoint_id: &str) -> Option<Checkpoint> {
-        self.checkpoints.get(workflow_id).and_then(|checkpoints| {
-            checkpoints.iter().find(|c| c.id == checkpoint_id).cloned()
-        })
+        self.checkpoints
+            .get(workflow_id)
+            .and_then(|checkpoints| checkpoints.iter().find(|c| c.id == checkpoint_id).cloned())
     }
 
     /// 获取所有检查点

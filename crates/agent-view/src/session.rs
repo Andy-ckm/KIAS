@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// 会话状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

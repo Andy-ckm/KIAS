@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::skill::{Skill, SkillConfig};
+use std::collections::HashMap;
 
 pub struct SkillRegistry {
     skills: HashMap<String, Box<dyn Skill>>,
@@ -39,7 +39,8 @@ impl SkillRegistry {
     /// Search skills by name substring
     pub fn search_by_name(&self, query: &str) -> Vec<&dyn Skill> {
         let query_lower = query.to_lowercase();
-        self.skills.values()
+        self.skills
+            .values()
             .filter(|s| s.name().to_lowercase().contains(&query_lower))
             .map(|s| s.as_ref())
             .collect()
@@ -74,14 +75,21 @@ mod tests {
 
     impl MockSkill {
         fn new(name: &str, desc: &str) -> Self {
-            Self { name: name.to_string(), desc: desc.to_string() }
+            Self {
+                name: name.to_string(),
+                desc: desc.to_string(),
+            }
         }
     }
 
     #[async_trait]
     impl Skill for MockSkill {
-        fn name(&self) -> &str { &self.name }
-        fn description(&self) -> &str { &self.desc }
+        fn name(&self) -> &str {
+            &self.name
+        }
+        fn description(&self) -> &str {
+            &self.desc
+        }
         async fn execute(&self, _params: serde_json::Value) -> KiasResult<serde_json::Value> {
             Ok(serde_json::json!({"status": "ok"}))
         }

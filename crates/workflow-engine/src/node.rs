@@ -68,9 +68,7 @@ pub enum ExecutorConfig {
         max_tokens: Option<u32>,
     },
     /// Execute a sub-workflow by graph ID
-    SubWorkflow {
-        workflow_id: String,
-    },
+    SubWorkflow { workflow_id: String },
 }
 
 /// Retry policy for node execution.

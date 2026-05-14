@@ -7,7 +7,7 @@
 
 use async_trait::async_trait;
 use kias_common::{Agent, KiasError, Node, NodeStatus, ScheduleResult};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 
 use super::SchedulingAlgorithm;
 
@@ -127,12 +127,7 @@ impl AffinityScheduler {
     }
 
     /// Check anti-affinity: returns true if the node is acceptable.
-    fn passes_anti_affinity(
-        &self,
-        node: &Node,
-        agent: &Agent,
-        _all_nodes: &[Node],
-    ) -> bool {
+    fn passes_anti_affinity(&self, node: &Node, agent: &Agent, _all_nodes: &[Node]) -> bool {
         if let Some(ref anti) = agent.anti_affinity {
             // Avoid nodes with specific labels
             for (key, value) in &anti.avoid_labels {
@@ -145,7 +140,11 @@ impl AffinityScheduler {
             if !anti.avoid_agent_types.is_empty() {
                 // Check if any agent already on this node is in the avoid list
                 for allocated_id in &node.allocated_agents {
-                    if anti.avoid_agent_types.iter().any(|t| allocated_id.contains(t)) {
+                    if anti
+                        .avoid_agent_types
+                        .iter()
+                        .any(|t| allocated_id.contains(t))
+                    {
                         return false;
                     }
                 }
@@ -192,11 +191,7 @@ impl SchedulingAlgorithm for AffinityScheduler {
         "affinity"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let available: Vec<&Node> = nodes
             .iter()
             .filter(|n| n.status == NodeStatus::Ready)
@@ -207,14 +202,15 @@ impl SchedulingAlgorithm for AffinityScheduler {
         }
 
         let rules = self.all_rules(agent);
-        let has_required = rules.iter().any(|r| r.affinity_type == AffinityType::Required);
+        let has_required = rules
+            .iter()
+            .any(|r| r.affinity_type == AffinityType::Required);
 
         // Step 1: Filter by Required rules and anti-affinity
         let eligible: Vec<&&Node> = available
             .iter()
             .filter(|n| {
-                self.satisfies_required(n, &rules)
-                    && self.passes_anti_affinity(n, agent, nodes)
+                self.satisfies_required(n, &rules) && self.passes_anti_affinity(n, agent, nodes)
             })
             .collect();
 
@@ -357,14 +353,20 @@ mod tests {
         let mut labels_b = HashMap::new();
         labels_b.insert("cpu".to_string(), "fast".to_string());
 
-        let nodes = vec![make_node("gpu-node", labels_a, vec![]), make_node("cpu-node", labels_b, vec![])];
+        let nodes = vec![
+            make_node("gpu-node", labels_a, vec![]),
+            make_node("cpu-node", labels_b, vec![]),
+        ];
 
         let mut required = HashMap::new();
         required.insert("gpu".to_string(), "true".to_string());
-        let agent = make_agent_with_affinity("a1", Affinity {
-            required,
-            preferred: vec![],
-        });
+        let agent = make_agent_with_affinity(
+            "a1",
+            Affinity {
+                required,
+                preferred: vec![],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -379,10 +381,13 @@ mod tests {
 
         let mut required = HashMap::new();
         required.insert("region".to_string(), "eu-west".to_string());
-        let agent = make_agent_with_affinity("a1", Affinity {
-            required,
-            preferred: vec![],
-        });
+        let agent = make_agent_with_affinity(
+            "a1",
+            Affinity {
+                required,
+                preferred: vec![],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await;
@@ -400,14 +405,17 @@ mod tests {
             make_node("hdd-node", labels_bad, vec![]),
         ];
 
-        let agent = make_agent_with_affinity("a1", Affinity {
-            required: HashMap::new(),
-            preferred: vec![LabelPreference {
-                label: "ssd".to_string(),
-                value: "true".to_string(),
-                weight: 80.0,
-            }],
-        });
+        let agent = make_agent_with_affinity(
+            "a1",
+            Affinity {
+                required: HashMap::new(),
+                preferred: vec![LabelPreference {
+                    label: "ssd".to_string(),
+                    value: "true".to_string(),
+                    weight: 80.0,
+                }],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -426,10 +434,13 @@ mod tests {
 
         let mut avoid_types = Vec::new();
         avoid_types.push("web".to_string());
-        let agent = make_agent_with_anti_affinity("a1", AntiAffinity {
-            avoid_labels: HashMap::new(),
-            avoid_agent_types: avoid_types,
-        });
+        let agent = make_agent_with_anti_affinity(
+            "a1",
+            AntiAffinity {
+                avoid_labels: HashMap::new(),
+                avoid_agent_types: avoid_types,
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -450,10 +461,13 @@ mod tests {
 
         let mut avoid = HashMap::new();
         avoid.insert("env".to_string(), "staging".to_string());
-        let agent = make_agent_with_anti_affinity("a1", AntiAffinity {
-            avoid_labels: avoid,
-            avoid_agent_types: vec![],
-        });
+        let agent = make_agent_with_anti_affinity(
+            "a1",
+            AntiAffinity {
+                avoid_labels: avoid,
+                avoid_agent_types: vec![],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -500,10 +514,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_affinity_picks_least_loaded_zone() {
-        let nodes = vec![
-            zone_node("n1", "z-a", 4),
-            zone_node("n2", "z-b", 0),
-        ];
+        let nodes = vec![zone_node("n1", "z-a", 4), zone_node("n2", "z-b", 0)];
         let agent = make_agent("a1");
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -512,10 +523,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_zone_disabled() {
-        let nodes = vec![
-            zone_node("n1", "z-a", 4),
-            zone_node("n2", "z-b", 0),
-        ];
+        let nodes = vec![zone_node("n1", "z-a", 4), zone_node("n2", "z-b", 0)];
         let agent = make_agent("a1");
         let scheduler = AffinityScheduler::with_zone_awareness(false);
         let result = scheduler.schedule(&agent, &nodes).await;
@@ -545,13 +553,24 @@ mod tests {
             make_node("worst", labels_worst, vec![]),
         ];
 
-        let agent = make_agent_with_affinity("a1", Affinity {
-            required: HashMap::new(),
-            preferred: vec![
-                LabelPreference { label: "gpu".to_string(), value: "a100".to_string(), weight: 50.0 },
-                LabelPreference { label: "ssd".to_string(), value: "true".to_string(), weight: 50.0 },
-            ],
-        });
+        let agent = make_agent_with_affinity(
+            "a1",
+            Affinity {
+                required: HashMap::new(),
+                preferred: vec![
+                    LabelPreference {
+                        label: "gpu".to_string(),
+                        value: "a100".to_string(),
+                        weight: 50.0,
+                    },
+                    LabelPreference {
+                        label: "ssd".to_string(),
+                        value: "true".to_string(),
+                        weight: 50.0,
+                    },
+                ],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
@@ -575,14 +594,17 @@ mod tests {
 
         let mut required = HashMap::new();
         required.insert("region".to_string(), "us".to_string());
-        let agent = make_agent_with_affinity("a1", Affinity {
-            required,
-            preferred: vec![LabelPreference {
-                label: "ssd".to_string(),
-                value: "true".to_string(),
-                weight: 90.0,
-            }],
-        });
+        let agent = make_agent_with_affinity(
+            "a1",
+            Affinity {
+                required,
+                preferred: vec![LabelPreference {
+                    label: "ssd".to_string(),
+                    value: "true".to_string(),
+                    weight: 90.0,
+                }],
+            },
+        );
 
         let scheduler = AffinityScheduler::new();
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();

@@ -131,8 +131,6 @@ impl ClusterSnapshot {
 
     /// Find the budget for an agent type, if any.
     pub fn budget_for_type(&self, agent_type: &str) -> Option<&AgentDisruptionBudget> {
-        self.budgets
-            .iter()
-            .find(|b| b.agent_type == agent_type)
+        self.budgets.iter().find(|b| b.agent_type == agent_type)
     }
 }

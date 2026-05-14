@@ -63,11 +63,7 @@ impl SchedulingAlgorithm for ResourceAwareScheduler {
         "resource-aware"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let mut best_node: Option<&Node> = None;
         let mut best_score = f64::NEG_INFINITY;
 
@@ -150,7 +146,7 @@ mod tests {
     #[tokio::test]
     async fn test_selects_node_with_enough_resources() {
         let nodes = vec![
-            make_node("small", 0.5, 512 * 1024 * 1024),    // 0.5 CPU, 512MB
+            make_node("small", 0.5, 512 * 1024 * 1024), // 0.5 CPU, 512MB
             make_node("large", 8.0, 16 * 1024 * 1024 * 1024), // 8 CPU, 16GB
         ];
         let scheduler = ResourceAwareScheduler::new();
@@ -162,9 +158,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_insufficient_resources() {
-        let nodes = vec![
-            make_node("small", 0.5, 512 * 1024 * 1024),
-        ];
+        let nodes = vec![make_node("small", 0.5, 512 * 1024 * 1024)];
         let scheduler = ResourceAwareScheduler::new();
         let agent = make_agent("a1", 4.0, 4 * 1024 * 1024 * 1024);
         let result = scheduler.schedule(&agent, &nodes).await;
@@ -174,8 +168,8 @@ mod tests {
     #[tokio::test]
     async fn test_prefers_tighter_fit() {
         let nodes = vec![
-            make_node("node-a", 4.0, 8 * 1024 * 1024 * 1024),  // 4 CPU left
-            make_node("node-b", 2.0, 4 * 1024 * 1024 * 1024),  // 2 CPU left (tighter fit for 1 CPU request)
+            make_node("node-a", 4.0, 8 * 1024 * 1024 * 1024), // 4 CPU left
+            make_node("node-b", 2.0, 4 * 1024 * 1024 * 1024), // 2 CPU left (tighter fit for 1 CPU request)
         ];
         let scheduler = ResourceAwareScheduler::new();
         let agent = make_agent("a1", 1.0, 1024 * 1024 * 1024);

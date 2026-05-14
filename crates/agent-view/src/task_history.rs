@@ -1,5 +1,5 @@
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
 use std::collections::HashMap;
 
 /// Task execution outcome
@@ -108,25 +108,39 @@ pub struct TaskFilter {
 impl TaskFilter {
     pub fn matches(&self, record: &TaskRecord) -> bool {
         if let Some(ref agent_id) = self.agent_id {
-            if &record.agent_id != agent_id { return false; }
+            if &record.agent_id != agent_id {
+                return false;
+            }
         }
         if let Some(ref task_type) = self.task_type {
-            if &record.task_type != task_type { return false; }
+            if &record.task_type != task_type {
+                return false;
+            }
         }
         if let Some(ref outcome) = self.outcome {
-            if &record.outcome != outcome { return false; }
+            if &record.outcome != outcome {
+                return false;
+            }
         }
         if let Some(since) = self.since {
-            if record.completed_at < since { return false; }
+            if record.completed_at < since {
+                return false;
+            }
         }
         if let Some(until) = self.until {
-            if record.completed_at > until { return false; }
+            if record.completed_at > until {
+                return false;
+            }
         }
         if let Some(min_dur) = self.min_duration_ms {
-            if record.duration_ms < min_dur { return false; }
+            if record.duration_ms < min_dur {
+                return false;
+            }
         }
         if let Some(max_dur) = self.max_duration_ms {
-            if record.duration_ms > max_dur { return false; }
+            if record.duration_ms > max_dur {
+                return false;
+            }
         }
         true
     }
@@ -172,25 +186,42 @@ impl TaskHistory {
     }
 
     pub fn for_agent(&self, agent_id: &str) -> Vec<&TaskRecord> {
-        let filter = TaskFilter { agent_id: Some(agent_id.to_string()), ..Default::default() };
+        let filter = TaskFilter {
+            agent_id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
         self.query(&filter)
     }
 
     pub fn recent_failures(&self, limit: usize) -> Vec<&TaskRecord> {
-        let filter = TaskFilter { outcome: Some(TaskOutcome::Failure), ..Default::default() };
+        let filter = TaskFilter {
+            outcome: Some(TaskOutcome::Failure),
+            ..Default::default()
+        };
         let mut results = self.query(&filter);
         results.sort_by_key(|r| std::cmp::Reverse(r.completed_at));
         results.into_iter().take(limit).collect()
     }
 
     pub fn stats(&self, filter: &TaskFilter) -> TaskStats {
-        let filtered: Vec<&TaskRecord> = self.records.iter().filter(|r| filter.matches(r)).collect();
+        let filtered: Vec<&TaskRecord> =
+            self.records.iter().filter(|r| filter.matches(r)).collect();
         let total = filtered.len() as u64;
         if total == 0 {
             return TaskStats {
-                total_tasks: 0, successful: 0, failed: 0, timed_out: 0, cancelled: 0,
-                success_rate: 0.0, avg_duration_ms: 0.0, p50_duration_ms: 0, p95_duration_ms: 0,
-                p99_duration_ms: 0, total_tokens: 0, avg_tokens_per_task: 0.0, total_retries: 0,
+                total_tasks: 0,
+                successful: 0,
+                failed: 0,
+                timed_out: 0,
+                cancelled: 0,
+                success_rate: 0.0,
+                avg_duration_ms: 0.0,
+                p50_duration_ms: 0,
+                p95_duration_ms: 0,
+                p99_duration_ms: 0,
+                total_tokens: 0,
+                avg_tokens_per_task: 0.0,
+                total_retries: 0,
             };
         }
 
@@ -209,7 +240,9 @@ impl TaskHistory {
                 TaskOutcome::Failure => failed += 1,
                 TaskOutcome::Timeout => timed_out += 1,
                 TaskOutcome::Cancelled => cancelled += 1,
-                TaskOutcome::Retry => { successful += 1; },
+                TaskOutcome::Retry => {
+                    successful += 1;
+                }
             }
             total_duration += r.duration_ms;
             total_tokens += r.tokens_consumed;
@@ -220,7 +253,10 @@ impl TaskHistory {
         durations.sort_unstable();
         let p = |pct: f64| -> u64 {
             let idx = ((pct / 100.0) * durations.len() as f64) as usize;
-            durations.get(idx.min(durations.len().saturating_sub(1))).copied().unwrap_or(0)
+            durations
+                .get(idx.min(durations.len().saturating_sub(1)))
+                .copied()
+                .unwrap_or(0)
         };
 
         TaskStats {
@@ -241,7 +277,10 @@ impl TaskHistory {
     }
 
     pub fn agent_stats(&self, agent_id: &str) -> TaskStats {
-        let filter = TaskFilter { agent_id: Some(agent_id.to_string()), ..Default::default() };
+        let filter = TaskFilter {
+            agent_id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
         self.stats(&filter)
     }
 
@@ -272,7 +311,14 @@ mod tests {
 
     #[test]
     fn test_task_record_creation() {
-        let task = TaskRecord::new("t1", "a1", "code", "implement feature", TaskOutcome::Success, 500);
+        let task = TaskRecord::new(
+            "t1",
+            "a1",
+            "code",
+            "implement feature",
+            TaskOutcome::Success,
+            500,
+        );
         assert_eq!(task.task_id, "t1");
         assert!(task.is_success());
         assert_eq!(task.duration_ms, 500);
@@ -307,7 +353,12 @@ mod tests {
     fn test_task_history_max_records() {
         let mut history = TaskHistory::with_max_records(3);
         for i in 0..5 {
-            history.record(make_task(&format!("t{}", i), "a1", TaskOutcome::Success, 100));
+            history.record(make_task(
+                &format!("t{}", i),
+                "a1",
+                TaskOutcome::Success,
+                100,
+            ));
         }
         assert_eq!(history.count(), 3);
     }
@@ -342,7 +393,7 @@ mod tests {
         assert_eq!(stats.total_tasks, 3);
         assert_eq!(stats.successful, 2);
         assert_eq!(stats.failed, 1);
-        assert!((stats.success_rate - 2.0/3.0).abs() < 0.01);
+        assert!((stats.success_rate - 2.0 / 3.0).abs() < 0.01);
         assert!((stats.avg_duration_ms - 200.0).abs() < 0.1);
     }
 
@@ -357,8 +408,22 @@ mod tests {
     fn test_task_type_breakdown() {
         let mut history = TaskHistory::new();
         history.record(make_task("t1", "a1", TaskOutcome::Success, 100));
-        history.record(TaskRecord::new("t2", "a1", "research", "search", TaskOutcome::Success, 200));
-        history.record(TaskRecord::new("t3", "a1", "code", "fix", TaskOutcome::Success, 300));
+        history.record(TaskRecord::new(
+            "t2",
+            "a1",
+            "research",
+            "search",
+            TaskOutcome::Success,
+            200,
+        ));
+        history.record(TaskRecord::new(
+            "t3",
+            "a1",
+            "code",
+            "fix",
+            TaskOutcome::Success,
+            300,
+        ));
         let breakdown = history.task_type_breakdown();
         assert_eq!(breakdown.get("code"), Some(&2));
         assert_eq!(breakdown.get("research"), Some(&1));
@@ -369,7 +434,10 @@ mod tests {
         let mut history = TaskHistory::new();
         history.record(make_task("t1", "a1", TaskOutcome::Success, 100));
         history.record(make_task("t2", "a1", TaskOutcome::Failure, 200));
-        let filter = TaskFilter { outcome: Some(TaskOutcome::Failure), ..Default::default() };
+        let filter = TaskFilter {
+            outcome: Some(TaskOutcome::Failure),
+            ..Default::default()
+        };
         assert_eq!(history.query(&filter).len(), 1);
     }
 
@@ -379,7 +447,11 @@ mod tests {
         history.record(make_task("t1", "a1", TaskOutcome::Success, 50));
         history.record(make_task("t2", "a1", TaskOutcome::Success, 500));
         history.record(make_task("t3", "a1", TaskOutcome::Success, 5000));
-        let filter = TaskFilter { min_duration_ms: Some(100), max_duration_ms: Some(1000), ..Default::default() };
+        let filter = TaskFilter {
+            min_duration_ms: Some(100),
+            max_duration_ms: Some(1000),
+            ..Default::default()
+        };
         assert_eq!(history.query(&filter).len(), 1);
     }
 

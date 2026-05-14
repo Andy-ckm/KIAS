@@ -76,7 +76,12 @@ impl CacheHub {
     }
 
     /// Set a string value
-    pub async fn set_string(&self, key: impl Into<String>, value: &str, ttl: Option<std::time::Duration>) -> KiasResult<()> {
+    pub async fn set_string(
+        &self,
+        key: impl Into<String>,
+        value: &str,
+        ttl: Option<std::time::Duration>,
+    ) -> KiasResult<()> {
         let key_str = key.into();
         let entry = match ttl {
             Some(t) => CacheEntry::with_ttl(key_str, value.as_bytes().to_vec(), t),
@@ -86,7 +91,10 @@ impl CacheHub {
     }
 
     /// Get a value deserialized from JSON
-    pub async fn get_json<T: serde::de::DeserializeOwned>(&self, key: &str) -> KiasResult<Option<T>> {
+    pub async fn get_json<T: serde::de::DeserializeOwned>(
+        &self,
+        key: &str,
+    ) -> KiasResult<Option<T>> {
         match self.get(key).await? {
             Some(entry) => {
                 let value: T = serde_json::from_slice(&entry.value)?;
@@ -97,7 +105,12 @@ impl CacheHub {
     }
 
     /// Set a value serialized as JSON
-    pub async fn set_json<T: Serialize>(&self, key: impl Into<String>, value: &T, ttl: Option<std::time::Duration>) -> KiasResult<()> {
+    pub async fn set_json<T: Serialize>(
+        &self,
+        key: impl Into<String>,
+        value: &T,
+        ttl: Option<std::time::Duration>,
+    ) -> KiasResult<()> {
         let bytes = serde_json::to_vec(value)?;
         let key_str = key.into();
         let entry = match ttl {
@@ -139,7 +152,9 @@ mod tests {
     #[tokio::test]
     async fn test_hub_get_string() {
         let hub = CacheHub::new(Box::new(LRUStrategy::new()));
-        hub.set_string("greeting", "hello world", None).await.unwrap();
+        hub.set_string("greeting", "hello world", None)
+            .await
+            .unwrap();
         let result = hub.get_string("greeting").await.unwrap();
         assert_eq!(result, Some("hello world".to_string()));
     }
@@ -155,7 +170,9 @@ mod tests {
     async fn test_hub_json_roundtrip() {
         let hub = CacheHub::new(Box::new(LRUStrategy::new()));
         let data = serde_json::json!({"name": "test", "value": 42});
-        hub.set_json("json_key", &data, Some(Duration::from_secs(60))).await.unwrap();
+        hub.set_json("json_key", &data, Some(Duration::from_secs(60)))
+            .await
+            .unwrap();
         let result: Option<serde_json::Value> = hub.get_json("json_key").await.unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap()["name"], "test");

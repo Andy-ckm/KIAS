@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Metric types following the Prometheus data model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,15 +27,20 @@ pub struct Histogram {
 impl Histogram {
     /// Create a histogram with standard buckets (good for latency in ms)
     pub fn with_standard_buckets() -> Self {
-        let boundaries = [1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0, 10000.0];
+        let boundaries = [
+            1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0, 10000.0,
+        ];
         Self::with_boundaries(&boundaries)
     }
 
     pub fn with_boundaries(boundaries: &[f64]) -> Self {
-        let buckets = boundaries.iter().map(|&upper_bound| HistogramBucket {
-            upper_bound,
-            count: 0,
-        }).collect();
+        let buckets = boundaries
+            .iter()
+            .map(|&upper_bound| HistogramBucket {
+                upper_bound,
+                count: 0,
+            })
+            .collect();
         Self {
             buckets,
             sum: 0.0,
@@ -56,13 +61,19 @@ impl Histogram {
 
     /// Calculate the mean value
     pub fn mean(&self) -> f64 {
-        if self.count == 0 { 0.0 } else { self.sum / self.count as f64 }
+        if self.count == 0 {
+            0.0
+        } else {
+            self.sum / self.count as f64
+        }
     }
 
     /// Estimate a percentile from bucket counts
     /// Returns the upper_bound of the bucket containing the percentile
     pub fn percentile(&self, p: f64) -> f64 {
-        if self.count == 0 { return 0.0; }
+        if self.count == 0 {
+            return 0.0;
+        }
         let target = (p / 100.0 * self.count as f64) as u64;
         let mut cumulative = 0u64;
         for bucket in &self.buckets {
@@ -75,13 +86,19 @@ impl Histogram {
     }
 
     /// Estimate P50 (median)
-    pub fn p50(&self) -> f64 { self.percentile(50.0) }
+    pub fn p50(&self) -> f64 {
+        self.percentile(50.0)
+    }
 
     /// Estimate P95
-    pub fn p95(&self) -> f64 { self.percentile(95.0) }
+    pub fn p95(&self) -> f64 {
+        self.percentile(95.0)
+    }
 
     /// Estimate P99
-    pub fn p99(&self) -> f64 { self.percentile(99.0) }
+    pub fn p99(&self) -> f64 {
+        self.percentile(99.0)
+    }
 }
 
 /// Metric snapshot for export
@@ -161,12 +178,14 @@ impl MetricsCollector {
 
     /// Create and register a histogram with standard latency buckets
     pub fn register_histogram(&mut self, name: &str) {
-        self.histograms.insert(name.to_string(), Histogram::with_standard_buckets());
+        self.histograms
+            .insert(name.to_string(), Histogram::with_standard_buckets());
     }
 
     /// Create and register a histogram with custom buckets
     pub fn register_histogram_with_boundaries(&mut self, name: &str, boundaries: &[f64]) {
-        self.histograms.insert(name.to_string(), Histogram::with_boundaries(boundaries));
+        self.histograms
+            .insert(name.to_string(), Histogram::with_boundaries(boundaries));
     }
 
     /// Record a value into a histogram
@@ -256,7 +275,10 @@ impl MetricsCollector {
         for (name, hist) in &self.histograms {
             output.push_str(&format!("# TYPE {} histogram\n", name));
             for bucket in &hist.buckets {
-                output.push_str(&format!("{}_bucket{{le=\"{}\"}} {}\n", name, bucket.upper_bound, bucket.count));
+                output.push_str(&format!(
+                    "{}_bucket{{le=\"{}\"}} {}\n",
+                    name, bucket.upper_bound, bucket.count
+                ));
             }
             output.push_str(&format!("{}_sum {}\n", name, hist.sum));
             output.push_str(&format!("{}_count {}\n", name, hist.count));
@@ -371,7 +393,8 @@ mod tests {
     #[test]
     fn test_histogram_custom_buckets() {
         let mut collector = MetricsCollector::new();
-        collector.register_histogram_with_boundaries("size_bytes", &[100.0, 1000.0, 10000.0, 100000.0]);
+        collector
+            .register_histogram_with_boundaries("size_bytes", &[100.0, 1000.0, 10000.0, 100000.0]);
         collector.observe_histogram("size_bytes", 500.0);
         collector.observe_histogram("size_bytes", 5000.0);
         assert_eq!(collector.histogram_count("size_bytes"), 2);

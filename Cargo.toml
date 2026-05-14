@@ -21,6 +21,7 @@ members = [
     "crates/mcp-protocol",
     "crates/benchmarks",
     "crates/data-store",
+    "crates/model-router",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

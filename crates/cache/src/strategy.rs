@@ -571,7 +571,10 @@ impl DeepSeekMLAStrategy {
     }
 
     /// Find the longest matching prefix of block hashes.
-    fn find_longest_block_prefix(&self, query_blocks: &[u64]) -> KiasResult<(usize, Option<String>)> {
+    fn find_longest_block_prefix(
+        &self,
+        query_blocks: &[u64],
+    ) -> KiasResult<(usize, Option<String>)> {
         let sequences = self
             .sequences
             .read()
@@ -635,10 +638,9 @@ impl DeepSeekMLAStrategy {
 
     /// Get current memory usage in bytes.
     fn current_memory_bytes(&self) -> u64 {
-        self.blocks
-            .read()
-            .ok()
-            .map_or(0, |blocks| blocks.values().map(|b| b.data.len() as u64).sum())
+        self.blocks.read().ok().map_or(0, |blocks| {
+            blocks.values().map(|b| b.data.len() as u64).sum()
+        })
     }
 
     /// Get the number of cached blocks.

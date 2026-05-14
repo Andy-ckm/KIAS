@@ -205,7 +205,9 @@ impl ConnectionRegistry {
 
     /// Increment messages sent counter (global and per-connection).
     pub fn inc_messages_sent(&self, _id: ConnectionId) {
-        self.inner.total_messages_sent.fetch_add(1, Ordering::Relaxed);
+        self.inner
+            .total_messages_sent
+            .fetch_add(1, Ordering::Relaxed);
         // Per-connection counter is best-effort (async lock not worth it here)
         // We'll update it in bulk during stats collection
     }
@@ -497,7 +499,10 @@ async fn handle_socket(
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
     if let Err(e) = sender.send(Message::Text(welcome.to_string())).await {
-        warn!(connection_id = conn_id, "Failed to send welcome message: {}", e);
+        warn!(
+            connection_id = conn_id,
+            "Failed to send welcome message: {}", e
+        );
         registry.unregister(conn_id).await;
         return;
     }
@@ -582,7 +587,11 @@ async fn handle_socket(
 
         // Update metrics before exiting
         registry_for_send.inc_messages_sent(conn_id_for_send);
-        debug!(connection_id = conn_id_for_send, messages_sent = msg_count, "Send task exiting");
+        debug!(
+            connection_id = conn_id_for_send,
+            messages_sent = msg_count,
+            "Send task exiting"
+        );
     });
 
     // Spawn a task to receive broadcast events and apply filter
@@ -718,9 +727,7 @@ async fn handle_socket(
 
 /// GET /api/v1/ws/stats
 /// Returns WebSocket connection statistics.
-pub async fn ws_stats_handler(
-    State(state): State<crate::AppState>,
-) -> axum::Json<WsStats> {
+pub async fn ws_stats_handler(State(state): State<crate::AppState>) -> axum::Json<WsStats> {
     let replay_len = state.event_replay_buffer.len().await;
     let replay_cap = state.event_replay_buffer.capacity();
     let stats = state
@@ -898,7 +905,9 @@ mod tests {
     async fn test_connection_registry_register_unregister() {
         let registry = ConnectionRegistry::new();
         let id1 = registry.register(Some("127.0.0.1:8080".to_string())).await;
-        let id2 = registry.register(Some("192.168.1.1:9090".to_string())).await;
+        let id2 = registry
+            .register(Some("192.168.1.1:9090".to_string()))
+            .await;
 
         assert!(id1 != id2);
         let stats = registry.stats(0, 0).await;
@@ -917,10 +926,7 @@ mod tests {
         let id = registry.register(None).await;
 
         registry
-            .set_subscriptions(
-                id,
-                vec![EventType::AgentCreated, EventType::TaskCompleted],
-            )
+            .set_subscriptions(id, vec![EventType::AgentCreated, EventType::TaskCompleted])
             .await;
 
         let stats = registry.stats(0, 0).await;

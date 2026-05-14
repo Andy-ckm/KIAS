@@ -73,14 +73,24 @@ impl SubGraph {
     }
 
     /// Add an input mapping: `parent_field` → `child_field`.
-    pub fn with_input_mapping(mut self, parent_field: impl Into<String>, child_field: impl Into<String>) -> Self {
-        self.input_mapping.insert(parent_field.into(), child_field.into());
+    pub fn with_input_mapping(
+        mut self,
+        parent_field: impl Into<String>,
+        child_field: impl Into<String>,
+    ) -> Self {
+        self.input_mapping
+            .insert(parent_field.into(), child_field.into());
         self
     }
 
     /// Add an output mapping: `child_field` → `parent_field`.
-    pub fn with_output_mapping(mut self, child_field: impl Into<String>, parent_field: impl Into<String>) -> Self {
-        self.output_mapping.insert(child_field.into(), parent_field.into());
+    pub fn with_output_mapping(
+        mut self,
+        child_field: impl Into<String>,
+        parent_field: impl Into<String>,
+    ) -> Self {
+        self.output_mapping
+            .insert(child_field.into(), parent_field.into());
         self
     }
 
@@ -151,24 +161,24 @@ mod tests {
 
     fn make_simple_graph() -> WorkflowGraph {
         let mut graph = WorkflowGraph::new("analyze");
-        graph.add_node(
-            Node::new("x", "Step X", NodeType::Process).with_executor(ExecutorConfig::Shell {
+        graph.add_node(Node::new("x", "Step X", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["x".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            }),
-        );
-        graph.add_node(
-            Node::new("y", "Step Y", NodeType::Process).with_executor(ExecutorConfig::Shell {
+            },
+        ));
+        graph.add_node(Node::new("y", "Step Y", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["y".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            }),
-        );
+            },
+        ));
         graph.add_edge(Edge::new("x", "y"));
         graph.set_entry("x");
         graph.add_exit_node("y");
@@ -195,7 +205,10 @@ mod tests {
             .with_timeout(30);
 
         assert_eq!(sg.input_mapping.get("parent_input").unwrap(), "child_input");
-        assert_eq!(sg.output_mapping.get("child_result").unwrap(), "parent_result");
+        assert_eq!(
+            sg.output_mapping.get("child_result").unwrap(),
+            "parent_result"
+        );
         assert!(!sg.propagate_failure);
         assert_eq!(sg.timeout_secs, Some(30));
     }

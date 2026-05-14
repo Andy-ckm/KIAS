@@ -138,10 +138,7 @@ pub fn create_router(state: AppState) -> Router {
 
     // --- A2A (Agent-to-Agent) protocol routes ---
     let a2a_routes = Router::new()
-        .route(
-            "/a2a/v1/agents",
-            axum::routing::get(a2a::list_agent_cards),
-        )
+        .route("/a2a/v1/agents", axum::routing::get(a2a::list_agent_cards))
         .route(
             "/a2a/v1/agents/:id",
             axum::routing::get(a2a::get_agent_card),

@@ -20,6 +20,6 @@ pub use filter::{CooldownFilter, FilterPipeline, RoutingFilter};
 pub use provider::{Provider, ProviderConfig};
 pub use router::{ModelRouter, RouterConfig};
 pub use types::{
-    ChatMessage, ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse,
-    ModelCapability, ModelInfo, ProviderHealth, RoutingStrategy, Usage,
+    ChatMessage, ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, ModelCapability,
+    ModelInfo, ProviderHealth, RoutingStrategy, Usage,
 };

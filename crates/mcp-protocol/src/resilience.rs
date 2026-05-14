@@ -345,9 +345,7 @@ pub struct TokenBucketRateLimiter {
 impl TokenBucketRateLimiter {
     /// Create a new rate limiter.
     pub fn new(config: RateLimiterConfig) -> Self {
-        let initial = config
-            .initial_tokens
-            .unwrap_or(config.max_tokens) as f64;
+        let initial = config.initial_tokens.unwrap_or(config.max_tokens) as f64;
 
         Self {
             config,
@@ -653,7 +651,9 @@ mod tests {
         assert_eq!(result.unwrap(), 42);
 
         // Failed execution
-        let result = cb.execute(async { Err::<i32, String>("test error".to_string()) }).await;
+        let result = cb
+            .execute(async { Err::<i32, String>("test error".to_string()) })
+            .await;
         assert!(matches!(result, Err(CircuitBreakerError::Inner(_))));
     }
 }

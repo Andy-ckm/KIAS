@@ -37,6 +37,12 @@ pub mod vector_persist;
 
 pub use cache_persist::{CacheEntry, CacheStrategy, SqliteCacheStrategy};
 pub use migrations::MigrationRunner;
-pub use models::{AgentRow, ComponentRow, ConfigRow, ExperienceReplayRow, PrefixCacheRow, SkillRow, TaskRow, WorkflowRow};
-pub use repository::{DatabaseHealth, ExperienceReplayRepository, PoolStats, PrefixCacheRepository, PrefixCacheStats, Repository, SqliteRepository};
+pub use models::{
+    AgentRow, ComponentRow, ConfigRow, ExperienceReplayRow, PrefixCacheRow, SkillRow, TaskRow,
+    WorkflowRow,
+};
+pub use repository::{
+    DatabaseHealth, ExperienceReplayRepository, PoolStats, PrefixCacheRepository, PrefixCacheStats,
+    Repository, SqliteRepository,
+};
 pub use vector_persist::{PersistentVectorStore, VectorSearchResult};

@@ -70,7 +70,10 @@ pub fn validate(topology: &GraphTopology) -> Vec<ValidationError> {
         }
     }
 
-    if topology.edges.is_empty() && topology.reachability_hints.is_empty() && topology.nodes.len() > 1 {
+    if topology.edges.is_empty()
+        && topology.reachability_hints.is_empty()
+        && topology.nodes.len() > 1
+    {
         errors.push(ValidationError {
             kind: ValidationErrorKind::NoEdges,
             message: "Graph has multiple nodes but no edges".to_string(),
@@ -152,7 +155,9 @@ mod tests {
     fn test_valid_linear_graph() {
         let topo = GraphTopology {
             entry: "a".to_string(),
-            nodes: vec!["a".into(), "b".into(), "c".into()].into_iter().collect(),
+            nodes: vec!["a".into(), "b".into(), "c".into()]
+                .into_iter()
+                .collect(),
             edges: vec![
                 ("a".into(), "b".into(), false),
                 ("b".into(), "c".into(), false),
@@ -172,7 +177,9 @@ mod tests {
             reachability_hints: vec![],
         };
         let errors = validate(&topo);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::MissingEntryNode));
+        assert!(errors
+            .iter()
+            .any(|e| e.kind == ValidationErrorKind::MissingEntryNode));
     }
 
     #[test]
@@ -184,21 +191,26 @@ mod tests {
             reachability_hints: vec![],
         };
         let errors = validate(&topo);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::DanglingEdge));
+        assert!(errors
+            .iter()
+            .any(|e| e.kind == ValidationErrorKind::DanglingEdge));
     }
 
     #[test]
     fn test_unreachable_node() {
         let topo = GraphTopology {
             entry: "a".to_string(),
-            nodes: vec!["a".into(), "b".into(), "c".into()].into_iter().collect(),
+            nodes: vec!["a".into(), "b".into(), "c".into()]
+                .into_iter()
+                .collect(),
             edges: vec![("a".into(), "b".into(), false)],
             reachability_hints: vec![],
             // c is unreachable
         };
         let errors = validate(&topo);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::DeadEnd
-            && e.message.contains("unreachable")));
+        assert!(errors
+            .iter()
+            .any(|e| e.kind == ValidationErrorKind::DeadEnd && e.message.contains("unreachable")));
     }
 
     #[test]
@@ -218,7 +230,9 @@ mod tests {
             reachability_hints: vec![],
         };
         let errors = validate(&topo2);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NoEdges));
+        assert!(errors
+            .iter()
+            .any(|e| e.kind == ValidationErrorKind::NoEdges));
     }
 
     #[test]

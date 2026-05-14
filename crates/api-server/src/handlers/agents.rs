@@ -152,7 +152,5 @@ pub async fn update_agent_status(
     state.event_bus.publish(event.clone());
     state.event_replay_buffer.push(event).await;
 
-    Ok(Json(ApiResponse {
-        data: agent_clone,
-    }))
+    Ok(Json(ApiResponse { data: agent_clone }))
 }

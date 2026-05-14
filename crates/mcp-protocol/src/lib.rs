@@ -67,15 +67,15 @@ pub use types::{McpNotification, McpRequest, McpResponse, RequestId};
 // Re-export auth types
 #[cfg(feature = "auth")]
 pub use auth::{
-    ApiKeyAuthProvider, AuthContext, AuthMethod, AuthProvider, AuthorizationManager, JwtAuthProvider,
-    OAuthToken, Permission, Role, TokenClaims, UserInfo,
+    ApiKeyAuthProvider, AuthContext, AuthMethod, AuthProvider, AuthorizationManager,
+    JwtAuthProvider, OAuthToken, Permission, Role, TokenClaims, UserInfo,
 };
 
 // Re-export resilience types
 #[cfg(feature = "resilience")]
 pub use resilience::{
-    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError, CircuitBreakerMetrics,
-    CircuitState, ClientRateLimiter, RateLimiterConfig, RateLimiterStats, SlidingWindowRateLimiter,
+    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError, CircuitBreakerMetrics, CircuitState,
+    ClientRateLimiter, RateLimiterConfig, RateLimiterStats, SlidingWindowRateLimiter,
     TokenBucketRateLimiter,
 };
 

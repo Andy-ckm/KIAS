@@ -153,12 +153,13 @@ impl Repository<AgentRow> for AgentRepository {
 
     async fn delete(&self, id: &str) -> KiasResult<()> {
         let now = chrono::Utc::now().to_rfc3339();
-        let result = sqlx::query("UPDATE agents SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
-            .bind(&now)
-            .bind(id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| KiasError::Config(format!("Failed to delete agent: {e}")))?;
+        let result =
+            sqlx::query("UPDATE agents SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+                .bind(&now)
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to delete agent: {e}")))?;
 
         if result.rows_affected() == 0 {
             return Err(KiasError::NotFound(format!("Agent {id} not found")));
@@ -413,12 +414,13 @@ impl Repository<WorkflowRow> for WorkflowRepository {
 
     async fn delete(&self, id: &str) -> KiasResult<()> {
         let now = chrono::Utc::now().to_rfc3339();
-        let result = sqlx::query("UPDATE workflows SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
-            .bind(&now)
-            .bind(id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| KiasError::Config(format!("Failed to delete workflow: {e}")))?;
+        let result =
+            sqlx::query("UPDATE workflows SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+                .bind(&now)
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to delete workflow: {e}")))?;
 
         if result.rows_affected() == 0 {
             return Err(KiasError::NotFound(format!("Workflow {id} not found")));
@@ -427,11 +429,10 @@ impl Repository<WorkflowRow> for WorkflowRepository {
     }
 
     async fn count(&self) -> KiasResult<i64> {
-        let row: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM workflows WHERE deleted_at IS NULL")
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| KiasError::Config(format!("Failed to count workflows: {e}")))?;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM workflows WHERE deleted_at IS NULL")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| KiasError::Config(format!("Failed to count workflows: {e}")))?;
         Ok(row.0)
     }
 }
@@ -448,14 +449,13 @@ impl ConfigRepository {
 
     /// Get a config value by namespace and key.
     pub async fn get_by_key(&self, namespace: &str, key: &str) -> KiasResult<Option<ConfigRow>> {
-        let row = sqlx::query_as::<_, ConfigRow>(
-            "SELECT * FROM configs WHERE namespace = ? AND key = ?",
-        )
-        .bind(namespace)
-        .bind(key)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to get config: {e}")))?;
+        let row =
+            sqlx::query_as::<_, ConfigRow>("SELECT * FROM configs WHERE namespace = ? AND key = ?")
+                .bind(namespace)
+                .bind(key)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to get config: {e}")))?;
         Ok(row)
     }
 
@@ -575,12 +575,11 @@ impl SkillRepository {
 
     /// Get enabled skills.
     pub async fn get_enabled(&self) -> KiasResult<Vec<SkillRow>> {
-        let rows = sqlx::query_as::<_, SkillRow>(
-            "SELECT * FROM skills WHERE enabled = 1 ORDER BY name",
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to query enabled skills: {e}")))?;
+        let rows =
+            sqlx::query_as::<_, SkillRow>("SELECT * FROM skills WHERE enabled = 1 ORDER BY name")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to query enabled skills: {e}")))?;
         Ok(rows)
     }
 }
@@ -619,14 +618,13 @@ impl Repository<SkillRow> for SkillRepository {
     async fn list(&self, limit: Option<i64>, offset: Option<i64>) -> KiasResult<Vec<SkillRow>> {
         let limit = limit.unwrap_or(100);
         let offset = offset.unwrap_or(0);
-        let rows = sqlx::query_as::<_, SkillRow>(
-            "SELECT * FROM skills ORDER BY name LIMIT ? OFFSET ?",
-        )
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to list skills: {e}")))?;
+        let rows =
+            sqlx::query_as::<_, SkillRow>("SELECT * FROM skills ORDER BY name LIMIT ? OFFSET ?")
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to list skills: {e}")))?;
         Ok(rows)
     }
 
@@ -687,13 +685,11 @@ impl ComponentRepository {
 
     /// Get a component by name.
     pub async fn get_by_name(&self, name: &str) -> KiasResult<Option<ComponentRow>> {
-        let row = sqlx::query_as::<_, ComponentRow>(
-            "SELECT * FROM components WHERE name = ?",
-        )
-        .bind(name)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to get component by name: {e}")))?;
+        let row = sqlx::query_as::<_, ComponentRow>("SELECT * FROM components WHERE name = ?")
+            .bind(name)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| KiasError::Config(format!("Failed to get component by name: {e}")))?;
         Ok(row)
     }
 
@@ -773,7 +769,10 @@ impl Repository<ComponentRow> for ComponentRepository {
         .map_err(|e| KiasError::Config(format!("Failed to update component: {e}")))?;
 
         if result.rows_affected() == 0 {
-            return Err(KiasError::NotFound(format!("Component {} not found", comp.id)));
+            return Err(KiasError::NotFound(format!(
+                "Component {} not found",
+                comp.id
+            )));
         }
         Ok(())
     }
@@ -862,7 +861,11 @@ impl ExperienceReplayRepository {
     }
 
     /// Get experiences for a specific agent, ordered by creation time.
-    pub async fn get_by_agent(&self, agent_id: &str, limit: Option<i64>) -> KiasResult<Vec<ExperienceReplayRow>> {
+    pub async fn get_by_agent(
+        &self,
+        agent_id: &str,
+        limit: Option<i64>,
+    ) -> KiasResult<Vec<ExperienceReplayRow>> {
         let limit = limit.unwrap_or(100);
         let rows = sqlx::query_as::<_, ExperienceReplayRow>(
             "SELECT * FROM experience_replay WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
@@ -911,7 +914,7 @@ impl ExperienceReplayRepository {
     /// Delete experiences older than a given number of days.
     pub async fn cleanup_older_than(&self, days: i64) -> KiasResult<u64> {
         let result = sqlx::query(
-            "DELETE FROM experience_replay WHERE created_at < datetime('now', '-' || ? || ' days')"
+            "DELETE FROM experience_replay WHERE created_at < datetime('now', '-' || ? || ' days')",
         )
         .bind(days)
         .execute(&self.pool)
@@ -947,12 +950,19 @@ impl PrefixCacheRepository {
         .execute(&self.pool)
         .await
         .map_err(|e| KiasError::Config(format!("Failed to insert prefix cache: {e}")))?;
-        debug!("Cached prefix {} for model {}", entry.prefix_hash, entry.model_id);
+        debug!(
+            "Cached prefix {} for model {}",
+            entry.prefix_hash, entry.model_id
+        );
         Ok(())
     }
 
     /// Lookup a cached prefix and record a hit.
-    pub async fn lookup(&self, prefix_hash: &str, model_id: &str) -> KiasResult<Option<PrefixCacheRow>> {
+    pub async fn lookup(
+        &self,
+        prefix_hash: &str,
+        model_id: &str,
+    ) -> KiasResult<Option<PrefixCacheRow>> {
         let row = sqlx::query_as::<_, PrefixCacheRow>(
             "SELECT * FROM prefix_cache WHERE prefix_hash = ? AND model_id = ?",
         )
@@ -1094,9 +1104,9 @@ impl SqliteRepository {
     /// Create an in-memory SQLite database with migrations applied.
     /// Useful for testing.
     pub async fn in_memory() -> KiasResult<Self> {
-        let pool = SqlitePool::connect("sqlite::memory:")
-            .await
-            .map_err(|e| KiasError::Config(format!("Failed to connect to in-memory SQLite: {e}")))?;
+        let pool = SqlitePool::connect("sqlite::memory:").await.map_err(|e| {
+            KiasError::Config(format!("Failed to connect to in-memory SQLite: {e}"))
+        })?;
 
         let migration_runner = super::migrations::MigrationRunner::new(pool.clone());
         migration_runner.run_all().await?;
@@ -1176,7 +1186,9 @@ mod tests {
     use super::*;
 
     async fn test_repo() -> SqliteRepository {
-        SqliteRepository::in_memory().await.expect("Failed to create in-memory repo")
+        SqliteRepository::in_memory()
+            .await
+            .expect("Failed to create in-memory repo")
     }
 
     #[tokio::test]
@@ -1187,25 +1199,43 @@ mod tests {
         let mut agent = AgentRow::new("test-agent");
         agent.cpu = 2.0;
         agent.memory_bytes = 1024 * 1024 * 512;
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
         // Read
-        let fetched = repo.agents.get_by_id(&agent.id).await.expect("Failed to get agent");
+        let fetched = repo
+            .agents
+            .get_by_id(&agent.id)
+            .await
+            .expect("Failed to get agent");
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.name, "test-agent");
         assert_eq!(fetched.cpu, 2.0);
 
         // List
-        let all = repo.agents.list(None, None).await.expect("Failed to list agents");
+        let all = repo
+            .agents
+            .list(None, None)
+            .await
+            .expect("Failed to list agents");
         assert_eq!(all.len(), 1);
 
         // Update
         let mut updated = fetched.clone();
         updated.status = "running".to_string();
-        repo.agents.update(&updated).await.expect("Failed to update agent");
+        repo.agents
+            .update(&updated)
+            .await
+            .expect("Failed to update agent");
 
-        let fetched = repo.agents.get_by_id(&agent.id).await.expect("Failed to get agent");
+        let fetched = repo
+            .agents
+            .get_by_id(&agent.id)
+            .await
+            .expect("Failed to get agent");
         assert_eq!(fetched.unwrap().status, "running");
 
         // Count
@@ -1213,8 +1243,15 @@ mod tests {
         assert_eq!(count, 1);
 
         // Delete (soft)
-        repo.agents.delete(&agent.id).await.expect("Failed to delete agent");
-        let fetched = repo.agents.get_by_id(&agent.id).await.expect("Failed to get agent");
+        repo.agents
+            .delete(&agent.id)
+            .await
+            .expect("Failed to delete agent");
+        let fetched = repo
+            .agents
+            .get_by_id(&agent.id)
+            .await
+            .expect("Failed to get agent");
         assert!(fetched.is_none(), "Soft-deleted agent should not be found");
 
         let count = repo.agents.count().await.expect("Failed to count agents");
@@ -1227,19 +1264,33 @@ mod tests {
 
         // Create agent first (FK constraint)
         let agent = AgentRow::new("agent-for-tasks");
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
         // Create task
         let task = TaskRow::new(&agent.id, "my-task");
-        repo.tasks.create(&task).await.expect("Failed to create task");
+        repo.tasks
+            .create(&task)
+            .await
+            .expect("Failed to create task");
 
         // Read
-        let fetched = repo.tasks.get_by_id(&task.id).await.expect("Failed to get task");
+        let fetched = repo
+            .tasks
+            .get_by_id(&task.id)
+            .await
+            .expect("Failed to get task");
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().name, "my-task");
 
         // Get by agent
-        let agent_tasks = repo.tasks.get_by_agent(&agent.id).await.expect("Failed to get agent tasks");
+        let agent_tasks = repo
+            .tasks
+            .get_by_agent(&agent.id)
+            .await
+            .expect("Failed to get agent tasks");
         assert_eq!(agent_tasks.len(), 1);
 
         // Count
@@ -1247,7 +1298,10 @@ mod tests {
         assert_eq!(count, 1);
 
         // Delete (hard)
-        repo.tasks.delete(&task.id).await.expect("Failed to delete task");
+        repo.tasks
+            .delete(&task.id)
+            .await
+            .expect("Failed to delete task");
         let count = repo.tasks.count().await.expect("Failed to count tasks");
         assert_eq!(count, 0);
     }
@@ -1257,15 +1311,29 @@ mod tests {
         let repo = test_repo().await;
 
         let wf = WorkflowRow::new("pipeline");
-        repo.workflows.create(&wf).await.expect("Failed to create workflow");
+        repo.workflows
+            .create(&wf)
+            .await
+            .expect("Failed to create workflow");
 
-        let fetched = repo.workflows.get_by_id(&wf.id).await.expect("Failed to get workflow");
+        let fetched = repo
+            .workflows
+            .get_by_id(&wf.id)
+            .await
+            .expect("Failed to get workflow");
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().name, "pipeline");
 
         // Soft delete
-        repo.workflows.delete(&wf.id).await.expect("Failed to delete workflow");
-        let fetched = repo.workflows.get_by_id(&wf.id).await.expect("Failed to get workflow");
+        repo.workflows
+            .delete(&wf.id)
+            .await
+            .expect("Failed to delete workflow");
+        let fetched = repo
+            .workflows
+            .get_by_id(&wf.id)
+            .await
+            .expect("Failed to get workflow");
         assert!(fetched.is_none());
     }
 
@@ -1274,13 +1342,23 @@ mod tests {
         let repo = test_repo().await;
 
         let mut config = ConfigRow::new("default", "key1", "value1");
-        repo.configs.create(&config).await.expect("Failed to create config");
+        repo.configs
+            .create(&config)
+            .await
+            .expect("Failed to create config");
 
         // Upsert with new value
         config.value = "updated".to_string();
-        repo.configs.upsert(&config).await.expect("Failed to upsert config");
+        repo.configs
+            .upsert(&config)
+            .await
+            .expect("Failed to upsert config");
 
-        let fetched = repo.configs.get_by_key("default", "key1").await.expect("Failed to get config");
+        let fetched = repo
+            .configs
+            .get_by_key("default", "key1")
+            .await
+            .expect("Failed to get config");
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().value, "updated");
     }
@@ -1290,12 +1368,23 @@ mod tests {
         let repo = test_repo().await;
 
         let skill = SkillRow::new("web-search", "Search the web");
-        repo.skills.create(&skill).await.expect("Failed to create skill");
+        repo.skills
+            .create(&skill)
+            .await
+            .expect("Failed to create skill");
 
-        let fetched = repo.skills.get_by_name("web-search").await.expect("Failed to get skill");
+        let fetched = repo
+            .skills
+            .get_by_name("web-search")
+            .await
+            .expect("Failed to get skill");
         assert!(fetched.is_some());
 
-        let enabled = repo.skills.get_enabled().await.expect("Failed to get enabled skills");
+        let enabled = repo
+            .skills
+            .get_enabled()
+            .await
+            .expect("Failed to get enabled skills");
         assert_eq!(enabled.len(), 1);
     }
 
@@ -1304,12 +1393,23 @@ mod tests {
         let repo = test_repo().await;
 
         let comp = ComponentRow::new("api-server", "service");
-        repo.components.create(&comp).await.expect("Failed to create component");
+        repo.components
+            .create(&comp)
+            .await
+            .expect("Failed to create component");
 
-        let fetched = repo.components.get_by_name("api-server").await.expect("Failed to get component");
+        let fetched = repo
+            .components
+            .get_by_name("api-server")
+            .await
+            .expect("Failed to get component");
         assert!(fetched.is_some());
 
-        let by_type = repo.components.get_by_type("service").await.expect("Failed to get by type");
+        let by_type = repo
+            .components
+            .get_by_type("service")
+            .await
+            .expect("Failed to get by type");
         assert_eq!(by_type.len(), 1);
     }
 
@@ -1320,17 +1420,32 @@ mod tests {
         // Create 5 agents
         for i in 0..5 {
             let agent = AgentRow::new(format!("agent-{i}"));
-            repo.agents.create(&agent).await.expect("Failed to create agent");
+            repo.agents
+                .create(&agent)
+                .await
+                .expect("Failed to create agent");
         }
 
         // List with limit
-        let page1 = repo.agents.list(Some(2), Some(0)).await.expect("Failed to list");
+        let page1 = repo
+            .agents
+            .list(Some(2), Some(0))
+            .await
+            .expect("Failed to list");
         assert_eq!(page1.len(), 2);
 
-        let page2 = repo.agents.list(Some(2), Some(2)).await.expect("Failed to list");
+        let page2 = repo
+            .agents
+            .list(Some(2), Some(2))
+            .await
+            .expect("Failed to list");
         assert_eq!(page2.len(), 2);
 
-        let page3 = repo.agents.list(Some(2), Some(4)).await.expect("Failed to list");
+        let page3 = repo
+            .agents
+            .list(Some(2), Some(4))
+            .await
+            .expect("Failed to list");
         assert_eq!(page3.len(), 1);
     }
 
@@ -1340,12 +1455,23 @@ mod tests {
 
         let mut agent = AgentRow::new("status-test");
         agent.status = "running".to_string();
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
-        let running = repo.agents.get_by_status("running").await.expect("Failed to get by status");
+        let running = repo
+            .agents
+            .get_by_status("running")
+            .await
+            .expect("Failed to get by status");
         assert_eq!(running.len(), 1);
 
-        let pending = repo.agents.get_by_status("pending").await.expect("Failed to get by status");
+        let pending = repo
+            .agents
+            .get_by_status("pending")
+            .await
+            .expect("Failed to get by status");
         assert_eq!(pending.len(), 0);
     }
 
@@ -1355,7 +1481,10 @@ mod tests {
 
         // Create an agent first
         let agent = AgentRow::new("rl-agent");
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
         let entries = vec![
             ExperienceReplayRow::new(&agent.id, r#"{"s": 1}"#, r#"{"a": 0}"#, 0.5),
@@ -1363,13 +1492,25 @@ mod tests {
             ExperienceReplayRow::new(&agent.id, r#"{"s": 3}"#, r#"{"a": 0}"#, -0.2),
         ];
 
-        let count = repo.experience_replay.batch_insert(&entries).await.expect("Failed to batch insert");
+        let count = repo
+            .experience_replay
+            .batch_insert(&entries)
+            .await
+            .expect("Failed to batch insert");
         assert_eq!(count, 3);
 
-        let total = repo.experience_replay.total_count().await.expect("Failed to count");
+        let total = repo
+            .experience_replay
+            .total_count()
+            .await
+            .expect("Failed to count");
         assert_eq!(total, 3);
 
-        let by_agent = repo.experience_replay.get_by_agent(&agent.id, Some(10)).await.expect("Failed to get by agent");
+        let by_agent = repo
+            .experience_replay
+            .get_by_agent(&agent.id, Some(10))
+            .await
+            .expect("Failed to get by agent");
         assert_eq!(by_agent.len(), 3);
     }
 
@@ -1378,14 +1519,29 @@ mod tests {
         let repo = test_repo().await;
 
         let agent = AgentRow::new("sample-agent");
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
         for i in 0..10 {
-            let entry = ExperienceReplayRow::new(&agent.id, format!(r#"{{"s": {i}}}"#), r#"{"a": 0}"#, i as f64 * 0.1);
-            repo.experience_replay.batch_insert(&[entry]).await.expect("Failed to insert");
+            let entry = ExperienceReplayRow::new(
+                &agent.id,
+                format!(r#"{{"s": {i}}}"#),
+                r#"{"a": 0}"#,
+                i as f64 * 0.1,
+            );
+            repo.experience_replay
+                .batch_insert(&[entry])
+                .await
+                .expect("Failed to insert");
         }
 
-        let sample = repo.experience_replay.sample_random(5).await.expect("Failed to sample");
+        let sample = repo
+            .experience_replay
+            .sample_random(5)
+            .await
+            .expect("Failed to sample");
         assert_eq!(sample.len(), 5);
     }
 
@@ -1394,13 +1550,23 @@ mod tests {
         let repo = test_repo().await;
 
         let agent = AgentRow::new("ep-agent");
-        repo.agents.create(&agent).await.expect("Failed to create agent");
+        repo.agents
+            .create(&agent)
+            .await
+            .expect("Failed to create agent");
 
         let mut entry = ExperienceReplayRow::new(&agent.id, r#"{"s": 1}"#, r#"{"a": 0}"#, 0.5);
         entry.episode_id = Some("ep-001".to_string());
-        repo.experience_replay.batch_insert(&[entry]).await.expect("Failed to insert");
+        repo.experience_replay
+            .batch_insert(&[entry])
+            .await
+            .expect("Failed to insert");
 
-        let by_episode = repo.experience_replay.get_by_episode("ep-001").await.expect("Failed to get by episode");
+        let by_episode = repo
+            .experience_replay
+            .get_by_episode("ep-001")
+            .await
+            .expect("Failed to get by episode");
         assert_eq!(by_episode.len(), 1);
         assert_eq!(by_episode[0].episode_id.as_deref(), Some("ep-001"));
     }
@@ -1410,21 +1576,42 @@ mod tests {
         let repo = test_repo().await;
 
         let entry = PrefixCacheRow::new("hash-abc", "model-7b", vec![1, 2, 3, 4], 128);
-        repo.prefix_cache.insert(&entry).await.expect("Failed to insert");
+        repo.prefix_cache
+            .insert(&entry)
+            .await
+            .expect("Failed to insert");
 
-        let found = repo.prefix_cache.lookup("hash-abc", "model-7b").await.expect("Failed to lookup");
+        let found = repo
+            .prefix_cache
+            .lookup("hash-abc", "model-7b")
+            .await
+            .expect("Failed to lookup");
         assert!(found.is_some());
         let found = found.unwrap();
         assert_eq!(found.token_count, 128);
         assert_eq!(found.kv_data, vec![1, 2, 3, 4]);
 
         // Lookup again should increment hit count
-        repo.prefix_cache.lookup("hash-abc", "model-7b").await.expect("Failed to lookup");
-        repo.prefix_cache.lookup("hash-abc", "model-7b").await.expect("Failed to lookup");
+        repo.prefix_cache
+            .lookup("hash-abc", "model-7b")
+            .await
+            .expect("Failed to lookup");
+        repo.prefix_cache
+            .lookup("hash-abc", "model-7b")
+            .await
+            .expect("Failed to lookup");
 
-        let stats = repo.prefix_cache.model_stats("model-7b").await.expect("Failed to get stats");
+        let stats = repo
+            .prefix_cache
+            .model_stats("model-7b")
+            .await
+            .expect("Failed to get stats");
         assert_eq!(stats.entries, 1);
-        assert!(stats.total_hits >= 3, "Expected at least 3 hits, got {}", stats.total_hits);
+        assert!(
+            stats.total_hits >= 3,
+            "Expected at least 3 hits, got {}",
+            stats.total_hits
+        );
         assert_eq!(stats.total_tokens, 128);
     }
 
@@ -1438,10 +1625,18 @@ mod tests {
             PrefixCacheRow::new("h3", "m2", vec![30], 256),
         ];
 
-        let count = repo.prefix_cache.batch_insert(&entries).await.expect("Failed to batch insert");
+        let count = repo
+            .prefix_cache
+            .batch_insert(&entries)
+            .await
+            .expect("Failed to batch insert");
         assert_eq!(count, 3);
 
-        let stats = repo.prefix_cache.model_stats("m1").await.expect("Failed to get stats");
+        let stats = repo
+            .prefix_cache
+            .model_stats("m1")
+            .await
+            .expect("Failed to get stats");
         assert_eq!(stats.entries, 2);
         assert_eq!(stats.total_tokens, 192);
     }
@@ -1450,7 +1645,11 @@ mod tests {
     async fn test_prefix_cache_miss() {
         let repo = test_repo().await;
 
-        let found = repo.prefix_cache.lookup("nonexistent", "model-x").await.expect("Failed to lookup");
+        let found = repo
+            .prefix_cache
+            .lookup("nonexistent", "model-x")
+            .await
+            .expect("Failed to lookup");
         assert!(found.is_none());
     }
 

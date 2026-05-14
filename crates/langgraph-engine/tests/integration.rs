@@ -63,12 +63,8 @@ async fn test_conditional_branch_high() {
             state.set("result", "low");
             Ok(state)
         })
-        .add_conditional_edge("check", "high", |s| {
-            s.get::<i32>("value").unwrap_or(0) > 5
-        })
-        .add_conditional_edge("check", "low", |s| {
-            s.get::<i32>("value").unwrap_or(0) <= 5
-        })
+        .add_conditional_edge("check", "high", |s| s.get::<i32>("value").unwrap_or(0) > 5)
+        .add_conditional_edge("check", "low", |s| s.get::<i32>("value").unwrap_or(0) <= 5)
         .build()
         .expect("graph should be valid");
 
@@ -91,12 +87,8 @@ async fn test_conditional_branch_low() {
             state.set("result", "low");
             Ok(state)
         })
-        .add_conditional_edge("check", "high", |s| {
-            s.get::<i32>("value").unwrap_or(0) > 5
-        })
-        .add_conditional_edge("check", "low", |s| {
-            s.get::<i32>("value").unwrap_or(0) <= 5
-        })
+        .add_conditional_edge("check", "high", |s| s.get::<i32>("value").unwrap_or(0) > 5)
+        .add_conditional_edge("check", "low", |s| s.get::<i32>("value").unwrap_or(0) <= 5)
         .build()
         .expect("graph should be valid");
 
@@ -344,7 +336,9 @@ async fn test_interrupt_and_resume_with_checkpoint() {
     }
 
     // Should have Interrupted event
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::Interrupted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ExecutionEvent::Interrupted { .. })));
 
     // Find the checkpoint to resume from
     let run_id = &result.metadata.run_id;
@@ -415,9 +409,17 @@ async fn test_streaming_events() {
     }
 
     // Should have at least: NodeStart, NodeComplete, EdgeTaken, NodeStart, NodeComplete, Completed
-    assert!(events.len() >= 5, "Expected at least 5 events, got {}", events.len());
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::NodeStart { .. })));
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::Completed { .. })));
+    assert!(
+        events.len() >= 5,
+        "Expected at least 5 events, got {}",
+        events.len()
+    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ExecutionEvent::NodeStart { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ExecutionEvent::Completed { .. })));
 }
 
 #[tokio::test]
@@ -501,8 +503,7 @@ async fn test_validation_unreachable_node() {
     let errors = result.err().expect("expected validation errors");
     assert!(errors
         .iter()
-        .any(|e| e.kind == ValidationErrorKind::DeadEnd
-            && e.message.contains("unreachable")));
+        .any(|e| e.kind == ValidationErrorKind::DeadEnd && e.message.contains("unreachable")));
 }
 
 #[tokio::test]
@@ -523,7 +524,9 @@ async fn test_build_unchecked_skips_validation() {
 async fn test_node_error_propagation() {
     let graph = StateGraph::builder("a")
         .add_node("a", |_state| async move {
-            Err(kias_common::KiasError::Validation("intentional error".to_string()))
+            Err(kias_common::KiasError::Validation(
+                "intentional error".to_string(),
+            ))
         })
         .add_node("b", |state| async move { Ok(state) })
         .add_edge("a", "b")
@@ -532,7 +535,10 @@ async fn test_node_error_propagation() {
 
     let result = graph.execute(GraphState::new()).await;
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("intentional error"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("intentional error"));
 }
 
 #[tokio::test]

@@ -47,20 +47,11 @@ pub enum ExecutionEvent {
         total_duration_ms: u64,
     },
     /// Execution failed with an error.
-    Failed {
-        node: String,
-        error: String,
-    },
+    Failed { node: String, error: String },
     /// A checkpoint was saved.
-    CheckpointSaved {
-        checkpoint_id: String,
-        node: String,
-    },
+    CheckpointSaved { checkpoint_id: String, node: String },
     /// Execution was resumed from a checkpoint.
-    Resumed {
-        checkpoint_id: String,
-        node: String,
-    },
+    Resumed { checkpoint_id: String, node: String },
     /// A parallel branch started (fan-out).
     BranchStart {
         source: String,
@@ -92,13 +83,17 @@ impl ExecutionEvent {
             } => format!("✅ Done in {} steps ({}ms)", total_steps, total_duration_ms),
             Self::Failed { node, error } => format!("❌ Failed at {}: {}", node, error),
             Self::CheckpointSaved {
-                checkpoint_id, node, ..
+                checkpoint_id,
+                node,
+                ..
             } => {
                 let short_id = &checkpoint_id[..8.min(checkpoint_id.len())];
                 format!("💾 Checkpoint {} @ {}", short_id, node)
             }
             Self::Resumed {
-                checkpoint_id, node, ..
+                checkpoint_id,
+                node,
+                ..
             } => {
                 let short_id = &checkpoint_id[..8.min(checkpoint_id.len())];
                 format!("↻ Resumed from {} @ {}", short_id, node)
@@ -107,11 +102,7 @@ impl ExecutionEvent {
                 format!("⑂ Fan-out from {} → [{}]", source, branches.join(", "))
             }
             Self::BranchComplete { source, branches } => {
-                format!(
-                    "⚑ Fan-in at {} ← [{}]",
-                    source,
-                    branches.join(", ")
-                )
+                format!("⚑ Fan-in at {} ← [{}]", source, branches.join(", "))
             }
         }
     }
@@ -187,10 +178,7 @@ impl EventCollector {
 
     /// Get all collected events.
     pub fn events(&self) -> Vec<ExecutionEvent> {
-        self.events
-            .lock()
-            .map(|e| e.clone())
-            .unwrap_or_default()
+        self.events.lock().map(|e| e.clone()).unwrap_or_default()
     }
 
     /// Get the number of collected events.

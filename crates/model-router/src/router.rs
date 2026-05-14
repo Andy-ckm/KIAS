@@ -438,7 +438,9 @@ impl ModelRouter {
         let mut last_error = None;
 
         for attempt in 0..self.config.max_retries {
-            let provider_idx = self.select_provider(&request.model, &request.routing).await?;
+            let provider_idx = self
+                .select_provider(&request.model, &request.routing)
+                .await?;
 
             let providers = self.providers.read().await;
             let provider = &providers[provider_idx];
@@ -649,11 +651,7 @@ mod tests {
         let config = RouterConfig::default();
         let router = ModelRouter::new(config);
 
-        let provider_config = ProviderConfig::openai(
-            "test",
-            "sk-test",
-            vec!["gpt-4".to_string()],
-        );
+        let provider_config = ProviderConfig::openai("test", "sk-test", vec!["gpt-4".to_string()]);
 
         router.add_provider(provider_config).await.unwrap();
 

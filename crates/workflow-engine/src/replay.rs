@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_effect_types() {
-          let types = [
+        let types = [
             EffectType::LlmCall,
             EffectType::ShellExec,
             EffectType::HttpCall,

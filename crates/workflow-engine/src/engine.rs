@@ -1129,7 +1129,11 @@ mod tests {
 
         let events = sink.take_events().await;
         // Should have: WorkflowStarted, (NodeStart, NodeComplete) x2, EdgeTraversed x2, WorkflowComplete
-        assert!(events.len() >= 3, "Expected at least 3 events, got {}", events.len());
+        assert!(
+            events.len() >= 3,
+            "Expected at least 3 events, got {}",
+            events.len()
+        );
 
         // First event should be WorkflowStarted
         assert!(matches!(&events[0], StreamingEvent::WorkflowStarted { .. }));
@@ -1164,7 +1168,9 @@ mod tests {
         assert_eq!(result.status, WorkflowStatus::Failed);
 
         let events = sink.take_events().await;
-        let has_failure = events.iter().any(|e| matches!(e, StreamingEvent::WorkflowFailed { .. }));
+        let has_failure = events
+            .iter()
+            .any(|e| matches!(e, StreamingEvent::WorkflowFailed { .. }));
         assert!(has_failure, "Expected a WorkflowFailed event");
     }
 
@@ -1185,7 +1191,9 @@ mod tests {
         assert_eq!(result.status, WorkflowStatus::WaitingForHuman);
 
         let events = sink.take_events().await;
-        let has_human = events.iter().any(|e| matches!(e, StreamingEvent::HumanInterrupt { .. }));
+        let has_human = events
+            .iter()
+            .any(|e| matches!(e, StreamingEvent::HumanInterrupt { .. }));
         assert!(has_human, "Expected a HumanInterrupt event");
     }
 
@@ -1217,15 +1225,15 @@ mod tests {
 
         // Build parent graph
         let mut parent = WorkflowGraph::new("parent");
-        parent.add_node(
-            Node::new("pre", "Pre", NodeType::Process).with_executor(ExecutorConfig::Shell {
+        parent.add_node(Node::new("pre", "Pre", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
                 command: "echo".into(),
                 args: vec!["pre".into()],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            }),
-        );
+            },
+        ));
         parent.add_node(
             Node::new("sub", "SubGraph", NodeType::SubWorkflow)
                 .with_config(serde_json::json!({"subgraph": "child"})),

@@ -372,7 +372,9 @@ impl AuthProvider for ApiKeyAuthProvider {
             .ok_or_else(|| McpError::Authentication("Invalid API key".to_string()))?;
 
         if !user.active {
-            return Err(McpError::Authentication("User account disabled".to_string()));
+            return Err(McpError::Authentication(
+                "User account disabled".to_string(),
+            ));
         }
 
         let now = SystemTime::now()
@@ -727,47 +729,37 @@ mod tests {
         };
 
         // Admin has admin permission
-        assert!(
-            auth.check_permission(&admin_user, &Permission::Admin)
-                .await
-                .unwrap()
-        );
+        assert!(auth
+            .check_permission(&admin_user, &Permission::Admin)
+            .await
+            .unwrap());
 
         // Admin can call any tool
-        assert!(
-            auth.check_permission(
-                &admin_user,
-                &Permission::ToolsCall("any-tool".to_string())
-            )
+        assert!(auth
+            .check_permission(&admin_user, &Permission::ToolsCall("any-tool".to_string()))
             .await
-            .unwrap()
-        );
+            .unwrap());
 
         // Viewer can list tools
-        assert!(
-            auth.check_permission(&viewer_user, &Permission::ToolsList)
-                .await
-                .unwrap()
-        );
+        assert!(auth
+            .check_permission(&viewer_user, &Permission::ToolsList)
+            .await
+            .unwrap());
 
         // Viewer cannot call tools
-        assert!(
-            !auth
-                .check_permission(
-                    &viewer_user,
-                    &Permission::ToolsCall("some-tool".to_string())
-                )
-                .await
-                .unwrap()
-        );
+        assert!(!auth
+            .check_permission(
+                &viewer_user,
+                &Permission::ToolsCall("some-tool".to_string())
+            )
+            .await
+            .unwrap());
 
         // Viewer cannot access admin
-        assert!(
-            !auth
-                .check_permission(&viewer_user, &Permission::Admin)
-                .await
-                .unwrap()
-        );
+        assert!(!auth
+            .check_permission(&viewer_user, &Permission::Admin)
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -793,21 +785,15 @@ mod tests {
         };
 
         // Can call allowed tool
-        assert!(
-            auth.check_permission(&user, &Permission::ToolsCall("weather".to_string()))
-                .await
-                .unwrap()
-        );
+        assert!(auth
+            .check_permission(&user, &Permission::ToolsCall("weather".to_string()))
+            .await
+            .unwrap());
 
         // Cannot call other tools
-        assert!(
-            !auth
-                .check_permission(
-                    &user,
-                    &Permission::ToolsCall("other-tool".to_string())
-                )
-                .await
-                .unwrap()
-        );
+        assert!(!auth
+            .check_permission(&user, &Permission::ToolsCall("other-tool".to_string()))
+            .await
+            .unwrap());
     }
 }

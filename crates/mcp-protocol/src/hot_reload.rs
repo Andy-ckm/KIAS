@@ -238,7 +238,8 @@ impl ToolRegistry {
         let content = std::fs::read_to_string(path)
             .map_err(|e| McpError::Internal(format!("Failed to read tool file: {}", e)))?;
 
-        let definition: ToolDefinitionFile = if path.extension().and_then(|e| e.to_str()) == Some("yaml")
+        let definition: ToolDefinitionFile = if path.extension().and_then(|e| e.to_str())
+            == Some("yaml")
             || path.extension().and_then(|e| e.to_str()) == Some("yml")
         {
             serde_yaml::from_str(&content)
@@ -270,7 +271,8 @@ impl ToolRegistry {
             .map_err(|e| McpError::Internal(format!("Failed to read directory: {}", e)))?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| McpError::Internal(format!("Failed to read entry: {}", e)))?;
+            let entry =
+                entry.map_err(|e| McpError::Internal(format!("Failed to read entry: {}", e)))?;
             let path = entry.path();
 
             if path.is_file() {
@@ -309,7 +311,8 @@ impl ToolRegistry {
                 .map_err(|e| McpError::Internal(format!("Failed to read directory: {}", e)))?;
 
             for entry in entries {
-                let entry = entry.map_err(|e| McpError::Internal(format!("Failed to read entry: {}", e)))?;
+                let entry = entry
+                    .map_err(|e| McpError::Internal(format!("Failed to read entry: {}", e)))?;
                 let path = entry.path();
 
                 if !path.is_file() {
@@ -377,7 +380,9 @@ impl ToolRegistry {
     /// Get a tool definition by name.
     pub async fn get(&self, name: &str) -> Option<ToolDefinitionFile> {
         let tools = self.tools.read().await;
-        tools.get(name).map(|entry| entry.current.definition.clone())
+        tools
+            .get(name)
+            .map(|entry| entry.current.definition.clone())
     }
 
     /// List all registered tools.
@@ -414,7 +419,9 @@ impl ToolRegistry {
     fn validate(&self, definition: &ToolDefinitionFile) -> Result<(), McpError> {
         // Check name is not empty
         if definition.name.is_empty() {
-            return Err(McpError::InvalidRequest("Tool name cannot be empty".to_string()));
+            return Err(McpError::InvalidRequest(
+                "Tool name cannot be empty".to_string(),
+            ));
         }
 
         // Check version is valid semver
@@ -486,11 +493,7 @@ pub fn to_tool_definition(file: &ToolDefinitionFile) -> ToolDefinition {
 
 /// Convert a ToolDefinitionFile to a Tool.
 pub fn to_tool(file: &ToolDefinitionFile) -> Tool {
-    Tool::new(
-        &file.name,
-        &file.description,
-        file.input_schema.clone(),
-    )
+    Tool::new(&file.name, &file.description, file.input_schema.clone())
 }
 
 #[cfg(test)]

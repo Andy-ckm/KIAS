@@ -15,6 +15,11 @@ import type {
   HealthResponse,
   PaginationParams,
   ApiError,
+  TokenAnalytics,
+  Workflow,
+  WorkflowSummary,
+  CreateWorkflowRequest,
+  SchedulerStatus,
 } from '../types';
 
 const BASE_URL = '';  // Use Vite proxy in dev
@@ -126,4 +131,37 @@ export async function getAgentMetrics(id: string): Promise<AgentMetrics> {
 
 export async function getClusterStatus(): Promise<ClusterStatus> {
   return request('/api/v1/cluster/status');
+}
+
+// ── Token Analytics ────────────────────────────────────────────────────────
+
+export async function getTokenAnalytics(): Promise<TokenAnalytics> {
+  return request('/api/v1/tokens');
+}
+
+// ── Workflows ──────────────────────────────────────────────────────────────
+
+export async function listWorkflows(): Promise<WorkflowSummary> {
+  return request('/api/v1/workflows');
+}
+
+export async function getWorkflow(id: string): Promise<Workflow> {
+  return request(`/api/v1/workflows/${id}`);
+}
+
+export async function createWorkflow(req: CreateWorkflowRequest): Promise<Workflow> {
+  return request('/api/v1/workflows', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+}
+
+export async function deleteWorkflow(id: string): Promise<ActionResponse> {
+  return request(`/api/v1/workflows/${id}`, { method: 'DELETE' });
+}
+
+// ── Scheduler ──────────────────────────────────────────────────────────────
+
+export async function getSchedulerStatus(): Promise<SchedulerStatus> {
+  return request('/api/v1/scheduler/status');
 }

@@ -10,6 +10,7 @@ pub struct AppState {
     pub config: Arc<KiasConfig>,
     pub agents: Arc<RwLock<std::collections::HashMap<String, models::agent::Agent>>>,
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
+    pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
     pub audit_log: Arc<MemoryAuditLog>,
 }
 
@@ -65,6 +66,7 @@ impl AppState {
             config: Arc::new(config),
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
         }
     }

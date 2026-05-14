@@ -6,6 +6,9 @@ import DashboardPage from './pages/Dashboard';
 import AgentsPage from './pages/Agents';
 import NodesPage from './pages/Nodes';
 import ClusterPage from './pages/Cluster';
+import TokenAnalyticsPage from './pages/Tokens';
+import WorkflowsPage from './pages/Workflows';
+import SchedulerPage from './pages/Scheduler';
 
 export default function App() {
   return (
@@ -16,6 +19,9 @@ export default function App() {
           <Route path="agents" element={<AgentsPage />} />
           <Route path="nodes" element={<NodesPage />} />
           <Route path="cluster" element={<ClusterPage />} />
+          <Route path="tokens" element={<TokenAnalyticsPage />} />
+          <Route path="workflows" element={<WorkflowsPage />} />
+          <Route path="scheduler" element={<SchedulerPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

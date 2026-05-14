@@ -4,3 +4,6 @@ pub mod health;
 pub mod knowledge;
 pub mod metrics;
 pub mod nodes;
+pub mod scheduler;
+pub mod tokens;
+pub mod workflows;

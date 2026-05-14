@@ -7,6 +7,9 @@ const NAV_ITEMS = [
   { to: '/agents', label: 'Agents', icon: '🤖' },
   { to: '/nodes', label: 'Nodes', icon: '🖥️' },
   { to: '/cluster', label: 'Cluster', icon: '🌐' },
+  { to: '/tokens', label: 'Token Analytics', icon: '🔤' },
+  { to: '/workflows', label: 'Workflows', icon: '🔄' },
+  { to: '/scheduler', label: 'Scheduler', icon: '⚙️' },
 ];
 
 function Sidebar() {

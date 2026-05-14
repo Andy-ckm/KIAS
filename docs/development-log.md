@@ -6,6 +6,37 @@
 
 ## 2026-05-14
 
+### 08:46 - Token Analytics + Workflows + Scheduler 前后端开发（Sprint 8 续）
+
+**目标**：新增 3 个 API 端点 + 3 个前端页面，完善 Dashboard 功能
+
+**后端完成**：
+- ✅ `GET /api/v1/tokens` — Token 用量分析（每 Agent 统计 + 24h 时序数据 + 成本估算）
+- ✅ `GET/POST /api/v1/workflows` — Workflow CRUD（列表 + 创建）
+- ✅ `GET/DELETE /api/v1/workflows/:id` — Workflow 详情 + 删除
+- ✅ `GET /api/v1/scheduler/status` — 调度器状态（算法、队列深度、吞吐量、节点利用率、最近决策）
+- ✅ AppState 新增 `workflows` 字段（RwLock<HashMap>）
+- ✅ 12 个新测试（3 tokens + 6 workflows + 3 scheduler）
+
+**前端完成**：
+- ✅ Token Analytics 页面 — AreaChart（24h 时序）+ PieChart（Agent 分布）+ BarChart（输入/输出对比）+ 详细表格
+- ✅ Workflows 页面 — 卡片列表 + 创建 Modal + 删除操作 + 状态统计
+- ✅ Scheduler 页面 — 算法信息 + 队列分布饼图 + 节点利用率柱状图 + 吞吐量摘要 + 调度决策表
+- ✅ TypeScript 类型系统扩展（Token/Workflow/Scheduler 相关类型）
+- ✅ API 客户端新增 6 个函数
+- ✅ 导航栏新增 3 个入口（Token Analytics / Workflows / Scheduler）
+
+**验证**：
+- `cargo build` ✅ 通过
+- `cargo test` ✅ 834/834 通过（+12 新测试）
+- `tsc --noEmit` ✅ 零类型错误
+- `vite build` ✅ 构建成功 (582ms, 657KB JS / 193KB gzip)
+
+**代码统计**：
+- Rust 后端新增：~22KB（tokens.rs + workflows.rs + scheduler.rs + 路由更新）
+- TypeScript 前端新增：~30KB（3 个页面 + 类型 + API 扩展）
+- 总测试数：822 → 834（+12，+1.5%）
+
 ### 08:14 - 前端 Dashboard 开发（Sprint 8 启动）
 
 **目标**：创建 React + TypeScript + Vite + TailwindCSS 前端 Dashboard
@@ -43,11 +74,10 @@
 
 ### 下一步
 - [ ] Dashboard 增加 WebSocket 实时推送
-- [ ] Dashboard 增加 Token Analytics 页面（图表）
-- [ ] Dashboard 增加 Workflow 管理页面
-- [ ] Dashboard 增加 Scheduler 状态页面
 - [ ] TLS 1.3 加密支持
 - [ ] 压力测试 + 性能优化
+- [ ] Dashboard 增加搜索/过滤功能
+- [ ] Dashboard 增加 Agent 详情页（资源使用图表）
 
 ---
 

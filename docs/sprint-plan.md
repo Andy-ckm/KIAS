@@ -135,8 +135,15 @@
 
 ## 当前任务
 
-**Sprint 7 — MCP增强 + 高级调度 + GraphRAG + 技能流水线 + 事件驱动**
+**Sprint 8 — 前端 Dashboard + 可视化 + TLS 1.3**
 
-当前状态：822 tests, 32,798 lines, 0 errors, 0 warnings, 16 crates
+当前状态：822 tests, 32,798+979 行(TS) lines, 0 errors, 0 warnings, 16 crates + 1 前端项目
 
-下一步：前端 Dashboard 开发 (React + TypeScript) + TLS 1.3 + 压力测试
+已完成：
+- ✅ React + TypeScript + Vite + TailwindCSS v4 Dashboard 脚手架
+- ✅ API 客户端 + TypeScript 类型系统
+- ✅ Dashboard 概览页（集群状态、任务统计）
+- ✅ Agents 管理页（列表、创建、删除）
+- ✅ Nodes 页面 + Cluster 页面
+
+下一步：Token Analytics 图表页 + WebSocket 实时推送 + TLS 1.3 + 压力测试

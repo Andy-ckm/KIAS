@@ -119,7 +119,7 @@
 | P0 | MiniMax Agent Team | ✅ 已完成 | - |
 | P0 | Claude Code /goal | ✅ 已完成 | - |
 | P1 | Google A2A 协议 | 📋 待实现 | 2 周 |
-| P1 | Anthropic MCP | 📋 待实现 | 2 周 |
+| P1 | Anthropic MCP | ✅ 已完成 | - |
 | P1 | Rig 框架集成 | 📋 待实现 | 1 周 |
 | P2 | Volcano GPU 调度 | 📋 待实现 | 3 周 |
 | P2 | DeepSeek MLA | 📋 待实现 | 2 周 |

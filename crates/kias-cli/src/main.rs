@@ -203,26 +203,48 @@ async fn handle_agent_run(name: String, prompt: String, model: Option<String>, c
         Err(code) => return code,
     };
 
-    let mut body = serde_json::json!({
-        "agent": name,
-        "prompt": prompt,
-    });
-    if let Some(m) = model {
-        body["model"] = serde_json::Value::String(m);
+    if let Some(ref _m) = model {
+        eprintln!("{}: 模型覆盖功能待实现（需要 Agent 级别配置）", "→".yellow());
     }
 
     println!("{}: 正在运行 Agent '{}' ...", "→".blue().bold(), name);
 
-    // 创建并运行 Agent
-    match client.create_agent(body).await {
-        Ok(agent) => {
-            println!("{}: Agent 运行完成", "✓".green().bold());
-            output_data(&agent, &cli.output);
+    // 先通过 name 查询 agent ID（如果传入的是名称而非 ID）
+    let agent_id = if name.starts_with("agent-") || name.len() == 36 {
+        name.clone()
+    } else {
+        // 查找名为 name 的 agent
+        match client.list_agents().await {
+            Ok(agents) => {
+                agents
+                    .into_iter()
+                    .find(|a| a.name == name)
+                    .map(|a| a.id)
+                    .unwrap_or_else(|| name.clone())
+            }
+            Err(_) => name.clone(),
+        }
+    };
+
+    // 调用 Agent 执行
+    match client.invoke_agent(&agent_id, &prompt, None).await {
+        Ok(result) => {
+            println!("{}: Agent 运行完成 (run_id: {})", "✓".green().bold(), result.run_id);
+            output_data(&result, &cli.output);
             ExitCode::Success as i32
         }
         Err(e) => {
-            eprintln!("{}: Agent 运行失败: {}", "错误".red().bold(), e);
-            ExitCode::ServerError as i32
+            let err_str = e.to_string();
+            if err_str.contains("404") {
+                eprintln!("{}: Agent '{}' 未找到", "✗".red().bold(), name);
+                ExitCode::NotFound as i32
+            } else if err_str.contains("401") || err_str.contains("unauthorized") {
+                eprintln!("{}: 认证失败，请检查 API Key", "✗".red().bold());
+                ExitCode::AuthError as i32
+            } else {
+                eprintln!("{}: Agent 运行失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
         }
     }
 }
@@ -241,31 +263,45 @@ async fn handle_agent_invoke(
 
     tracing::debug!("调用 Agent '{}' (超时: {}s)", name, timeout);
 
-    let body = serde_json::json!({
-        "agent": name,
-        "prompt": text,
-        "timeout": timeout,
-    });
+    // 解析 name: 可能是 ID 或名称
+    let agent_id = if name.starts_with("agent-") || name.len() == 36 {
+        name.clone()
+    } else {
+        match client.list_agents().await {
+            Ok(agents) => agents
+                .into_iter()
+                .find(|a| a.name == name)
+                .map(|a| a.id)
+                .unwrap_or_else(|| name.clone()),
+            Err(_) => name.clone(),
+        }
+    };
 
-    match client.create_agent(body).await {
-        Ok(agent) => {
+    match client.invoke_agent(&agent_id, &text, Some(timeout)).await {
+        Ok(result) => {
             if text_only {
                 // CI 友好：只输出核心结果
-                if let Ok(json) = serde_json::to_value(&agent) {
-                    if let Some(output) = json.get("output").and_then(|v| v.as_str()) {
-                        println!("{}", output);
-                    } else {
-                        println!("{:?}", agent);
-                    }
-                }
+                println!("{}", result.output);
             } else {
-                output_data(&agent, &cli.output);
+                output_data(&result, &cli.output);
             }
             ExitCode::Success as i32
         }
         Err(e) => {
-            eprintln!("{}: Agent 调用失败: {}", "错误".red().bold(), e);
-            ExitCode::ServerError as i32
+            let err_str = e.to_string();
+            if err_str.contains("404") {
+                eprintln!("{}: Agent '{}' 未找到", "✗".red().bold(), name);
+                ExitCode::NotFound as i32
+            } else if err_str.contains("401") || err_str.contains("unauthorized") {
+                eprintln!("{}: 认证失败，请检查 API Key", "✗".red().bold());
+                ExitCode::AuthError as i32
+            } else if err_str.contains("timeout") || err_str.contains("TIMEOUT") {
+                eprintln!("{}: Agent 调用超时 ({}s)", "✗".red().bold(), timeout);
+                ExitCode::Timeout as i32
+            } else {
+                eprintln!("{}: Agent 调用失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
         }
     }
 }

@@ -132,8 +132,8 @@ pub struct StorageConfig {
     pub etcd_endpoints: String,
     /// SQLite database URL.  Default: `sqlite://kias.db`.
     pub sqlite_url: String,
-    /// Redis URL.  Default: `redis://localhost:6379`.
-    pub redis_url: String,
+    /// Cache mode: `local` or `redis`.  Default: `local`.
+    pub cache_mode: String,
 }
 
 // ── Default implementations ───────────────────────────────────────────
@@ -218,7 +218,7 @@ impl Default for StorageConfig {
         Self {
             etcd_endpoints: "http://localhost:2379".into(),
             sqlite_url: "sqlite://kias.db".into(),
-            redis_url: "redis://localhost:6379".into(),
+            cache_mode: "local".into(),
         }
     }
 }

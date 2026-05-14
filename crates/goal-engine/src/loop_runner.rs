@@ -296,7 +296,12 @@ mod tests {
         ) -> KiasResult<String> {
             // Yield to allow cancellation tasks to run
             tokio::task::yield_now().await;
-            let outputs = self.outputs.lock().unwrap();
+            let outputs = match self.outputs.lock() {
+                Ok(guard) => guard,
+                Err(_) => return Err(kias_common::KiasError::Internal(
+                    anyhow::anyhow!("outputs mutex poisoned")
+                )),
+            };
             let idx = (round - 1) as usize;
             if idx < outputs.len() {
                 Ok(outputs[idx].clone())

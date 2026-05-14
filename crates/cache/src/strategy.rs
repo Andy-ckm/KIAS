@@ -1,6 +1,6 @@
 use super::hub::{CacheEntry, CacheStrategy};
 use async_trait::async_trait;
-use kias_common::KiasResult;
+use kias_common::{KiasError, KiasResult};
 use std::collections::{HashMap, VecDeque};
 use std::sync::RwLock;
 use std::time::Instant;
@@ -46,82 +46,127 @@ impl LRUStrategy {
     }
 
     /// Touch a key — move it to the back of the access order (most recently used)
-    fn touch_key(&self, key: &str) {
-        let mut order = self.access_order.write().unwrap();
+    fn touch_key(&self, key: &str) -> KiasResult<()> {
+        let mut order = self
+            .access_order
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         order.retain(|k| k != key);
         order.push_back(key.to_string());
+        Ok(())
     }
 
     /// Remove the least recently used entry
-    fn evict_lru(&self) {
+    fn evict_lru(&self) -> KiasResult<()> {
         let lru_key = {
-            let order = self.access_order.read().unwrap();
+            let order = self
+                .access_order
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             order.front().cloned()
         };
         if let Some(key) = lru_key {
-            let mut cache = self.cache.write().unwrap();
-            let mut order = self.access_order.write().unwrap();
-            let mut times = self.insert_times.write().unwrap();
+            let mut cache = self
+                .cache
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+            let mut order = self
+                .access_order
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+            let mut times = self
+                .insert_times
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             cache.remove(&key);
             order.retain(|k| k != &key);
             times.remove(&key);
         }
+        Ok(())
     }
 
     /// Check if an entry has expired based on TTL
-    fn is_expired(&self, key: &str, entry: &CacheEntry) -> bool {
+    fn is_expired(&self, key: &str, entry: &CacheEntry) -> KiasResult<bool> {
         if let Some(ttl) = entry.ttl {
-            let times = self.insert_times.read().unwrap();
+            let times = self
+                .insert_times
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             if let Some(insert_time) = times.get(key) {
-                return insert_time.elapsed() > ttl;
+                return Ok(insert_time.elapsed() > ttl);
             }
         }
-        false
+        Ok(false)
     }
 
     /// Purge all expired entries
-    fn purge_expired(&self) {
+    fn purge_expired(&self) -> KiasResult<()> {
         let expired_keys: Vec<String> = {
-            let cache = self.cache.read().unwrap();
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             cache
                 .iter()
-                .filter(|(k, v)| self.is_expired(k, v))
+                .filter(|(k, v)| self.is_expired(k, v).unwrap_or(false))
                 .map(|(k, _)| k.clone())
                 .collect()
         };
         if !expired_keys.is_empty() {
-            let mut cache = self.cache.write().unwrap();
-            let mut order = self.access_order.write().unwrap();
-            let mut times = self.insert_times.write().unwrap();
+            let mut cache = self
+                .cache
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+            let mut order = self
+                .access_order
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+            let mut times = self
+                .insert_times
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             for key in &expired_keys {
                 cache.remove(key);
                 order.retain(|k| k != key);
                 times.remove(key);
             }
         }
+        Ok(())
     }
 
     pub fn len(&self) -> usize {
-        self.cache.read().unwrap().len()
+        self.cache.read().ok().map_or(0, |g| g.len())
     }
 
     pub fn is_empty(&self) -> bool {
-        self.cache.read().unwrap().is_empty()
+        self.cache.read().ok().is_none_or(|g| g.is_empty())
     }
 }
 
 #[async_trait]
 impl CacheStrategy for LRUStrategy {
     async fn get(&self, key: &str) -> KiasResult<Option<CacheEntry>> {
-        self.purge_expired();
-        let cache = self.cache.read().unwrap();
+        self.purge_expired()?;
+        let cache = self
+            .cache
+            .read()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         if let Some(entry) = cache.get(key) {
-            if self.is_expired(key, entry) {
+            if self.is_expired(key, entry)? {
                 drop(cache);
                 // Remove expired entry
-                let mut cache = self.cache.write().unwrap();
-                let mut order = self.access_order.write().unwrap();
-                let mut times = self.insert_times.write().unwrap();
+                let mut cache = self
+                    .cache
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+                let mut order = self
+                    .access_order
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+                let mut times = self
+                    .insert_times
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
                 cache.remove(key);
                 order.retain(|k| k != key);
                 times.remove(key);
@@ -129,7 +174,7 @@ impl CacheStrategy for LRUStrategy {
             }
             let entry = entry.clone();
             drop(cache);
-            self.touch_key(key);
+            self.touch_key(key)?;
             Ok(Some(entry))
         } else {
             Ok(None)
@@ -139,38 +184,65 @@ impl CacheStrategy for LRUStrategy {
     async fn set(&self, entry: CacheEntry) -> KiasResult<()> {
         let key = entry.key.clone();
         {
-            let cache = self.cache.read().unwrap();
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             if cache.contains_key(&key) {
                 drop(cache);
                 // Update existing entry
-                let mut cache = self.cache.write().unwrap();
+                let mut cache = self
+                    .cache
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
                 cache.insert(key.clone(), entry);
-                self.touch_key(&key);
-                let mut times = self.insert_times.write().unwrap();
+                self.touch_key(&key)?;
+                let mut times = self
+                    .insert_times
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
                 times.insert(key, Instant::now());
                 return Ok(());
             }
         }
         // New entry — check capacity
         if self.max_capacity > 0 {
-            let cache = self.cache.read().unwrap();
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             if cache.len() >= self.max_capacity {
                 drop(cache);
-                self.evict_lru();
+                self.evict_lru()?;
             }
         }
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         cache.insert(key.clone(), entry);
-        self.touch_key(&key);
-        let mut times = self.insert_times.write().unwrap();
+        self.touch_key(&key)?;
+        let mut times = self
+            .insert_times
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         times.insert(key, Instant::now());
         Ok(())
     }
 
     async fn evict(&self, key: &str) -> KiasResult<()> {
-        let mut cache = self.cache.write().unwrap();
-        let mut order = self.access_order.write().unwrap();
-        let mut times = self.insert_times.write().unwrap();
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+        let mut order = self
+            .access_order
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+        let mut times = self
+            .insert_times
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         cache.remove(key);
         order.retain(|k| k != key);
         times.remove(key);
@@ -217,8 +289,11 @@ impl PrefixCacheStrategy {
 
     /// Find the longest matching prefix key for a given query.
     /// Returns the key whose value is a prefix of `query_key`.
-    fn find_longest_prefix(&self, query_key: &str) -> Option<String> {
-        let cache = self.cache.read().unwrap();
+    fn find_longest_prefix(&self, query_key: &str) -> KiasResult<Option<String>> {
+        let cache = self
+            .cache
+            .read()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         let mut best_match: Option<(String, usize)> = None;
         for k in cache.keys() {
             // The cached key is a prefix of the query — meaning the query extends the cached prompt
@@ -229,33 +304,43 @@ impl PrefixCacheStrategy {
                 }
             }
         }
-        best_match.map(|(k, _)| k)
+        Ok(best_match.map(|(k, _)| k))
     }
 
     /// Evict the least-accessed entry
-    fn evict_least_popular(&self) {
+    fn evict_least_popular(&self) -> KiasResult<()> {
         let least_key = {
-            let counts = self.access_counts.read().unwrap();
+            let counts = self
+                .access_counts
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             counts
                 .iter()
                 .min_by_key(|(_, &count)| count)
                 .map(|(k, _)| k.clone())
         };
         if let Some(key) = least_key {
-            let mut cache = self.cache.write().unwrap();
-            let mut counts = self.access_counts.write().unwrap();
+            let mut cache = self
+                .cache
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+            let mut counts = self
+                .access_counts
+                .write()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             cache.remove(&key);
             counts.remove(&key);
         }
+        Ok(())
     }
 
     pub fn len(&self) -> usize {
-        self.cache.read().unwrap().len()
+        self.cache.read().ok().map_or(0, |g| g.len())
     }
 
     /// Returns true if the cache is empty.
     pub fn is_empty(&self) -> bool {
-        self.cache.read().unwrap().is_empty()
+        self.cache.read().ok().is_none_or(|g| g.is_empty())
     }
 }
 
@@ -264,22 +349,34 @@ impl CacheStrategy for PrefixCacheStrategy {
     async fn get(&self, key: &str) -> KiasResult<Option<CacheEntry>> {
         // Try exact match first
         {
-            let cache = self.cache.read().unwrap();
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             if let Some(entry) = cache.get(key) {
                 let entry = entry.clone();
                 drop(cache);
-                let mut counts = self.access_counts.write().unwrap();
+                let mut counts = self
+                    .access_counts
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
                 *counts.entry(key.to_string()).or_insert(0) += 1;
                 return Ok(Some(entry));
             }
         }
         // Try prefix match (longest prefix wins)
-        if let Some(prefix_key) = self.find_longest_prefix(key) {
-            let cache = self.cache.read().unwrap();
+        if let Some(prefix_key) = self.find_longest_prefix(key)? {
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             let entry = cache.get(&prefix_key).cloned();
             drop(cache);
             if entry.is_some() {
-                let mut counts = self.access_counts.write().unwrap();
+                let mut counts = self
+                    .access_counts
+                    .write()
+                    .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
                 *counts.entry(prefix_key).or_insert(0) += 1;
             }
             return Ok(entry);
@@ -290,23 +387,38 @@ impl CacheStrategy for PrefixCacheStrategy {
     async fn set(&self, entry: CacheEntry) -> KiasResult<()> {
         let key = entry.key.clone();
         if self.max_capacity > 0 {
-            let cache = self.cache.read().unwrap();
+            let cache = self
+                .cache
+                .read()
+                .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
             if cache.len() >= self.max_capacity && !cache.contains_key(&key) {
                 drop(cache);
-                self.evict_least_popular();
+                self.evict_least_popular()?;
             }
         }
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         cache.insert(key.clone(), entry);
         // Ensure new keys are tracked in access_counts with 0
-        let mut counts = self.access_counts.write().unwrap();
+        let mut counts = self
+            .access_counts
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         counts.entry(key).or_insert(0);
         Ok(())
     }
 
     async fn evict(&self, key: &str) -> KiasResult<()> {
-        let mut cache = self.cache.write().unwrap();
-        let mut counts = self.access_counts.write().unwrap();
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
+        let mut counts = self
+            .access_counts
+            .write()
+            .map_err(|e| KiasError::LockPoisoned(e.to_string()))?;
         cache.remove(key);
         counts.remove(key);
         Ok(())

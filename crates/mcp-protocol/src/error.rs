@@ -29,4 +29,19 @@ pub enum McpError {
 
     #[error("prompt not found: {0}")]
     PromptNotFound(String),
+
+    #[error("authentication error: {0}")]
+    Authentication(String),
+
+    #[error("authorization error: {0}")]
+    Authorization(String),
+
+    #[error("internal error: {0}")]
+    Internal(String),
+
+    #[error("rate limit exceeded")]
+    RateLimitExceeded,
+
+    #[error("circuit breaker open")]
+    CircuitBreakerOpen,
 }

@@ -37,9 +37,10 @@ pub enum ExitCode {
 /// 格式化输出
 pub fn print_result<T: Serialize + Tabled>(result: &CommandResult<T>, format: &OutputFormat) {
     match format {
-        OutputFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(result).unwrap_or_default());
-        }
+        OutputFormat::Json => match serde_json::to_string_pretty(result) {
+            Ok(json) => println!("{}", json),
+            Err(e) => eprintln!("JSON 序列化失败: {}", e),
+        },
         OutputFormat::Table => {
             println!("Status: {}", result.status);
             println!("Duration: {}ms", result.metadata.duration_ms);
@@ -51,9 +52,10 @@ pub fn print_result<T: Serialize + Tabled>(result: &CommandResult<T>, format: &O
             }
             println!("Request ID: {}", result.metadata.request_id);
         }
-        OutputFormat::Yaml => {
-            println!("{}", serde_yaml::to_string(result).unwrap_or_default());
-        }
+        OutputFormat::Yaml => match serde_yaml::to_string(result) {
+            Ok(yaml) => println!("{}", yaml),
+            Err(e) => eprintln!("YAML 序列化失败: {}", e),
+        },
         OutputFormat::Quiet => {
             // Quiet 模式只输出核心标识符
             println!("{}", result.status);
@@ -80,11 +82,14 @@ pub fn print_message(msg: &str, format: &OutputFormat) {
 pub fn print_error(msg: &str, code: ExitCode, format: &OutputFormat) -> i32 {
     match format {
         OutputFormat::Json => {
-            eprintln!("{}", serde_json::json!({
-                "status": "error",
-                "error": msg,
-                "exit_code": code as i32
-            }));
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "status": "error",
+                    "error": msg,
+                    "exit_code": code as i32
+                })
+            );
         }
         _ => {
             eprintln!("Error: {}", msg);

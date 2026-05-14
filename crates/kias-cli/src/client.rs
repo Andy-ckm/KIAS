@@ -136,10 +136,7 @@ impl ApiClient {
 
     /// 健康检查
     pub async fn health_check(&self) -> Result<bool, reqwest::Error> {
-        let resp = self
-            .request(reqwest::Method::GET, "/health")
-            .send()
-            .await?;
+        let resp = self.request(reqwest::Method::GET, "/health").send().await?;
         Ok(resp.status().is_success())
     }
 
@@ -155,10 +152,7 @@ impl ApiClient {
     }
 
     /// 创建 Agent
-    pub async fn create_agent(
-        &self,
-        body: serde_json::Value,
-    ) -> Result<AgentInfo, reqwest::Error> {
+    pub async fn create_agent(&self, body: serde_json::Value) -> Result<AgentInfo, reqwest::Error> {
         self.request(reqwest::Method::POST, "/api/v1/agents")
             .json(&body)
             .send()
@@ -326,10 +320,7 @@ impl ApiClient {
     }
 
     /// 更新配置
-    pub async fn update_config(
-        &self,
-        body: serde_json::Value,
-    ) -> Result<bool, reqwest::Error> {
+    pub async fn update_config(&self, body: serde_json::Value) -> Result<bool, reqwest::Error> {
         let resp = self
             .request(reqwest::Method::PATCH, "/api/v1/config")
             .json(&body)
@@ -361,10 +352,7 @@ impl ApiClient {
     // ─── 知识库搜索 ──────────────────────────────────────────────
 
     /// 搜索知识库
-    pub async fn search_knowledge(
-        &self,
-        query: &str,
-    ) -> Result<serde_json::Value, reqwest::Error> {
+    pub async fn search_knowledge(&self, query: &str) -> Result<serde_json::Value, reqwest::Error> {
         let path = format!("/api/v1/knowledge/search?q={}", urlencoding::encode(query));
         self.request(reqwest::Method::GET, &path)
             .send()
@@ -381,13 +369,9 @@ mod urlencoding {
         let mut encoded = String::with_capacity(input.len() * 3);
         for byte in input.bytes() {
             match byte {
-                b'A'..=b'Z'
-                | b'a'..=b'z'
-                | b'0'..=b'9'
-                | b'-'
-                | b'_'
-                | b'.'
-                | b'~' => encoded.push(byte as char),
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    encoded.push(byte as char)
+                }
                 b' ' => encoded.push('+'),
                 _ => {
                     encoded.push('%');

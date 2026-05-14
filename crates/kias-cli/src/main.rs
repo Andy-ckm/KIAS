@@ -87,9 +87,7 @@ async fn main() {
 
     // 初始化日志
     if cli.verbose {
-        tracing_subscriber::fmt()
-            .with_env_filter("debug")
-            .init();
+        tracing_subscriber::fmt().with_env_filter("debug").init();
     }
 
     let exit_code = match cli.command {
@@ -111,12 +109,17 @@ async fn main() {
 async fn handle_agent(action: kias_cli::AgentAction, cli: &Cli) -> i32 {
     match action {
         kias_cli::AgentAction::Apply { file } => handle_agent_apply(file, cli).await,
-        kias_cli::AgentAction::Run { name, prompt, model } => {
-            handle_agent_run(name, prompt, model, cli).await
-        }
-        kias_cli::AgentAction::Invoke { name, text, text_only, timeout } => {
-            handle_agent_invoke(name, text, text_only, timeout, cli).await
-        }
+        kias_cli::AgentAction::Run {
+            name,
+            prompt,
+            model,
+        } => handle_agent_run(name, prompt, model, cli).await,
+        kias_cli::AgentAction::Invoke {
+            name,
+            text,
+            text_only,
+            timeout,
+        } => handle_agent_invoke(name, text, text_only, timeout, cli).await,
         kias_cli::AgentAction::List { label } => handle_agent_list(label, cli).await,
         kias_cli::AgentAction::Get { name } => handle_agent_get(name, cli).await,
         kias_cli::AgentAction::Delete { name, force } => {
@@ -156,7 +159,11 @@ async fn handle_agent_apply(file: String, cli: &Cli) -> i32 {
         return ExitCode::ArgumentError as i32;
     }
 
-    println!("{}: Agent '{}' 定义验证通过", "✓".green().bold(), def.metadata.name);
+    println!(
+        "{}: Agent '{}' 定义验证通过",
+        "✓".green().bold(),
+        def.metadata.name
+    );
 
     if cli.dry_run {
         println!("{}: Dry-run 模式，跳过实际部署", "→".yellow());
@@ -391,7 +398,12 @@ async fn handle_agent_logs(name: String, follow: bool, tail: usize, cli: &Cli) -
     // 获取 Agent 信息来验证存在
     match client.get_agent(&name).await {
         Ok(agent) => {
-            println!("{}: Agent '{}' 日志 (status: {})", "→".blue(), name, agent.status);
+            println!(
+                "{}: Agent '{}' 日志 (status: {})",
+                "→".blue(),
+                name,
+                agent.status
+            );
             println!("[日志功能待实现 — 需要 API Server 端日志接口支持]");
             ExitCode::Success as i32
         }
@@ -455,7 +467,11 @@ async fn handle_workflow(action: kias_cli::WorkflowAction, cli: &Cli) -> i32 {
             };
 
             if cli.dry_run {
-                println!("{}: Dry-run 模式，工作流 '{}' 验证通过", "→".yellow(), def.metadata.name);
+                println!(
+                    "{}: Dry-run 模式，工作流 '{}' 验证通过",
+                    "→".yellow(),
+                    def.metadata.name
+                );
                 return ExitCode::Success as i32;
             }
 
@@ -592,12 +608,19 @@ async fn handle_tool(action: kias_cli::ToolAction, cli: &Cli) -> i32 {
                 }
             };
 
-            println!("{}: 工具 '{}' 已注册（本地模式）", "✓".green().bold(), def.name);
+            println!(
+                "{}: 工具 '{}' 已注册（本地模式）",
+                "✓".green().bold(),
+                def.name
+            );
             output_data(&def, &cli.output);
             ExitCode::Success as i32
         }
         kias_cli::ToolAction::List => {
-            println!("{}: 工具列表（本地模式，需 API Server 支持远程列表）", "→".yellow());
+            println!(
+                "{}: 工具列表（本地模式，需 API Server 支持远程列表）",
+                "→".yellow()
+            );
             ExitCode::Success as i32
         }
         kias_cli::ToolAction::Test { name, input } => {
@@ -632,12 +655,20 @@ async fn handle_skill(action: kias_cli::SkillAction, cli: &Cli) -> i32 {
                 }
             };
 
-            println!("{}: 技能 '{}' v{} 已注册", "✓".green().bold(), def.name, def.version);
+            println!(
+                "{}: 技能 '{}' v{} 已注册",
+                "✓".green().bold(),
+                def.name,
+                def.version
+            );
             output_data(&def, &cli.output);
             ExitCode::Success as i32
         }
         kias_cli::SkillAction::List => {
-            println!("{}: 技能列表（本地模式，需 API Server 支持远程列表）", "→".yellow());
+            println!(
+                "{}: 技能列表（本地模式，需 API Server 支持远程列表）",
+                "→".yellow()
+            );
             ExitCode::Success as i32
         }
         kias_cli::SkillAction::Search { query } => {
@@ -654,11 +685,19 @@ async fn handle_sandbox(action: kias_cli::SandboxAction, _cli: &Cli) -> i32 {
     match action {
         kias_cli::SandboxAction::Create { template, name } => {
             let sandbox_name = name.unwrap_or_else(|| format!("sandbox-{}", uuid::Uuid::new_v4()));
-            println!("{}: 创建沙箱 '{}' (模板: {})", "→".blue().bold(), sandbox_name, template);
+            println!(
+                "{}: 创建沙箱 '{}' (模板: {})",
+                "→".blue().bold(),
+                sandbox_name,
+                template
+            );
             println!("[沙箱创建功能待实现 — 需要容器运行时集成]");
             ExitCode::Success as i32
         }
-        kias_cli::SandboxAction::Exec { sandbox_id, command } => {
+        kias_cli::SandboxAction::Exec {
+            sandbox_id,
+            command,
+        } => {
             if command.is_empty() {
                 eprintln!("{}: 未指定命令", "错误".red().bold());
                 return ExitCode::ArgumentError as i32;
@@ -705,7 +744,10 @@ async fn handle_model(action: kias_cli::ModelAction, cli: &Cli) -> i32 {
                 }
             };
 
-            let name = def.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let name = def
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
             println!("{}: 模型 '{}' 已注册（本地模式）", "✓".green().bold(), name);
             output_data(&def, &cli.output);
             ExitCode::Success as i32
@@ -779,7 +821,11 @@ async fn handle_config(action: kias_cli::ConfigAction, cli: &Cli) -> i32 {
                     }
                 }
                 _ => {
-                    eprintln!("{}: 未知配置键 '{}' (支持: server, namespace, output, api_key)", "错误".red(), key);
+                    eprintln!(
+                        "{}: 未知配置键 '{}' (支持: server, namespace, output, api_key)",
+                        "错误".red(),
+                        key
+                    );
                     return ExitCode::ArgumentError as i32;
                 }
             }
@@ -855,48 +901,42 @@ async fn handle_cluster(action: kias_cli::ClusterAction, cli: &Cli) -> i32 {
     };
 
     match action {
-        kias_cli::ClusterAction::Status => {
-            match client.cluster_status().await {
-                Ok(status) => {
-                    println!("{}: 集群状态", "✓".green().bold());
-                    output_data(&status, &cli.output);
-                    ExitCode::Success as i32
-                }
-                Err(e) => {
-                    eprintln!("{}: 获取集群状态失败: {}", "错误".red().bold(), e);
-                    ExitCode::ServerError as i32
-                }
+        kias_cli::ClusterAction::Status => match client.cluster_status().await {
+            Ok(status) => {
+                println!("{}: 集群状态", "✓".green().bold());
+                output_data(&status, &cli.output);
+                ExitCode::Success as i32
             }
-        }
-        kias_cli::ClusterAction::Nodes => {
-            match client.list_nodes().await {
-                Ok(nodes) => {
-                    if nodes.is_empty() {
-                        println!("{}: 没有节点", "→".yellow());
-                    } else {
-                        println!("{}: 共 {} 个节点", "✓".green(), nodes.len());
-                        output_data(&nodes, &cli.output);
-                    }
-                    ExitCode::Success as i32
-                }
-                Err(e) => {
-                    eprintln!("{}: 获取节点列表失败: {}", "错误".red().bold(), e);
-                    ExitCode::ServerError as i32
-                }
+            Err(e) => {
+                eprintln!("{}: 获取集群状态失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
             }
-        }
-        kias_cli::ClusterAction::Resources => {
-            match client.metrics_summary().await {
-                Ok(metrics) => {
-                    println!("{}: 资源使用", "✓".green().bold());
-                    output_data(&metrics, &cli.output);
-                    ExitCode::Success as i32
+        },
+        kias_cli::ClusterAction::Nodes => match client.list_nodes().await {
+            Ok(nodes) => {
+                if nodes.is_empty() {
+                    println!("{}: 没有节点", "→".yellow());
+                } else {
+                    println!("{}: 共 {} 个节点", "✓".green(), nodes.len());
+                    output_data(&nodes, &cli.output);
                 }
-                Err(e) => {
-                    eprintln!("{}: 获取资源信息失败: {}", "错误".red().bold(), e);
-                    ExitCode::ServerError as i32
-                }
+                ExitCode::Success as i32
             }
-        }
+            Err(e) => {
+                eprintln!("{}: 获取节点列表失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
+        },
+        kias_cli::ClusterAction::Resources => match client.metrics_summary().await {
+            Ok(metrics) => {
+                println!("{}: 资源使用", "✓".green().bold());
+                output_data(&metrics, &cli.output);
+                ExitCode::Success as i32
+            }
+            Err(e) => {
+                eprintln!("{}: 获取资源信息失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
+        },
     }
 }

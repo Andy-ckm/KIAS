@@ -200,13 +200,9 @@ pub enum WorkflowAction {
         input: Option<String>,
     },
     /// 查看工作流状态
-    Status {
-        run_id: String,
-    },
+    Status { run_id: String },
     /// 查看工作流日志
-    Logs {
-        run_id: String,
-    },
+    Logs { run_id: String },
     /// 列出工作流
     List,
 }
@@ -238,9 +234,7 @@ pub enum SkillAction {
     /// 列出技能
     List,
     /// 搜索技能
-    Search {
-        query: String,
-    },
+    Search { query: String },
 }
 
 #[derive(Clone, Subcommand)]
@@ -262,9 +256,7 @@ pub enum SandboxAction {
         command: Vec<String>,
     },
     /// 销毁沙箱
-    Destroy {
-        sandbox_id: String,
-    },
+    Destroy { sandbox_id: String },
     /// 列出沙箱
     List,
 }
@@ -289,14 +281,9 @@ pub enum ModelAction {
 #[derive(Clone, Subcommand)]
 pub enum ConfigAction {
     /// 设置配置
-    Set {
-        key: String,
-        value: String,
-    },
+    Set { key: String, value: String },
     /// 获取配置
-    Get {
-        key: String,
-    },
+    Get { key: String },
     /// 列出配置
     List,
     /// 初始化配置

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use kias_controller::{
     AgentConfig, AgentInfo, AgentStatus, ControllerState, DefaultReconciler, DesiredState,
-    HealthCheckConfig, HealthChecker, Reconciler, ResourceRequirements,
+    HealthCheckConfig, HealthChecker, NoOpSpawner, Reconciler, ResourceRequirements,
 };
 use std::collections::HashMap;
 
@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Starting KIAS Controller");
 
-    let reconciler = DefaultReconciler::new();
+    let reconciler = DefaultReconciler::new(NoOpSpawner);
 
     let mut state = ControllerState {
         desired: DesiredState {

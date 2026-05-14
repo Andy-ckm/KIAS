@@ -17,7 +17,7 @@ pub use handoff::{
 pub use health::{HealthCheckConfig, HealthCheckSummary, HealthChecker};
 pub use heartbeat::{HeartbeatAction, HeartbeatConfig, HeartbeatMonitor};
 pub use lifecycle::{AgentLifecycleManager, LifecycleHooks, LifecycleState};
-pub use reconciler::{DefaultReconciler, Reconciler};
+pub use reconciler::{AgentSpawner, DefaultReconciler, NoOpSpawner, Reconciler};
 pub use recovery::{RecoveryAction, RecoveryConfig, RecoveryManager};
 pub use state::{
     ActualState, AgentConfig, AgentInfo, AgentStatus, ControllerState, DesiredState,

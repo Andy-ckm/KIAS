@@ -17,6 +17,7 @@ members = [
     "crates/workflow-engine",
     "crates/autonomy-controller",
     "crates/mcp-protocol",
+    "crates/benchmarks",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

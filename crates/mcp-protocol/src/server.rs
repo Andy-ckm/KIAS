@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::capabilities::{ToolsCapability, ResourcesCapability, PromptsCapability};
+use crate::capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability};
 use crate::error::McpError;
 use crate::prompt::Prompt;
 use crate::resource::Resource;
@@ -141,7 +141,9 @@ impl ToolResult {
     /// Create an error result with a message.
     pub fn error(message: impl Into<String>) -> Self {
         Self {
-            content: vec![ToolResultContent::Text { text: message.into() }],
+            content: vec![ToolResultContent::Text {
+                text: message.into(),
+            }],
             is_error: true,
         }
     }
@@ -337,15 +339,15 @@ pub struct EnhancedServerCapabilities {
     pub logging: Option<LoggingCapability>,
 }
 
-
-
 impl EnhancedServerCapabilities {
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn with_tools(mut self) -> Self {
-        self.tools = Some(ToolsCapability { list_changed: false });
+        self.tools = Some(ToolsCapability {
+            list_changed: false,
+        });
         self
     }
 
@@ -358,7 +360,9 @@ impl EnhancedServerCapabilities {
     }
 
     pub fn with_prompts(mut self) -> Self {
-        self.prompts = Some(PromptsCapability { list_changed: false });
+        self.prompts = Some(PromptsCapability {
+            list_changed: false,
+        });
         self
     }
 
@@ -555,11 +559,7 @@ impl McpServer {
         let name = match params.get("name").and_then(|v| v.as_str()) {
             Some(n) => n,
             None => {
-                return McpResponse::error(
-                    request.id.clone(),
-                    -32602,
-                    "Missing tool name",
-                );
+                return McpResponse::error(request.id.clone(), -32602, "Missing tool name");
             }
         };
         match self.tools.get(name) {
@@ -604,11 +604,7 @@ impl McpServer {
         let uri = match params.get("uri").and_then(|v| v.as_str()) {
             Some(u) => u,
             None => {
-                return McpResponse::error(
-                    request.id.clone(),
-                    -32602,
-                    "Missing resource URI",
-                );
+                return McpResponse::error(request.id.clone(), -32602, "Missing resource URI");
             }
         };
         // Check the resource is registered
@@ -622,22 +618,21 @@ impl McpServer {
         // Try the handler
         match &self.resource_handler {
             Some(handler) => match handler.read(uri).await {
-                Ok(content) => {
-                    McpResponse::success(request.id.clone(), json!({
+                Ok(content) => McpResponse::success(
+                    request.id.clone(),
+                    json!({
                         "contents": [content]
-                    }))
-                }
+                    }),
+                ),
                 Err(e) => McpResponse::error(
                     request.id.clone(),
                     -32000,
                     format!("Resource read error: {}", e),
                 ),
             },
-            None => McpResponse::error(
-                request.id.clone(),
-                -32601,
-                "No resource handler configured",
-            ),
+            None => {
+                McpResponse::error(request.id.clone(), -32601, "No resource handler configured")
+            }
         }
     }
 
@@ -660,11 +655,7 @@ impl McpServer {
         let name = match params.get("name").and_then(|v| v.as_str()) {
             Some(n) => n,
             None => {
-                return McpResponse::error(
-                    request.id.clone(),
-                    -32602,
-                    "Missing prompt name",
-                );
+                return McpResponse::error(request.id.clone(), -32602, "Missing prompt name");
             }
         };
         // Check the prompt is registered
@@ -680,9 +671,10 @@ impl McpServer {
             Some(handler) => {
                 let args = params.get("arguments").cloned();
                 match handler.get(name, args).await {
-                    Ok(result) => {
-                        McpResponse::success(request.id.clone(), serde_json::to_value(result).unwrap_or_default())
-                    }
+                    Ok(result) => McpResponse::success(
+                        request.id.clone(),
+                        serde_json::to_value(result).unwrap_or_default(),
+                    ),
                     Err(e) => McpResponse::error(
                         request.id.clone(),
                         -32000,
@@ -690,11 +682,7 @@ impl McpServer {
                     ),
                 }
             }
-            None => McpResponse::error(
-                request.id.clone(),
-                -32601,
-                "No prompt handler configured",
-            ),
+            None => McpResponse::error(request.id.clone(), -32601, "No prompt handler configured"),
         }
     }
 }
@@ -715,7 +703,12 @@ mod tests {
             .with_tools()
             .with_resources()
             .with_prompts()
-            .with_logging(vec!["debug".into(), "info".into(), "warn".into(), "error".into()]);
+            .with_logging(vec![
+                "debug".into(),
+                "info".into(),
+                "warn".into(),
+                "error".into(),
+            ]);
 
         let mut server = McpServer::new("test-server", "1.0.0", caps);
 
@@ -744,8 +737,12 @@ mod tests {
 
         // Register resource
         server.register_resource(
-            Resource::new("file:///tmp/test.txt", "test.txt", Some("A test file".to_string()))
-                .with_mime_type("text/plain"),
+            Resource::new(
+                "file:///tmp/test.txt",
+                "test.txt",
+                Some("A test file".to_string()),
+            )
+            .with_mime_type("text/plain"),
         );
 
         // Set resource handler
@@ -758,12 +755,13 @@ mod tests {
 
         // Register prompt
         server.register_prompt(
-            Prompt::new("summarize", Some("Summarize text".to_string()))
-                .with_argument(crate::prompt::PromptArgument::new(
+            Prompt::new("summarize", Some("Summarize text".to_string())).with_argument(
+                crate::prompt::PromptArgument::new(
                     "text",
                     Some("Text to summarize".to_string()),
                     true,
-                )),
+                ),
+            ),
         );
 
         // Set prompt handler
@@ -861,11 +859,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_call_missing_name() {
         let server = make_test_server();
-        let req = McpRequest::new(
-            RequestId::Number(6),
-            "tools/call",
-            Some(json!({})),
-        );
+        let req = McpRequest::new(RequestId::Number(6), "tools/call", Some(json!({})));
         let resp = server.handle_request(&req).await;
         assert!(resp.is_error());
         assert_eq!(resp.error.unwrap().code, -32602);
@@ -878,7 +872,10 @@ mod tests {
         let req = McpRequest::new(RequestId::Number(7), "resources/list", None);
         let resp = server.handle_request(&req).await;
         assert!(!resp.is_error());
-        let resources = resp.result.unwrap()["resources"].as_array().unwrap().clone();
+        let resources = resp.result.unwrap()["resources"]
+            .as_array()
+            .unwrap()
+            .clone();
         assert_eq!(resources.len(), 1);
         assert_eq!(resources[0]["name"], "test.txt");
     }
@@ -918,11 +915,7 @@ mod tests {
     #[tokio::test]
     async fn test_resource_reading_missing_uri() {
         let server = make_test_server();
-        let req = McpRequest::new(
-            RequestId::Number(10),
-            "resources/read",
-            Some(json!({})),
-        );
+        let req = McpRequest::new(RequestId::Number(10), "resources/read", Some(json!({})));
         let resp = server.handle_request(&req).await;
         assert!(resp.is_error());
         assert_eq!(resp.error.unwrap().code, -32602);
@@ -1041,8 +1034,12 @@ mod tests {
             open_world_hint: false,
         };
         server.register_tool_fn(
-            ToolDefinition::new("annotated", "A tool with annotations", json!({"type": "object"}))
-                .with_annotations(ann),
+            ToolDefinition::new(
+                "annotated",
+                "A tool with annotations",
+                json!({"type": "object"}),
+            )
+            .with_annotations(ann),
             |_| Ok(ToolResult::text("ok")),
         );
         let req = McpRequest::new(RequestId::Number(1), "tools/list", None);
@@ -1095,7 +1092,11 @@ mod tests {
     // 22. JSON-RPC request/response format
     #[test]
     fn test_jsonrpc_request_format() {
-        let req = McpRequest::new(RequestId::Number(42), "initialize", Some(json!({"key": "val"})));
+        let req = McpRequest::new(
+            RequestId::Number(42),
+            "initialize",
+            Some(json!({"key": "val"})),
+        );
         let serialized = serde_json::to_string(&req).unwrap();
         let parsed: Value = serde_json::from_str(&serialized).unwrap();
         assert_eq!(parsed["jsonrpc"], "2.0");
@@ -1145,11 +1146,10 @@ mod tests {
     // 25. ToolDefinition construction
     #[test]
     fn test_tool_definition() {
-        let td = ToolDefinition::new("test", "desc", json!({}))
-            .with_annotations(ToolAnnotations {
-                title: Some("Test".to_string()),
-                ..Default::default()
-            });
+        let td = ToolDefinition::new("test", "desc", json!({})).with_annotations(ToolAnnotations {
+            title: Some("Test".to_string()),
+            ..Default::default()
+        });
         assert_eq!(td.name, "test");
         assert_eq!(td.description, "desc");
         assert!(td.annotations.is_some());

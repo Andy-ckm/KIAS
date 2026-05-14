@@ -60,7 +60,8 @@ impl RateLimit {
         let window = chrono::Duration::seconds(self.window_seconds as i64);
 
         // Remove expired entries
-        self.executions.retain(|t| now.signed_duration_since(*t) < window);
+        self.executions
+            .retain(|t| now.signed_duration_since(*t) < window);
 
         if self.executions.len() < self.max_executions as usize {
             self.executions.push(now);
@@ -74,7 +75,9 @@ impl RateLimit {
     pub fn remaining(&self) -> u32 {
         let now = Utc::now();
         let window = chrono::Duration::seconds(self.window_seconds as i64);
-        let active = self.executions.iter()
+        let active = self
+            .executions
+            .iter()
             .filter(|t| now.signed_duration_since(**t) < window)
             .count();
         self.max_executions.saturating_sub(active as u32)
@@ -187,7 +190,11 @@ impl AutonomyController {
         // Update audit log
         if let Some(entry) = self.audit_log.last_mut() {
             if entry.tool == tool && entry.outcome.is_none() {
-                entry.outcome = Some(if success { "success".to_string() } else { "failure".to_string() });
+                entry.outcome = Some(if success {
+                    "success".to_string()
+                } else {
+                    "failure".to_string()
+                });
             }
         }
 
@@ -220,7 +227,11 @@ impl AutonomyController {
                 };
             }
             if p.needs_confirmation() {
-                self.log_decision(tool, "RequiresConfirmation", Some("Tool policy requires confirmation"));
+                self.log_decision(
+                    tool,
+                    "RequiresConfirmation",
+                    Some("Tool policy requires confirmation"),
+                );
                 return ExecutionDecision::RequiresConfirmation {
                     tool: tool.to_string(),
                     reason: format!("Tool '{}' requires confirmation", tool),
@@ -271,7 +282,8 @@ impl AutonomyController {
                 } else {
                     ExecutionDecision::RequiresConfirmation {
                         tool: tool.to_string(),
-                        reason: "Non-edit operations require confirmation in AutoEdit mode".to_string(),
+                        reason: "Non-edit operations require confirmation in AutoEdit mode"
+                            .to_string(),
                     }
                 }
             }
@@ -337,24 +349,16 @@ impl AutonomyController {
 #[derive(Debug, Clone)]
 pub enum ExecutionDecision {
     /// 仅提供建议
-    SuggestOnly {
-        tool: String,
-        suggestion: String,
-    },
+    SuggestOnly { tool: String, suggestion: String },
     /// 需要确认
-    RequiresConfirmation {
-        tool: String,
-        reason: String,
-    },
+    RequiresConfirmation { tool: String, reason: String },
     /// 自动执行
     AutoExecute {
         tool: String,
         requires_sandbox: bool,
     },
     /// 禁止执行
-    Forbidden {
-        reason: String,
-    },
+    Forbidden { reason: String },
     /// 速率限制
     RateLimited {
         tool: String,
@@ -362,16 +366,13 @@ pub enum ExecutionDecision {
         window_seconds: u64,
     },
     /// 预算耗尽
-    BudgetExhausted {
-        tool: String,
-        remaining: u32,
-    },
+    BudgetExhausted { tool: String, remaining: u32 },
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::policy::{ToolPolicy, ToolPermission};
+    use crate::policy::{ToolPermission, ToolPolicy};
 
     #[test]
     fn test_autonomy_controller_default() {
@@ -395,7 +396,11 @@ mod tests {
 
         for tool in &["file_write", "file_edit", "file_patch", "terminal_write"] {
             let decision = controller.check_execution_allowed(tool);
-            assert!(matches!(decision, ExecutionDecision::AutoExecute { .. }), "Expected AutoExecute for {}", tool);
+            assert!(
+                matches!(decision, ExecutionDecision::AutoExecute { .. }),
+                "Expected AutoExecute for {}",
+                tool
+            );
         }
     }
 
@@ -405,7 +410,10 @@ mod tests {
         controller.set_level(AutonomyLevel::AutoEdit);
 
         let decision = controller.check_execution_allowed("web_search");
-        assert!(matches!(decision, ExecutionDecision::RequiresConfirmation { .. }));
+        assert!(matches!(
+            decision,
+            ExecutionDecision::RequiresConfirmation { .. }
+        ));
     }
 
     #[test]
@@ -422,10 +430,16 @@ mod tests {
     fn test_tool_policy_requires_confirmation() {
         let mut controller = AutonomyController::new();
         controller.set_level(AutonomyLevel::FullAuto);
-        controller.set_tool_policy(ToolPolicy::new("sensitive_tool", ToolPermission::RequireConfirmation));
+        controller.set_tool_policy(ToolPolicy::new(
+            "sensitive_tool",
+            ToolPermission::RequireConfirmation,
+        ));
 
         let decision = controller.check_execution_allowed("sensitive_tool");
-        assert!(matches!(decision, ExecutionDecision::RequiresConfirmation { .. }));
+        assert!(matches!(
+            decision,
+            ExecutionDecision::RequiresConfirmation { .. }
+        ));
     }
 
     #[test]
@@ -485,11 +499,20 @@ mod tests {
         controller.set_rate_limit("api_call", RateLimit::new(2, 60));
 
         // First two should succeed
-        assert!(matches!(controller.check_execution_allowed("api_call"), ExecutionDecision::AutoExecute { .. }));
-        assert!(matches!(controller.check_execution_allowed("api_call"), ExecutionDecision::AutoExecute { .. }));
+        assert!(matches!(
+            controller.check_execution_allowed("api_call"),
+            ExecutionDecision::AutoExecute { .. }
+        ));
+        assert!(matches!(
+            controller.check_execution_allowed("api_call"),
+            ExecutionDecision::AutoExecute { .. }
+        ));
 
         // Third should be rate limited
-        assert!(matches!(controller.check_execution_allowed("api_call"), ExecutionDecision::RateLimited { .. }));
+        assert!(matches!(
+            controller.check_execution_allowed("api_call"),
+            ExecutionDecision::RateLimited { .. }
+        ));
     }
 
     #[test]
@@ -506,9 +529,18 @@ mod tests {
         controller.set_level(AutonomyLevel::FullAuto);
         controller.set_execution_budget(ExecutionBudget::new(2));
 
-        assert!(matches!(controller.check_execution_allowed("file_write"), ExecutionDecision::AutoExecute { .. }));
-        assert!(matches!(controller.check_execution_allowed("file_write"), ExecutionDecision::AutoExecute { .. }));
-        assert!(matches!(controller.check_execution_allowed("file_write"), ExecutionDecision::BudgetExhausted { .. }));
+        assert!(matches!(
+            controller.check_execution_allowed("file_write"),
+            ExecutionDecision::AutoExecute { .. }
+        ));
+        assert!(matches!(
+            controller.check_execution_allowed("file_write"),
+            ExecutionDecision::AutoExecute { .. }
+        ));
+        assert!(matches!(
+            controller.check_execution_allowed("file_write"),
+            ExecutionDecision::BudgetExhausted { .. }
+        ));
     }
 
     #[test]

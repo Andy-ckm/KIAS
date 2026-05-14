@@ -58,11 +58,7 @@ pub struct AgentEventEnvelope {
 
 impl AgentEventEnvelope {
     /// Create a new event envelope with the current timestamp.
-    pub fn new(
-        event: AgentEvent,
-        agent_id: impl Into<String>,
-        source: impl Into<String>,
-    ) -> Self {
+    pub fn new(event: AgentEvent, agent_id: impl Into<String>, source: impl Into<String>) -> Self {
         Self {
             event,
             agent_id: agent_id.into(),
@@ -126,10 +122,7 @@ impl EventBus {
             agent_filter: agent_id.map(|s| s.to_string()),
             sender: tx,
         };
-        self.subscribers
-            .entry(event_type)
-            .or_default()
-            .push(sub);
+        self.subscribers.entry(event_type).or_default().push(sub);
         rx
     }
 
@@ -396,7 +389,11 @@ mod tests {
 
         // Terminated should trigger an alert.
         processor
-            .handle_event(&AgentEventEnvelope::new(AgentEvent::Terminated, "a2", "test"))
+            .handle_event(&AgentEventEnvelope::new(
+                AgentEvent::Terminated,
+                "a2",
+                "test",
+            ))
             .await
             .unwrap();
         let alert = rx.recv().await.unwrap();
@@ -413,7 +410,11 @@ mod tests {
             .await
             .unwrap();
         processor
-            .handle_event(&AgentEventEnvelope::new(AgentEvent::Completed, "a1", "test"))
+            .handle_event(&AgentEventEnvelope::new(
+                AgentEvent::Completed,
+                "a1",
+                "test",
+            ))
             .await
             .unwrap();
 

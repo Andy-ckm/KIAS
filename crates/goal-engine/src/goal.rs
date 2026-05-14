@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// 目标定义（借鉴 Claude Code /goal）
@@ -19,7 +19,7 @@ pub struct Goal {
 pub struct GoalCondition {
     pub name: String,
     pub description: String,
-    pub verification_method: String,  // 验证方式
+    pub verification_method: String, // 验证方式
     pub expected_result: String,
 }
 
@@ -77,14 +77,20 @@ impl Goal {
             description: description.to_string(),
             conditions: Vec::new(),
             constraints: Vec::new(),
-            max_rounds: Some(20),  // 默认20轮
+            max_rounds: Some(20), // 默认20轮
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
     }
 
     /// 添加条件
-    pub fn add_condition(&mut self, name: &str, description: &str, verification: &str, expected: &str) {
+    pub fn add_condition(
+        &mut self,
+        name: &str,
+        description: &str,
+        verification: &str,
+        expected: &str,
+    ) {
         self.conditions.push(GoalCondition {
             name: name.to_string(),
             description: description.to_string(),

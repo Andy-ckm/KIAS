@@ -1,0 +1,30 @@
+[package]
+name = "kias-benchmarks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bench]]
+name = "scheduler_bench"
+harness = false
+
+[[bench]]
+name = "concurrent_stress"
+harness = false
+
+[[bench]]
+name = "controller_bench"
+harness = false
+
+[dependencies]
+kias-common = { path = "../common" }
+kias-scheduler = { path = "../scheduler" }
+kias-controller = { path = "../controller" }
+tokio.workspace = true
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+rand = "0.8"
+dashmap.workspace = true

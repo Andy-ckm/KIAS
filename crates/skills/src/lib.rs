@@ -1,12 +1,11 @@
+pub mod composition;
+pub mod pipeline;
 pub mod registry;
 pub mod skill;
-pub mod pipeline;
-pub mod composition;
 
-pub use registry::SkillRegistry;
-pub use skill::{Skill, SkillConfig, HttpCallSkill, ShellSkill, JsonTransformSkill};
+pub use composition::{CompositeSkill, SchemaValidation, SkillComposer};
 pub use pipeline::{
-    SkillPipeline, PipelineStep, PipelineResult, PipelineBuilder,
-    InputMapping, ErrorPolicy,
+    ErrorPolicy, InputMapping, PipelineBuilder, PipelineResult, PipelineStep, SkillPipeline,
 };
-pub use composition::{CompositeSkill, SkillComposer, SchemaValidation};
+pub use registry::SkillRegistry;
+pub use skill::{HttpCallSkill, JsonTransformSkill, ShellSkill, Skill, SkillConfig};

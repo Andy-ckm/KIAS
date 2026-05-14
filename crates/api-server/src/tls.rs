@@ -85,12 +85,14 @@ impl TlsServerBuilder {
             .parse()
             .map_err(|e| KiasError::Config(format!("Invalid server address: {e}")))?;
 
-        let cert_path = config.tls_cert_path.clone().ok_or_else(|| {
-            KiasError::Config("TLS enabled but tls_cert_path not set".into())
-        })?;
-        let key_path = config.tls_key_path.clone().ok_or_else(|| {
-            KiasError::Config("TLS enabled but tls_key_path not set".into())
-        })?;
+        let cert_path = config
+            .tls_cert_path
+            .clone()
+            .ok_or_else(|| KiasError::Config("TLS enabled but tls_cert_path not set".into()))?;
+        let key_path = config
+            .tls_key_path
+            .clone()
+            .ok_or_else(|| KiasError::Config("TLS enabled but tls_key_path not set".into()))?;
 
         let min_version = TlsVersion::from_config(&config.tls_min_version)?;
 
@@ -104,11 +106,7 @@ impl TlsServerBuilder {
     }
 
     /// Set the certificate and key file paths.
-    pub fn with_cert_files(
-        mut self,
-        cert_path: &str,
-        key_path: &str,
-    ) -> Result<Self, KiasError> {
+    pub fn with_cert_files(mut self, cert_path: &str, key_path: &str) -> Result<Self, KiasError> {
         self.cert_path = Some(cert_path.into());
         self.key_path = Some(key_path.into());
         Ok(self)
@@ -127,18 +125,18 @@ impl TlsServerBuilder {
     }
 
     /// Build the `rustls` `ServerConfig`.
-    pub fn build_rustls_config(
-        &self,
-    ) -> Result<rustls::ServerConfig, KiasError> {
+    pub fn build_rustls_config(&self) -> Result<rustls::ServerConfig, KiasError> {
         // Ensure a crypto provider is installed
         let _ = rustls::crypto::ring::default_provider().install_default();
 
-        let cert_path = self.cert_path.as_ref().ok_or_else(|| {
-            KiasError::Config("TLS cert path not set".into())
-        })?;
-        let key_path = self.key_path.as_ref().ok_or_else(|| {
-            KiasError::Config("TLS key path not set".into())
-        })?;
+        let cert_path = self
+            .cert_path
+            .as_ref()
+            .ok_or_else(|| KiasError::Config("TLS cert path not set".into()))?;
+        let key_path = self
+            .key_path
+            .as_ref()
+            .ok_or_else(|| KiasError::Config("TLS key path not set".into()))?;
 
         // Load certificates
         let certs = load_certs(cert_path)?;
@@ -156,9 +154,7 @@ impl TlsServerBuilder {
             }
             let client_verifier = WebPkiClientVerifier::builder(Arc::new(root_store))
                 .build()
-                .map_err(|e| {
-                    KiasError::Config(format!("Failed to build client verifier: {e}"))
-                })?;
+                .map_err(|e| KiasError::Config(format!("Failed to build client verifier: {e}")))?;
 
             rustls::ServerConfig::builder()
                 .with_client_cert_verifier(client_verifier)
@@ -182,9 +178,7 @@ impl TlsServerBuilder {
     ///
     /// Note: This method starts the TLS listener and accepts connections.
     /// For production use, integrate this with your axum server setup.
-    pub async fn serve(
-        &self,
-    ) -> Result<TcpListener, KiasError> {
+    pub async fn serve(&self) -> Result<TcpListener, KiasError> {
         let listener = TcpListener::bind(self.addr)
             .await
             .map_err(|e| KiasError::Config(format!("Failed to bind to {}: {e}", self.addr)))?;
@@ -211,10 +205,9 @@ fn load_certs(path: &str) -> Result<Vec<CertificateDer<'static>>, KiasError> {
     let file = std::fs::File::open(path)
         .map_err(|e| KiasError::Config(format!("Failed to open cert file '{path}': {e}")))?;
     let mut reader = BufReader::new(file);
-    let certs: Vec<CertificateDer<'static>> =
-        rustls_pemfile::certs(&mut reader)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| KiasError::Config(format!("Failed to parse certs from '{path}': {e}")))?;
+    let certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut reader)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| KiasError::Config(format!("Failed to parse certs from '{path}': {e}")))?;
 
     if certs.is_empty() {
         return Err(KiasError::Config(format!(
@@ -301,10 +294,7 @@ mod tests {
             ..Default::default()
         };
         let builder = TlsServerBuilder::from_config(&config).unwrap();
-        assert_eq!(
-            builder.client_ca_path.as_deref(),
-            Some("/tmp/ca.pem")
-        );
+        assert_eq!(builder.client_ca_path.as_deref(), Some("/tmp/ca.pem"));
     }
 
     #[test]
@@ -319,7 +309,10 @@ mod tests {
             ..Default::default()
         };
         let builder = TlsServerBuilder::from_config(&config).unwrap();
-        assert_eq!(builder.addr, "127.0.0.1:9443".parse::<SocketAddr>().unwrap());
+        assert_eq!(
+            builder.addr,
+            "127.0.0.1:9443".parse::<SocketAddr>().unwrap()
+        );
         assert_eq!(builder.min_version, TlsVersion::Tls12);
     }
 
@@ -369,7 +362,10 @@ mod tests {
 
         let err = load_certs(path.to_str().unwrap()).unwrap_err();
         // rustls-pemfile returns empty iterator for non-PEM content
-        assert!(err.to_string().contains("No certificates found") || err.to_string().contains("Failed to parse certs"));
+        assert!(
+            err.to_string().contains("No certificates found")
+                || err.to_string().contains("Failed to parse certs")
+        );
     }
 
     #[test]
@@ -390,7 +386,10 @@ mod tests {
 
         let err = load_key(path.to_str().unwrap()).unwrap_err();
         // rustls-pemfile returns None for non-PEM content
-        assert!(err.to_string().contains("No private key found") || err.to_string().contains("Failed to parse key"));
+        assert!(
+            err.to_string().contains("No private key found")
+                || err.to_string().contains("Failed to parse key")
+        );
     }
 
     #[test]

@@ -70,12 +70,7 @@ impl NodeExecutor for ShellExecutor {
 
         // Execute with optional timeout
         let output = if let Some(secs) = timeout_secs {
-            match tokio::time::timeout(
-                std::time::Duration::from_secs(*secs),
-                cmd.output(),
-            )
-            .await
-            {
+            match tokio::time::timeout(std::time::Duration::from_secs(*secs), cmd.output()).await {
                 Ok(result) => result,
                 Err(_) => {
                     return ExecutionResult {
@@ -107,8 +102,7 @@ impl NodeExecutor for ShellExecutor {
                 } else {
                     ExecutionResult::failure(format!(
                         "Command exited with code {}: {}",
-                        exit_code,
-                        stderr
+                        exit_code, stderr
                     ))
                 };
                 result.stdout = Some(stdout);
@@ -293,8 +287,8 @@ impl NodeExecutor for LlmExecutor {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
         // Build a mock response that incorporates the prompt and state context
-        let state_summary: serde_json::Value = serde_json::to_value(state_data)
-            .unwrap_or(serde_json::json!({}));
+        let state_summary: serde_json::Value =
+            serde_json::to_value(state_data).unwrap_or(serde_json::json!({}));
 
         let response_text = format!(
             "[LLM Mock Response] model={}, prompt=\"{}\", state_keys={:?}",
@@ -348,7 +342,11 @@ impl NodeExecutor for SubWorkflowExecutor {
     ) -> ExecutionResult {
         let workflow_id = match config {
             ExecutorConfig::SubWorkflow { workflow_id } => workflow_id,
-            _ => return ExecutionResult::failure("SubWorkflowExecutor received non-SubWorkflow config"),
+            _ => {
+                return ExecutionResult::failure(
+                    "SubWorkflowExecutor received non-SubWorkflow config",
+                )
+            }
         };
 
         tracing::info!(workflow_id = %workflow_id, "Executing sub-workflow (stub)");
@@ -541,7 +539,10 @@ mod tests {
         let result = exec.execute(&config, &state).await;
         assert!(result.success);
         assert_eq!(result.output["model"], "gpt-4");
-        assert!(result.output["response"].as_str().unwrap().contains("What is Rust?"));
+        assert!(result.output["response"]
+            .as_str()
+            .unwrap()
+            .contains("What is Rust?"));
     }
 
     #[tokio::test]

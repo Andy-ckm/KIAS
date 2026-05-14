@@ -1,8 +1,8 @@
-use kias_executor::{TaskRuntime, Task, TaskResult, TaskStatus};
-use kias_executor::runtime::TaskExecutor;
 use async_trait::async_trait;
-use kias_common::KiasResult;
 use chrono::Utc;
+use kias_common::KiasResult;
+use kias_executor::runtime::TaskExecutor;
+use kias_executor::{Task, TaskResult, TaskRuntime, TaskStatus};
 use uuid::Uuid;
 
 struct SimpleExecutor;
@@ -46,7 +46,10 @@ async fn main() -> anyhow::Result<()> {
 
     let result = runtime.run_task(&task).await?;
 
-    println!("Task {} completed with status: {:?}", result.task_id, result.status);
+    println!(
+        "Task {} completed with status: {:?}",
+        result.task_id, result.status
+    );
 
     tracing::info!("KIAS Executor Service finished");
     Ok(())

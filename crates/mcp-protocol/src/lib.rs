@@ -31,7 +31,9 @@ pub use server::{
     ToolResultContent,
 };
 pub use tool::Tool;
-pub use transport::{HttpTransport, InMemoryTransport as ServerInMemoryTransport, McpTransport, StdioTransport};
+pub use transport::{
+    HttpTransport, InMemoryTransport as ServerInMemoryTransport, McpTransport, StdioTransport,
+};
 pub use types::{McpNotification, McpRequest, McpResponse, RequestId};
 
 /// JSON-RPC protocol version constant.

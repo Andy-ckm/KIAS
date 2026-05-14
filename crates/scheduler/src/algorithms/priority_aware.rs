@@ -45,8 +45,7 @@ struct PriorityEntry {
 impl PriorityEntry {
     /// Effective priority considering aging.
     fn effective_priority(&self) -> u64 {
-        if self.base_priority <= Priority::Low as u64 && self.wait_rounds >= AGING_THRESHOLD
-        {
+        if self.base_priority <= Priority::Low as u64 && self.wait_rounds >= AGING_THRESHOLD {
             let boost_steps = (self.wait_rounds - AGING_THRESHOLD) / AGING_THRESHOLD;
             let boost = boost_steps * AGING_BOOST;
             self.base_priority + boost.min(AGING_CAP - self.base_priority)
@@ -139,12 +138,13 @@ impl PriorityAwareScheduler {
         let round = self.round_counter.load(AtomicOrdering::Relaxed);
         if round > 0 && round.is_multiple_of(LOW_PRIORITY_GUARANTEE_WINDOW) {
             // Reset window counter
-            self.low_priority_in_window.store(0, AtomicOrdering::Relaxed);
+            self.low_priority_in_window
+                .store(0, AtomicOrdering::Relaxed);
             return false;
         }
         let low_count = self.low_priority_in_window.load(AtomicOrdering::Relaxed);
-        let rounds_remaining = LOW_PRIORITY_GUARANTEE_WINDOW
-            - (round % LOW_PRIORITY_GUARANTEE_WINDOW);
+        let rounds_remaining =
+            LOW_PRIORITY_GUARANTEE_WINDOW - (round % LOW_PRIORITY_GUARANTEE_WINDOW);
         let low_needed = LOW_PRIORITY_MINIMUM.saturating_sub(low_count);
         low_needed >= rounds_remaining
     }
@@ -162,11 +162,7 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
         "priority-aware"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let available: Vec<&Node> = nodes
             .iter()
             .filter(|n| n.status == NodeStatus::Ready)

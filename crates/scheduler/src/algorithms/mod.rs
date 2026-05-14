@@ -16,11 +16,7 @@ pub trait SchedulingAlgorithm: Send + Sync {
 
     /// Select a node for the given agent from available nodes.
     /// Returns None if no suitable node is found.
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError>;
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError>;
 }
 
 pub use affinity::AffinityScheduler;

@@ -1,15 +1,14 @@
-use std::collections::HashMap;
 use async_trait::async_trait;
 use serde_json::Value;
+use std::collections::HashMap;
 
-use crate::pipeline::{InputMapping, PipelineBuilder, SkillPipeline, ErrorPolicy};
+use crate::pipeline::{ErrorPolicy, InputMapping, PipelineBuilder, SkillPipeline};
 use crate::registry::SkillRegistry;
 use crate::skill::{Skill, SkillConfig};
 use kias_common::KiasResult;
 
 /// Schema validation for skill inputs/outputs.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SchemaValidation {
     /// Required keys that must be present.
     pub required_keys: Vec<String>,
@@ -271,8 +270,7 @@ impl SkillComposer {
         let mut prev_output_schema: Option<&SchemaValidation> = None;
 
         for step in &built.steps {
-            if let Some((ref input_schema, ref output_schema)) =
-                step_schemas.get(&step.skill_name)
+            if let Some((ref input_schema, ref output_schema)) = step_schemas.get(&step.skill_name)
             {
                 if let Some(prev_out) = prev_output_schema {
                     for key in &input_schema.required_keys {
@@ -348,8 +346,12 @@ mod tests {
     struct UpperSkill;
     #[async_trait]
     impl Skill for UpperSkill {
-        fn name(&self) -> &str { "upper" }
-        fn description(&self) -> &str { "Uppercases 'text' field" }
+        fn name(&self) -> &str {
+            "upper"
+        }
+        fn description(&self) -> &str {
+            "Uppercases 'text' field"
+        }
         async fn execute(&self, params: Value) -> KiasResult<Value> {
             let text = params.get("text").and_then(|v| v.as_str()).unwrap_or("");
             let mut output = params.clone();
@@ -363,8 +365,12 @@ mod tests {
     struct AppendSkill;
     #[async_trait]
     impl Skill for AppendSkill {
-        fn name(&self) -> &str { "append" }
-        fn description(&self) -> &str { "Appends 'suffix' to 'text'" }
+        fn name(&self) -> &str {
+            "append"
+        }
+        fn description(&self) -> &str {
+            "Appends 'suffix' to 'text'"
+        }
         async fn execute(&self, params: Value) -> KiasResult<Value> {
             let text = params.get("text").and_then(|v| v.as_str()).unwrap_or("");
             let suffix = params.get("suffix").and_then(|v| v.as_str()).unwrap_or("");
@@ -395,10 +401,7 @@ mod tests {
 
         // Execute via registry context
         let result = composite
-            .execute_with_registry(
-                &reg,
-                serde_json::json!({ "text": "hello", "suffix": "!" }),
-            )
+            .execute_with_registry(&reg, serde_json::json!({ "text": "hello", "suffix": "!" }))
             .await
             .unwrap();
         assert_eq!(result["text"], "HELLO!");
@@ -407,12 +410,9 @@ mod tests {
     #[tokio::test]
     async fn test_composite_skill_input_schema_validation() {
         let reg = test_registry();
-        let pipeline = PipelineBuilder::new("validated")
-            .then("upper")
-            .build();
+        let pipeline = PipelineBuilder::new("validated").then("upper").build();
 
-        let schema = SchemaValidation::new()
-            .with_required_keys(vec!["text".to_string()]);
+        let schema = SchemaValidation::new().with_required_keys(vec!["text".to_string()]);
 
         let composite = CompositeSkill::new("validated", "Validated composite", pipeline)
             .with_input_schema(schema);
@@ -427,9 +427,7 @@ mod tests {
     #[tokio::test]
     async fn test_composite_skill_output_schema_validation() {
         let reg = test_registry();
-        let pipeline = PipelineBuilder::new("out-valid")
-            .then("upper")
-            .build();
+        let pipeline = PipelineBuilder::new("out-valid").then("upper").build();
 
         let output_schema = SchemaValidation::new()
             .with_required_keys(vec!["text".to_string()])
@@ -455,17 +453,19 @@ mod tests {
         struct FailSkill;
         #[async_trait]
         impl Skill for FailSkill {
-            fn name(&self) -> &str { "fail_skill" }
-            fn description(&self) -> &str { "Always fails" }
+            fn name(&self) -> &str {
+                "fail_skill"
+            }
+            fn description(&self) -> &str {
+                "Always fails"
+            }
             async fn execute(&self, _params: Value) -> KiasResult<Value> {
                 Err(kias_common::KiasError::Validation("boom".into()))
             }
         }
         reg.register(Box::new(FailSkill));
 
-        let pipeline = PipelineBuilder::new("failing")
-            .then("fail_skill")
-            .build();
+        let pipeline = PipelineBuilder::new("failing").then("fail_skill").build();
 
         let composite = CompositeSkill::new("fail_composite", "Fails", pipeline);
         let result = composite
@@ -483,10 +483,8 @@ mod tests {
             .then("upper")
             .then("append")
             .with_input_schema(
-                SchemaValidation::new().with_required_keys(vec![
-                    "text".to_string(),
-                    "suffix".to_string(),
-                ]),
+                SchemaValidation::new()
+                    .with_required_keys(vec!["text".to_string(), "suffix".to_string()]),
             )
             .build();
 
@@ -498,10 +496,7 @@ mod tests {
             .is_ok());
 
         let result = composite
-            .execute_with_registry(
-                &reg,
-                serde_json::json!({ "text": "world", "suffix": "?" }),
-            )
+            .execute_with_registry(&reg, serde_json::json!({ "text": "world", "suffix": "?" }))
             .await
             .unwrap();
         assert_eq!(result["text"], "WORLD?");
@@ -534,8 +529,8 @@ mod tests {
 
     #[test]
     fn test_schema_validation_missing_key() {
-        let schema = SchemaValidation::new()
-            .with_required_keys(vec!["name".to_string(), "age".to_string()]);
+        let schema =
+            SchemaValidation::new().with_required_keys(vec!["name".to_string(), "age".to_string()]);
 
         let value = serde_json::json!({ "name": "Alice" });
         assert!(schema.validate(&value).is_err());

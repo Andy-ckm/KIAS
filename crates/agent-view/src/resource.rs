@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Resource usage snapshot for an agent at a point in time
@@ -36,18 +36,30 @@ impl ResourceSnapshot {
     }
 
     pub fn memory_usage_percent(&self) -> f64 {
-        if self.memory_limit_bytes == 0 { 0.0 }
-        else { self.memory_usage_bytes as f64 / self.memory_limit_bytes as f64 * 100.0 }
+        if self.memory_limit_bytes == 0 {
+            0.0
+        } else {
+            self.memory_usage_bytes as f64 / self.memory_limit_bytes as f64 * 100.0
+        }
     }
 
     pub fn token_usage_percent(&self) -> f64 {
-        if self.tokens_limit == 0 { 0.0 }
-        else { self.tokens_used as f64 / self.tokens_limit as f64 * 100.0 }
+        if self.tokens_limit == 0 {
+            0.0
+        } else {
+            self.tokens_used as f64 / self.tokens_limit as f64 * 100.0
+        }
     }
 
-    pub fn is_cpu_critical(&self) -> bool { self.cpu_usage_percent > 90.0 }
-    pub fn is_memory_critical(&self) -> bool { self.memory_usage_percent() > 85.0 }
-    pub fn is_token_critical(&self) -> bool { self.token_usage_percent() > 90.0 }
+    pub fn is_cpu_critical(&self) -> bool {
+        self.cpu_usage_percent > 90.0
+    }
+    pub fn is_memory_critical(&self) -> bool {
+        self.memory_usage_percent() > 85.0
+    }
+    pub fn is_token_critical(&self) -> bool {
+        self.token_usage_percent() > 90.0
+    }
 
     pub fn resource_pressure_score(&self) -> f64 {
         let cpu = self.cpu_usage_percent / 100.0;
@@ -85,9 +97,7 @@ impl ResourceTracker {
     }
 
     pub fn record(&mut self, snapshot: ResourceSnapshot) {
-        let agent_history = self.history
-            .entry(snapshot.agent_id.clone())
-            .or_default();
+        let agent_history = self.history.entry(snapshot.agent_id.clone()).or_default();
         agent_history.push(snapshot);
         if agent_history.len() > self.max_history_per_agent {
             let drain = agent_history.len() - self.max_history_per_agent;
@@ -104,27 +114,36 @@ impl ResourceTracker {
     }
 
     pub fn average_cpu(&self, agent_id: &str) -> f64 {
-        let h = match self.history.get(agent_id) { Some(h) if !h.is_empty() => h, _ => return 0.0 };
+        let h = match self.history.get(agent_id) {
+            Some(h) if !h.is_empty() => h,
+            _ => return 0.0,
+        };
         h.iter().map(|s| s.cpu_usage_percent).sum::<f64>() / h.len() as f64
     }
 
     pub fn average_memory(&self, agent_id: &str) -> f64 {
-        let h = match self.history.get(agent_id) { Some(h) if !h.is_empty() => h, _ => return 0.0 };
+        let h = match self.history.get(agent_id) {
+            Some(h) if !h.is_empty() => h,
+            _ => return 0.0,
+        };
         h.iter().map(|s| s.memory_usage_percent()).sum::<f64>() / h.len() as f64
     }
 
     pub fn peak_cpu(&self, agent_id: &str) -> f64 {
-        self.history.get(agent_id)
-            .map_or(0.0, |h| h.iter().map(|s| s.cpu_usage_percent).fold(0.0f64, f64::max))
+        self.history.get(agent_id).map_or(0.0, |h| {
+            h.iter().map(|s| s.cpu_usage_percent).fold(0.0f64, f64::max)
+        })
     }
 
     pub fn peak_memory_bytes(&self, agent_id: &str) -> u64 {
-        self.history.get(agent_id)
-            .map_or(0, |h| h.iter().map(|s| s.memory_usage_bytes).max().unwrap_or(0))
+        self.history.get(agent_id).map_or(0, |h| {
+            h.iter().map(|s| s.memory_usage_bytes).max().unwrap_or(0)
+        })
     }
 
     pub fn total_tokens_used(&self, agent_id: &str) -> u64 {
-        self.history.get(agent_id)
+        self.history
+            .get(agent_id)
             .map_or(0, |h| h.iter().map(|s| s.tokens_used).max().unwrap_or(0))
     }
 
@@ -133,9 +152,11 @@ impl ResourceTracker {
     }
 
     pub fn agents_over_pressure(&self, threshold: f64) -> Vec<String> {
-        self.history.iter()
+        self.history
+            .iter()
             .filter_map(|(id, h)| {
-                h.last().filter(|s| s.resource_pressure_score() > threshold)
+                h.last()
+                    .filter(|s| s.resource_pressure_score() > threshold)
                     .map(|_| id.clone())
             })
             .collect()

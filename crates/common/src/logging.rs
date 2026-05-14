@@ -19,15 +19,11 @@ pub fn init_logging(config: &LoggingConfig) {
 pub fn init_logging_with_level(level: &str, format: &str) {
     use tracing_subscriber::{fmt, EnvFilter};
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(level));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level));
 
     match format {
         "json" => {
-            let _ = fmt()
-                .with_env_filter(filter)
-                .json()
-                .try_init();
+            let _ = fmt().with_env_filter(filter).json().try_init();
         }
         _ => {
             let _ = fmt()

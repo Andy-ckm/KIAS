@@ -1,7 +1,7 @@
-use kias_common::KiasResult;
-use super::goal::{Goal, GoalState, GoalStatus, EvaluationResult};
 use super::evaluator::GoalEvaluator;
+use super::goal::{EvaluationResult, Goal, GoalState, GoalStatus};
 use chrono::{DateTime, Utc};
+use kias_common::KiasResult;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -64,12 +64,14 @@ impl GoalCheckpoint {
 
     /// Serialize to JSON for persistence
     pub fn to_json(&self) -> KiasResult<String> {
-        serde_json::to_string(self).map_err(|e| kias_common::error::KiasError::Serialization(e.to_string()))
+        serde_json::to_string(self)
+            .map_err(|e| kias_common::error::KiasError::Serialization(e.to_string()))
     }
 
     /// Deserialize from JSON
     pub fn from_json(json: &str) -> KiasResult<Self> {
-        serde_json::from_str(json).map_err(|e| kias_common::error::KiasError::Serialization(e.to_string()))
+        serde_json::from_str(json)
+            .map_err(|e| kias_common::error::KiasError::Serialization(e.to_string()))
     }
 }
 
@@ -141,7 +143,10 @@ impl GoalLoopRunner {
     }
 
     /// Set a checkpoint callback (called after each round)
-    pub fn with_checkpoint_callback(mut self, callback: Box<dyn Fn(&GoalCheckpoint) + Send + Sync>) -> Self {
+    pub fn with_checkpoint_callback(
+        mut self,
+        callback: Box<dyn Fn(&GoalCheckpoint) + Send + Sync>,
+    ) -> Self {
         self.checkpoint_callback = Some(callback);
         self
     }
@@ -214,11 +219,10 @@ impl GoalLoopRunner {
             }
 
             // 执行一轮（Worker via executor callback）
-            let round_output = self.executor.execute_round(
-                &goal,
-                state.current_round,
-                last_evaluation.as_ref(),
-            ).await?;
+            let round_output = self
+                .executor
+                .execute_round(&goal, state.current_round, last_evaluation.as_ref())
+                .await?;
 
             // 评估目标是否达成（裁判分离 - 独立评估模型）
             let mut evaluation = self.evaluator.evaluate(&goal, &round_output).await?;
@@ -230,11 +234,8 @@ impl GoalLoopRunner {
 
             // Save checkpoint
             if self.checkpoint_callback.is_some() {
-                let checkpoint = GoalCheckpoint::new(
-                    &goal.id,
-                    state.clone(),
-                    Some(evaluation.clone()),
-                );
+                let checkpoint =
+                    GoalCheckpoint::new(&goal.id, state.clone(), Some(evaluation.clone()));
                 if let Some(ref callback) = self.checkpoint_callback {
                     callback(&checkpoint);
                 }
@@ -342,9 +343,7 @@ mod tests {
     #[tokio::test]
     async fn test_goal_loop_max_rounds_exceeded() {
         let evaluator = crate::evaluator::DefaultEvaluator::new();
-        let executor = FeedbackTrackingExecutor::new_from_vec(vec![
-            "fail".to_string(); 10
-        ]);
+        let executor = FeedbackTrackingExecutor::new_from_vec(vec!["fail".to_string(); 10]);
         let runner = GoalLoopRunner::new(Box::new(evaluator), Box::new(executor));
 
         let mut goal = Goal::new("test");
@@ -366,7 +365,12 @@ mod tests {
         struct SlowExecutor;
         #[async_trait::async_trait]
         impl RoundExecutor for SlowExecutor {
-            async fn execute_round(&self, _: &Goal, _: u32, _: Option<&EvaluationResult>) -> KiasResult<String> {
+            async fn execute_round(
+                &self,
+                _: &Goal,
+                _: u32,
+                _: Option<&EvaluationResult>,
+            ) -> KiasResult<String> {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 Ok("fail".to_string())
             }
@@ -412,10 +416,8 @@ mod tests {
     #[tokio::test]
     async fn test_goal_loop_checkpoint_callback() {
         let evaluator = crate::evaluator::DefaultEvaluator::new();
-        let executor = FeedbackTrackingExecutor::new_from_vec(vec![
-            "fail".to_string(),
-            "success".to_string(),
-        ]);
+        let executor =
+            FeedbackTrackingExecutor::new_from_vec(vec!["fail".to_string(), "success".to_string()]);
 
         let checkpoints = Arc::new(std::sync::Mutex::new(Vec::new()));
         let checkpoints_clone = checkpoints.clone();

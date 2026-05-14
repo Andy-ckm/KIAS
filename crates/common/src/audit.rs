@@ -246,7 +246,13 @@ mod tests {
     #[tokio::test]
     async fn test_memory_audit_log_store_and_retrieve() {
         let log = MemoryAuditLog::new();
-        let event = AuditEvent::new("user1", AuditAction::Create, "agent", "agent-1", AuditOutcome::Success);
+        let event = AuditEvent::new(
+            "user1",
+            AuditAction::Create,
+            "agent",
+            "agent-1",
+            AuditOutcome::Success,
+        );
         log.log_event(event.clone()).await;
         let events = log.all_events().await;
         assert_eq!(events.len(), 1);
@@ -275,9 +281,30 @@ mod tests {
     #[tokio::test]
     async fn test_audit_filter_by_actor() {
         let log = MemoryAuditLog::new();
-        log.log_event(AuditEvent::new("alice", AuditAction::Read, "agent", "a1", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("bob", AuditAction::Read, "agent", "a2", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("alice", AuditAction::Delete, "agent", "a3", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "alice",
+            AuditAction::Read,
+            "agent",
+            "a1",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "bob",
+            AuditAction::Read,
+            "agent",
+            "a2",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "alice",
+            AuditAction::Delete,
+            "agent",
+            "a3",
+            AuditOutcome::Success,
+        ))
+        .await;
 
         let filtered = audit_filter(&log, Some("alice"), None, None, None).await;
         assert_eq!(filtered.len(), 2);
@@ -286,8 +313,22 @@ mod tests {
     #[tokio::test]
     async fn test_audit_filter_by_action() {
         let log = MemoryAuditLog::new();
-        log.log_event(AuditEvent::new("u", AuditAction::Login, "session", "s1", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("u", AuditAction::Logout, "session", "s1", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Login,
+            "session",
+            "s1",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Logout,
+            "session",
+            "s1",
+            AuditOutcome::Success,
+        ))
+        .await;
 
         let filtered = audit_filter(&log, None, Some(AuditAction::Login), None, None).await;
         assert_eq!(filtered.len(), 1);
@@ -297,8 +338,22 @@ mod tests {
     #[tokio::test]
     async fn test_audit_filter_by_resource_type() {
         let log = MemoryAuditLog::new();
-        log.log_event(AuditEvent::new("u", AuditAction::Create, "agent", "a1", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("u", AuditAction::Create, "node", "n1", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Create,
+            "agent",
+            "a1",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Create,
+            "node",
+            "n1",
+            AuditOutcome::Success,
+        ))
+        .await;
 
         let filtered = audit_filter(&log, None, None, Some("node"), None).await;
         assert_eq!(filtered.len(), 1);
@@ -321,7 +376,14 @@ mod tests {
             outcome: AuditOutcome::Success,
         };
         log.log_event(old_event).await;
-        log.log_event(AuditEvent::new("u", AuditAction::Read, "agent", "a2", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Read,
+            "agent",
+            "a2",
+            AuditOutcome::Success,
+        ))
+        .await;
 
         let since = Utc::now() - chrono::Duration::minutes(5);
         let filtered = audit_filter(&log, None, None, None, Some((since, Utc::now()))).await;
@@ -331,21 +393,55 @@ mod tests {
     #[tokio::test]
     async fn test_audit_filter_combined() {
         let log = MemoryAuditLog::new();
-        log.log_event(AuditEvent::new("alice", AuditAction::Update, "config", "c1", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("alice", AuditAction::Update, "agent", "a1", AuditOutcome::Success)).await;
-        log.log_event(AuditEvent::new("bob", AuditAction::Update, "config", "c2", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "alice",
+            AuditAction::Update,
+            "config",
+            "c1",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "alice",
+            AuditAction::Update,
+            "agent",
+            "a1",
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(AuditEvent::new(
+            "bob",
+            AuditAction::Update,
+            "config",
+            "c2",
+            AuditOutcome::Success,
+        ))
+        .await;
 
-        let filtered = audit_filter(&log, Some("alice"), Some(AuditAction::Update), Some("config"), None).await;
+        let filtered = audit_filter(
+            &log,
+            Some("alice"),
+            Some(AuditAction::Update),
+            Some("config"),
+            None,
+        )
+        .await;
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].resource_id, "c1");
     }
 
     #[tokio::test]
     async fn test_audit_event_builder() {
-        let event = AuditEvent::new("admin", AuditAction::ConfigChange, "system", "cfg", AuditOutcome::Success)
-            .with_details("changed log level")
-            .with_ip("10.0.0.1")
-            .with_user_agent("curl/7.0");
+        let event = AuditEvent::new(
+            "admin",
+            AuditAction::ConfigChange,
+            "system",
+            "cfg",
+            AuditOutcome::Success,
+        )
+        .with_details("changed log level")
+        .with_ip("10.0.0.1")
+        .with_user_agent("curl/7.0");
 
         assert_eq!(event.details, "changed log level");
         assert_eq!(event.ip_address.as_deref(), Some("10.0.0.1"));
@@ -375,14 +471,28 @@ mod tests {
     async fn test_memory_audit_log_count() {
         let log = MemoryAuditLog::new();
         assert_eq!(log.count().await, 0);
-        log.log_event(AuditEvent::new("u", AuditAction::Read, "r", "id", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "u",
+            AuditAction::Read,
+            "r",
+            "id",
+            AuditOutcome::Success,
+        ))
+        .await;
         assert_eq!(log.count().await, 1);
     }
 
     #[tokio::test]
     async fn test_audit_filter_no_results() {
         let log = MemoryAuditLog::new();
-        log.log_event(AuditEvent::new("alice", AuditAction::Read, "agent", "a1", AuditOutcome::Success)).await;
+        log.log_event(AuditEvent::new(
+            "alice",
+            AuditAction::Read,
+            "agent",
+            "a1",
+            AuditOutcome::Success,
+        ))
+        .await;
         let filtered = audit_filter(&log, Some("bob"), None, None, None).await;
         assert!(filtered.is_empty());
     }

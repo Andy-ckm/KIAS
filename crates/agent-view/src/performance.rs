@@ -1,5 +1,5 @@
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
 use std::collections::HashMap;
 
 /// Performance trend direction
@@ -79,11 +79,23 @@ impl PerformanceAnalyzer {
         let window_end = Utc::now();
         let window_start = window_end - Duration::hours(self.window_hours as i64);
         let tasks_completed = task_count - failed_count;
-        let error_rate = if task_count > 0 { failed_count as f64 / task_count as f64 } else { 0.0 };
-        let avg_tokens_per_task = if task_count > 0 { total_tokens as f64 / task_count as f64 } else { 0.0 };
+        let error_rate = if task_count > 0 {
+            failed_count as f64 / task_count as f64
+        } else {
+            0.0
+        };
+        let avg_tokens_per_task = if task_count > 0 {
+            total_tokens as f64 / task_count as f64
+        } else {
+            0.0
+        };
         let cost_estimate = total_tokens as f64 / 1000.0 * self.token_cost_per_1k;
         let minutes = self.window_hours as f64 * 60.0;
-        let throughput = if minutes > 0.0 { task_count as f64 / minutes } else { 0.0 };
+        let throughput = if minutes > 0.0 {
+            task_count as f64 / minutes
+        } else {
+            0.0
+        };
 
         // Scores (0.0 - 1.0)
         let reliability_score = (1.0 - error_rate).max(0.0) * (uptime_percent / 100.0);
@@ -92,7 +104,8 @@ impl PerformanceAnalyzer {
         } else {
             1.0
         };
-        let overall_score = reliability_score * 0.4 + efficiency_score * 0.3 + (uptime_percent / 100.0) * 0.3;
+        let overall_score =
+            reliability_score * 0.4 + efficiency_score * 0.3 + (uptime_percent / 100.0) * 0.3;
 
         let trend = if error_rate > 0.2 {
             Trend::Degrading
@@ -104,19 +117,30 @@ impl PerformanceAnalyzer {
 
         let mut recommendations = Vec::new();
         if error_rate > 0.1 {
-            recommendations.push(format!("High error rate ({:.1}%) — investigate failure causes", error_rate * 100.0));
+            recommendations.push(format!(
+                "High error rate ({:.1}%) — investigate failure causes",
+                error_rate * 100.0
+            ));
         }
         if avg_latency_ms > 5000.0 {
-            recommendations.push("High latency — consider caching or task decomposition".to_string());
+            recommendations
+                .push("High latency — consider caching or task decomposition".to_string());
         }
         if avg_tokens_per_task > 50_000.0 {
-            recommendations.push("High token usage — optimize prompts or enable compression".to_string());
+            recommendations
+                .push("High token usage — optimize prompts or enable compression".to_string());
         }
         if uptime_percent < 99.0 {
-            recommendations.push(format!("Uptime {:.2}% — check health monitoring", uptime_percent));
+            recommendations.push(format!(
+                "Uptime {:.2}% — check health monitoring",
+                uptime_percent
+            ));
         }
         if cost_estimate > 10.0 {
-            recommendations.push(format!("Cost ${:.2} — consider model downgrade for simple tasks", cost_estimate));
+            recommendations.push(format!(
+                "Cost ${:.2} — consider model downgrade for simple tasks",
+                cost_estimate
+            ));
         }
 
         PerformanceProfile {
@@ -184,7 +208,9 @@ impl PerformanceTracker {
 
     /// Get agents sorted by overall score (best first)
     pub fn rank_agents(&self) -> Vec<(String, f64)> {
-        let mut rankings: Vec<(String, f64)> = self.profiles.iter()
+        let mut rankings: Vec<(String, f64)> = self
+            .profiles
+            .iter()
             .filter_map(|(id, h)| h.last().map(|p| (id.clone(), p.overall_score)))
             .collect();
         rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -193,9 +219,12 @@ impl PerformanceTracker {
 
     /// Get agents that need attention (low scores)
     pub fn agents_needing_attention(&self, threshold: f64) -> Vec<String> {
-        self.profiles.iter()
+        self.profiles
+            .iter()
             .filter_map(|(id, h)| {
-                h.last().filter(|p| p.overall_score < threshold).map(|_| id.clone())
+                h.last()
+                    .filter(|p| p.overall_score < threshold)
+                    .map(|_| id.clone())
             })
             .collect()
     }
@@ -244,7 +273,10 @@ mod tests {
     fn test_analyzer_recommendations_high_latency() {
         let analyzer = PerformanceAnalyzer::new();
         let profile = analyzer.analyze("a1", 10, 0, 10000.0, 20000, 100_000, 100.0);
-        assert!(profile.recommendations.iter().any(|r| r.contains("latency")));
+        assert!(profile
+            .recommendations
+            .iter()
+            .any(|r| r.contains("latency")));
     }
 
     #[test]

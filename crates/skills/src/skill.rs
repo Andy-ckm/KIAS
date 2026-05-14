@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use async_trait::async_trait;
 use kias_common::KiasResult;
+use serde::{Deserialize, Serialize};
 
 /// Skill configuration for declarative skill definitions
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,25 +81,29 @@ impl Skill for HttpCallSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec!["network".to_string(), "api".to_string(), "http".to_string()])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "network".to_string(),
+            "api".to_string(),
+            "http".to_string(),
+        ])
     }
 
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value> {
-        let url = params.get("url")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| kias_common::KiasError::Validation("Missing 'url' parameter".to_string()))?;
+        let url = params.get("url").and_then(|v| v.as_str()).ok_or_else(|| {
+            kias_common::KiasError::Validation("Missing 'url' parameter".to_string())
+        })?;
 
-        let method = params.get("method")
+        let method = params
+            .get("method")
             .and_then(|v| v.as_str())
             .unwrap_or("GET");
 
-        let headers: std::collections::HashMap<String, String> = params.get("headers")
+        let headers: std::collections::HashMap<String, String> = params
+            .get("headers")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default();
 
-        let body = params.get("body")
-            .map(|v| v.to_string());
+        let body = params.get("body").map(|v| v.to_string());
 
         tracing::info!(url = %url, method = %method, "Executing HTTP call skill");
 
@@ -110,7 +114,12 @@ impl Skill for HttpCallSkill {
             "PUT" => client.put(url),
             "DELETE" => client.delete(url),
             "PATCH" => client.patch(url),
-            _ => return Err(kias_common::KiasError::Validation(format!("Unsupported HTTP method: {}", method))),
+            _ => {
+                return Err(kias_common::KiasError::Validation(format!(
+                    "Unsupported HTTP method: {}",
+                    method
+                )))
+            }
         };
 
         for (key, value) in &headers {
@@ -123,11 +132,15 @@ impl Skill for HttpCallSkill {
                 .body(body);
         }
 
-        let response = req_builder.send().await
+        let response = req_builder
+            .send()
+            .await
             .map_err(|e| kias_common::KiasError::ExternalService(e.to_string()))?;
 
         let status = response.status().as_u16();
-        let response_body = response.text().await
+        let response_body = response
+            .text()
+            .await
             .map_err(|e| kias_common::KiasError::ExternalService(e.to_string()))?;
 
         Ok(serde_json::json!({
@@ -165,21 +178,27 @@ impl Skill for ShellSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec!["system".to_string(), "shell".to_string(), "command".to_string()])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "system".to_string(),
+            "shell".to_string(),
+            "command".to_string(),
+        ])
     }
 
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value> {
-        let command = params.get("command")
+        let command = params
+            .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| kias_common::KiasError::Validation("Missing 'command' parameter".to_string()))?;
+            .ok_or_else(|| {
+                kias_common::KiasError::Validation("Missing 'command' parameter".to_string())
+            })?;
 
-        let timeout_secs = params.get("timeout_secs")
+        let timeout_secs = params
+            .get("timeout_secs")
             .and_then(|v| v.as_u64())
             .unwrap_or(30);
 
-        let workdir = params.get("workdir")
-            .and_then(|v| v.as_str());
+        let workdir = params.get("workdir").and_then(|v| v.as_str());
 
         tracing::info!(command = %command, timeout = timeout_secs, "Executing shell skill");
 
@@ -192,10 +211,8 @@ impl Skill for ShellSkill {
             cmd.current_dir(dir);
         }
 
-        let output = tokio::time::timeout(
-            std::time::Duration::from_secs(timeout_secs),
-            cmd.output(),
-        ).await;
+        let output =
+            tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), cmd.output()).await;
 
         match output {
             Ok(Ok(result)) => {
@@ -208,7 +225,10 @@ impl Skill for ShellSkill {
                     "command": command,
                 }))
             }
-            Ok(Err(e)) => Err(kias_common::KiasError::ExternalService(format!("Command failed: {}", e))),
+            Ok(Err(e)) => Err(kias_common::KiasError::ExternalService(format!(
+                "Command failed: {}",
+                e
+            ))),
             Err(_) => Ok(serde_json::json!({
                 "exit_code": -1,
                 "stdout": "",
@@ -246,30 +266,31 @@ impl Skill for JsonTransformSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec!["data".to_string(), "json".to_string(), "transform".to_string()])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "data".to_string(),
+            "json".to_string(),
+            "transform".to_string(),
+        ])
     }
 
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value> {
-        let operation = params.get("operation")
+        let operation = params
+            .get("operation")
             .and_then(|v| v.as_str())
             .unwrap_or("query");
 
-        let data = params.get("data")
-            .cloned()
-            .unwrap_or(serde_json::json!({}));
+        let data = params.get("data").cloned().unwrap_or(serde_json::json!({}));
 
         match operation {
             "query" => {
-                let path = params.get("path")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("$");
+                let path = params.get("path").and_then(|v| v.as_str()).unwrap_or("$");
                 // Simple path query: split by '.' and traverse
                 let result = query_json_path(&data, path);
                 Ok(serde_json::json!({"result": result}))
             }
             "merge" => {
-                let patch = params.get("patch")
+                let patch = params
+                    .get("patch")
                     .cloned()
                     .unwrap_or(serde_json::json!({}));
                 let merged = merge_json(&data, &patch);
@@ -283,7 +304,10 @@ impl Skill for JsonTransformSkill {
                 };
                 Ok(serde_json::json!({"keys": keys}))
             }
-            _ => Err(kias_common::KiasError::Validation(format!("Unknown operation: {}", operation))),
+            _ => Err(kias_common::KiasError::Validation(format!(
+                "Unknown operation: {}",
+                operation
+            ))),
         }
     }
 }
@@ -360,44 +384,56 @@ mod tests {
     #[tokio::test]
     async fn test_json_transform_query() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "query",
-            "data": {"user": {"name": "Alice", "age": 30}},
-            "path": "user.name"
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "query",
+                "data": {"user": {"name": "Alice", "age": 30}},
+                "path": "user.name"
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["result"], "Alice");
     }
 
     #[tokio::test]
     async fn test_json_transform_query_root() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "query",
-            "data": {"key": "value"},
-            "path": "$"
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "query",
+                "data": {"key": "value"},
+                "path": "$"
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["result"]["key"], "value");
     }
 
     #[tokio::test]
     async fn test_json_transform_query_missing() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "query",
-            "data": {"key": "value"},
-            "path": "nonexistent.path"
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "query",
+                "data": {"key": "value"},
+                "path": "nonexistent.path"
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["result"], serde_json::Value::Null);
     }
 
     #[tokio::test]
     async fn test_json_transform_merge() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "merge",
-            "data": {"a": 1, "b": 2},
-            "patch": {"b": 3, "c": 4}
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "merge",
+                "data": {"a": 1, "b": 2},
+                "patch": {"b": 3, "c": 4}
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["result"]["a"], 1);
         assert_eq!(result["result"]["b"], 3);
         assert_eq!(result["result"]["c"], 4);
@@ -406,10 +442,13 @@ mod tests {
     #[tokio::test]
     async fn test_json_transform_keys() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "keys",
-            "data": {"name": "Alice", "age": 30}
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "keys",
+                "data": {"name": "Alice", "age": 30}
+            }))
+            .await
+            .unwrap();
         let keys = result["keys"].as_array().unwrap();
         assert_eq!(keys.len(), 2);
     }
@@ -417,18 +456,23 @@ mod tests {
     #[tokio::test]
     async fn test_json_transform_unknown_operation() {
         let skill = JsonTransformSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "operation": "invalid"
-        })).await;
+        let result = skill
+            .execute(serde_json::json!({
+                "operation": "invalid"
+            }))
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_shell_skill_echo() {
         let skill = ShellSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "command": "echo hello"
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "command": "echo hello"
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["exit_code"], 0);
         assert!(result["stdout"].as_str().unwrap().contains("hello"));
     }
@@ -436,9 +480,12 @@ mod tests {
     #[tokio::test]
     async fn test_shell_skill_exit_code() {
         let skill = ShellSkill::new();
-        let result = skill.execute(serde_json::json!({
-            "command": "exit 42"
-        })).await.unwrap();
+        let result = skill
+            .execute(serde_json::json!({
+                "command": "exit 42"
+            }))
+            .await
+            .unwrap();
         assert_eq!(result["exit_code"], 42);
     }
 

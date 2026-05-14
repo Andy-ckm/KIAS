@@ -6,8 +6,7 @@ use std::sync::Arc;
 use super::SchedulingAlgorithm;
 
 /// Information about cached prefixes on a node
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NodeCacheInfo {
     /// Set of system prompt hashes cached on this node
     pub cached_prefixes: Vec<u64>,
@@ -18,7 +17,6 @@ pub struct NodeCacheInfo {
     /// Cache miss count
     pub miss_count: u64,
 }
-
 
 impl NodeCacheInfo {
     pub fn hit_rate(&self) -> f64 {
@@ -99,15 +97,16 @@ fn cache_aware_score(
     cache_info: Option<&NodeCacheInfo>,
     cache_weight: f64,
 ) -> f64 {
-    let cache_score = if let (Some(info), Some(prefix_hash)) = (cache_info, agent.system_prompt_hash) {
-        if info.cached_prefixes.contains(&prefix_hash) {
-            1.0
+    let cache_score =
+        if let (Some(info), Some(prefix_hash)) = (cache_info, agent.system_prompt_hash) {
+            if info.cached_prefixes.contains(&prefix_hash) {
+                1.0
+            } else {
+                0.0
+            }
         } else {
             0.0
-        }
-    } else {
-        0.0
-    };
+        };
 
     let load_score = 1.0 - node.load_factor();
 
@@ -120,11 +119,7 @@ impl SchedulingAlgorithm for CacheAwareScheduler {
         "cache-aware"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let available: Vec<&Node> = nodes
             .iter()
             .filter(|n| n.status == NodeStatus::Ready)

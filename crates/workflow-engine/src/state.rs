@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 
 /// 工作流状态（在图中流转）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,10 +49,8 @@ impl WorkflowState {
 
     /// Set a value in the state data.
     pub fn set(&mut self, key: impl Into<String>, value: impl Serialize) {
-        self.data.insert(
-            key.into(),
-            serde_json::to_value(value).unwrap_or_default(),
-        );
+        self.data
+            .insert(key.into(), serde_json::to_value(value).unwrap_or_default());
         self.updated_at = Utc::now();
     }
 

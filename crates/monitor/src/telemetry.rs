@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -38,7 +38,11 @@ pub struct TelemetryEvent {
 }
 
 impl TelemetryEvent {
-    pub fn new(event_type: EventType, agent_id: impl Into<String>, data: serde_json::Value) -> Self {
+    pub fn new(
+        event_type: EventType,
+        agent_id: impl Into<String>,
+        data: serde_json::Value,
+    ) -> Self {
         Self {
             event_id: uuid::Uuid::new_v4().to_string(),
             event_type,
@@ -186,9 +190,13 @@ impl TelemetryCollector {
         let mut error_count = 0usize;
 
         for event in &self.events {
-            *events_by_type.entry(format!("{:?}", event.event_type)).or_insert(0) += 1;
+            *events_by_type
+                .entry(format!("{:?}", event.event_type))
+                .or_insert(0) += 1;
             *events_by_agent.entry(event.agent_id.clone()).or_insert(0) += 1;
-            *events_by_severity.entry(format!("{:?}", event.severity)).or_insert(0) += 1;
+            *events_by_severity
+                .entry(format!("{:?}", event.severity))
+                .or_insert(0) += 1;
             if matches!(event.severity, Severity::Error | Severity::Critical) {
                 error_count += 1;
             }
@@ -200,7 +208,11 @@ impl TelemetryCollector {
             events_by_type,
             events_by_agent,
             events_by_severity,
-            error_rate: if total > 0 { error_count as f64 / total as f64 } else { 0.0 },
+            error_rate: if total > 0 {
+                error_count as f64 / total as f64
+            } else {
+                0.0
+            },
         }
     }
 
@@ -211,7 +223,8 @@ impl TelemetryCollector {
 
     /// Export events in NDJSON (newline-delimited JSON) format
     pub fn export_ndjson(&self) -> String {
-        self.events.iter()
+        self.events
+            .iter()
             .filter_map(|e| serde_json::to_string(e).ok())
             .collect::<Vec<_>>()
             .join("\n")
@@ -331,15 +344,24 @@ mod tests {
     #[test]
     fn test_stats() {
         let mut collector = TelemetryCollector::new();
-        collector.collect(TelemetryEvent::new(EventType::TaskStarted, "a1", serde_json::json!({})).with_severity(Severity::Info));
-        collector.collect(TelemetryEvent::new(EventType::TaskFailed, "a1", serde_json::json!({})).with_severity(Severity::Error));
-        collector.collect(TelemetryEvent::new(EventType::TaskCompleted, "a2", serde_json::json!({})).with_severity(Severity::Info));
+        collector.collect(
+            TelemetryEvent::new(EventType::TaskStarted, "a1", serde_json::json!({}))
+                .with_severity(Severity::Info),
+        );
+        collector.collect(
+            TelemetryEvent::new(EventType::TaskFailed, "a1", serde_json::json!({}))
+                .with_severity(Severity::Error),
+        );
+        collector.collect(
+            TelemetryEvent::new(EventType::TaskCompleted, "a2", serde_json::json!({}))
+                .with_severity(Severity::Info),
+        );
 
         let stats = collector.stats();
         assert_eq!(stats.total_events, 3);
         assert_eq!(stats.events_by_agent.get("a1"), Some(&2));
         assert_eq!(stats.events_by_agent.get("a2"), Some(&1));
-        assert!((stats.error_rate - 1.0/3.0).abs() < 0.01);
+        assert!((stats.error_rate - 1.0 / 3.0).abs() < 0.01);
     }
 
     #[test]

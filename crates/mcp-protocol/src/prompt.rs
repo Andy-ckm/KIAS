@@ -62,15 +62,20 @@ mod tests {
     fn test_prompt_creation() {
         let prompt = Prompt::new("code_review", Some("Review code for issues".to_string()));
         assert_eq!(prompt.name, "code_review");
-        assert_eq!(prompt.description.as_deref(), Some("Review code for issues"));
+        assert_eq!(
+            prompt.description.as_deref(),
+            Some("Review code for issues")
+        );
         assert!(prompt.arguments.is_empty());
     }
 
     #[test]
     fn test_prompt_with_arguments() {
-        let prompt = Prompt::new("summarize", None).with_argument(
-            PromptArgument::new("text", Some("Text to summarize".to_string()), true),
-        );
+        let prompt = Prompt::new("summarize", None).with_argument(PromptArgument::new(
+            "text",
+            Some("Text to summarize".to_string()),
+            true,
+        ));
         assert_eq!(prompt.arguments.len(), 1);
         assert_eq!(prompt.arguments[0].name, "text");
         assert!(prompt.arguments[0].required);
@@ -78,20 +83,17 @@ mod tests {
 
     #[test]
     fn test_prompt_serialization() {
-        let prompt = Prompt::new(
-            "translate",
-            Some("Translate text".to_string()),
-        )
-        .with_argument(PromptArgument::new(
-            "source_lang",
-            Some("Source language".to_string()),
-            true,
-        ))
-        .with_argument(PromptArgument::new(
-            "target_lang",
-            Some("Target language".to_string()),
-            true,
-        ));
+        let prompt = Prompt::new("translate", Some("Translate text".to_string()))
+            .with_argument(PromptArgument::new(
+                "source_lang",
+                Some("Source language".to_string()),
+                true,
+            ))
+            .with_argument(PromptArgument::new(
+                "target_lang",
+                Some("Target language".to_string()),
+                true,
+            ));
         let json_str = serde_json::to_string(&prompt).unwrap();
         let deserialized: Prompt = serde_json::from_str(&json_str).unwrap();
         assert_eq!(deserialized.name, "translate");

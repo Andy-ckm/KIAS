@@ -74,10 +74,7 @@ pub trait LifecycleHook: Send + Sync {
     fn name(&self) -> &str;
 
     /// Execute the hook for the given agent.
-    fn execute(
-        &self,
-        agent_id: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>;
+    fn execute(&self, agent_id: &str) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>;
 }
 
 /// Named collections of lifecycle hooks.
@@ -138,11 +135,7 @@ impl AgentLifecycleManager {
     /// 5. Runs post-transition hooks (`post_start` for Running, `post_stop` for terminal).
     ///
     /// Returns an error if the transition is invalid or a hook fails.
-    pub async fn transition(
-        &mut self,
-        agent_id: &str,
-        new_state: LifecycleState,
-    ) -> Result<()> {
+    pub async fn transition(&mut self, agent_id: &str, new_state: LifecycleState) -> Result<()> {
         let current = self
             .agents
             .get(agent_id)
@@ -259,9 +252,10 @@ impl AgentLifecycleManager {
         self.agents
             .insert(agent_id.to_string(), LifecycleState::Terminated);
 
-        let envelope = AgentEventEnvelope::new(AgentEvent::Terminated, agent_id, "lifecycle-manager")
-            .with_metadata("reason", reason)
-            .with_metadata("from", format!("{:?}", current));
+        let envelope =
+            AgentEventEnvelope::new(AgentEvent::Terminated, agent_id, "lifecycle-manager")
+                .with_metadata("reason", reason)
+                .with_metadata("from", format!("{:?}", current));
         self.event_bus.publish(&envelope).await;
 
         // Post-stop hooks.
@@ -321,10 +315,7 @@ mod tests {
             &self.label
         }
 
-        fn execute(
-            &self,
-            agent_id: &str,
-        ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+        fn execute(&self, agent_id: &str) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
             let id = agent_id.to_string();
             let calls = self.calls.clone();
             Box::pin(async move {
@@ -384,7 +375,9 @@ mod tests {
     async fn test_transition_pending_to_scheduled() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         assert_eq!(mgr.state("a1"), Some(&LifecycleState::Scheduled));
     }
 
@@ -392,9 +385,13 @@ mod tests {
     async fn test_full_lifecycle_happy_path() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
-        mgr.transition("a1", LifecycleState::Completed).await.unwrap();
+        mgr.transition("a1", LifecycleState::Completed)
+            .await
+            .unwrap();
         assert_eq!(mgr.state("a1"), Some(&LifecycleState::Completed));
     }
 
@@ -402,12 +399,16 @@ mod tests {
     async fn test_failed_recovery_path() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
         mgr.transition("a1", LifecycleState::Failed).await.unwrap();
 
         // Recovery: Failed -> Scheduled -> Running
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
         assert_eq!(mgr.state("a1"), Some(&LifecycleState::Running));
     }
@@ -429,9 +430,13 @@ mod tests {
     async fn test_terminal_state_no_transitions() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
-        mgr.transition("a1", LifecycleState::Completed).await.unwrap();
+        mgr.transition("a1", LifecycleState::Completed)
+            .await
+            .unwrap();
 
         // Completed is terminal — any transition should fail.
         let result = mgr.transition("a1", LifecycleState::Scheduled).await;
@@ -453,10 +458,14 @@ mod tests {
     async fn test_force_terminate_from_running() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
 
-        mgr.force_terminate("a1", "operator requested").await.unwrap();
+        mgr.force_terminate("a1", "operator requested")
+            .await
+            .unwrap();
         assert_eq!(mgr.state("a1"), Some(&LifecycleState::Terminated));
     }
 
@@ -464,7 +473,9 @@ mod tests {
     async fn test_force_terminate_from_failed() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Failed).await.unwrap();
 
         mgr.force_terminate("a1", "unrecoverable").await.unwrap();
@@ -475,7 +486,9 @@ mod tests {
     async fn test_force_terminate_from_scheduled() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
 
         mgr.force_terminate("a1", "cancelled").await.unwrap();
         assert_eq!(mgr.state("a1"), Some(&LifecycleState::Terminated));
@@ -485,9 +498,13 @@ mod tests {
     async fn test_force_terminate_terminal_state_fails() {
         let mut mgr = make_manager();
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
-        mgr.transition("a1", LifecycleState::Completed).await.unwrap();
+        mgr.transition("a1", LifecycleState::Completed)
+            .await
+            .unwrap();
 
         let result = mgr.force_terminate("a1", "test").await;
         assert!(result.is_err());
@@ -507,7 +524,9 @@ mod tests {
         let mut mgr = AgentLifecycleManager::new(bus, hooks);
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         assert!(calls.lock().unwrap().is_empty());
 
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
@@ -526,9 +545,13 @@ mod tests {
         let mut mgr = AgentLifecycleManager::new(bus, hooks);
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
-        mgr.transition("a1", LifecycleState::Completed).await.unwrap();
+        mgr.transition("a1", LifecycleState::Completed)
+            .await
+            .unwrap();
 
         assert_eq!(*calls.lock().unwrap(), vec!["a1".to_string()]);
     }
@@ -545,7 +568,9 @@ mod tests {
         let mut mgr = AgentLifecycleManager::new(bus, hooks);
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
         mgr.transition("a1", LifecycleState::Failed).await.unwrap();
 
@@ -565,7 +590,9 @@ mod tests {
         let mut mgr = AgentLifecycleManager::new(bus, hooks);
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
         mgr.force_terminate("a1", "test").await.unwrap();
 
@@ -583,7 +610,9 @@ mod tests {
         let mut mgr = AgentLifecycleManager::new(bus, hooks);
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
 
         let result = mgr.transition("a1", LifecycleState::Running).await;
         assert!(result.is_err());
@@ -600,7 +629,9 @@ mod tests {
         let mut rx = bus.subscribe(None, EventType::Specific(AgentEvent::Terminated));
 
         mgr.register_agent("a1").await.unwrap();
-        mgr.transition("a1", LifecycleState::Scheduled).await.unwrap();
+        mgr.transition("a1", LifecycleState::Scheduled)
+            .await
+            .unwrap();
         mgr.transition("a1", LifecycleState::Running).await.unwrap();
         mgr.force_terminate("a1", "operator kill").await.unwrap();
 

@@ -10,7 +10,9 @@ use super::strategies::{
     AntiAffinityViolationStrategy, DeschedulerStrategy, DuplicateAgentStrategy,
     LowNodeUtilizationStrategy,
 };
-use super::types::{AgentDisruptionBudget, ClusterSnapshot, Eviction, EvictionPlan, EvictionPlanStats};
+use super::types::{
+    AgentDisruptionBudget, ClusterSnapshot, Eviction, EvictionPlan, EvictionPlanStats,
+};
 
 /// The descheduler engine.
 ///
@@ -91,22 +93,39 @@ impl DeschedulerEngine {
         final_evictions.sort_by_key(|e| e.priority);
 
         // Compute stats
-        let affected_nodes: HashSet<&str> =
-            final_evictions.iter().map(|e| e.source_node.as_str()).collect();
+        let affected_nodes: HashSet<&str> = final_evictions
+            .iter()
+            .map(|e| e.source_node.as_str())
+            .collect();
 
         let stats = EvictionPlanStats {
             total_evictions: final_evictions.len(),
             overloaded_evictions: final_evictions
                 .iter()
-                .filter(|e| matches!(e.reason, super::types::EvictionReason::NodeOverloaded { .. }))
+                .filter(|e| {
+                    matches!(
+                        e.reason,
+                        super::types::EvictionReason::NodeOverloaded { .. }
+                    )
+                })
                 .count(),
             duplicate_evictions: final_evictions
                 .iter()
-                .filter(|e| matches!(e.reason, super::types::EvictionReason::DuplicateAgent { .. }))
+                .filter(|e| {
+                    matches!(
+                        e.reason,
+                        super::types::EvictionReason::DuplicateAgent { .. }
+                    )
+                })
                 .count(),
             anti_affinity_evictions: final_evictions
                 .iter()
-                .filter(|e| matches!(e.reason, super::types::EvictionReason::AntiAffinityViolation { .. }))
+                .filter(|e| {
+                    matches!(
+                        e.reason,
+                        super::types::EvictionReason::AntiAffinityViolation { .. }
+                    )
+                })
                 .count(),
             pdb_blocked,
             affected_nodes: affected_nodes.len(),
@@ -178,9 +197,8 @@ impl DeschedulerEngine {
                 let budget_match = budgets.iter().find(|b| b.agent_type == type_key);
 
                 if let Some(budget) = budget_match {
-                    let current_count = snapshot.count_agent_type(
-                        agent.system_prompt_hash.unwrap_or(0),
-                    );
+                    let current_count =
+                        snapshot.count_agent_type(agent.system_prompt_hash.unwrap_or(0));
                     let evict_count = eviction_counts.get(&type_key).copied().unwrap_or(0);
 
                     if !budget.allows_eviction(current_count, evict_count) {
@@ -209,11 +227,7 @@ impl DeschedulerEngine {
         if evictions.len() <= cap {
             evictions
         } else {
-            tracing::info!(
-                total = evictions.len(),
-                cap = cap,
-                "Evictions capped"
-            );
+            tracing::info!(total = evictions.len(), cap = cap, "Evictions capped");
             evictions.into_iter().take(cap).collect()
         }
     }
@@ -232,7 +246,7 @@ impl DeschedulerEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kias_common::{AntiAffinity, Agent, Node, Priority, Resources};
+    use kias_common::{Agent, AntiAffinity, Node, Priority, Resources};
 
     fn make_node(id: &str, cpu_total: f64, cpu_avail: f64, mem_total: u64, mem_avail: u64) -> Node {
         Node {

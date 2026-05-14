@@ -32,11 +32,7 @@ impl SchedulingAlgorithm for RoundRobinScheduler {
         "round-robin"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let available: Vec<&Node> = nodes
             .iter()
             .filter(|n| n.status == NodeStatus::Ready)
@@ -68,7 +64,7 @@ impl SchedulingAlgorithm for RoundRobinScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kias_common::{Resources, NodeStatus};
+    use kias_common::{NodeStatus, Resources};
 
     fn make_nodes(n: usize) -> Vec<Node> {
         (0..n)

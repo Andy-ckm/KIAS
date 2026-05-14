@@ -1,7 +1,7 @@
+use super::goal::{Constraint, EvaluationResult, Goal};
 use async_trait::async_trait;
-use kias_common::KiasResult;
-use super::goal::{Goal, EvaluationResult, Constraint};
 use chrono::Utc;
+use kias_common::KiasResult;
 use std::collections::HashMap;
 
 /// 目标评估器（裁判分离设计）
@@ -84,7 +84,10 @@ impl DefaultEvaluator {
                 reason: if passed {
                     "Constraint satisfied".to_string()
                 } else {
-                    format!("Constraint '{}' violated: {}", constraint.name, constraint.description)
+                    format!(
+                        "Constraint '{}' violated: {}",
+                        constraint.name, constraint.description
+                    )
                 },
             }
         } else {
@@ -96,7 +99,10 @@ impl DefaultEvaluator {
                 reason: if passed {
                     "Constraint satisfied".to_string()
                 } else {
-                    format!("Constraint '{}' check failed: {}", constraint.name, constraint.description)
+                    format!(
+                        "Constraint '{}' check failed: {}",
+                        constraint.name, constraint.description
+                    )
                 },
             }
         }
@@ -122,11 +128,14 @@ impl GoalEvaluator for DefaultEvaluator {
 
         // Check each condition using the configured verification method
         for condition in &goal.conditions {
-            let verifier = self.verifiers.get(&condition.verification_method)
+            let verifier = self
+                .verifiers
+                .get(&condition.verification_method)
                 .copied()
                 .unwrap_or_else(|| {
                     // Default: contains check
-                    (|output: &str, expected: &str| output.contains(expected)) as fn(&str, &str) -> bool
+                    (|output: &str, expected: &str| output.contains(expected))
+                        as fn(&str, &str) -> bool
                 });
 
             let passed = verifier(round_output, &condition.expected_result);
@@ -191,12 +200,26 @@ impl LlmEvaluator {
 #[async_trait]
 impl GoalEvaluator for LlmEvaluator {
     async fn evaluate(&self, goal: &Goal, round_output: &str) -> KiasResult<EvaluationResult> {
-        let conditions_desc: Vec<String> = goal.conditions.iter()
-            .map(|c| format!("- {}: {} (expected: {})", c.name, c.description, c.expected_result))
+        let conditions_desc: Vec<String> = goal
+            .conditions
+            .iter()
+            .map(|c| {
+                format!(
+                    "- {}: {} (expected: {})",
+                    c.name, c.description, c.expected_result
+                )
+            })
             .collect();
 
-        let constraints_desc: Vec<String> = goal.constraints.iter()
-            .map(|c| format!("- {}: {} (check: {})", c.name, c.description, c.check_method))
+        let constraints_desc: Vec<String> = goal
+            .constraints
+            .iter()
+            .map(|c| {
+                format!(
+                    "- {}: {} (check: {})",
+                    c.name, c.description, c.check_method
+                )
+            })
             .collect();
 
         let prompt = format!(
@@ -218,7 +241,8 @@ impl GoalEvaluator for LlmEvaluator {
             "max_tokens": 512,
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&self.api_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&request_body)
@@ -229,16 +253,25 @@ impl GoalEvaluator for LlmEvaluator {
             Ok(resp) => {
                 if let Ok(body) = resp.text().await {
                     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) {
-                        if let Some(content) = parsed["choices"].as_array()
+                        if let Some(content) = parsed["choices"]
+                            .as_array()
                             .and_then(|c| c.first())
                             .and_then(|c| c["message"]["content"].as_str())
                         {
                             // Try to parse JSON from the response
                             if let Ok(eval) = serde_json::from_str::<serde_json::Value>(content) {
                                 let achieved = eval["achieved"].as_bool().unwrap_or(false);
-                                let reason = eval["reason"].as_str().unwrap_or("No reason provided").to_string();
-                                let suggestions: Vec<String> = eval["suggestions"].as_array()
-                                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                let reason = eval["reason"]
+                                    .as_str()
+                                    .unwrap_or("No reason provided")
+                                    .to_string();
+                                let suggestions: Vec<String> = eval["suggestions"]
+                                    .as_array()
+                                    .map(|arr| {
+                                        arr.iter()
+                                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                            .collect()
+                                    })
                                     .unwrap_or_default();
 
                                 return Ok(EvaluationResult {
@@ -315,7 +348,10 @@ mod tests {
         let mut goal = Goal::new("test");
         goal.add_condition("done", "it works", "contains", "works");
 
-        let result = evaluator.evaluate(&goal, "it works and is done").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "it works and is done")
+            .await
+            .unwrap();
         assert!(result.achieved);
     }
 
@@ -378,10 +414,16 @@ mod tests {
         let mut goal = Goal::new("test");
         goal.add_condition("no-error", "no errors", "not_contains", "ERROR");
 
-        let result = evaluator.evaluate(&goal, "everything is fine").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "everything is fine")
+            .await
+            .unwrap();
         assert!(result.achieved);
 
-        let result = evaluator.evaluate(&goal, "ERROR: something broke").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "ERROR: something broke")
+            .await
+            .unwrap();
         assert!(!result.achieved);
     }
 
@@ -391,7 +433,10 @@ mod tests {
         let mut goal = Goal::new("test");
         goal.add_condition("multiline", "more than 3 lines", "line_count_gt", "3");
 
-        let result = evaluator.evaluate(&goal, "line1\nline2\nline3\nline4").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "line1\nline2\nline3\nline4")
+            .await
+            .unwrap();
         assert!(result.achieved);
 
         let result = evaluator.evaluate(&goal, "line1\nline2").await.unwrap();
@@ -404,7 +449,10 @@ mod tests {
         let mut goal = Goal::new("test");
         goal.add_condition("verbose", "more than 5 words", "word_count_gt", "5");
 
-        let result = evaluator.evaluate(&goal, "one two three four five six").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "one two three four five six")
+            .await
+            .unwrap();
         assert!(result.achieved);
     }
 
@@ -420,7 +468,10 @@ mod tests {
         assert!(result.achieved);
 
         // Condition met but constraint violated
-        let result = evaluator.evaluate(&goal, "result: ERROR occurred").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "result: ERROR occurred")
+            .await
+            .unwrap();
         assert!(!result.achieved);
     }
 
@@ -442,10 +493,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_evaluator_custom_verifier() {
-        let evaluator = DefaultEvaluator::new()
-            .with_verifier("is_numeric", |output, _| {
-                output.trim().parse::<f64>().is_ok()
-            });
+        let evaluator = DefaultEvaluator::new().with_verifier("is_numeric", |output, _| {
+            output.trim().parse::<f64>().is_ok()
+        });
 
         let mut goal = Goal::new("test");
         goal.add_condition("number", "output is a number", "is_numeric", "");
@@ -463,7 +513,10 @@ mod tests {
         let mut goal = Goal::new("test");
         goal.add_condition("test", "test condition", "unknown_method", "expected");
 
-        let result = evaluator.evaluate(&goal, "contains expected text").await.unwrap();
+        let result = evaluator
+            .evaluate(&goal, "contains expected text")
+            .await
+            .unwrap();
         assert!(result.achieved);
     }
 }

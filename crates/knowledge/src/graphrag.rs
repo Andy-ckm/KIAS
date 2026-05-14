@@ -4,9 +4,9 @@
 //! inspired by GraphRAG patterns. Supports multiple retrieval strategies,
 //! community detection via label propagation, and subgraph summarization.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use serde::{Deserialize, Serialize};
 use super::graph::{KnowledgeGraph, KnowledgeNode, NodeType};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Retrieval strategy for combining text and graph search
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -116,13 +116,11 @@ impl GraphRAGEngine {
     /// Tokenize text into lowercase terms, removing stop words
     fn tokenize(text: &str) -> Vec<String> {
         let stop_words: HashSet<&str> = [
-            "a", "an", "the", "is", "it", "to", "of", "and", "or", "in",
-            "for", "on", "with", "at", "by", "from", "as", "into", "this",
-            "that", "are", "was", "were", "be", "been", "being", "have",
-            "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "can", "not", "no", "but", "if",
-            "then", "than", "so", "just", "about", "up", "out", "all",
-            "its", "my", "your", "his", "her", "our", "their", "i", "we",
+            "a", "an", "the", "is", "it", "to", "of", "and", "or", "in", "for", "on", "with", "at",
+            "by", "from", "as", "into", "this", "that", "are", "was", "were", "be", "been",
+            "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+            "may", "might", "can", "not", "no", "but", "if", "then", "than", "so", "just", "about",
+            "up", "out", "all", "its", "my", "your", "his", "her", "our", "their", "i", "we",
             "you", "he", "she", "they", "me", "him", "us", "them",
         ]
         .iter()
@@ -314,10 +312,8 @@ impl GraphRAGEngine {
                 if let Some(node) = self.graph.get_node(node_id) {
                     let query_terms = Self::tokenize(&query.text_query);
                     let node_text_score = self.tfidf_score(&query_terms, node);
-                    let combined = self.combined_score(
-                        node_text_score.max(*text_score * 0.5),
-                        node_id,
-                    );
+                    let combined =
+                        self.combined_score(node_text_score.max(*text_score * 0.5), node_id);
 
                     if combined >= query.min_relevance {
                         let path = self.find_path(seed_id, node_id);
@@ -343,20 +339,17 @@ impl GraphRAGEngine {
     }
 
     fn search_graph_first(&self, query: &HybridQuery) -> Vec<RetrievalResult> {
-        let start = query
-            .graph_start_node
-            .as_deref()
-            .unwrap_or_else(|| {
-                // Fall back to first text match
+        let start = query.graph_start_node.as_deref().unwrap_or_else(|| {
+            // Fall back to first text match
             let seeds = self.text_search_seeds(&query.text_query);
             if let Some((_id, _)) = seeds.first() {
-                    // We need to return a &str, so we leak is bad; use a default
-                    // Actually we can just handle this differently
-                    ""
-                } else {
-                    ""
-                }
-            });
+                // We need to return a &str, so we leak is bad; use a default
+                // Actually we can just handle this differently
+                ""
+            } else {
+                ""
+            }
+        });
 
         // Re-fetch start node id properly
         let start_id = if !start.is_empty() {
@@ -590,10 +583,7 @@ impl GraphRAGEngine {
         // Group nodes by label
         let mut communities: HashMap<usize, Vec<String>> = HashMap::new();
         for (node_id, label) in &labels {
-            communities
-                .entry(*label)
-                .or_default()
-                .push(node_id.clone());
+            communities.entry(*label).or_default().push(node_id.clone());
         }
 
         let mut result: Vec<Vec<String>> = communities.into_values().collect();
@@ -615,7 +605,9 @@ impl GraphRAGEngine {
         if let Some(root_node) = self.graph.get_node(root) {
             summary_parts.push(format!(
                 "Root [{}]: {} ({})",
-                root, root_node.content, root_node.node_type_str()
+                root,
+                root_node.content,
+                root_node.node_type_str()
             ));
         }
 
@@ -812,7 +804,8 @@ mod tests {
         });
         graph.add_node(KnowledgeNode {
             id: "n4".to_string(),
-            content: "Kubernetes orchestrates containerized applications across clusters".to_string(),
+            content: "Kubernetes orchestrates containerized applications across clusters"
+                .to_string(),
             node_type: NodeType::Document,
             metadata: HashMap::new(),
         });
@@ -877,7 +870,9 @@ mod tests {
         // n1 (Rust) should be present
         assert!(results.iter().any(|r| r.node.id == "n1"));
         // Graph expansion should bring in n3 and n5
-        assert!(results.iter().any(|r| r.node.id == "n3" || r.node.id == "n5"));
+        assert!(results
+            .iter()
+            .any(|r| r.node.id == "n3" || r.node.id == "n5"));
     }
 
     // ============== Test 2: Different retrieval strategies ==============

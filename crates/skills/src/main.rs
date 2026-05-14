@@ -1,6 +1,6 @@
-use kias_skills::{SkillRegistry, Skill};
 use async_trait::async_trait;
 use kias_common::KiasResult;
+use kias_skills::{Skill, SkillRegistry};
 
 struct GreetSkill;
 
@@ -23,19 +23,19 @@ impl Skill for GreetSkill {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    
+
     tracing::info!("Starting KIAS Skills Service");
-    
+
     let mut registry = SkillRegistry::new();
     registry.register(Box::new(GreetSkill));
-    
+
     println!("Registered skills: {:?}", registry.list_skills());
-    
+
     if let Some(skill) = registry.get("greet") {
         let result = skill.execute(serde_json::json!({"name": "KIAS"})).await?;
         println!("Skill result: {}", result);
     }
-    
+
     tracing::info!("KIAS Skills Service finished");
     Ok(())
 }

@@ -1,5 +1,5 @@
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
 use std::collections::HashMap;
 
 /// Alert severity level
@@ -114,7 +114,10 @@ impl AlertManager {
     }
 
     pub fn with_max_history(max: usize) -> Self {
-        Self { max_history: max, ..Default::default() }
+        Self {
+            max_history: max,
+            ..Default::default()
+        }
     }
 
     /// Add or update an alert rule
@@ -141,19 +144,27 @@ impl AlertManager {
         self.silenced.retain(|_, until| now < *until);
 
         for rule in &self.rules {
-            if !rule.enabled { continue; }
-            if self.silenced.contains_key(&rule.rule_id) { continue; }
+            if !rule.enabled {
+                continue;
+            }
+            if self.silenced.contains_key(&rule.rule_id) {
+                continue;
+            }
 
             if let Some(&value) = metrics.get(&rule.metric_name) {
                 if rule.condition.evaluate(value) {
                     // Check if already firing
-                    let already_active = self.active_alerts.iter()
+                    let already_active = self
+                        .active_alerts
+                        .iter()
                         .any(|a| a.rule_id == rule.rule_id && a.is_active());
 
                     if !already_active {
                         let threshold = match &rule.condition {
-                            AlertCondition::GreaterThan(t) | AlertCondition::LessThan(t)
-                            | AlertCondition::Equal(t) | AlertCondition::NotEqual(t) => *t,
+                            AlertCondition::GreaterThan(t)
+                            | AlertCondition::LessThan(t)
+                            | AlertCondition::Equal(t)
+                            | AlertCondition::NotEqual(t) => *t,
                             AlertCondition::GreaterThanPercentile { threshold, .. } => *threshold,
                             AlertCondition::RateIncrease { threshold, .. } => *threshold,
                         };
@@ -169,7 +180,10 @@ impl AlertManager {
                             value,
                             threshold,
                             labels: rule.labels.clone(),
-                            message: format!("{}: {} = {:.2} (threshold: {:.2})", rule.name, rule.metric_name, value, threshold),
+                            message: format!(
+                                "{}: {} = {:.2} (threshold: {:.2})",
+                                rule.name, rule.metric_name, value, threshold
+                            ),
                         };
 
                         self.active_alerts.push(alert.clone());
@@ -184,13 +198,19 @@ impl AlertManager {
 
         // Resolve active alerts for rules that no longer fire
         for rule_id in rule_ids_to_resolve {
-            let to_resolve: Vec<String> = self.active_alerts.iter()
+            let to_resolve: Vec<String> = self
+                .active_alerts
+                .iter()
                 .filter(|a| a.rule_id == rule_id)
                 .map(|a| a.alert_id.clone())
                 .collect();
 
             for alert_id in to_resolve {
-                if let Some(idx) = self.active_alerts.iter().position(|a| a.alert_id == alert_id) {
+                if let Some(idx) = self
+                    .active_alerts
+                    .iter()
+                    .position(|a| a.alert_id == alert_id)
+                {
                     let mut alert = self.active_alerts.remove(idx);
                     alert.state = AlertState::Resolved;
                     alert.resolved_at = Some(Utc::now());
@@ -204,7 +224,8 @@ impl AlertManager {
 
     /// Silence a rule for a duration
     pub fn silence_rule(&mut self, rule_id: &str, duration: Duration) {
-        self.silenced.insert(rule_id.to_string(), Utc::now() + duration);
+        self.silenced
+            .insert(rule_id.to_string(), Utc::now() + duration);
         // Mark active alerts as silenced
         for alert in &mut self.active_alerts {
             if alert.rule_id == rule_id {
@@ -245,17 +266,22 @@ impl AlertManager {
     /// Check if there are any critical/emergency active alerts
     pub fn has_critical_alerts(&self) -> bool {
         self.active_alerts.iter().any(|a| {
-            matches!(a.severity, AlertSeverity::Critical | AlertSeverity::Emergency)
-                && a.is_active()
+            matches!(
+                a.severity,
+                AlertSeverity::Critical | AlertSeverity::Emergency
+            ) && a.is_active()
         })
     }
 
     /// Get alerts for a specific metric
     pub fn alerts_for_metric(&self, metric_name: &str) -> Vec<&AlertInstance> {
-        self.rules.iter()
+        self.rules
+            .iter()
             .filter(|r| r.metric_name == metric_name)
             .flat_map(|r| {
-                self.active_alerts.iter().filter(move |a| a.rule_id == r.rule_id)
+                self.active_alerts
+                    .iter()
+                    .filter(move |a| a.rule_id == r.rule_id)
             })
             .collect()
     }

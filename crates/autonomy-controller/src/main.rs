@@ -1,4 +1,4 @@
-use kias_autonomy_controller::{AutonomyController, AutonomyLevel, ToolPolicy, ToolPermission};
+use kias_autonomy_controller::{AutonomyController, AutonomyLevel, ToolPermission, ToolPolicy};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,8 +17,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     controller.set_tool_policy(
-        ToolPolicy::new("file_write", ToolPermission::AutoApprove)
-            .with_sandbox(true),
+        ToolPolicy::new("file_write", ToolPermission::AutoApprove).with_sandbox(true),
     );
 
     // 测试不同自主级别

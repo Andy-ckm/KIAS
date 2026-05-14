@@ -1,9 +1,9 @@
-use async_trait::async_trait;
-use kias_common::KiasResult;
 use super::task::{Task, TaskResult, TaskStatus};
+use async_trait::async_trait;
 use chrono::Utc;
-use std::time::Instant;
+use kias_common::KiasResult;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Semaphore;
 
 /// Trait that all task executors must implement
@@ -38,7 +38,10 @@ impl TaskRuntime {
         }
     }
 
-    pub fn with_global_timeout(executor: Box<dyn TaskExecutor>, timeout: std::time::Duration) -> Self {
+    pub fn with_global_timeout(
+        executor: Box<dyn TaskExecutor>,
+        timeout: std::time::Duration,
+    ) -> Self {
         Self {
             executor,
             max_retries: 0,
@@ -86,7 +89,10 @@ impl TaskRuntime {
                                 task_id: task.id.clone(),
                                 status: TaskStatus::Failed,
                                 output: None,
-                                error: Some(format!("Task timed out after {}ms", timeout_dur.as_millis())),
+                                error: Some(format!(
+                                    "Task timed out after {}ms",
+                                    timeout_dur.as_millis()
+                                )),
                                 started_at: start_time,
                                 completed_at: end_time,
                             }));
@@ -96,7 +102,10 @@ impl TaskRuntime {
                             task_id: task.id.clone(),
                             status: TaskStatus::Failed,
                             output: None,
-                            error: Some(format!("Task timed out after {}ms", timeout_dur.as_millis())),
+                            error: Some(format!(
+                                "Task timed out after {}ms",
+                                timeout_dur.as_millis()
+                            )),
                             started_at: start_time,
                             completed_at: end_time,
                         });
@@ -174,7 +183,11 @@ impl TaskRuntime {
     }
 
     /// Run multiple tasks concurrently with bounded parallelism
-    pub async fn run_tasks(&self, tasks: &[Task], max_concurrent: usize) -> Vec<KiasResult<TaskResult>> {
+    pub async fn run_tasks(
+        &self,
+        tasks: &[Task],
+        max_concurrent: usize,
+    ) -> Vec<KiasResult<TaskResult>> {
         let semaphore = Arc::new(Semaphore::new(max_concurrent));
         let mut results = Vec::with_capacity(tasks.len());
 
@@ -210,7 +223,8 @@ impl CancellationToken {
     }
 
     pub fn cancel(&self) {
-        self.cancelled.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.cancelled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub fn is_cancelled(&self) -> bool {
@@ -293,7 +307,9 @@ impl TaskExecutor for HttpExecutor {
             .payload
             .get("url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| kias_common::error::KiasError::Config("Missing 'url' in task payload".to_string()))?;
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Config("Missing 'url' in task payload".to_string())
+            })?;
 
         let method = task
             .payload
@@ -313,7 +329,12 @@ impl TaskExecutor for HttpExecutor {
             "PUT" => self.client.put(url),
             "DELETE" => self.client.delete(url),
             "PATCH" => self.client.patch(url),
-            _ => return Err(kias_common::error::KiasError::Config(format!("Unsupported HTTP method: {}", method))),
+            _ => {
+                return Err(kias_common::error::KiasError::Config(format!(
+                    "Unsupported HTTP method: {}",
+                    method
+                )))
+            }
         };
 
         if let Some(headers_map) = headers {
@@ -339,7 +360,11 @@ impl TaskExecutor for HttpExecutor {
 
                 Ok(TaskResult {
                     task_id: task.id.clone(),
-                    status: if success { TaskStatus::Completed } else { TaskStatus::Failed },
+                    status: if success {
+                        TaskStatus::Completed
+                    } else {
+                        TaskStatus::Failed
+                    },
                     output: Some(serde_json::json!({
                         "status_code": status_code,
                         "body": body_text,
@@ -393,7 +418,11 @@ impl TaskExecutor for LlmExecutor {
             .payload
             .get("prompt")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| kias_common::error::KiasError::Config("Missing 'prompt' in task payload".to_string()))?;
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Config(
+                    "Missing 'prompt' in task payload".to_string(),
+                )
+            })?;
 
         let max_tokens = task
             .payload
@@ -429,9 +458,15 @@ impl TaskExecutor for LlmExecutor {
 
                 if (200..300).contains(&status) {
                     let parsed: serde_json::Result<serde_json::Value> = serde_json::from_str(&body);
-                    let content = parsed
-                        .ok()
-                        .and_then(|v| v["choices"].as_array()?.first()?.get("message")?.get("content")?.as_str().map(|s| s.to_string()));
+                    let content = parsed.ok().and_then(|v| {
+                        v["choices"]
+                            .as_array()?
+                            .first()?
+                            .get("message")?
+                            .get("content")?
+                            .as_str()
+                            .map(|s| s.to_string())
+                    });
 
                     Ok(TaskResult {
                         task_id: task.id.clone(),
@@ -449,7 +484,11 @@ impl TaskExecutor for LlmExecutor {
                         task_id: task.id.clone(),
                         status: TaskStatus::Failed,
                         output: Some(serde_json::json!({"raw": body})),
-                        error: Some(format!("LLM API returned status {}: {}", status, &body[..body.len().min(200)])),
+                        error: Some(format!(
+                            "LLM API returned status {}: {}",
+                            status,
+                            &body[..body.len().min(200)]
+                        )),
                         started_at: start_time,
                         completed_at: end_time,
                     })
@@ -519,7 +558,9 @@ mod tests {
                 tokio::time::sleep(delay).await;
             }
 
-            let count = self.fail_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let count = self
+                .fail_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if count < self.fail_until {
                 return Ok(TaskResult {
                     task_id: task.id.clone(),
@@ -609,7 +650,9 @@ mod tests {
     #[tokio::test]
     async fn test_task_level_timeout_enforcement() {
         // Task with 100ms timeout, executor takes 500ms
-        let runtime = TaskRuntime::new(Box::new(MockExecutor::with_delay(std::time::Duration::from_millis(500))));
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::with_delay(
+            std::time::Duration::from_millis(500),
+        )));
         let task = make_task_with_timeout("timeout-task", 100);
         let result = runtime.run_task(&task).await.unwrap();
         assert_eq!(result.status, TaskStatus::Failed);
@@ -619,7 +662,9 @@ mod tests {
     #[tokio::test]
     async fn test_global_timeout_enforcement() {
         let runtime = TaskRuntime::with_global_timeout(
-            Box::new(MockExecutor::with_delay(std::time::Duration::from_millis(500))),
+            Box::new(MockExecutor::with_delay(std::time::Duration::from_millis(
+                500,
+            ))),
             std::time::Duration::from_millis(100),
         );
         let result = runtime.run_task(&make_task("t")).await.unwrap();
@@ -631,7 +676,9 @@ mod tests {
     async fn test_task_timeout_overrides_global() {
         // Global timeout 500ms, task timeout 100ms -> task timeout wins
         let runtime = TaskRuntime::with_retries_and_timeout(
-            Box::new(MockExecutor::with_delay(std::time::Duration::from_millis(300))),
+            Box::new(MockExecutor::with_delay(std::time::Duration::from_millis(
+                300,
+            ))),
             0,
             std::time::Duration::from_millis(500),
         );
@@ -670,11 +717,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_tasks_concurrent() {
         let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
-        let tasks = vec![
-            make_task("t1"),
-            make_task("t2"),
-            make_task("t3"),
-        ];
+        let tasks = vec![make_task("t1"), make_task("t2"), make_task("t3")];
         let results = runtime.run_tasks(&tasks, 2).await;
         assert_eq!(results.len(), 3);
         for result in results {
@@ -688,6 +731,9 @@ mod tests {
             Box::new(MockExecutor::succeed()),
             std::time::Duration::from_secs(10),
         );
-        assert_eq!(runtime.global_timeout(), Some(std::time::Duration::from_secs(10)));
+        assert_eq!(
+            runtime.global_timeout(),
+            Some(std::time::Duration::from_secs(10))
+        );
     }
 }

@@ -1,8 +1,8 @@
+use chrono::Utc;
 use kias_controller::{
     AgentConfig, AgentInfo, AgentStatus, ControllerState, DefaultReconciler, DesiredState,
     HealthCheckConfig, HealthChecker, Reconciler, ResourceRequirements,
 };
-use chrono::Utc;
 use std::collections::HashMap;
 
 #[tokio::main]
@@ -47,7 +47,10 @@ async fn main() -> anyhow::Result<()> {
     // Simulate registering agents.
     for i in 1..=state.desired.replicas {
         let agent_id = format!("agent-{i}");
-        let mut agent = AgentInfo::new(&agent_id, format!("{}-{i}", state.desired.agent_config.name));
+        let mut agent = AgentInfo::new(
+            &agent_id,
+            format!("{}-{i}", state.desired.agent_config.name),
+        );
         agent.status = AgentStatus::Running;
         state.agents.insert(agent_id.clone(), agent);
         health_checker.register_agent(&agent_id);

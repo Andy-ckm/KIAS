@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use super::session::{Session, SessionStatus};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// 代理视图
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +44,10 @@ impl AgentView {
         println!("Agent: {}", self.agent_id);
         println!("Total sessions: {}", self.sessions.len());
         println!("Active sessions: {}", self.get_active_sessions().len());
-        println!("Completed sessions: {}", self.get_completed_sessions().len());
+        println!(
+            "Completed sessions: {}",
+            self.get_completed_sessions().len()
+        );
         println!("Recent sessions:");
         for session in self.sessions.iter().take(5) {
             println!("  - {} [{:?}]", session.id, session.status);

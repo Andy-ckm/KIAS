@@ -90,10 +90,7 @@ impl Scheduler {
     ) -> Result<ScheduleResult, KiasError> {
         // Step 1: Filter by affinity / anti-affinity
         let candidates = AffinityFilter::apply(agent, nodes);
-        let candidate_nodes: Vec<Node> = candidates
-            .iter()
-            .map(|(n, _)| (*n).clone())
-            .collect();
+        let candidate_nodes: Vec<Node> = candidates.iter().map(|(n, _)| (*n).clone()).collect();
 
         if candidate_nodes.is_empty() {
             tracing::warn!(
@@ -107,10 +104,7 @@ impl Scheduler {
         let mut result = self.algorithm.schedule(agent, &candidate_nodes).await?;
 
         // Step 3: Blend affinity score into the result
-        if let Some((_, affinity_score)) = candidates
-            .iter()
-            .find(|(n, _)| n.id == result.node_id)
-        {
+        if let Some((_, affinity_score)) = candidates.iter().find(|(n, _)| n.id == result.node_id) {
             // Combine: 70% algorithm score + 30% affinity score
             result.score = 0.7 * result.score + 0.3 * affinity_score;
         }

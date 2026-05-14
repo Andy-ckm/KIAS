@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use std::collections::HashMap;
-use crate::view::AgentView;
 use crate::resource::ResourceSnapshot;
 use crate::task_history::TaskStats;
+use crate::view::AgentView;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Dashboard summary for the entire system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,7 +140,11 @@ impl DashboardGenerator {
                 });
             }
 
-            let status = if active_sessions > 0 { "active" } else { "idle" };
+            let status = if active_sessions > 0 {
+                "active"
+            } else {
+                "idle"
+            };
 
             agents.push(AgentSummary {
                 agent_id: view.agent_id.clone(),
@@ -158,14 +162,23 @@ impl DashboardGenerator {
             });
         }
 
-        let active_agents = views.iter()
+        let active_agents = views
+            .iter()
             .filter(|v| !v.get_active_sessions().is_empty())
             .count();
 
         let total_sessions: usize = views.iter().map(|v| v.sessions.len()).sum();
         let active_sessions: usize = views.iter().map(|v| v.get_active_sessions().len()).sum();
-        let overall_success_rate = if total_tasks > 0 { total_success as f64 / total_tasks as f64 } else { 1.0 };
-        let avg_latency = if total_latency_tasks > 0 { total_latency_weighted / total_latency_tasks as f64 } else { 0.0 };
+        let overall_success_rate = if total_tasks > 0 {
+            total_success as f64 / total_tasks as f64
+        } else {
+            1.0
+        };
+        let avg_latency = if total_latency_tasks > 0 {
+            total_latency_weighted / total_latency_tasks as f64
+        } else {
+            0.0
+        };
         let estimated_cost = total_tokens as f64 / 1000.0 * 0.002;
 
         DashboardSummary {
@@ -188,16 +201,20 @@ impl DashboardGenerator {
 fn compute_health_score(cpu: f64, mem: f64, success_rate: f64, latency_ms: f64) -> f64 {
     let cpu_score = (1.0 - cpu / 100.0).max(0.0);
     let mem_score = (1.0 - mem / 100.0).max(0.0);
-    let lat_score = if latency_ms > 0.0 { (1000.0 / latency_ms).min(1.0) } else { 1.0 };
+    let lat_score = if latency_ms > 0.0 {
+        (1000.0 / latency_ms).min(1.0)
+    } else {
+        1.0
+    };
     cpu_score * 0.2 + mem_score * 0.2 + success_rate * 0.3 + lat_score * 0.3
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::view::AgentView;
     use crate::resource::ResourceSnapshot;
     use crate::task_history::TaskStats;
+    use crate::view::AgentView;
 
     fn make_task_stats(total: u64, failed: u64, avg_lat: f64, tokens: u64) -> TaskStats {
         TaskStats {
@@ -206,13 +223,21 @@ mod tests {
             failed,
             timed_out: 0,
             cancelled: 0,
-            success_rate: if total > 0 { (total - failed) as f64 / total as f64 } else { 1.0 },
+            success_rate: if total > 0 {
+                (total - failed) as f64 / total as f64
+            } else {
+                1.0
+            },
             avg_duration_ms: avg_lat,
             p50_duration_ms: avg_lat as u64,
             p95_duration_ms: (avg_lat * 2.0) as u64,
             p99_duration_ms: (avg_lat * 3.0) as u64,
             total_tokens: tokens,
-            avg_tokens_per_task: if total > 0 { tokens as f64 / total as f64 } else { 0.0 },
+            avg_tokens_per_task: if total > 0 {
+                tokens as f64 / total as f64
+            } else {
+                0.0
+            },
             total_retries: 0,
         }
     }
@@ -250,7 +275,10 @@ mod tests {
         let stats = HashMap::new();
 
         let summary = DashboardGenerator::generate(&views, &resources, &stats);
-        assert!(summary.alerts.iter().any(|a| a.level == AlertLevel::Critical));
+        assert!(summary
+            .alerts
+            .iter()
+            .any(|a| a.level == AlertLevel::Critical));
     }
 
     #[test]

@@ -180,11 +180,7 @@ impl AgentMemoryStore {
             .get(agent_id)
             .map(|mems| {
                 mems.iter()
-                    .filter(|m| {
-                        memory_type
-                            .as_ref()
-                            .is_none_or(|t| m.memory_type == *t)
-                    })
+                    .filter(|m| memory_type.as_ref().is_none_or(|t| m.memory_type == *t))
                     .cloned()
                     .collect()
             })
@@ -211,7 +207,9 @@ impl AgentMemoryStore {
                 mems.iter()
                     .filter(|m| {
                         m.content.to_lowercase().contains(&query_lower)
-                            || m.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+                            || m.tags
+                                .iter()
+                                .any(|t| t.to_lowercase().contains(&query_lower))
                     })
                     .cloned()
                     .collect()
@@ -335,9 +333,7 @@ mod tests {
         let all = store.recall("a1", None, 10).await;
         assert_eq!(all.len(), 2);
 
-        let episodic = store
-            .recall("a1", Some(MemoryType::Episodic), 10)
-            .await;
+        let episodic = store.recall("a1", Some(MemoryType::Episodic), 10).await;
         assert_eq!(episodic.len(), 1);
         assert_eq!(episodic[0].content, "event 1");
     }

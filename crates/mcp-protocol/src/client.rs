@@ -72,11 +72,7 @@ impl McpClient {
     }
 
     /// Call a method on the server and return the result.
-    pub async fn request(
-        &self,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<Value, McpError> {
+    pub async fn request(&self, method: &str, params: Option<Value>) -> Result<Value, McpError> {
         let id = self.next_request_id().await;
         let request = McpRequest::new(id, method, params);
         let response = self.transport.send_request(&request).await?;
@@ -92,11 +88,7 @@ impl McpClient {
     }
 
     /// Send a notification (fire-and-forget).
-    pub async fn notify(
-        &self,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<(), McpError> {
+    pub async fn notify(&self, method: &str, params: Option<Value>) -> Result<(), McpError> {
         let notification = McpNotification::new(method, params);
         self.transport.send_notification(&notification).await
     }
@@ -120,18 +112,13 @@ impl McpClient {
     /// List available tools from the server.
     pub async fn list_tools(&self) -> Result<Vec<Tool>, McpError> {
         let result = self.request("tools/list", None).await?;
-        let tools: Vec<Tool> = serde_json::from_value(
-            result.get("tools").cloned().unwrap_or(Value::Array(vec![])),
-        )?;
+        let tools: Vec<Tool> =
+            serde_json::from_value(result.get("tools").cloned().unwrap_or(Value::Array(vec![])))?;
         Ok(tools)
     }
 
     /// Call a specific tool by name with arguments.
-    pub async fn call_tool(
-        &self,
-        name: &str,
-        arguments: Option<Value>,
-    ) -> Result<Value, McpError> {
+    pub async fn call_tool(&self, name: &str, arguments: Option<Value>) -> Result<Value, McpError> {
         let params = json!({
             "name": name,
             "arguments": arguments.unwrap_or(json!({}))
@@ -171,8 +158,7 @@ pub struct McpServer {
     tools: HashMap<String, Tool>,
     resources: HashMap<String, Resource>,
     prompts: HashMap<String, Prompt>,
-    tool_handlers:
-        HashMap<String, ToolHandler>,
+    tool_handlers: HashMap<String, ToolHandler>,
 }
 
 /// Server identification info.
@@ -255,20 +241,14 @@ impl McpServer {
                 let name = match params.get("name").and_then(|v| v.as_str()) {
                     Some(n) => n,
                     None => {
-                        return McpResponse::error(
-                            request.id.clone(),
-                            -32602,
-                            "Missing tool name",
-                        );
+                        return McpResponse::error(request.id.clone(), -32602, "Missing tool name");
                     }
                 };
                 match self.tool_handlers.get(name) {
                     Some(handler) => {
                         let args = params.get("arguments").cloned();
                         match handler(args) {
-                            Ok(result) => {
-                                McpResponse::success(request.id.clone(), result)
-                            }
+                            Ok(result) => McpResponse::success(request.id.clone(), result),
                             Err(e) => McpResponse::error(
                                 request.id.clone(),
                                 -32000,
@@ -335,12 +315,13 @@ mod tests {
         ));
 
         server.register_prompt(
-            Prompt::new("summarize", Some("Summarize text".to_string()))
-                .with_argument(crate::prompt::PromptArgument::new(
+            Prompt::new("summarize", Some("Summarize text".to_string())).with_argument(
+                crate::prompt::PromptArgument::new(
                     "text",
                     Some("Text to summarize".to_string()),
                     true,
-                )),
+                ),
+            ),
         );
 
         server

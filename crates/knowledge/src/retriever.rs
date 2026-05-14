@@ -3,16 +3,21 @@
 //! Combines graph-based retrieval with text-based TF-IDF scoring.
 //! Inspired by RAG (Retrieval Augmented Generation) patterns.
 
+use super::graph::{KnowledgeGraph, KnowledgeNode, NodeType};
 use async_trait::async_trait;
 use kias_common::KiasResult;
 use std::collections::HashMap;
-use super::graph::{KnowledgeGraph, KnowledgeNode, NodeType};
 
 /// Trait for knowledge retrieval strategies
 #[async_trait]
 pub trait Retriever: Send + Sync {
     async fn retrieve(&self, query: &str, limit: usize) -> KiasResult<Vec<ScoredNode>>;
-    async fn retrieve_by_type(&self, query: &str, node_type: NodeType, limit: usize) -> KiasResult<Vec<ScoredNode>>;
+    async fn retrieve_by_type(
+        &self,
+        query: &str,
+        node_type: NodeType,
+        limit: usize,
+    ) -> KiasResult<Vec<ScoredNode>>;
 }
 
 /// A knowledge node with a relevance score
@@ -75,7 +80,8 @@ impl HybridRetriever {
             }
         }
 
-        term_doc_count.into_iter()
+        term_doc_count
+            .into_iter()
             .map(|(term, count)| {
                 let idf = (total_docs / count as f64).ln() + 1.0;
                 (term, idf)
@@ -87,15 +93,16 @@ impl HybridRetriever {
     /// Technical terms (rust, python, kubernetes, etc.) are preserved.
     fn tokenize(text: &str) -> Vec<String> {
         let stop_words: std::collections::HashSet<&str> = [
-            "a", "an", "the", "is", "it", "to", "of", "and", "or", "in",
-            "for", "on", "with", "at", "by", "from", "as", "into", "this",
-            "that", "are", "was", "were", "be", "been", "being", "have",
-            "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "can", "not", "no", "but", "if",
-            "then", "than", "so", "just", "about", "up", "out", "all",
-            "its", "my", "your", "his", "her", "our", "their", "i", "we",
+            "a", "an", "the", "is", "it", "to", "of", "and", "or", "in", "for", "on", "with", "at",
+            "by", "from", "as", "into", "this", "that", "are", "was", "were", "be", "been",
+            "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+            "may", "might", "can", "not", "no", "but", "if", "then", "than", "so", "just", "about",
+            "up", "out", "all", "its", "my", "your", "his", "her", "our", "their", "i", "we",
             "you", "he", "she", "they", "me", "him", "us", "them",
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         text.split_whitespace()
             .map(|w| {
@@ -128,7 +135,8 @@ impl HybridRetriever {
     fn tfidf_score(&self, query_terms: &[String], node: &KnowledgeNode) -> f64 {
         let tf = Self::term_frequency(query_terms, &node.content);
 
-        let idf_sum: f64 = query_terms.iter()
+        let idf_sum: f64 = query_terms
+            .iter()
             .map(|t| self.idf_cache.get(t).copied().unwrap_or(1.0))
             .sum();
 
@@ -137,12 +145,18 @@ impl HybridRetriever {
         // Boost for exact substring match
         let query_lower = query_terms.join(" ");
         let content_lower = node.content.to_lowercase();
-        let exact_boost = if content_lower.contains(&query_lower) { 2.0 } else { 1.0 };
+        let exact_boost = if content_lower.contains(&query_lower) {
+            2.0
+        } else {
+            1.0
+        };
 
         // Boost for metadata/tag matches
-        let metadata_boost = if node.metadata.values().any(|v| {
-            v.to_lowercase().contains(&query_lower)
-        }) {
+        let metadata_boost = if node
+            .metadata
+            .values()
+            .any(|v| v.to_lowercase().contains(&query_lower))
+        {
             1.5
         } else {
             1.0
@@ -154,9 +168,8 @@ impl HybridRetriever {
     /// Expand results via graph relationships
     fn graph_expand(&self, top_nodes: &[ScoredNode], limit: usize) -> Vec<ScoredNode> {
         let mut expanded = Vec::new();
-        let seen_ids: std::collections::HashSet<String> = top_nodes.iter()
-            .map(|sn| sn.node.id.clone())
-            .collect();
+        let seen_ids: std::collections::HashSet<String> =
+            top_nodes.iter().map(|sn| sn.node.id.clone()).collect();
 
         for scored in top_nodes.iter().take(3) {
             let neighbors = self.graph.get_neighbors(&scored.node.id);
@@ -171,7 +184,11 @@ impl HybridRetriever {
             }
         }
 
-        expanded.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        expanded.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         expanded.truncate(limit);
         expanded
     }
@@ -188,7 +205,10 @@ impl Retriever for HybridRetriever {
         }
 
         // Step 1: TF-IDF scoring across all nodes
-        let mut scored: Vec<ScoredNode> = self.graph.get_all_nodes().into_iter()
+        let mut scored: Vec<ScoredNode> = self
+            .graph
+            .get_all_nodes()
+            .into_iter()
             .filter_map(|node| {
                 let score = self.tfidf_score(&query_terms, node);
                 if score > 0.0 {
@@ -203,7 +223,11 @@ impl Retriever for HybridRetriever {
             })
             .collect();
 
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Step 2: Graph expansion from top results
         let top_limit = (limit / 2).max(1);
@@ -212,19 +236,31 @@ impl Retriever for HybridRetriever {
         // Step 3: Merge results
         scored.truncate(top_limit);
         scored.extend(graph_expanded);
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(limit);
 
         Ok(scored)
     }
 
-    async fn retrieve_by_type(&self, query: &str, node_type: NodeType, limit: usize) -> KiasResult<Vec<ScoredNode>> {
+    async fn retrieve_by_type(
+        &self,
+        query: &str,
+        node_type: NodeType,
+        limit: usize,
+    ) -> KiasResult<Vec<ScoredNode>> {
         let query_terms = Self::tokenize(query);
         if query_terms.is_empty() {
             return Ok(Vec::new());
         }
 
-        let mut scored: Vec<ScoredNode> = self.graph.get_all_nodes().into_iter()
+        let mut scored: Vec<ScoredNode> = self
+            .graph
+            .get_all_nodes()
+            .into_iter()
             .filter(|n| n.node_type == node_type)
             .filter_map(|node| {
                 let score = self.tfidf_score(&query_terms, node);
@@ -240,7 +276,11 @@ impl Retriever for HybridRetriever {
             })
             .collect();
 
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(limit);
         Ok(scored)
     }
@@ -261,7 +301,10 @@ impl KeywordRetriever {
 impl Retriever for KeywordRetriever {
     async fn retrieve(&self, query: &str, limit: usize) -> KiasResult<Vec<ScoredNode>> {
         let query_lower = query.to_lowercase();
-        let results: Vec<ScoredNode> = self.graph.get_all_nodes().into_iter()
+        let results: Vec<ScoredNode> = self
+            .graph
+            .get_all_nodes()
+            .into_iter()
             .filter(|n| n.content.to_lowercase().contains(&query_lower))
             .map(|n| ScoredNode {
                 node: n.clone(),
@@ -273,9 +316,17 @@ impl Retriever for KeywordRetriever {
         Ok(results)
     }
 
-    async fn retrieve_by_type(&self, query: &str, node_type: NodeType, limit: usize) -> KiasResult<Vec<ScoredNode>> {
+    async fn retrieve_by_type(
+        &self,
+        query: &str,
+        node_type: NodeType,
+        limit: usize,
+    ) -> KiasResult<Vec<ScoredNode>> {
         let query_lower = query.to_lowercase();
-        let results: Vec<ScoredNode> = self.graph.get_all_nodes().into_iter()
+        let results: Vec<ScoredNode> = self
+            .graph
+            .get_all_nodes()
+            .into_iter()
             .filter(|n| n.node_type == node_type && n.content.to_lowercase().contains(&query_lower))
             .map(|n| ScoredNode {
                 node: n.clone(),
@@ -298,7 +349,8 @@ mod tests {
 
         graph.add_node(KnowledgeNode {
             id: "n1".to_string(),
-            content: "Rust is a systems programming language focused on safety and performance".to_string(),
+            content: "Rust is a systems programming language focused on safety and performance"
+                .to_string(),
             node_type: NodeType::Document,
             metadata: HashMap::from([("topic".to_string(), "programming".to_string())]),
         });
@@ -310,13 +362,15 @@ mod tests {
         });
         graph.add_node(KnowledgeNode {
             id: "n3".to_string(),
-            content: "The borrow checker ensures memory safety in Rust without garbage collection".to_string(),
+            content: "The borrow checker ensures memory safety in Rust without garbage collection"
+                .to_string(),
             node_type: NodeType::Concept,
             metadata: HashMap::new(),
         });
         graph.add_node(KnowledgeNode {
             id: "n4".to_string(),
-            content: "Kubernetes orchestrates containerized applications across clusters".to_string(),
+            content: "Kubernetes orchestrates containerized applications across clusters"
+                .to_string(),
             node_type: NodeType::Document,
             metadata: HashMap::new(),
         });
@@ -328,9 +382,24 @@ mod tests {
         });
 
         // Graph relationships: n1 (Rust) -> n3 (borrow checker), n1 -> n5 (ownership)
-        graph.add_edge(Edge { from: "n1".to_string(), to: "n3".to_string(), relationship: "has_concept".to_string(), weight: 0.9 });
-        graph.add_edge(Edge { from: "n1".to_string(), to: "n5".to_string(), relationship: "has_concept".to_string(), weight: 0.8 });
-        graph.add_edge(Edge { from: "n3".to_string(), to: "n5".to_string(), relationship: "related_to".to_string(), weight: 0.7 });
+        graph.add_edge(Edge {
+            from: "n1".to_string(),
+            to: "n3".to_string(),
+            relationship: "has_concept".to_string(),
+            weight: 0.9,
+        });
+        graph.add_edge(Edge {
+            from: "n1".to_string(),
+            to: "n5".to_string(),
+            relationship: "has_concept".to_string(),
+            weight: 0.8,
+        });
+        graph.add_edge(Edge {
+            from: "n3".to_string(),
+            to: "n5".to_string(),
+            relationship: "related_to".to_string(),
+            weight: 0.7,
+        });
 
         graph
     }
@@ -343,7 +412,9 @@ mod tests {
         let results = retriever.retrieve("Rust programming", 5).await.unwrap();
         assert!(!results.is_empty());
         // Rust-related documents should rank highest
-        assert!(results[0].node.content.contains("Rust") || results[0].node.content.contains("rust"));
+        assert!(
+            results[0].node.content.contains("Rust") || results[0].node.content.contains("rust")
+        );
     }
 
     #[tokio::test]
@@ -351,7 +422,10 @@ mod tests {
         let graph = build_test_graph();
         let retriever = HybridRetriever::new(graph);
 
-        let results = retriever.retrieve("blockchain cryptocurrency NFT", 5).await.unwrap();
+        let results = retriever
+            .retrieve("blockchain cryptocurrency NFT", 5)
+            .await
+            .unwrap();
         // Should return empty or very low scoring results
         assert!(results.is_empty() || results[0].score < 0.01);
     }
@@ -373,7 +447,10 @@ mod tests {
         let graph = build_test_graph();
         let retriever = HybridRetriever::new(graph);
 
-        let results = retriever.retrieve_by_type("Rust", NodeType::Concept, 5).await.unwrap();
+        let results = retriever
+            .retrieve_by_type("Rust", NodeType::Concept, 5)
+            .await
+            .unwrap();
         for result in &results {
             assert_eq!(result.node.node_type, NodeType::Concept);
         }

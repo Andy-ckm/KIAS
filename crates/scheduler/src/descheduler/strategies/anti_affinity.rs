@@ -37,8 +37,7 @@ impl DeschedulerStrategy for AntiAffinityViolationStrategy {
         nodes: &[Node],
         agents: &[Agent],
     ) -> Result<Vec<Eviction>, KiasError> {
-        let agent_map: HashMap<&str, &Agent> =
-            agents.iter().map(|a| (a.id.as_str(), a)).collect();
+        let agent_map: HashMap<&str, &Agent> = agents.iter().map(|a| (a.id.as_str(), a)).collect();
 
         let mut evictions = Vec::new();
         let mut evicted_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -203,10 +202,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_violation_when_different_nodes() {
-        let nodes = vec![
-            make_node("n1", vec!["a1"]),
-            make_node("n2", vec!["a2"]),
-        ];
+        let nodes = vec![make_node("n1", vec!["a1"]), make_node("n2", vec!["a2"])];
         let agents = vec![
             make_agent_with_anti_affinity("a1", "type-a", Priority::Low, vec!["type-b"]),
             make_agent_basic("a2", "type-b", Priority::High),

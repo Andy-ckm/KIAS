@@ -27,11 +27,7 @@ impl SchedulingAlgorithm for LeastLoadedScheduler {
         "least-loaded"
     }
 
-    async fn schedule(
-        &self,
-        agent: &Agent,
-        nodes: &[Node],
-    ) -> Result<ScheduleResult, KiasError> {
+    async fn schedule(&self, agent: &Agent, nodes: &[Node]) -> Result<ScheduleResult, KiasError> {
         let selected = nodes
             .iter()
             .filter(|n| n.status == NodeStatus::Ready)
@@ -102,9 +98,9 @@ mod tests {
     #[tokio::test]
     async fn test_picks_least_loaded() {
         let nodes = vec![
-            make_node("node-0", 4.0, 1.0),  // 75% loaded
-            make_node("node-1", 4.0, 3.0),  // 25% loaded
-            make_node("node-2", 4.0, 2.0),  // 50% loaded
+            make_node("node-0", 4.0, 1.0), // 75% loaded
+            make_node("node-1", 4.0, 3.0), // 25% loaded
+            make_node("node-2", 4.0, 2.0), // 50% loaded
         ];
         let scheduler = LeastLoadedScheduler::new();
         let agent = make_agent("a1");

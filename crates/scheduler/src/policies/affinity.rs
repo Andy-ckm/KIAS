@@ -16,9 +16,10 @@ impl AffinityFilter {
             .iter()
             .filter(|node| {
                 // Check hard requirements: node must have all required labels
-                affinity.required.iter().all(|(key, value)| {
-                    node.labels.get(key.as_str()) == Some(value)
-                })
+                affinity
+                    .required
+                    .iter()
+                    .all(|(key, value)| node.labels.get(key.as_str()) == Some(value))
             })
             .collect()
     }
@@ -35,9 +36,10 @@ impl AffinityFilter {
             .copied()
             .filter(|node| {
                 // Node must NOT match any avoid_labels
-                !anti.avoid_labels.iter().any(|(key, value)| {
-                    node.labels.get(key.as_str()) == Some(value)
-                })
+                !anti
+                    .avoid_labels
+                    .iter()
+                    .any(|(key, value)| node.labels.get(key.as_str()) == Some(value))
             })
             .collect()
     }
@@ -62,10 +64,7 @@ impl AffinityFilter {
         let matched_weight: f64 = affinity
             .preferred
             .iter()
-            .filter(|pref| {
-                node.labels
-                    .get(pref.label.as_str()) == Some(&pref.value)
-            })
+            .filter(|pref| node.labels.get(pref.label.as_str()) == Some(&pref.value))
             .map(|p| p.weight)
             .sum();
 

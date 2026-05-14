@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,7 +107,10 @@ impl ControllerState {
 
     /// Get all agents matching a given status.
     pub fn agents_with_status(&self, status: &AgentStatus) -> Vec<&AgentInfo> {
-        self.agents.values().filter(|a| a.status == *status).collect()
+        self.agents
+            .values()
+            .filter(|a| a.status == *status)
+            .collect()
     }
 
     /// Update running replica count based on actual agent statuses.
@@ -217,9 +220,15 @@ mod tests {
             agents: HashMap::new(),
         };
 
-        state.agents.insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
-        state.agents.insert("a2".into(), make_agent_info("a2", AgentStatus::Running));
-        state.agents.insert("a3".into(), make_agent_info("a3", AgentStatus::Failed));
+        state
+            .agents
+            .insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
+        state
+            .agents
+            .insert("a2".into(), make_agent_info("a2", AgentStatus::Running));
+        state
+            .agents
+            .insert("a3".into(), make_agent_info("a3", AgentStatus::Failed));
 
         assert_eq!(state.count_by_status(&AgentStatus::Running), 2);
         assert_eq!(state.count_by_status(&AgentStatus::Failed), 1);
@@ -248,8 +257,13 @@ mod tests {
             agents: HashMap::new(),
         };
 
-        state.agents.insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
-        state.agents.insert("a2".into(), make_agent_info("a2", AgentStatus::Unresponsive));
+        state
+            .agents
+            .insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
+        state.agents.insert(
+            "a2".into(),
+            make_agent_info("a2", AgentStatus::Unresponsive),
+        );
 
         let running = state.agents_with_status(&AgentStatus::Running);
         assert_eq!(running.len(), 1);
@@ -278,9 +292,15 @@ mod tests {
             agents: HashMap::new(),
         };
 
-        state.agents.insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
-        state.agents.insert("a2".into(), make_agent_info("a2", AgentStatus::Running));
-        state.agents.insert("a3".into(), make_agent_info("a3", AgentStatus::Failed));
+        state
+            .agents
+            .insert("a1".into(), make_agent_info("a1", AgentStatus::Running));
+        state
+            .agents
+            .insert("a2".into(), make_agent_info("a2", AgentStatus::Running));
+        state
+            .agents
+            .insert("a3".into(), make_agent_info("a3", AgentStatus::Failed));
 
         state.sync_running_replicas();
         assert_eq!(state.actual.running_replicas, 2);

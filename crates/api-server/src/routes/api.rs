@@ -3,7 +3,9 @@ use axum::Router;
 
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::handlers::{agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows};
+use crate::handlers::{
+    agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows,
+};
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
 use crate::AppState;
@@ -104,8 +106,10 @@ pub fn create_router(state: AppState) -> Router {
         );
 
     // --- Token analytics routes ---
-    let token_routes = Router::new()
-        .route("/api/v1/tokens", axum::routing::get(tokens::token_analytics));
+    let token_routes = Router::new().route(
+        "/api/v1/tokens",
+        axum::routing::get(tokens::token_analytics),
+    );
 
     // --- Workflow routes ---
     let workflow_routes = Router::new()

@@ -10,17 +10,17 @@
 //! - **metrics** – Prometheus metric definitions
 //! - **utils** – Hashing, time, and general-purpose helpers
 
+pub mod a2a;
+pub mod audit;
 pub mod config;
+pub mod data_mask;
 pub mod error;
 pub mod logging;
-pub mod metrics;
-pub mod types;
 pub mod messaging;
-pub mod a2a;
-pub mod utils;
-pub mod data_mask;
-pub mod audit;
+pub mod metrics;
 pub mod tls;
+pub mod types;
+pub mod utils;
 
 // Re-export the most commonly used items at crate root for convenience.
 pub use config::KiasConfig;

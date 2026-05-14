@@ -1,10 +1,9 @@
 pub mod autonomy;
-pub mod policy;
 pub mod ladder;
+pub mod policy;
 
 pub use autonomy::{
-    AuditEntry, AutonomyController, EscalationConfig, ExecutionBudget, ExecutionDecision,
-    RateLimit,
+    AuditEntry, AutonomyController, EscalationConfig, ExecutionBudget, ExecutionDecision, RateLimit,
 };
-pub use policy::{ToolPolicy, ToolPermission};
 pub use ladder::AutonomyLevel;
+pub use policy::{ToolPermission, ToolPolicy};

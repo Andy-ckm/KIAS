@@ -1,7 +1,8 @@
 [package]
 name = "kias-langgraph-engine"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "KIAS LangGraph-style State Graph Engine with typed channels, streaming, persistent checkpoints, and parallel execution"
 
 [dependencies]
 kias-common = { path = "../common" }

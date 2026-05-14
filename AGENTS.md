@@ -92,6 +92,9 @@ crates/
 │   │   ├── autonomy.rs  # 三模式 (Suggest/Auto/Full)
 │   │   ├── policy.rs    # 工具策略
 │   │   └── ladder.rs    # 自主度梯度
+├── langgraph-engine/   # LangGraph 状态图引擎（类型化通道、流式执行、中断/恢复、并行扇出）
+├── mcp-protocol/        # Model Context Protocol (MCP) 客户端/服务端
+├── data-store/          # 数据层（SQLite 持久化、向量存储、前缀缓存）
 ├── common/              # 公共类型、错误、配置
 ├── cache/               # LRU + 前缀缓存
 ├── monitor/             # 遥测 + 指标收集
@@ -107,6 +110,8 @@ crates/
 - API Server：声明式 API，RESTful + gRPC
 - Scheduler：资源感知调度（4 算法 + 亲和性 + 缓存优化）
 - Controller：Agent 生命周期管理，心跳监控，故障自动恢复（指数退避）
+- LangGraphEngine：LangGraph 风格状态图引擎，支持路由器、并行扇出、检查点持久化
+- MCP Protocol：Model Context Protocol 标准实现，JSON-RPC 2.0 + 多传输层
 - WorkflowEngine：DAG 工作流引擎，支持 Shell/HTTP/LLM 执行器，条件分支，重试
 - TeamEngine：Owner-Worker-Verifier 对抗式质量门禁
 - GoalEngine：目标驱动循环，自动迭代直到达标

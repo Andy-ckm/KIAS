@@ -220,6 +220,24 @@ reference-projects/
 | docs/design-docs/ref-anolisa.md | ANOLISA 参考 |
 | docs/design-docs/cache-strategy.md | 缓存策略 |
 
+## 10. 磁盘管理（⚠️ 上次因磁盘满而停止！）
+
+**优先级**：挂载盘 /mnt（20G） > 系统盘 /（40G）
+
+**每次开发循环结束必须清理**：
+```bash
+cargo clean --release                                    # 清理 release 构建
+find /mnt/workspace/kias/logs -name "*.log" -mtime +7 -delete  # 清理7天前日志
+df -h / /mnt                                             # 检查磁盘
+```
+
+**禁止事项**：
+- target/、node_modules/ 不得提交 git
+- 删除文件前先 cd 到其他目录
+- 不要在 /tmp 放大文件
+
+→ 详见 docs/development.md#磁盘管理
+
 ---
 
 **控制在 ~200 行。详细内容通过链接指向 docs/。**

@@ -28,7 +28,13 @@ async-trait.workspace = true
 jsonwebtoken.workspace = true
 dashmap.workspace = true
 
+# TLS
+rustls.workspace = true
+tokio-rustls.workspace = true
+rustls-pemfile.workspace = true
+
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }
 axum-test = "16"
 http-body-util = "0.1"
+tempfile = "3"

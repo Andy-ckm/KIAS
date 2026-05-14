@@ -72,7 +72,7 @@
 |------|------|----------|------|
 | 3.1 | OAuth2/JWT 认证 | 3h | ✅ 已完成 (Sprint 6) |
 | 3.2 | RBAC 权限控制 | 3h | ✅ 已完成 (Sprint 6) |
-| 3.3 | TLS 1.3 加密 | 2h | ⏳ 待开始 |
+| 3.3 | TLS 1.3 加密 | 2h | ✅ 已完成 (Sprint 9) |
 | 3.4 | 数据脱敏 | 2h | ✅ 已完成 (Sprint 6) |
 | 3.5 | 审计日志 | 2h | ✅ 已完成 (Sprint 6) |
 | 3.6 | Prometheus + Grafana 集成 | 4h | 🔶 部分完成 (Sprint 5: 指标端点 + 告警引擎已实现) |
@@ -135,9 +135,13 @@
 
 ## 当前任务
 
-**Sprint 8 — 前端 Dashboard + 可视化 + TLS 1.3**
+**Sprint 9 — TLS 1.3 + 安全加固 + 性能优化**
 
-当前状态：822 tests, 32,798+979 行(TS) lines, 0 errors, 0 warnings, 16 crates + 1 前端项目
+当前状态：867 tests, ~33,800 行(Rust) + 979 行(TS), 0 errors, 0 warnings, 16 crates + 1 前端项目
+
+已完成：
+- ✅ TLS 1.3 加密支持（rustls + tokio-rustls + mTLS + 自签名证书）
+- ✅ 32 个新 TLS 测试（16 common + 16 api-server）
 
 已完成：
 - ✅ React + TypeScript + Vite + TailwindCSS v4 Dashboard 脚手架

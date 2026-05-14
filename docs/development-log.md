@@ -6,6 +6,32 @@
 
 ## 2026-05-14
 
+### 09:17 - TLS 1.3 加密支持（Sprint 9 启动）
+
+**目标**：实现 TLS 1.3 加密传输，满足验收标准「传输加密: TLS 1.3，禁止 TLS 1.0/1.1」
+
+**后端完成**：
+- ✅ `kias-common::tls` 模块 — TlsConfig 配置结构体、PEM 证书验证、自签名证书生成（openssl + fallback）
+- ✅ `kias-api-server::tls` 模块 — TlsServerBuilder（rustls + tokio-rustls）、mTLS 支持、ALPN 协议协商
+- ✅ `ApiServerConfig` 扩展 — 新增 `tls_cert_path`、`tls_key_path`、`tls_client_ca_path`、`tls_min_version` 字段
+- ✅ 工作区依赖更新 — 新增 `rustls 0.23`（ring crypto）、`tokio-rustls 0.26`、`rustls-pemfile 2`
+- ✅ 32 个新测试（16 common TLS + 16 api-server TLS + 1 doc-test）
+
+**安全特性**：
+- 默认 TLS 1.3（可通过配置降级到 1.2，禁止 1.0/1.1）
+- Mutual TLS (mTLS) 支持（客户端证书验证）
+- ALPN 协议协商（h2 + http/1.1）
+- 证书文件验证（存在性、PEM 格式、过期检查）
+- 自签名证书生成（开发/测试用，openssl 优先 + 内置 fallback）
+
+**验证**：
+- `cargo build` ✅ 通过（0 errors, 0 warnings）
+- `cargo test` ✅ 867/867 通过（+33 新测试）
+
+**代码统计**：
+- Rust 新增：~34KB（common/tls.rs + api-server/tls.rs + 配置扩展）
+- 总测试数：834 → 867（+33，+4.0%）
+
 ### 08:46 - Token Analytics + Workflows + Scheduler 前后端开发（Sprint 8 续）
 
 **目标**：新增 3 个 API 端点 + 3 个前端页面，完善 Dashboard 功能
@@ -73,11 +99,12 @@
 - 创建开发脚本 scripts/kias-loop.sh
 
 ### 下一步
+- [x] TLS 1.3 加密支持 ✅ 已完成
 - [ ] Dashboard 增加 WebSocket 实时推送
-- [ ] TLS 1.3 加密支持
 - [ ] 压力测试 + 性能优化
 - [ ] Dashboard 增加搜索/过滤功能
 - [ ] Dashboard 增加 Agent 详情页（资源使用图表）
+- [ ] DeepSeek MLA Cache 优化
 
 ---
 
@@ -92,6 +119,7 @@
 
 ### 已整合
 - 前端 Dashboard 技术栈选型：Vite + React + TypeScript + TailwindCSS v4 + Recharts
+- TLS 1.3 加密：rustls (ring crypto) + tokio-rustls，支持 mTLS 和 ALPN
 
 ---
 

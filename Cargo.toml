@@ -74,6 +74,11 @@ axum = "0.7"
 hyper = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
+# TLS
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+tokio-rustls = "0.26"
+rustls-pemfile = "2"
+
 # Storage
 etcd-client = "0.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }

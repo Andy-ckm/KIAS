@@ -61,9 +61,9 @@
 ### 验收标准（Sprint 2）
 - [ ] API 响应 < 200ms (P95)
 - [ ] Agent 调度 < 300ms (P95)
-- [ ] 测试覆盖率 > 60%（当前 192 测试）
-- [ ] MCP 协议基础支持
-- [x] A2A 协议基础支持
+- [ ] 测试覆盖率 > 60%（当前 1198 测试）
+- [x] MCP 协议基础支持 ✅ (Sprint 14 mcp-protocol crate, 30+ tests)
+- [x] A2A 协议基础支持 ✅ (Sprint 14 A2A HTTP API + SSE streaming, 13 tests)
 
 ### 当前进度
 - ✅ Controller 从 30% → 85%

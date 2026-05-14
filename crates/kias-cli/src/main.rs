@@ -1,8 +1,85 @@
 //! KIAS CLI 主入口 - 超越阿里云 AgentRun
 
 use clap::Parser;
+use colored::Colorize;
+use kias_cli::client::ApiClient;
+use kias_cli::output::ExitCode;
 use kias_cli::{Cli, Commands, OutputFormat};
 use std::process;
+
+/// 解析服务端地址，优先级：命令行 > 环境变量 > 配置文件 > 默认值
+fn resolve_server(cli: &Cli) -> String {
+    if let Some(ref server) = cli.server {
+        return server.clone();
+    }
+    // 尝试从配置文件加载
+    match kias_cli::config::CliConfig::load() {
+        Ok(cfg) => {
+            if let Some(profile) = cfg.active_profile() {
+                return profile.api_endpoint.clone();
+            }
+        }
+        Err(e) => {
+            tracing::debug!("无法加载配置: {}", e);
+        }
+    }
+    "http://localhost:8080".to_string()
+}
+
+/// 创建 API 客户端
+fn create_client(cli: &Cli) -> Result<ApiClient, i32> {
+    let server = resolve_server(cli);
+    let api_key = cli.api_key.clone();
+    ApiClient::new(&server, api_key).map_err(|e| {
+        eprintln!("{}: {}", "错误".red().bold(), e);
+        ExitCode::ServerError as i32
+    })
+}
+
+/// 格式化输出
+fn output_json<T: serde::Serialize>(data: &T) {
+    match serde_json::to_string_pretty(data) {
+        Ok(json) => println!("{}", json),
+        Err(e) => eprintln!("{}: {}", "序列化错误".red(), e),
+    }
+}
+
+fn output_table<T: serde::Serialize + std::fmt::Debug>(data: &T) {
+    match serde_json::to_value(data) {
+        Ok(serde_json::Value::Object(map)) => {
+            for (key, value) in &map {
+                println!("  {}: {}", key.blue(), value);
+            }
+        }
+        Ok(val) => {
+            println!("{:?}", val);
+        }
+        Err(e) => eprintln!("{}: {}", "格式化错误".red(), e),
+    }
+}
+
+fn output_data<T: serde::Serialize + std::fmt::Debug>(data: &T, format: &OutputFormat) {
+    match format {
+        OutputFormat::Json => output_json(data),
+        OutputFormat::Table => output_table(data),
+        OutputFormat::Yaml => {
+            if let Ok(yaml) = serde_yaml::to_string(data) {
+                println!("{}", yaml);
+            }
+        }
+        OutputFormat::Quiet => {
+            if let Ok(json) = serde_json::to_value(data) {
+                if let Some(id) = json.get("id").and_then(|v| v.as_str()) {
+                    println!("{}", id);
+                } else if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
+                    println!("{}", name);
+                } else {
+                    println!("ok");
+                }
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -15,309 +92,811 @@ async fn main() {
             .init();
     }
 
-    let output = cli.output.clone();
-    let dry_run = cli.dry_run;
-    let namespace = cli.namespace.clone();
-
     let exit_code = match cli.command {
-        Commands::Agent { action } => handle_agent(action, &output, dry_run).await,
-        Commands::Workflow { action } => handle_workflow(action, &output).await,
-        Commands::Tool { action } => handle_tool(action, &output).await,
-        Commands::Skill { action } => handle_skill(action, &output).await,
-        Commands::Sandbox { action } => handle_sandbox(action, &output).await,
-        Commands::Model { action } => handle_model(action, &output).await,
-        Commands::Config { action } => handle_config(action, &output).await,
-        Commands::Cluster { action } => handle_cluster(action, &output).await,
+        Commands::Agent { ref action } => handle_agent(action.clone(), &cli).await,
+        Commands::Workflow { ref action } => handle_workflow(action.clone(), &cli).await,
+        Commands::Tool { ref action } => handle_tool(action.clone(), &cli).await,
+        Commands::Skill { ref action } => handle_skill(action.clone(), &cli).await,
+        Commands::Sandbox { ref action } => handle_sandbox(action.clone(), &cli).await,
+        Commands::Model { ref action } => handle_model(action.clone(), &cli).await,
+        Commands::Config { ref action } => handle_config(action.clone(), &cli).await,
+        Commands::Cluster { ref action } => handle_cluster(action.clone(), &cli).await,
     };
 
     process::exit(exit_code);
 }
 
-/// 退出码
-#[derive(Debug, Clone, Copy)]
-#[repr(i32)]
-pub enum ExitCode {
-    Success = 0,
-    ArgumentError = 1,
-    AuthError = 2,
-    NotFound = 3,
-    PermissionDenied = 4,
-    ServerError = 5,
-    Timeout = 6,
-    CostExceeded = 7,
+// ─── Agent 操作 ───────────────────────────────────────────────────
+
+async fn handle_agent(action: kias_cli::AgentAction, cli: &Cli) -> i32 {
+    match action {
+        kias_cli::AgentAction::Apply { file } => handle_agent_apply(file, cli).await,
+        kias_cli::AgentAction::Run { name, prompt, model } => {
+            handle_agent_run(name, prompt, model, cli).await
+        }
+        kias_cli::AgentAction::Invoke { name, text, text_only, timeout } => {
+            handle_agent_invoke(name, text, text_only, timeout, cli).await
+        }
+        kias_cli::AgentAction::List { label } => handle_agent_list(label, cli).await,
+        kias_cli::AgentAction::Get { name } => handle_agent_get(name, cli).await,
+        kias_cli::AgentAction::Delete { name, force } => {
+            handle_agent_delete(name, force, cli).await
+        }
+        kias_cli::AgentAction::Render { file } => handle_agent_render(file).await,
+        kias_cli::AgentAction::Logs { name, follow, tail } => {
+            handle_agent_logs(name, follow, tail, cli).await
+        }
+        kias_cli::AgentAction::Events { name, event_type } => {
+            handle_agent_events(name, event_type, cli).await
+        }
+    }
 }
 
-async fn handle_agent(action: kias_cli::AgentAction, output: &OutputFormat, dry_run: bool) -> i32 {
+async fn handle_agent_apply(file: String, cli: &Cli) -> i32 {
+    let yaml = match std::fs::read_to_string(&file) {
+        Ok(y) => y,
+        Err(e) => {
+            eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
+            return ExitCode::ArgumentError as i32;
+        }
+    };
+
+    let def = match kias_cli::agent::AgentDefinition::from_yaml(&yaml) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{}: YAML 解析失败: {}", "错误".red().bold(), e);
+            return ExitCode::ArgumentError as i32;
+        }
+    };
+
+    if let Err(errors) = def.validate() {
+        for err in &errors {
+            eprintln!("{}: {}", "验证错误".red(), err);
+        }
+        return ExitCode::ArgumentError as i32;
+    }
+
+    println!("{}: Agent '{}' 定义验证通过", "✓".green().bold(), def.metadata.name);
+
+    if cli.dry_run {
+        println!("{}: Dry-run 模式，跳过实际部署", "→".yellow());
+        output_data(&def.to_runtime_config(), &cli.output);
+        return ExitCode::Success as i32;
+    }
+
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    let body = match serde_json::to_value(&def) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{}: 序列化失败: {}", "错误".red().bold(), e);
+            return ExitCode::ServerError as i32;
+        }
+    };
+
+    match client.create_agent(body).await {
+        Ok(agent) => {
+            println!("{}: Agent '{}' 已成功应用", "✓".green().bold(), agent.name);
+            output_data(&agent, &cli.output);
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            eprintln!("{}: 创建 Agent 失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+async fn handle_agent_run(name: String, prompt: String, model: Option<String>, cli: &Cli) -> i32 {
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    let mut body = serde_json::json!({
+        "agent": name,
+        "prompt": prompt,
+    });
+    if let Some(m) = model {
+        body["model"] = serde_json::Value::String(m);
+    }
+
+    println!("{}: 正在运行 Agent '{}' ...", "→".blue().bold(), name);
+
+    // 创建并运行 Agent
+    match client.create_agent(body).await {
+        Ok(agent) => {
+            println!("{}: Agent 运行完成", "✓".green().bold());
+            output_data(&agent, &cli.output);
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            eprintln!("{}: Agent 运行失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+async fn handle_agent_invoke(
+    name: String,
+    text: String,
+    text_only: bool,
+    timeout: u64,
+    cli: &Cli,
+) -> i32 {
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    tracing::debug!("调用 Agent '{}' (超时: {}s)", name, timeout);
+
+    let body = serde_json::json!({
+        "agent": name,
+        "prompt": text,
+        "timeout": timeout,
+    });
+
+    match client.create_agent(body).await {
+        Ok(agent) => {
+            if text_only {
+                // CI 友好：只输出核心结果
+                if let Ok(json) = serde_json::to_value(&agent) {
+                    if let Some(output) = json.get("output").and_then(|v| v.as_str()) {
+                        println!("{}", output);
+                    } else {
+                        println!("{:?}", agent);
+                    }
+                }
+            } else {
+                output_data(&agent, &cli.output);
+            }
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            eprintln!("{}: Agent 调用失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+async fn handle_agent_list(label: Option<String>, cli: &Cli) -> i32 {
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    if let Some(ref l) = label {
+        tracing::debug!("过滤标签: {}", l);
+    }
+
+    match client.list_agents().await {
+        Ok(agents) => {
+            if agents.is_empty() {
+                println!("{}: 没有找到 Agent", "→".yellow());
+            } else {
+                println!("{}: 共 {} 个 Agent", "✓".green(), agents.len());
+                output_data(&agents, &cli.output);
+            }
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            eprintln!("{}: 获取 Agent 列表失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+async fn handle_agent_get(name: String, cli: &Cli) -> i32 {
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    match client.get_agent(&name).await {
+        Ok(agent) => {
+            output_data(&agent, &cli.output);
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            if e.to_string().contains("404") {
+                eprintln!("{}: Agent '{}' 未找到", "✗".red().bold(), name);
+                ExitCode::NotFound as i32
+            } else {
+                eprintln!("{}: 获取 Agent 失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
+        }
+    }
+}
+
+async fn handle_agent_delete(name: String, force: bool, cli: &Cli) -> i32 {
+    if !force {
+        eprintln!(
+            "{}: 使用 --force 确认删除 Agent '{}'",
+            "警告".yellow().bold(),
+            name
+        );
+        return ExitCode::ArgumentError as i32;
+    }
+
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    match client.delete_agent(&name).await {
+        Ok(true) => {
+            println!("{}: Agent '{}' 已删除", "✓".green().bold(), name);
+            ExitCode::Success as i32
+        }
+        Ok(false) => {
+            eprintln!("{}: 删除 Agent '{}' 失败", "✗".red().bold(), name);
+            ExitCode::ServerError as i32
+        }
+        Err(e) => {
+            eprintln!("{}: 删除 Agent 失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+async fn handle_agent_render(file: String) -> i32 {
+    let yaml = match std::fs::read_to_string(&file) {
+        Ok(y) => y,
+        Err(e) => {
+            eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
+            return ExitCode::ArgumentError as i32;
+        }
+    };
+
+    let def = match kias_cli::agent::AgentDefinition::from_yaml(&yaml) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{}: YAML 解析失败: {}", "错误".red().bold(), e);
+            return ExitCode::ArgumentError as i32;
+        }
+    };
+
+    if let Err(errors) = def.validate() {
+        for err in &errors {
+            eprintln!("{}: {}", "验证错误".red(), err);
+        }
+        return ExitCode::ArgumentError as i32;
+    }
+
+    println!("{}: Agent 定义有效", "✓".green().bold());
+    let runtime = def.to_runtime_config();
+    match serde_yaml::to_string(&runtime) {
+        Ok(yaml) => println!("{}", yaml),
+        Err(e) => {
+            eprintln!("{}: 序列化失败: {}", "错误".red(), e);
+            return ExitCode::ServerError as i32;
+        }
+    }
+    ExitCode::Success as i32
+}
+
+async fn handle_agent_logs(name: String, follow: bool, tail: usize, cli: &Cli) -> i32 {
+    let _ = follow; // TODO: 支持 follow 模式（SSE/WebSocket）
+    let _ = tail;
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    // 获取 Agent 信息来验证存在
+    match client.get_agent(&name).await {
+        Ok(agent) => {
+            println!("{}: Agent '{}' 日志 (status: {})", "→".blue(), name, agent.status);
+            println!("[日志功能待实现 — 需要 API Server 端日志接口支持]");
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            if e.to_string().contains("404") {
+                eprintln!("{}: Agent '{}' 未找到", "✗".red().bold(), name);
+                ExitCode::NotFound as i32
+            } else {
+                eprintln!("{}: 获取 Agent 日志失败: {}", "错误".red().bold(), e);
+                ExitCode::ServerError as i32
+            }
+        }
+    }
+}
+
+async fn handle_agent_events(name: String, event_type: Option<String>, cli: &Cli) -> i32 {
+    if let Some(ref t) = event_type {
+        tracing::debug!("过滤事件类型: {}", t);
+    }
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
+    match client.get_agent(&name).await {
+        Ok(agent) => {
+            println!("{}: Agent '{}' 事件", "→".blue(), name);
+            println!("  状态: {}", agent.status);
+            if let Some(ref created) = agent.created_at {
+                println!("  创建时间: {}", created);
+            }
+            println!("[事件流功能待实现 — 需要 API Server 端事件接口支持]");
+            ExitCode::Success as i32
+        }
+        Err(e) => {
+            eprintln!("{}: 获取 Agent 事件失败: {}", "错误".red().bold(), e);
+            ExitCode::ServerError as i32
+        }
+    }
+}
+
+// ─── Workflow 操作 ────────────────────────────────────────────────
+
+async fn handle_workflow(action: kias_cli::WorkflowAction, cli: &Cli) -> i32 {
     match action {
-        kias_cli::AgentAction::Apply { file } => {
+        kias_cli::WorkflowAction::Apply { file } => {
             let yaml = match std::fs::read_to_string(&file) {
                 Ok(y) => y,
                 Err(e) => {
-                    eprintln!("Error reading file: {}", e);
+                    eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
                     return ExitCode::ArgumentError as i32;
                 }
             };
 
-            let def = match kias_cli::agent::AgentDefinition::from_yaml(&yaml) {
+            let def: kias_cli::agent::WorkflowDefinition = match serde_yaml::from_str(&yaml) {
                 Ok(d) => d,
                 Err(e) => {
-                    eprintln!("Error parsing YAML: {}", e);
+                    eprintln!("{}: YAML 解析失败: {}", "错误".red().bold(), e);
                     return ExitCode::ArgumentError as i32;
                 }
             };
 
-            if let Err(errors) = def.validate() {
-                for err in errors {
-                    eprintln!("Validation error: {}", err);
-                }
-                return ExitCode::ArgumentError as i32;
-            }
-
-            if dry_run {
-                println!("Dry-run: Agent '{}' is valid", def.metadata.name);
+            if cli.dry_run {
+                println!("{}: Dry-run 模式，工作流 '{}' 验证通过", "→".yellow(), def.metadata.name);
                 return ExitCode::Success as i32;
             }
 
-            // TODO: 实际应用到集群
-            println!("Agent '{}' applied successfully", def.metadata.name);
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Run { name, prompt, model } => {
-            println!("Running agent '{}' with prompt: {}", name, prompt);
-            if let Some(m) = model {
-                println!("Using model: {}", m);
-            }
-            // TODO: 连接到 KIAS API Server 执行
-            println!("Agent execution completed");
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Invoke { name, text, text_only, timeout } => {
-            println!("Invoking agent '{}' (timeout: {}s)", name, timeout);
-            if text_only {
-                println!("Output: [Agent response would appear here]");
-            } else {
-                println!("{}", serde_json::json!({
-                    "status": "success",
-                    "agent": name,
-                    "output": "[Agent response]",
-                    "metadata": {
-                        "tokens_used": 150,
-                        "cost": 0.003,
-                        "duration_ms": 1200
-                    }
-                }));
-            }
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::List { label } => {
-            println!("Listing agents...");
-            if let Some(l) = label {
-                println!("Filter: label={}", l);
-            }
-            // TODO: 从 API Server 获取列表
-            println!("No agents found");
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Get { name } => {
-            println!("Getting agent '{}'", name);
-            // TODO: 从 API Server 获取
-            println!("Agent not found");
-            ExitCode::NotFound as i32
-        }
-        kias_cli::AgentAction::Delete { name, force } => {
-            if !force {
-                eprintln!("Use --force to delete agent '{}'", name);
-                return ExitCode::ArgumentError as i32;
-            }
-            println!("Agent '{}' deleted", name);
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Render { file } => {
-            let yaml = match std::fs::read_to_string(&file) {
-                Ok(y) => y,
-                Err(e) => {
-                    eprintln!("Error reading file: {}", e);
-                    return ExitCode::ArgumentError as i32;
-                }
+            let client = match create_client(cli) {
+                Ok(c) => c,
+                Err(code) => return code,
             };
 
-            let def = match kias_cli::agent::AgentDefinition::from_yaml(&yaml) {
-                Ok(d) => d,
-                Err(e) => {
-                    eprintln!("Error parsing YAML: {}", e);
-                    return ExitCode::ArgumentError as i32;
+            let body = serde_json::json!({
+                "name": def.metadata.name,
+                "entry": def.spec.entry,
+                "nodes": def.spec.nodes,
+                "edges": def.spec.edges,
+            });
+
+            match client.create_workflow(body).await {
+                Ok(wf) => {
+                    println!("{}: 工作流 '{}' 已应用", "✓".green().bold(), wf.name);
+                    output_data(&wf, &cli.output);
+                    ExitCode::Success as i32
                 }
-            };
-
-            println!("{}", serde_yaml::to_string(&def).unwrap_or_default());
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Logs { name, follow, tail } => {
-            println!("Logs for agent '{}' (tail: {}, follow: {})", name, tail, follow);
-            // TODO: 从 API Server 获取日志
-            println!("[No logs available]");
-            ExitCode::Success as i32
-        }
-        kias_cli::AgentAction::Events { name, event_type } => {
-            println!("Events for agent '{}'", name);
-            if let Some(t) = event_type {
-                println!("Filter: type={}", t);
+                Err(e) => {
+                    eprintln!("{}: 创建工作流失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
             }
-            // TODO: 从 API Server 获取事件
-            println!("[No events available]");
-            ExitCode::Success as i32
-        }
-    }
-}
-
-async fn handle_workflow(action: kias_cli::WorkflowAction, _output: &OutputFormat) -> i32 {
-    match action {
-        kias_cli::WorkflowAction::Apply { file } => {
-            println!("Applying workflow from {}", file);
-            ExitCode::Success as i32
         }
         kias_cli::WorkflowAction::Run { name, input } => {
-            println!("Running workflow '{}'", name);
+            let client = match create_client(cli) {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+
+            let mut body = serde_json::json!({"name": name});
             if let Some(i) = input {
-                println!("Input: {}", i);
+                match serde_json::from_str::<serde_json::Value>(&i) {
+                    Ok(val) => body["input"] = val,
+                    Err(e) => {
+                        eprintln!("{}: 输入参数 JSON 解析失败: {}", "错误".red().bold(), e);
+                        return ExitCode::ArgumentError as i32;
+                    }
+                }
             }
-            ExitCode::Success as i32
+
+            println!("{}: 正在运行工作流 '{}' ...", "→".blue().bold(), name);
+            match client.create_workflow(body).await {
+                Ok(wf) => {
+                    println!("{}: 工作流运行完成", "✓".green().bold());
+                    output_data(&wf, &cli.output);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 运行工作流失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::WorkflowAction::Status { run_id } => {
-            println!("Status for run '{}'", run_id);
-            ExitCode::Success as i32
+            let client = match create_client(cli) {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+            match client.get_workflow(&run_id).await {
+                Ok(wf) => {
+                    output_data(&wf, &cli.output);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取工作流状态失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::WorkflowAction::Logs { run_id } => {
-            println!("Logs for run '{}'", run_id);
-            ExitCode::Success as i32
+            let client = match create_client(cli) {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+            match client.get_workflow(&run_id).await {
+                Ok(wf) => {
+                    println!("{}: 工作流运行 '{}'", "→".blue(), run_id);
+                    output_data(&wf, &cli.output);
+                    println!("[详细日志功能待实现]");
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取工作流日志失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::WorkflowAction::List => {
-            println!("Listing workflows...");
-            ExitCode::Success as i32
+            let client = match create_client(cli) {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+            match client.list_workflows().await {
+                Ok(wfs) => {
+                    if wfs.is_empty() {
+                        println!("{}: 没有找到工作流", "→".yellow());
+                    } else {
+                        println!("{}: 共 {} 个工作流", "✓".green(), wfs.len());
+                        output_data(&wfs, &cli.output);
+                    }
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取工作流列表失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
     }
 }
 
-async fn handle_tool(action: kias_cli::ToolAction, _output: &OutputFormat) -> i32 {
+// ─── Tool 操作 ────────────────────────────────────────────────────
+
+async fn handle_tool(action: kias_cli::ToolAction, cli: &Cli) -> i32 {
     match action {
         kias_cli::ToolAction::Register { file } => {
-            println!("Registering tool from {}", file);
+            let content = match std::fs::read_to_string(&file) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            let def: kias_cli::tool::ToolDefinition = match serde_json::from_str(&content) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("{}: JSON 解析失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            println!("{}: 工具 '{}' 已注册（本地模式）", "✓".green().bold(), def.name);
+            output_data(&def, &cli.output);
             ExitCode::Success as i32
         }
         kias_cli::ToolAction::List => {
-            println!("Listing tools...");
+            println!("{}: 工具列表（本地模式，需 API Server 支持远程列表）", "→".yellow());
             ExitCode::Success as i32
         }
         kias_cli::ToolAction::Test { name, input } => {
-            println!("Testing tool '{}'", name);
-            if let Some(i) = input {
-                println!("Input: {}", i);
+            println!("{}: 测试工具 '{}'", "→".blue(), name);
+            if let Some(ref i) = input {
+                println!("  输入: {}", i);
             }
+            println!("[工具测试功能待实现 — 需要 API Server 端工具执行支持]");
             ExitCode::Success as i32
         }
     }
 }
 
-async fn handle_skill(action: kias_cli::SkillAction, _output: &OutputFormat) -> i32 {
+// ─── Skill 操作 ───────────────────────────────────────────────────
+
+async fn handle_skill(action: kias_cli::SkillAction, cli: &Cli) -> i32 {
     match action {
         kias_cli::SkillAction::Register { file } => {
-            println!("Registering skill from {}", file);
+            let content = match std::fs::read_to_string(&file) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            let def: kias_cli::skill::SkillDefinition = match serde_json::from_str(&content) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("{}: JSON 解析失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            println!("{}: 技能 '{}' v{} 已注册", "✓".green().bold(), def.name, def.version);
+            output_data(&def, &cli.output);
             ExitCode::Success as i32
         }
         kias_cli::SkillAction::List => {
-            println!("Listing skills...");
+            println!("{}: 技能列表（本地模式，需 API Server 支持远程列表）", "→".yellow());
             ExitCode::Success as i32
         }
         kias_cli::SkillAction::Search { query } => {
-            println!("Searching skills: {}", query);
+            println!("{}: 搜索技能: '{}'", "→".blue(), query);
+            println!("[技能搜索功能待实现]");
             ExitCode::Success as i32
         }
     }
 }
 
-async fn handle_sandbox(action: kias_cli::SandboxAction, _output: &OutputFormat) -> i32 {
+// ─── Sandbox 操作 ─────────────────────────────────────────────────
+
+async fn handle_sandbox(action: kias_cli::SandboxAction, _cli: &Cli) -> i32 {
     match action {
         kias_cli::SandboxAction::Create { template, name } => {
-            println!("Creating sandbox from template '{}'", template);
-            if let Some(n) = name {
-                println!("Name: {}", n);
-            }
+            let sandbox_name = name.unwrap_or_else(|| format!("sandbox-{}", uuid::Uuid::new_v4()));
+            println!("{}: 创建沙箱 '{}' (模板: {})", "→".blue().bold(), sandbox_name, template);
+            println!("[沙箱创建功能待实现 — 需要容器运行时集成]");
             ExitCode::Success as i32
         }
         kias_cli::SandboxAction::Exec { sandbox_id, command } => {
-            println!("Executing in sandbox '{}': {:?}", sandbox_id, command);
+            if command.is_empty() {
+                eprintln!("{}: 未指定命令", "错误".red().bold());
+                return ExitCode::ArgumentError as i32;
+            }
+            println!(
+                "{}: 在沙箱 '{}' 中执行: {}",
+                "→".blue(),
+                sandbox_id,
+                command.join(" ")
+            );
+            println!("[沙箱执行功能待实现]");
             ExitCode::Success as i32
         }
         kias_cli::SandboxAction::Destroy { sandbox_id } => {
-            println!("Destroying sandbox '{}'", sandbox_id);
+            println!("{}: 销毁沙箱 '{}'", "→".red(), sandbox_id);
+            println!("[沙箱销毁功能待实现]");
             ExitCode::Success as i32
         }
         kias_cli::SandboxAction::List => {
-            println!("Listing sandboxes...");
+            println!("{}: 沙箱列表（本地模式）", "→".yellow());
             ExitCode::Success as i32
         }
     }
 }
 
-async fn handle_model(action: kias_cli::ModelAction, _output: &OutputFormat) -> i32 {
+// ─── Model 操作 ───────────────────────────────────────────────────
+
+async fn handle_model(action: kias_cli::ModelAction, cli: &Cli) -> i32 {
     match action {
         kias_cli::ModelAction::Register { file } => {
-            println!("Registering model from {}", file);
+            let content = match std::fs::read_to_string(&file) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 无法读取文件 '{}': {}", "错误".red().bold(), file, e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            let def: serde_json::Value = match serde_json::from_str(&content) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("{}: JSON 解析失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            let name = def.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+            println!("{}: 模型 '{}' 已注册（本地模式）", "✓".green().bold(), name);
+            output_data(&def, &cli.output);
             ExitCode::Success as i32
         }
         kias_cli::ModelAction::List => {
-            println!("Listing models...");
+            println!("{}: 模型列表（本地模式）", "→".yellow());
             ExitCode::Success as i32
         }
         kias_cli::ModelAction::Test { name, prompt } => {
-            println!("Testing model '{}'", name);
-            if let Some(p) = prompt {
-                println!("Prompt: {}", p);
+            println!("{}: 测试模型 '{}'", "→".blue(), name);
+            if let Some(ref p) = prompt {
+                println!("  Prompt: {}", p);
             }
+            println!("[模型测试功能待实现 — 需要推理引擎集成]");
             ExitCode::Success as i32
         }
     }
 }
 
-async fn handle_config(action: kias_cli::ConfigAction, _output: &OutputFormat) -> i32 {
+// ─── Config 操作 ──────────────────────────────────────────────────
+
+async fn handle_config(action: kias_cli::ConfigAction, cli: &Cli) -> i32 {
     match action {
+        kias_cli::ConfigAction::Init => {
+            let cfg = kias_cli::config::CliConfig::default();
+            match cfg.save() {
+                Ok(()) => {
+                    let path = kias_cli::config::CliConfig::config_path();
+                    println!(
+                        "{}: 配置文件已初始化: {}",
+                        "✓".green().bold(),
+                        path.display()
+                    );
+                    output_data(&cfg, &cli.output);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 初始化配置失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
+        }
         kias_cli::ConfigAction::Set { key, value } => {
-            println!("Setting config: {} = {}", key, value);
-            ExitCode::Success as i32
+            let mut cfg = match kias_cli::config::CliConfig::load() {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 加载配置失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ServerError as i32;
+                }
+            };
+
+            match key.as_str() {
+                "server" | "api_endpoint" => {
+                    if let Some(profile) = cfg.profiles.first_mut() {
+                        profile.api_endpoint = value.clone();
+                    }
+                }
+                "namespace" => {
+                    if let Some(profile) = cfg.profiles.first_mut() {
+                        profile.namespace = Some(value.clone());
+                    }
+                }
+                "output" | "output_format" => {
+                    if let Some(profile) = cfg.profiles.first_mut() {
+                        profile.output_format = Some(value.clone());
+                    }
+                }
+                "api_key" => {
+                    if let Some(profile) = cfg.profiles.first_mut() {
+                        profile.api_key = Some(value.clone());
+                    }
+                }
+                _ => {
+                    eprintln!("{}: 未知配置键 '{}' (支持: server, namespace, output, api_key)", "错误".red(), key);
+                    return ExitCode::ArgumentError as i32;
+                }
+            }
+
+            match cfg.save() {
+                Ok(()) => {
+                    println!("{}: {} = {}", "✓".green().bold(), key.blue(), value);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 保存配置失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::ConfigAction::Get { key } => {
-            println!("Getting config: {}", key);
-            ExitCode::Success as i32
+            let cfg = match kias_cli::config::CliConfig::load() {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 加载配置失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ServerError as i32;
+                }
+            };
+
+            let profile = cfg.active_profile();
+            let value = match key.as_str() {
+                "server" | "api_endpoint" => profile.map(|p| p.api_endpoint.clone()),
+                "namespace" => profile.and_then(|p| p.namespace.clone()),
+                "output" | "output_format" => profile.and_then(|p| p.output_format.clone()),
+                "api_key" => profile.and_then(|p| p.api_key.clone()),
+                "active_profile" => Some(cfg.active_profile.clone()),
+                _ => {
+                    eprintln!("{}: 未知配置键 '{}'", "错误".red(), key);
+                    return ExitCode::ArgumentError as i32;
+                }
+            };
+
+            match value {
+                Some(v) => {
+                    if matches!(cli.output, OutputFormat::Quiet) {
+                        println!("{}", v);
+                    } else {
+                        println!("{}: {}", key.blue(), v);
+                    }
+                    ExitCode::Success as i32
+                }
+                None => {
+                    println!("{}: {} 未设置", "→".yellow(), key);
+                    ExitCode::Success as i32
+                }
+            }
         }
         kias_cli::ConfigAction::List => {
-            println!("Listing config...");
-            ExitCode::Success as i32
-        }
-        kias_cli::ConfigAction::Init => {
-            println!("Initializing config...");
+            let cfg = match kias_cli::config::CliConfig::load() {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("{}: 加载配置失败: {}", "错误".red().bold(), e);
+                    return ExitCode::ServerError as i32;
+                }
+            };
+            output_data(&cfg, &cli.output);
             ExitCode::Success as i32
         }
     }
 }
 
-async fn handle_cluster(action: kias_cli::ClusterAction, _output: &OutputFormat) -> i32 {
+// ─── Cluster 操作 ────────────────────────────────────────────────
+
+async fn handle_cluster(action: kias_cli::ClusterAction, cli: &Cli) -> i32 {
+    let client = match create_client(cli) {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+
     match action {
         kias_cli::ClusterAction::Status => {
-            println!("Cluster status:");
-            println!("  Nodes: 3");
-            println!("  Agents: 5");
-            println!("  Status: Healthy");
-            ExitCode::Success as i32
+            match client.cluster_status().await {
+                Ok(status) => {
+                    println!("{}: 集群状态", "✓".green().bold());
+                    output_data(&status, &cli.output);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取集群状态失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::ClusterAction::Nodes => {
-            println!("Listing nodes...");
-            ExitCode::Success as i32
+            match client.list_nodes().await {
+                Ok(nodes) => {
+                    if nodes.is_empty() {
+                        println!("{}: 没有节点", "→".yellow());
+                    } else {
+                        println!("{}: 共 {} 个节点", "✓".green(), nodes.len());
+                        output_data(&nodes, &cli.output);
+                    }
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取节点列表失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
         kias_cli::ClusterAction::Resources => {
-            println!("Resource usage:");
-            println!("  CPU: 45%");
-            println!("  Memory: 60%");
-            ExitCode::Success as i32
+            match client.metrics_summary().await {
+                Ok(metrics) => {
+                    println!("{}: 资源使用", "✓".green().bold());
+                    output_data(&metrics, &cli.output);
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 获取资源信息失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
     }
 }

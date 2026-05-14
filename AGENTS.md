@@ -78,7 +78,11 @@ crates/
 │   ├── src/
 │   │   ├── engine.rs    # Owner-Worker-Verifier 引擎
 │   │   ├── worker.rs    # Worker 实现
-│   │   └── verifier.rs  # 质量门禁
+│   │   ├── verifier.rs  # 质量门禁
+│   │   ├── delegation.rs # CrewAI 委托协议
+│   │   ├── memory.rs    # Agent 三层记忆系统
+│   │   ├── skill_matcher.rs # 技能匹配器
+│   │   └── crew.rs      # Crew 编排器（委托+记忆+匹配）
 ├── goal-engine/
 │   ├── src/
 │   │   ├── loop_runner.rs # 目标驱动循环

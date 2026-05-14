@@ -108,3 +108,4 @@ jsonwebtoken = "9"
 
 # Internal crates
 kias-common = { path = "crates/common" }
+kias-executor = { path = "crates/executor" }

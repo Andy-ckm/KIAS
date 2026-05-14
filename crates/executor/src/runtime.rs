@@ -390,6 +390,147 @@ impl TaskExecutor for HttpExecutor {
     }
 }
 
+/// Shell executor — runs agent commands locally via tokio::process::Command.
+/// Used for CI-friendly non-interactive agent execution.
+///
+/// Payload shape:
+/// ```json
+/// {
+///   "image": "python:3.11",
+///   "command": ["python", "app.py"],
+///   "prompt": "optional context passed via env var",
+///   "timeout": 300
+/// }
+/// ```
+pub struct ShellExecutor {
+    default_timeout: std::time::Duration,
+}
+
+impl ShellExecutor {
+    /// Create a new shell executor with the given default timeout.
+    pub fn new(default_timeout: std::time::Duration) -> Self {
+        Self { default_timeout }
+    }
+}
+
+impl Default for ShellExecutor {
+    fn default() -> Self {
+        Self::new(std::time::Duration::from_secs(300))
+    }
+}
+
+#[async_trait]
+impl TaskExecutor for ShellExecutor {
+    async fn execute(&self, task: &Task) -> KiasResult<TaskResult> {
+        let start_time = Utc::now();
+
+        let image = task
+            .payload
+            .get("image")
+            .and_then(|v| v.as_str())
+            .unwrap_or("python:3.11");
+
+        let cmd_list = task
+            .payload
+            .get("command")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(String::from)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(|| vec!["python".to_string(), "app.py".to_string()]);
+
+        let timeout_dur = task
+            .timeout
+            .unwrap_or(self.default_timeout);
+
+        tracing::info!(
+            task_id = %task.id,
+            image = %image,
+            cmd = ?cmd_list,
+            "Executing shell task"
+        );
+
+        // Build the command: docker run <image> <cmd...>
+        let mut cmd = tokio::process::Command::new("docker");
+        cmd.args(["run", "--rm"]);
+        cmd.arg(image);
+        cmd.args(&cmd_list);
+
+        // Pass prompt as environment variable for script consumption
+        if let Some(prompt) = task.payload.get("prompt").and_then(|v| v.as_str()) {
+            cmd.env("KIAS_PROMPT", prompt);
+        }
+
+        let output = tokio::time::timeout(timeout_dur, cmd.output()).await;
+        let end_time = Utc::now();
+
+        match output {
+            Ok(Ok(output)) => {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+                if output.status.success() {
+                    Ok(TaskResult {
+                        task_id: task.id.clone(),
+                        status: TaskStatus::Completed,
+                        output: Some(serde_json::json!({
+                            "stdout": stdout,
+                            "stderr": stderr,
+                            "exit_code": output.status.code(),
+                        })),
+                        error: None,
+                        started_at: start_time,
+                        completed_at: end_time,
+                    })
+                } else {
+                    Ok(TaskResult {
+                        task_id: task.id.clone(),
+                        status: TaskStatus::Failed,
+                        output: Some(serde_json::json!({
+                            "stdout": stdout,
+                            "stderr": stderr,
+                            "exit_code": output.status.code(),
+                        })),
+                        error: Some(format!(
+                            "Command exited with code {:?}",
+                            output.status.code()
+                        )),
+                        started_at: start_time,
+                        completed_at: end_time,
+                    })
+                }
+            }
+            Ok(Err(e)) => {
+                Ok(TaskResult {
+                    task_id: task.id.clone(),
+                    status: TaskStatus::Failed,
+                    output: None,
+                    error: Some(format!("Failed to execute command: {e}")),
+                    started_at: start_time,
+                    completed_at: end_time,
+                })
+            }
+            Err(_) => {
+                // Timeout
+                Ok(TaskResult {
+                    task_id: task.id.clone(),
+                    status: TaskStatus::Failed,
+                    output: None,
+                    error: Some(format!(
+                        "Task timed out after {}ms",
+                        timeout_dur.as_millis()
+                    )),
+                    started_at: start_time,
+                    completed_at: end_time,
+                })
+            }
+        }
+    }
+}
+
 /// LLM executor - calls LLM APIs for text generation/analysis tasks
 pub struct LlmExecutor {
     client: reqwest::Client,
@@ -505,6 +646,8 @@ impl TaskExecutor for LlmExecutor {
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

@@ -24,7 +24,7 @@
 
 ---
 
-## Sprint 12：Data Layer Architecture（当前）
+## Sprint 12：Data Layer Architecture ✅ 已完成
 
 ### 目标
 数据层架构：SQLite Repository + HNSW vector storage + Cache + Experience Replay + PrefixCache
@@ -35,12 +35,28 @@
 |------|------|----------|------|
 | 2.1 | Controller 故障恢复 + 心跳监控 | 3h | ✅ 已完成 |
 | 2.2 | WorkflowEngine 节点执行 | 3h | ✅ 已完成 |
-| 2.3 | MCP 协议集成 | 3h | ✅ 已完成 |
-| 2.4 | Rig 框架集成 | 4h | ⏳ 待开始 |
+| 2.3 | MCP 协议集成 | 3h | ✅ 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests) |
+| 2.4 | Rig 框架集成 | 4h | ⏸️ 已跳过 (自研 model-router 更轻量) |
 | 2.5 | A2A 协议集成 | 4h | ✅ 已完成 (HTTP API + SSE streaming + 13 tests) |
-|| 2.6 | API Server 集成测试 | 2h | ✅ 已完成 (43 tests) |
-|| 2.7 | kias-main 服务编排 | 3h | ✅ 已完成 (27 tests) |
-| 2.8 | Knowledge 向量检索 | 3h | ✅ 已完成 (24 tests) |
+| 2.6 | API Server 集成测试 | 2h | ✅ 已完成 (43 tests) |
+| 2.7 | kias-main 服务编排 | 3h | ✅ 已完成 (27 tests) |
+| 2.8 | Knowledge 向量检索 | 3h | ✅ 已完成 (HNSW + Exact 混合搜索, 24 tests) |
+| 2.9 | data-store SQLite Repository | 3h | ✅ 已完成 (Repository trait + 8 models + 迁移系统) |
+| 2.10 | data-store HNSW vector persist | 3h | ✅ 已完成 (SQLite write-through + HNSW in-memory, 4 tests) |
+| 2.11 | data-store Cache Strategy | 2h | ✅ 已完成 (TTL + 命名空间隔离, 9 tests) |
+| 2.12 | data-store Experience Replay | 2h | ✅ 已完成 (batch insert + episode 追踪 + 随机采样) |
+| 2.13 | data-store PrefixCache | 2h | ✅ 已完成 (DeepSeek 风格 KV 缓存 + hit tracking + LRU) |
+
+### 验收标准（Sprint 12）
+- [x] SQLite Repository trait + SqliteRepository 实现
+- [x] 8 个数据模型（Agent, Task, Workflow, Config, Skill, Component, ExperienceReplay, PrefixCache）
+- [x] HNSW vector search (kias-knowledge VectorStore 实现, O(log N) ANN)
+- [x] Hybrid search: <1000 vectors → exact, ≥1000 vectors → HNSW
+- [x] Cache strategy: TTL + 命名空间隔离
+- [x] Experience Replay: batch insert + episode 追踪
+- [x] Prefix Cache: DeepSeek 风格 token-level KV cache
+- [x] 迁移系统：4 个迁移 (core, vector, cache, experience_replay)
+- [x] 测试覆盖：1197 tests (从 1047 → 1197, +14%)
 
 ### 验收标准（Sprint 2）
 - [ ] API 响应 < 200ms (P95)

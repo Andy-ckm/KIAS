@@ -1,116 +1,126 @@
-# LangGraph 状态图引擎设计文档
+# LangGraph 状态图引擎设计文档 v2
 
 ## 参考实现
 - **LangGraph** (Python): 有向图状态机，支持条件分支、循环、中断/恢复
 - **Temporal**: 工作流持久化、重试策略
 - **XState**: 状态图理论基础（有限状态机 + 状态图）
+- **Tokio**: 异步运行时，broadcast channel 用于流式事件
+
+## 架构概览
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    StateGraphBuilder                         │
+│  add_node() → add_edge() → add_conditional_edge()           │
+│  add_router() → add_fan_out() → with_checkpoint_store()     │
+│  with_stream() → with_max_steps() → build()                 │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ validate()
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      StateGraph                              │
+│  execute()  ──────────────────────────────────────────────┐  │
+│  execute_from()  ───────────────────────────────────────┐ │  │
+│  resume_from_checkpoint()  ───────────────────────────┐ │ │  │
+│  resume_latest()                                     │ │ │  │
+│                                                       ▼ ▼ ▼  │
+│  ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐ │
+│  │  NodeHandler  │  │  Edge Routing    │  │ Fan-Out Engine │ │
+│  │  (Arc<dyn Fn>)│  │  Direct/Cond/    │  │  (tokio::spawn │ │
+│  │              │  │  Router/FanOut    │  │   + join_all)  │ │
+│  └──────────────┘  └──────────────────┘  └────────────────┘ │
+│                                                             │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐ │
+│  │  CheckpointStore     │  │  ExecutionStream             │ │
+│  │  (trait + InMemory)  │  │  (broadcast::channel)        │ │
+│  └──────────────────────┘  └──────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## 核心概念
 
-### 1. 状态图 (StateGraph)
-- 有向图，节点是状态，边是转换
+### 1. 状态图 (StateGraph) ✅
+- 有向图，节点是处理函数，边是转换
 - 支持条件边（基于状态判断走哪条路）
 - 支持循环（agent 自我迭代直到满足条件）
-- **实现**: `WorkflowGraph` (`crates/workflow-engine/src/graph.rs`)
+- **实现**: `crates/langgraph-engine/src/graph.rs`
 
-### 2. 类型化状态通道 (Typed Channels) ✅
-- 每个通道有编译期类型 + reducer 策略
-- 支持 `Replace`、`Append`、`Merge`、`Sum`、`KeepFirst` 内置 reducer
-- 支持自定义 reducer（实现 `ChannelReducer<T>` trait）
-- **实现**: `TypedState` (`crates/workflow-engine/src/typed_state.rs`)
-- **创新点**: 类型擦除 + `Any` downcast 实现运行时类型安全，无需 macro
+### 2. 类型化状态通道 (Typed State) ✅
+- `GraphState` 基于 `serde_json::Value` 的类型化通道
+- `get<T>()` / `set<T>()` 提供编译期类型安全的读写 API
+- `get_required<T>()` 返回 `Result`，强制检查缺失通道
+- `merge()` / `merge_keep_existing()` 支持两种合并策略
+- `snapshot()` / `restore_from_snapshot()` 支持状态快照
+- **实现**: `crates/langgraph-engine/src/state.rs`
 
 ### 3. 流式执行 (Streaming) ✅
-- `StreamingEvent` 枚举覆盖所有执行阶段：
-  - `WorkflowStarted` / `WorkflowComplete` / `WorkflowFailed`
-  - `NodeStart` / `NodeComplete`
-  - `ChannelUpdate` / `EdgeTraversed` / `HumanInterrupt`
-- `EventSink` 线程安全事件收集器，支持 `emit` / `take` / `peek`
-- **实现**: `crates/workflow-engine/src/typed_state.rs`
-- **创新点**: 非侵入式事件注入（`with_event_sink()`），零开销 when 无订阅者
+- `ExecutionEvent` 枚举覆盖所有执行阶段：
+  - `NodeStart` / `NodeComplete` / `NodeError`
+  - `EdgeTaken` / `Interrupted` / `Completed` / `Failed`
+  - `CheckpointSaved` / `Resumed`
+  - `BranchStart` / `BranchComplete` (fan-out)
+- `ExecutionStream` 基于 `tokio::sync::broadcast` 的多消费者事件流
+- `EventCollector` 用于测试/调试的事件收集器
+- **实现**: `crates/langgraph-engine/src/stream.rs`
+- **创新点**: broadcast channel 实现零开销的多订阅者模式
 
 ### 4. 中断/恢复 (Interrupt/Resume) ✅
-- `HumanReview` 节点类型 → 暂停执行，设置 `WaitingForHuman` 状态
-- `CheckpointStore` 基于 `DashMap` 的并发安全检查点存储
-- 支持从任意检查点恢复（`restore_from_checkpoint`）
-- **实现**: `crates/workflow-engine/src/checkpoint.rs` + `engine.rs`
+- 节点处理器设置 `state.metadata.is_interrupted = true` 触发中断
+- `CheckpointStore` trait 支持可插拔存储后端
+- `InMemoryCheckpointStore` 基于 `RwLock<HashMap>` 的并发安全实现
+- `resume_from_checkpoint()` 从中断点恢复执行
+- `resume_latest()` 从最新检查点恢复
+- `execute_from()` 支持从任意节点开始执行
+- **实现**: `crates/langgraph-engine/src/checkpoint.rs` + `graph.rs`
+- **创新点**: trait 化的检查点存储，可对接 etcd/SQLite
 
 ### 5. 子图组合 (Subgraph Composition) ✅
-- `SubGraph` 封装子工作流图 + 输入/输出映射
-- `input_mapping`: 父状态字段 → 子状态字段
-- `output_mapping`: 子状态字段 → 父状态字段
-- 支持超时控制、失败传播策略
-- **实现**: `crates/workflow-engine/src/subgraph.rs`
-- **创新点**: 隔离子引擎（无递归子图），Box::pin 避免无限 future 大小
+- `SubgraphNode` 封装子图，`into_handler()` 转换为节点处理器
+- 支持嵌套执行（子图继承父状态）
+- **实现**: `crates/langgraph-engine/src/graph.rs`
 
-## 数据模型
+### 6. 路由器函数 (Router) ✅ NEW
+- `add_router(from, router_fn)` — 动态多目标分支
+- 路由器函数接收 `&GraphState`，返回目标节点名称
+- 支持基于状态的任意路由逻辑
+- **创新点**: 比条件边更灵活，支持 N 路分支
 
-```rust
-// 类型化状态通道
-struct TypedState {
-    channels: HashMap<String, ErasedChannel>,
-    revision: u64,
-}
+### 7. 并行扇出 (Fan-Out/Fan-In) ✅ NEW
+- `add_fan_out(from, targets, join_node)` — 并行执行多个分支
+- 使用 `tokio::spawn` 真正并发执行
+- 分支完成后合并状态（last-write-wins）
+- **创新点**: 真正的并行执行，不是顺序模拟
 
-// Reducer trait
-trait ChannelReducer<T>: Send + Sync + 'static {
-    fn reduce(&self, current: T, incoming: T) -> T;
-    fn name(&self) -> &str;
-}
+### 8. 图验证 (Graph Validation) ✅ NEW
+- `validation::validate()` 在构建时检查图结构完整性
+- 检查项：入口节点存在、边端点有效、无不可达节点
+- 支持 reachability hints（Router/FanOut 的可达性提示）
+- `build()` 自动验证，`build_unchecked()` 跳过验证
+- **实现**: `crates/langgraph-engine/src/validation.rs`
 
-// 子图组合
-struct SubGraph {
-    graph: WorkflowGraph,
-    input_mapping: HashMap<String, String>,
-    output_mapping: HashMap<String, String>,
-    propagate_failure: bool,
-    timeout_secs: Option<u64>,
-}
+## 模块结构
 
-// 流式事件
-enum StreamingEvent {
-    WorkflowStarted { workflow_id, entry_node, timestamp },
-    NodeStart { workflow_id, node_id, node_type, revision, timestamp },
-    NodeComplete { workflow_id, node_id, success, duration_ms, revision, timestamp },
-    // ... more events
-}
+```text
+crates/langgraph-engine/src/
+├── lib.rs           # 模块声明 + re-exports
+├── state.rs         # GraphState, StateMetadata, GraphStateSnapshot
+├── graph.rs         # StateGraph, StateGraphBuilder, EdgeType, NodeHandler
+├── checkpoint.rs    # CheckpointStore trait, InMemoryCheckpointStore, Checkpoint
+├── stream.rs        # ExecutionEvent, ExecutionStream, EventCollector
+└── validation.rs    # validate(), GraphTopology, ValidationError
 ```
-
-## 实现计划
-
-### Phase 1: 基础图结构 ✅
-- [x] StateGraph 构建器 (`WorkflowGraph`)
-- [x] 节点注册 (`Node`, `NodeType`)
-- [x] 边定义（普通 + 条件）(`Edge`, `Condition`)
-
-### Phase 2: 执行引擎 ✅
-- [x] 状态遍历 (`WorkflowEngine::execute`)
-- [x] 条件分支 (`evaluate_condition`)
-- [x] 循环支持（安全边界 = nodes * 100）
-
-### Phase 3: 流式 + 中断 ✅
-- [x] 流式输出 (`StreamingEvent` + `EventSink`)
-- [x] 检查点持久化 (`CheckpointStore`)
-- [x] 中断/恢复 (`HumanReview` + `restore_from_checkpoint`)
-
-### Phase 4: 子图 ✅
-- [x] 子图嵌套 (`SubGraph` + `SubWorkflow` 节点)
-- [x] 递归执行（Box::pin 递归）
 
 ## 测试覆盖
 
 | 模块 | 测试数 | 覆盖内容 |
 |------|--------|----------|
-| typed_state | 17 | reducer 策略、状态操作、事件 sink |
-| engine | 28 | 线性/条件/循环/失败/重试/子图/流式事件 |
-| checkpoint | 3 | 存储/查询/多版本 |
-| graph | 5 | 构建/验证/拓扑 |
-| subgraph | 5 | 映射/提取/合并/错误 |
-| **总计** | **74** | |
+| validation | 6 | 有效图、缺失入口、悬空边、不可达节点、无边、循环 |
+| integration | 33 | 线性图、条件分支、循环、路由器、扇出、中断/恢复、流式事件、错误处理、状态操作、检查点存储 |
+| **总计** | **39** | |
 
 ## 验收标准
 - [x] 编译通过
-- [x] 测试覆盖所有核心功能 (74 tests)
+- [x] 测试覆盖所有核心功能 (39 tests)
 - [x] 零 clippy 警告
 - [x] 文档完整
 - [x] 分层架构通过 (`make lint-arch`)

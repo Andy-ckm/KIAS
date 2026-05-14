@@ -60,7 +60,7 @@ pub enum OutputFormat {
     Quiet,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum Commands {
     /// Agent 管理
     Agent {
@@ -104,7 +104,7 @@ pub enum Commands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum AgentAction {
     /// 声明式应用 Agent 定义
     Apply {
@@ -185,7 +185,7 @@ pub enum AgentAction {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum WorkflowAction {
     /// 应用工作流定义
     Apply {
@@ -211,7 +211,7 @@ pub enum WorkflowAction {
     List,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum ToolAction {
     /// 注册工具
     Register {
@@ -228,7 +228,7 @@ pub enum ToolAction {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum SkillAction {
     /// 注册技能
     Register {
@@ -243,7 +243,7 @@ pub enum SkillAction {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum SandboxAction {
     /// 创建沙箱
     Create {
@@ -269,7 +269,7 @@ pub enum SandboxAction {
     List,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum ModelAction {
     /// 注册模型服务
     Register {
@@ -286,7 +286,7 @@ pub enum ModelAction {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum ConfigAction {
     /// 设置配置
     Set {
@@ -303,7 +303,7 @@ pub enum ConfigAction {
     Init,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Subcommand)]
 pub enum ClusterAction {
     /// 查看集群状态
     Status,

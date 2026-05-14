@@ -2,7 +2,7 @@
 
 use crate::OutputFormat;
 use serde::Serialize;
-use tabled::{Table, Tabled};
+use tabled::Tabled;
 
 /// 命令执行结果
 #[derive(Debug, Serialize)]

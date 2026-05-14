@@ -136,25 +136,22 @@
 
 ## 当前任务
 
-**Sprint 11 — A2A 协议 + 创新功能**
+**Sprint 12 — Data Layer Architecture**
 
-当前状态：1006 tests, ~37,500 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
+当前状态：1047 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
 
 已完成：
-- ✅ TLS 1.3 加密支持（rustls + tokio-rustls + mTLS + 自签名证书）
-- ✅ WebSocket 实时推送（EventBus + 14 种事件类型 + 客户端订阅过滤）
-- ✅ WebSocket 生产级增强（ConnectionRegistry + EventReplayBuffer + Heartbeat + Stats API）
-- ✅ Agent 协作协议 - CrewAI 风格委托代理（delegation + memory + skill_matcher + crew 模块）
-- ✅ Descheduler 集群重平衡（3 策略 + PDB + dry-run）
-- ✅ 压力测试 + 性能基准（Criterion benchmarks，3 个 benchmark suite）
-- ✅ Knowledge 向量检索（HNSW ANN index + cosine similarity + LocalEmbeddingEngine + VectorRetriever，24 tests）
-- ✅ A2A 协议完整集成（HTTP API + Agent Card discovery + SSE streaming + 5 routing strategies + 13 tests）
-- ✅ Handler EventBus 集成（agent create/delete/status + workflow create/delete 发布 WS 事件）
+- ✅ kias-data-store crate 完整实现（L1 架构层）
+- ✅ SQLite Repository 抽象层（Repository<T> trait + SqliteRepository facade）
+- ✅ 8 个数据模型（Agent, Task, Workflow, Config, Skill, Component, ExperienceReplay, PrefixCache）
+- ✅ 4 个迁移（core tables, vector, cache, experience replay + prefix cache）
+- ✅ 向量持久化存储（SQLite + DashMap write-through）
+- ✅ 缓存策略（TTL + 命名空间隔离 + 访问计数）
+- ✅ Experience Replay 存储（batch insert, episode 追踪, 随机采样）
+- ✅ Prefix Cache 存储（DeepSeek 风格 KV 缓存, hit tracking, LRU eviction）
+- ✅ 健康检查 + 连接池统计
+- ✅ 集成到 KiasServiceManager（kias-main）
+- ✅ 设计文档：docs/design-docs/data-layer-architecture.md
+- ✅ 1047 tests passing, 0 clippy warnings, lint-arch OK
 
-性能基准结果：
-- 单 Agent 调度：1.5-2.1µs（621K ops/sec）
-- 批量 500 Agent：1.4ms（线性扩展）
-- 并发 500 Agent：1.1ms（455K agents/sec）
-- 控制器 10K Agent 扫描：40µs
-
-下一步：Rig 框架集成 / DeepSeek MLA Cache 优化 / LangGraph 状态图编排
+下一步：LangGraph 状态图引擎 / DeepSeek MLA Cache 优化 / Agent 详情页

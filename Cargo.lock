@@ -1834,6 +1834,7 @@ dependencies = [
  "jsonwebtoken",
  "kias-common",
  "kias-executor",
+ "kias-knowledge",
  "rustls",
  "rustls-pemfile",
  "serde",

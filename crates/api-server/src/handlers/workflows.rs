@@ -209,14 +209,14 @@ mod tests {
     use super::*;
     use axum::extract::State;
 
-    fn test_state() -> AppState {
+    async fn test_state() -> AppState {
         let config = kias_common::config::KiasConfig::default();
-        AppState::new(config)
+        AppState::new_async(config).await
     }
 
     #[tokio::test]
     async fn test_list_workflows_empty() {
-        let state = test_state();
+        let state = test_state().await;
         let result = list_workflows(State(state)).await;
         assert_eq!(result.total, 0);
         assert!(result.workflows.is_empty());
@@ -224,7 +224,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_and_get_workflow() {
-        let state = test_state();
+        let state = test_state().await;
 
         let req = CreateWorkflowRequest {
             name: "test-workflow".to_string(),
@@ -257,7 +257,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_workflow() {
-        let state = test_state();
+        let state = test_state().await;
 
         let req = CreateWorkflowRequest {
             name: "to-delete".to_string(),
@@ -278,14 +278,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_nonexistent_workflow() {
-        let state = test_state();
+        let state = test_state().await;
         let result = get_workflow(State(state), Path("nonexistent".to_string())).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_create_empty_name_fails() {
-        let state = test_state();
+        let state = test_state().await;
         let req = CreateWorkflowRequest {
             name: "".to_string(),
             description: "".to_string(),
@@ -297,7 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_nonexistent_fails() {
-        let state = test_state();
+        let state = test_state().await;
         let result = delete_workflow(State(state), Path("nonexistent".to_string())).await;
         assert!(result.is_err());
     }

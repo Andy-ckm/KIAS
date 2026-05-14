@@ -16,16 +16,16 @@ use kias_common::config::KiasConfig;
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 /// Build an AppState with default config (auth disabled, 2 seed nodes).
-fn default_state() -> AppState {
-    AppState::new(KiasConfig::default())
+async fn default_state() -> AppState {
+    AppState::new_async(KiasConfig::default()).await
 }
 
 /// Build an AppState with auth enabled and a specific set of API keys.
-fn state_with_auth(api_keys: Vec<&str>) -> AppState {
+async fn state_with_auth(api_keys: Vec<&str>) -> AppState {
     let mut config = KiasConfig::default();
     config.api_server.auth_enabled = true;
     config.api_server.api_keys = api_keys.into_iter().map(String::from).collect();
-    AppState::new(config)
+    AppState::new_async(config).await
 }
 
 /// Create an agent via the API and return its JSON body.
@@ -64,7 +64,7 @@ async fn get_json(app: &axum::Router, uri: &str) -> (StatusCode, Value) {
 
 #[tokio::test]
 async fn test_health_liveness_returns_200() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/health").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
@@ -72,7 +72,7 @@ async fn test_health_liveness_returns_200() {
 
 #[tokio::test]
 async fn test_readiness_returns_200_with_components() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/readyz").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "healthy");
@@ -84,7 +84,7 @@ async fn test_readiness_returns_200_with_components() {
 
 #[tokio::test]
 async fn test_readiness_components_have_correct_names() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (_, body) = get_json(&app, "/readyz").await;
     let components = body["components"].as_array().unwrap();
     let names: Vec<&str> = components
@@ -97,7 +97,7 @@ async fn test_readiness_components_have_correct_names() {
 
 #[tokio::test]
 async fn test_health_endpoint_no_auth_required() {
-    let app = create_router(state_with_auth(vec!["secret-key"]));
+    let app = create_router(state_with_auth(vec!["secret-key"]).await);
     let (status, body) = get_json(&app, "/health").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
@@ -105,7 +105,7 @@ async fn test_health_endpoint_no_auth_required() {
 
 #[tokio::test]
 async fn test_readiness_endpoint_no_auth_required() {
-    let app = create_router(state_with_auth(vec!["secret-key"]));
+    let app = create_router(state_with_auth(vec!["secret-key"]).await);
     let (status, _) = get_json(&app, "/readyz").await;
     assert_eq!(status, StatusCode::OK);
 }
@@ -116,7 +116,7 @@ async fn test_readiness_endpoint_no_auth_required() {
 
 #[tokio::test]
 async fn test_create_agent_returns_201() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let body = serde_json::json!({ "name": "test-agent", "image": "python:3.11" });
     let req = Request::builder()
         .method("POST")
@@ -136,7 +136,7 @@ async fn test_create_agent_returns_201() {
 
 #[tokio::test]
 async fn test_create_agent_and_get_by_id() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let created = create_test_agent(&app, "fetch-me").await;
     let id = created["data"]["id"].as_str().unwrap();
 
@@ -148,7 +148,7 @@ async fn test_create_agent_and_get_by_id() {
 
 #[tokio::test]
 async fn test_list_agents_empty() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/agents").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body["items"].as_array().unwrap().is_empty());
@@ -157,7 +157,7 @@ async fn test_list_agents_empty() {
 
 #[tokio::test]
 async fn test_list_agents_after_creation() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "agent-1").await;
     create_test_agent(&app, "agent-2").await;
 
@@ -170,7 +170,7 @@ async fn test_list_agents_after_creation() {
 
 #[tokio::test]
 async fn test_delete_agent() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let created = create_test_agent(&app, "doomed-agent").await;
     let id = created["data"]["id"].as_str().unwrap();
 
@@ -193,7 +193,7 @@ async fn test_delete_agent() {
 
 #[tokio::test]
 async fn test_update_agent_status() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let created = create_test_agent(&app, "status-agent").await;
     let id = created["data"]["id"].as_str().unwrap();
 
@@ -212,7 +212,7 @@ async fn test_update_agent_status() {
 
 #[tokio::test]
 async fn test_create_duplicate_agent_returns_409() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "unique-agent").await;
 
     let body = serde_json::json!({ "name": "unique-agent", "image": "python:3.11" });
@@ -232,7 +232,7 @@ async fn test_create_duplicate_agent_returns_409() {
 
 #[tokio::test]
 async fn test_list_nodes_returns_seed_nodes() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 2);
@@ -242,7 +242,7 @@ async fn test_list_nodes_returns_seed_nodes() {
 
 #[tokio::test]
 async fn test_get_node_by_id() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes/node-1").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["data"]["id"], "node-1");
@@ -252,7 +252,7 @@ async fn test_get_node_by_id() {
 
 #[tokio::test]
 async fn test_get_nonexistent_node_returns_404() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes/nonexistent").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], 404);
@@ -260,7 +260,7 @@ async fn test_get_nonexistent_node_returns_404() {
 
 #[tokio::test]
 async fn test_list_node_agents_empty() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes/node-1/agents").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 0);
@@ -269,7 +269,7 @@ async fn test_list_node_agents_empty() {
 
 #[tokio::test]
 async fn test_list_node_agents_for_nonexistent_node() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes/fake-node/agents").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], 404);
@@ -281,7 +281,7 @@ async fn test_list_node_agents_for_nonexistent_node() {
 
 #[tokio::test]
 async fn test_knowledge_search_returns_empty_results() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/knowledge/search?q=test").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 0);
@@ -290,7 +290,7 @@ async fn test_knowledge_search_returns_empty_results() {
 
 #[tokio::test]
 async fn test_knowledge_search_with_limit() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/knowledge/search?q=rust&limit=5").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 0);
@@ -303,7 +303,7 @@ async fn test_knowledge_search_with_limit() {
 
 #[tokio::test]
 async fn test_auth_no_token_returns_401() {
-    let app = create_router(state_with_auth(vec!["valid-key"]));
+    let app = create_router(state_with_auth(vec!["valid-key"]).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .body(Body::empty())
@@ -314,7 +314,7 @@ async fn test_auth_no_token_returns_401() {
 
 #[tokio::test]
 async fn test_auth_invalid_token_returns_401() {
-    let app = create_router(state_with_auth(vec!["valid-key"]));
+    let app = create_router(state_with_auth(vec!["valid-key"]).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .header(header::AUTHORIZATION, "Bearer wrong-key")
@@ -326,7 +326,7 @@ async fn test_auth_invalid_token_returns_401() {
 
 #[tokio::test]
 async fn test_auth_valid_token_succeeds() {
-    let app = create_router(state_with_auth(vec!["valid-key"]));
+    let app = create_router(state_with_auth(vec!["valid-key"]).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .header(header::AUTHORIZATION, "Bearer valid-key")
@@ -338,7 +338,7 @@ async fn test_auth_valid_token_succeeds() {
 
 #[tokio::test]
 async fn test_auth_malformed_header_returns_401() {
-    let app = create_router(state_with_auth(vec!["valid-key"]));
+    let app = create_router(state_with_auth(vec!["valid-key"]).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .header(header::AUTHORIZATION, "Token valid-key")
@@ -350,7 +350,7 @@ async fn test_auth_malformed_header_returns_401() {
 
 #[tokio::test]
 async fn test_auth_disabled_allows_all_requests() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .body(Body::empty())
@@ -364,7 +364,7 @@ async fn test_auth_no_keys_configured_denies_all() {
     let mut config = KiasConfig::default();
     config.api_server.auth_enabled = true;
     config.api_server.api_keys = vec![];
-    let app = create_router(AppState::new(config));
+    let app = create_router(AppState::new_async(config).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .header(header::AUTHORIZATION, "Bearer anything")
@@ -380,7 +380,7 @@ async fn test_auth_no_keys_configured_denies_all() {
 
 #[tokio::test]
 async fn test_get_nonexistent_agent_returns_404() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/agents/nonexistent-id").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], 404);
@@ -392,7 +392,7 @@ async fn test_get_nonexistent_agent_returns_404() {
 
 #[tokio::test]
 async fn test_delete_nonexistent_agent_returns_404() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .method("DELETE")
         .uri("/api/v1/agents/nonexistent-id")
@@ -404,7 +404,7 @@ async fn test_delete_nonexistent_agent_returns_404() {
 
 #[tokio::test]
 async fn test_update_status_nonexistent_agent_returns_404() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .method("PATCH")
         .uri("/api/v1/agents/nonexistent-id/status")
@@ -417,7 +417,7 @@ async fn test_update_status_nonexistent_agent_returns_404() {
 
 #[tokio::test]
 async fn test_create_agent_with_empty_name_returns_400() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let body = serde_json::json!({ "name": "", "image": "python:3.11" });
     let req = Request::builder()
         .method("POST")
@@ -431,7 +431,7 @@ async fn test_create_agent_with_empty_name_returns_400() {
 
 #[tokio::test]
 async fn test_create_agent_with_invalid_json_returns_4xx() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .method("POST")
         .uri("/api/v1/agents")
@@ -448,7 +448,7 @@ async fn test_create_agent_with_invalid_json_returns_4xx() {
 
 #[tokio::test]
 async fn test_error_response_has_correct_structure() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/agents/nope").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].is_object());
@@ -462,7 +462,7 @@ async fn test_error_response_has_correct_structure() {
 
 #[tokio::test]
 async fn test_pagination_agents_per_page() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "page-a").await;
     create_test_agent(&app, "page-b").await;
     create_test_agent(&app, "page-c").await;
@@ -482,7 +482,7 @@ async fn test_pagination_agents_per_page() {
 
 #[tokio::test]
 async fn test_pagination_nodes_per_page() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/nodes?page=1&per_page=1").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 2);
@@ -491,7 +491,7 @@ async fn test_pagination_nodes_per_page() {
 
 #[tokio::test]
 async fn test_pagination_defaults() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     for i in 0..5 {
         create_test_agent(&app, &format!("default-page-{i}")).await;
     }
@@ -503,7 +503,7 @@ async fn test_pagination_defaults() {
 
 #[tokio::test]
 async fn test_pagination_page_zero_treated_as_one() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "zero-page-agent").await;
     let (status, body) = get_json(&app, "/api/v1/agents?page=0&per_page=10").await;
     assert_eq!(status, StatusCode::OK);
@@ -516,7 +516,7 @@ async fn test_pagination_page_zero_treated_as_one() {
 
 #[tokio::test]
 async fn test_logging_middleware_does_not_break_response() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/health").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
@@ -524,7 +524,7 @@ async fn test_logging_middleware_does_not_break_response() {
 
 #[tokio::test]
 async fn test_logging_middleware_preserves_status_codes() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (s, _) = get_json(&app, "/health").await;
     assert_eq!(s, StatusCode::OK);
 
@@ -537,7 +537,7 @@ async fn test_logging_middleware_preserves_status_codes() {
 
 #[tokio::test]
 async fn test_logging_middleware_preserves_404_body() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/agents/ghost").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], 404);
@@ -550,7 +550,7 @@ async fn test_logging_middleware_preserves_404_body() {
 
 #[tokio::test]
 async fn test_agent_default_image_applied() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let body = serde_json::json!({ "name": "default-image-agent" });
     let req = Request::builder()
         .method("POST")
@@ -567,7 +567,7 @@ async fn test_agent_default_image_applied() {
 
 #[tokio::test]
 async fn test_agent_custom_command() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let body = serde_json::json!({
         "name": "custom-cmd-agent",
         "image": "node:18",
@@ -590,7 +590,7 @@ async fn test_agent_custom_command() {
 
 #[tokio::test]
 async fn test_node_resource_capacity_details() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (_, body) = get_json(&app, "/api/v1/nodes/node-2").await;
     let resources = &body["data"]["resources"];
     assert_eq!(resources["cpu"], "4");
@@ -600,7 +600,7 @@ async fn test_node_resource_capacity_details() {
 
 #[tokio::test]
 async fn test_agent_id_is_uuid_format() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let created = create_test_agent(&app, "uuid-agent").await;
     let id = created["data"]["id"].as_str().unwrap();
     assert_eq!(id.len(), 36);
@@ -609,7 +609,7 @@ async fn test_agent_id_is_uuid_format() {
 
 #[tokio::test]
 async fn test_multiple_auth_keys() {
-    let app = create_router(state_with_auth(vec!["key-1", "key-2", "key-3"]));
+    let app = create_router(state_with_auth(vec!["key-1", "key-2", "key-3"]).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
         .header(header::AUTHORIZATION, "Bearer key-2")
@@ -625,7 +625,7 @@ async fn test_multiple_auth_keys() {
 
 #[tokio::test]
 async fn test_metrics_summary_empty() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/metrics/summary").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["agent_count"], 0);
@@ -636,7 +636,7 @@ async fn test_metrics_summary_empty() {
 
 #[tokio::test]
 async fn test_metrics_summary_with_agents() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "metrics-agent-1").await;
     create_test_agent(&app, "metrics-agent-2").await;
 
@@ -648,7 +648,7 @@ async fn test_metrics_summary_with_agents() {
 
 #[tokio::test]
 async fn test_metrics_agent_not_found() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/metrics/agents/nonexistent").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], 404);
@@ -656,7 +656,7 @@ async fn test_metrics_agent_not_found() {
 
 #[tokio::test]
 async fn test_metrics_per_agent() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let created = create_test_agent(&app, "metrics-per-agent").await;
     let id = created["data"]["id"].as_str().unwrap();
 
@@ -671,7 +671,7 @@ async fn test_metrics_per_agent() {
 
 #[tokio::test]
 async fn test_cluster_status_healthy() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/cluster/status").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["overall"], "healthy");
@@ -684,7 +684,7 @@ async fn test_cluster_status_healthy() {
 
 #[tokio::test]
 async fn test_cluster_status_with_agents() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     create_test_agent(&app, "cluster-agent-1").await;
     create_test_agent(&app, "cluster-agent-2").await;
 
@@ -700,7 +700,7 @@ async fn test_cluster_status_with_agents() {
 
 #[tokio::test]
 async fn test_get_config_returns_sanitized_data() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/config").await;
     assert_eq!(status, StatusCode::OK);
     // Verify no secrets are leaked
@@ -721,14 +721,14 @@ async fn test_get_config_returns_sanitized_data() {
 
 #[tokio::test]
 async fn test_get_config_no_auth_required_when_disabled() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, _) = get_json(&app, "/api/v1/config").await;
     assert_eq!(status, StatusCode::OK);
 }
 
 #[tokio::test]
 async fn test_update_config_requires_auth() {
-    let app = create_router(state_with_auth(vec!["admin-key"]));
+    let app = create_router(state_with_auth(vec!["admin-key"]).await);
     let req = Request::builder()
         .method("PATCH")
         .uri("/api/v1/config")
@@ -741,7 +741,7 @@ async fn test_update_config_requires_auth() {
 
 #[tokio::test]
 async fn test_update_config_with_valid_key_succeeds() {
-    let app = create_router(state_with_auth(vec!["admin-key"]));
+    let app = create_router(state_with_auth(vec!["admin-key"]).await);
     let req = Request::builder()
         .method("PATCH")
         .uri("/api/v1/config")
@@ -758,7 +758,7 @@ async fn test_update_config_with_valid_key_succeeds() {
 
 #[tokio::test]
 async fn test_update_config_invalid_level_returns_400() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .method("PATCH")
         .uri("/api/v1/config")
@@ -771,7 +771,7 @@ async fn test_update_config_invalid_level_returns_400() {
 
 #[tokio::test]
 async fn test_update_config_no_changes_returns_400() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let req = Request::builder()
         .method("PATCH")
         .uri("/api/v1/config")
@@ -784,7 +784,7 @@ async fn test_update_config_no_changes_returns_400() {
 
 #[tokio::test]
 async fn test_config_audit_log_returns_entries() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     // Make a config change to generate an audit entry
     let req = Request::builder()
         .method("PATCH")
@@ -804,7 +804,7 @@ async fn test_config_audit_log_returns_entries() {
 
 #[tokio::test]
 async fn test_config_audit_log_empty_initially() {
-    let app = create_router(default_state());
+    let app = create_router(default_state().await);
     let (status, body) = get_json(&app, "/api/v1/config/audit-log").await;
     assert_eq!(status, StatusCode::OK);
     let entries = body.as_array().unwrap();

@@ -4,7 +4,7 @@ use kias_common::audit::MemoryAuditLog;
 use kias_common::config::KiasConfig;
 use tokio::sync::RwLock;
 
-use crate::websocket::EventBus;
+use crate::websocket::{ConnectionRegistry, EventBus, EventReplayBuffer};
 
 /// Shared application state passed to all handlers
 #[derive(Clone)]
@@ -16,6 +16,10 @@ pub struct AppState {
     pub audit_log: Arc<MemoryAuditLog>,
     pub event_bus: EventBus,
     pub a2a_tasks: handlers::a2a::A2aTaskStore,
+    /// Tracks active WebSocket connections and metrics.
+    pub connection_registry: ConnectionRegistry,
+    /// Ring buffer for event replay to new WebSocket clients.
+    pub event_replay_buffer: EventReplayBuffer,
 }
 
 impl AppState {
@@ -74,6 +78,8 @@ impl AppState {
             audit_log: Arc::new(MemoryAuditLog::new()),
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
+            connection_registry: ConnectionRegistry::default(),
+            event_replay_buffer: EventReplayBuffer::default(),
         }
     }
 }

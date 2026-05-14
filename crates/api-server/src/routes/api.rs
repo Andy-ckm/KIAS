@@ -51,6 +51,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/.well-known/agent.json",
             axum::routing::get(a2a::well_known_agent_card),
+        )
+        .route(
+            "/api/v1/ws/stats",
+            axum::routing::get(crate::websocket::ws_stats_handler),
         );
 
     // --- Agent routes ---

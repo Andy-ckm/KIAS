@@ -179,6 +179,8 @@ mod tests {
             audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
             event_bus: crate::websocket::EventBus::default(),
             a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
         };
 
         let result = token_analytics(State(state)).await;

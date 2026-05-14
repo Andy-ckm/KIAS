@@ -138,16 +138,18 @@
 
 **Sprint 11 — A2A 协议 + 创新功能**
 
-当前状态：1003 tests, ~37,000 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
+当前状态：1006 tests, ~37,500 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
 
 已完成：
 - ✅ TLS 1.3 加密支持（rustls + tokio-rustls + mTLS + 自签名证书）
 - ✅ WebSocket 实时推送（EventBus + 14 种事件类型 + 客户端订阅过滤）
+- ✅ WebSocket 生产级增强（ConnectionRegistry + EventReplayBuffer + Heartbeat + Stats API）
 - ✅ Agent 协作协议 - CrewAI 风格委托代理（delegation + memory + skill_matcher + crew 模块）
 - ✅ Descheduler 集群重平衡（3 策略 + PDB + dry-run）
 - ✅ 压力测试 + 性能基准（Criterion benchmarks，3 个 benchmark suite）
 - ✅ Knowledge 向量检索（HNSW ANN index + cosine similarity + LocalEmbeddingEngine + VectorRetriever，24 tests）
 - ✅ A2A 协议完整集成（HTTP API + Agent Card discovery + SSE streaming + 5 routing strategies + 13 tests）
+- ✅ Handler EventBus 集成（agent create/delete/status + workflow create/delete 发布 WS 事件）
 
 性能基准结果：
 - 单 Agent 调度：1.5-2.1µs（621K ops/sec）

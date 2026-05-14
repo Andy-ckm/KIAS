@@ -180,6 +180,21 @@ curl -s http://localhost:8080/api/v1/agents > /tmp/agents.json
 
 **验证不止于编译通过**：改完代码后必须跑通接口验证
 
+### WebSocket 实时推送
+
+```bash
+# 连接 WebSocket
+wscat -c ws://localhost:8080/ws
+
+# 订阅特定事件
+{"subscribe": ["agent_created", "task_completed"]}
+
+# 查看 WS 连接统计
+curl -s http://localhost:8080/api/v1/ws/stats
+```
+
+功能：EventBus 广播 + 客户端订阅过滤 + 事件回放缓冲 + 心跳保活 + 连接注册表
+
 → 详见 docs/design-docs/api-verification.md
 
 ## 7. 质量检查

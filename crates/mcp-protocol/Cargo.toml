@@ -13,7 +13,8 @@ resilience = []
 metrics = []
 credentials = ["dep:aes-gcm", "dep:rand"]
 hot-reload = ["dep:serde_yaml"]
-full = ["http", "auth", "resilience", "metrics", "credentials", "hot-reload"]
+sandbox = []
+full = ["http", "auth", "resilience", "metrics", "credentials", "hot-reload", "sandbox"]
 
 [dependencies]
 serde = { workspace = true }

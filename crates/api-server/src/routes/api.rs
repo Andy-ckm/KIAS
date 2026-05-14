@@ -4,7 +4,7 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
-    agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows,
+    a2a, agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -47,7 +47,11 @@ pub fn create_router(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/health", axum::routing::get(health::liveness))
         .route("/readyz", axum::routing::get(health::readiness))
-        .route("/ws", axum::routing::get(crate::websocket::ws_handler));
+        .route("/ws", axum::routing::get(crate::websocket::ws_handler))
+        .route(
+            "/.well-known/agent.json",
+            axum::routing::get(a2a::well_known_agent_card),
+        );
 
     // --- Agent routes ---
     let agent_routes = Router::new()
@@ -128,6 +132,33 @@ pub fn create_router(state: AppState) -> Router {
         axum::routing::get(scheduler::scheduler_status),
     );
 
+    // --- A2A (Agent-to-Agent) protocol routes ---
+    let a2a_routes = Router::new()
+        .route(
+            "/a2a/v1/agents",
+            axum::routing::get(a2a::list_agent_cards),
+        )
+        .route(
+            "/a2a/v1/agents/:id",
+            axum::routing::get(a2a::get_agent_card),
+        )
+        .route(
+            "/a2a/v1/tasks",
+            axum::routing::get(a2a::list_tasks).post(a2a::send_task),
+        )
+        .route(
+            "/a2a/v1/tasks/:id",
+            axum::routing::get(a2a::get_task).delete(a2a::delete_task),
+        )
+        .route(
+            "/a2a/v1/tasks/:id/cancel",
+            axum::routing::post(a2a::cancel_task),
+        )
+        .route(
+            "/a2a/v1/tasks/:id/stream",
+            axum::routing::get(a2a::stream_task),
+        );
+
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes
         .merge(node_routes)
@@ -137,6 +168,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(token_routes)
         .merge(workflow_routes)
         .merge(scheduler_routes)
+        .merge(a2a_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(
             rate_limiter,

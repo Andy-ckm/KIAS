@@ -9,7 +9,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -202,6 +202,7 @@ pub trait AuthProvider: Send + Sync {
 /// JWT-based authentication provider.
 pub struct JwtAuthProvider {
     /// JWT secret key (for HMAC) or public key (for RSA/EC).
+    #[allow(dead_code)]
     key: Vec<u8>,
     /// Expected issuer.
     issuer: Option<String>,
@@ -547,29 +548,26 @@ impl AuthorizationManager {
 
         // Wildcard check for tool/resource permissions
         match permission {
-            Permission::ToolsCall(_) => {
+            Permission::ToolsCall(_)
                 if role
                     .permissions
-                    .contains(&Permission::ToolsCall("*".to_string()))
-                {
-                    return true;
-                }
+                    .contains(&Permission::ToolsCall("*".to_string())) =>
+            {
+                return true;
             }
-            Permission::ResourcesRead(_) => {
+            Permission::ResourcesRead(_)
                 if role
                     .permissions
-                    .contains(&Permission::ResourcesRead("*".to_string()))
-                {
-                    return true;
-                }
+                    .contains(&Permission::ResourcesRead("*".to_string())) =>
+            {
+                return true;
             }
-            Permission::PromptsGet(_) => {
+            Permission::PromptsGet(_)
                 if role
                     .permissions
-                    .contains(&Permission::PromptsGet("*".to_string()))
-                {
-                    return true;
-                }
+                    .contains(&Permission::PromptsGet("*".to_string())) =>
+            {
+                return true;
             }
             _ => {}
         }
@@ -678,6 +676,7 @@ fn base64_decode(data: &str) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_api_key_auth() {

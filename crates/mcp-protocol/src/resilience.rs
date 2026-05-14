@@ -194,12 +194,10 @@ impl CircuitBreaker {
 
         let state = self.state.read().await;
         match *state {
-            CircuitState::Closed => {
-                if window_failures >= self.config.failure_threshold {
-                    drop(state);
-                    drop(metrics);
-                    self.transition_to(CircuitState::Open).await;
-                }
+            CircuitState::Closed if window_failures >= self.config.failure_threshold => {
+                drop(state);
+                drop(metrics);
+                self.transition_to(CircuitState::Open).await;
             }
             CircuitState::HalfOpen => {
                 drop(state);

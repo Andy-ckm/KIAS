@@ -1,9 +1,9 @@
-use kias_common::KiasResult;
-use super::state::TeamState;
-use super::owner::Owner;
-use super::worker::Worker;
-use super::verifier::Verifier;
 use super::engine::TeamEngine;
+use super::owner::Owner;
+use super::state::TeamState;
+use super::verifier::Verifier;
+use super::worker::Worker;
+use kias_common::KiasResult;
 
 /// Team - 主 Agent 牵头的任务团队（借鉴 MiniMax 设计）
 ///
@@ -60,14 +60,30 @@ impl Team {
         }
 
         // 4. 收集 Worker IDs (避免借用冲突)
-        let worker_ids: Vec<String> = self.engine.get_state().workers.iter().map(|w| w.id.clone()).collect();
-        let verifier_ids: Vec<String> = self.engine.get_state().verifiers.iter().map(|v| v.id.clone()).collect();
+        let worker_ids: Vec<String> = self
+            .engine
+            .get_state()
+            .workers
+            .iter()
+            .map(|w| w.id.clone())
+            .collect();
+        let verifier_ids: Vec<String> = self
+            .engine
+            .get_state()
+            .verifiers
+            .iter()
+            .map(|v| v.id.clone())
+            .collect();
 
         if worker_ids.is_empty() {
-            return Err(kias_common::KiasError::Scheduler("No workers available".to_string()));
+            return Err(kias_common::KiasError::Scheduler(
+                "No workers available".to_string(),
+            ));
         }
         if verifier_ids.is_empty() {
-            return Err(kias_common::KiasError::Scheduler("No verifiers available".to_string()));
+            return Err(kias_common::KiasError::Scheduler(
+                "No verifiers available".to_string(),
+            ));
         }
 
         // 5. 分配任务给 Worker（按顺序）
@@ -81,7 +97,12 @@ impl Team {
         for (idx, task_id) in task_ids.iter().enumerate() {
             let worker_idx = idx % self.workers.len();
             // 获取任务的只读副本
-            let task = self.engine.get_state().tasks.iter().find(|t| t.id == *task_id)
+            let task = self
+                .engine
+                .get_state()
+                .tasks
+                .iter()
+                .find(|t| t.id == *task_id)
                 .cloned()
                 .ok_or_else(|| kias_common::KiasError::Scheduler("Task not found".to_string()))?;
             let result = self.workers[worker_idx].execute(&task).await?;
@@ -92,15 +113,24 @@ impl Team {
         // 7. 验证任务（Verifier - 对抗机制）
         for (idx, task_id) in task_ids.iter().enumerate() {
             let verifier_idx = idx % self.verifiers.len();
-            let task = self.engine.get_state().tasks.iter().find(|t| t.id == *task_id)
+            let task = self
+                .engine
+                .get_state()
+                .tasks
+                .iter()
+                .find(|t| t.id == *task_id)
                 .cloned()
                 .ok_or_else(|| kias_common::KiasError::Scheduler("Task not found".to_string()))?;
-            let verification = self.verifiers[verifier_idx].verify(&task, &results[idx]).await?;
+            let verification = self.verifiers[verifier_idx]
+                .verify(&task, &results[idx])
+                .await?;
 
             if verification.passed {
-                self.engine.verify_task(task_id, &verifier_ids[verifier_idx], true)?;
+                self.engine
+                    .verify_task(task_id, &verifier_ids[verifier_idx], true)?;
             } else {
-                self.engine.verify_task(task_id, &verifier_ids[verifier_idx], false)?;
+                self.engine
+                    .verify_task(task_id, &verifier_ids[verifier_idx], false)?;
                 // 重试逻辑
                 self.engine.retry_task(task_id)?;
                 // TODO: 重新执行任务

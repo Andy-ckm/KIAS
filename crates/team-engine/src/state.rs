@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Agent 角色定义（借鉴 MiniMax Agent Team）
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -41,14 +41,14 @@ pub struct Task {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub assigned_to: Option<String>,  // Agent ID
-    pub verified_by: Option<String>,  // Verifier ID
+    pub assigned_to: Option<String>, // Agent ID
+    pub verified_by: Option<String>, // Verifier ID
     pub status: TaskStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub retry_count: u32,
     pub max_retries: u32,
-    pub context: serde_json::Value,  // 上下文隔离
+    pub context: serde_json::Value, // 上下文隔离
 }
 
 /// Agent 状态

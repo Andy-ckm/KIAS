@@ -1,10 +1,10 @@
-use kias_common::KiasResult;
-use super::state::{TeamState, Task, TaskStatus, Agent, AgentRole, AgentStatus};
+use super::state::{Agent, AgentRole, AgentStatus, Task, TaskStatus, TeamState};
 use chrono::Utc;
+use kias_common::KiasResult;
 use uuid::Uuid;
 
 /// Team Engine - 确定性代码逻辑驱动（借鉴 MiniMax 设计）
-/// 
+///
 /// 核心设计：
 /// 1. 确定性状态机驱动，不依赖模型自由判断
 /// 2. Worker-Verifier 对抗机制
@@ -90,14 +90,28 @@ impl TeamEngine {
 
     /// 分配任务给 Worker（确定性调度）
     pub fn assign_task(&mut self, task_id: &str, worker_id: &str) -> KiasResult<()> {
-        let task = self.state.tasks.iter_mut().find(|t| t.id == task_id)
-            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Task not found".to_string()))?;
-        
-        let worker = self.state.workers.iter_mut().find(|w| w.id == worker_id)
-            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Worker not found".to_string()))?;
+        let task = self
+            .state
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
+
+        let worker = self
+            .state
+            .workers
+            .iter_mut()
+            .find(|w| w.id == worker_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Worker not found".to_string())
+            })?;
 
         if worker.status != AgentStatus::Idle {
-            return Err(kias_common::error::KiasError::Scheduler("Worker is busy".to_string()));
+            return Err(kias_common::error::KiasError::Scheduler(
+                "Worker is busy".to_string(),
+            ));
         }
 
         task.assigned_to = Some(worker_id.to_string());
@@ -113,11 +127,19 @@ impl TeamEngine {
 
     /// Worker 完成任务
     pub fn complete_task(&mut self, task_id: &str) -> KiasResult<()> {
-        let task = self.state.tasks.iter_mut().find(|t| t.id == task_id)
-            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Task not found".to_string()))?;
+        let task = self
+            .state
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
 
         if task.status != TaskStatus::Assigned && task.status != TaskStatus::InProgress {
-            return Err(kias_common::error::KiasError::Scheduler("Invalid task status".to_string()));
+            return Err(kias_common::error::KiasError::Scheduler(
+                "Invalid task status".to_string(),
+            ));
         }
 
         task.status = TaskStatus::Completed;
@@ -136,12 +158,25 @@ impl TeamEngine {
     }
 
     /// Verifier 验证任务（对抗机制）
-    pub fn verify_task(&mut self, task_id: &str, verifier_id: &str, passed: bool) -> KiasResult<()> {
-        let task = self.state.tasks.iter_mut().find(|t| t.id == task_id)
-            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Task not found".to_string()))?;
+    pub fn verify_task(
+        &mut self,
+        task_id: &str,
+        verifier_id: &str,
+        passed: bool,
+    ) -> KiasResult<()> {
+        let task = self
+            .state
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
 
         if task.status != TaskStatus::Completed {
-            return Err(kias_common::error::KiasError::Scheduler("Task not completed".to_string()));
+            return Err(kias_common::error::KiasError::Scheduler(
+                "Task not completed".to_string(),
+            ));
         }
 
         task.verified_by = Some(verifier_id.to_string());
@@ -166,11 +201,19 @@ impl TeamEngine {
 
     /// 重试被拒绝的任务
     pub fn retry_task(&mut self, task_id: &str) -> KiasResult<()> {
-        let task = self.state.tasks.iter_mut().find(|t| t.id == task_id)
-            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Task not found".to_string()))?;
+        let task = self
+            .state
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
 
         if task.status != TaskStatus::Rejected {
-            return Err(kias_common::error::KiasError::Scheduler("Task not rejected".to_string()));
+            return Err(kias_common::error::KiasError::Scheduler(
+                "Task not rejected".to_string(),
+            ));
         }
 
         task.status = TaskStatus::Assigned;
@@ -187,7 +230,11 @@ impl TeamEngine {
 
     /// 获取任务状态
     pub fn get_task_status(&self, task_id: &str) -> Option<TaskStatus> {
-        self.state.tasks.iter().find(|t| t.id == task_id).map(|t| t.status.clone())
+        self.state
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .map(|t| t.status.clone())
     }
 }
 #[cfg(test)]
@@ -269,7 +316,10 @@ mod tests {
         engine.assign_task(&task_id, &worker_id).unwrap();
         engine.complete_task(&task_id).unwrap();
 
-        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Completed));
+        assert_eq!(
+            engine.get_task_status(&task_id),
+            Some(TaskStatus::Completed)
+        );
         // Worker should be freed
         assert_eq!(engine.get_state().workers[0].status, AgentStatus::Idle);
     }

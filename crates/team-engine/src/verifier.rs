@@ -1,6 +1,6 @@
+use super::state::Task;
 use async_trait::async_trait;
 use kias_common::KiasResult;
-use super::state::Task;
 
 /// Verifier - 质量门禁（借鉴 MiniMax 设计）
 ///
@@ -94,7 +94,11 @@ impl Verifier for RuleBasedVerifier {
                 }
                 VerificationRule::MinLength(min) => {
                     if result.len() < *min {
-                        issues.push(format!("Output too short: {} < {} chars", result.len(), min));
+                        issues.push(format!(
+                            "Output too short: {} < {} chars",
+                            result.len(),
+                            min
+                        ));
                         suggestions.push("Provide more detailed output".to_string());
                     }
                 }
@@ -127,7 +131,8 @@ impl Verifier for RuleBasedVerifier {
                         Ok(out) => {
                             if !out.status.success() {
                                 let stderr = String::from_utf8_lossy(&out.stderr);
-                                issues.push(format!("Shell check '{}' failed: {}", command, stderr));
+                                issues
+                                    .push(format!("Shell check '{}' failed: {}", command, stderr));
                                 suggestions.push(format!("Fix issues detected by '{}'", command));
                             }
                         }
@@ -184,13 +189,21 @@ impl Verifier for CodeVerifier {
 
         // Additional code-specific checks
         if result.contains("TODO") {
-            base_result.issues.push("Output contains TODO comments".to_string());
-            base_result.suggestions.push("Resolve all TODO items".to_string());
+            base_result
+                .issues
+                .push("Output contains TODO comments".to_string());
+            base_result
+                .suggestions
+                .push("Resolve all TODO items".to_string());
         }
 
         if result.contains("FIXME") {
-            base_result.issues.push("Output contains FIXME comments".to_string());
-            base_result.suggestions.push("Resolve all FIXME items".to_string());
+            base_result
+                .issues
+                .push("Output contains FIXME comments".to_string());
+            base_result
+                .suggestions
+                .push("Resolve all FIXME items".to_string());
         }
 
         base_result.passed = base_result.issues.is_empty();
@@ -227,8 +240,12 @@ impl Verifier for ResearchVerifier {
 
         // Check for source citations
         if !result.contains("source") && !result.contains("Source") && !result.contains("http") {
-            base_result.issues.push("No sources cited in research output".to_string());
-            base_result.suggestions.push("Include source references".to_string());
+            base_result
+                .issues
+                .push("No sources cited in research output".to_string());
+            base_result
+                .suggestions
+                .push("Include source references".to_string());
         }
 
         base_result.passed = base_result.issues.is_empty();
@@ -282,7 +299,11 @@ impl Verifier for QualityGate {
             }
         }
 
-        let passed = if self.require_all { all_passed } else { any_passed };
+        let passed = if self.require_all {
+            all_passed
+        } else {
+            any_passed
+        };
 
         Ok(VerificationResult {
             passed,
@@ -337,40 +358,46 @@ mod tests {
         let result = verifier.verify(&task, "everything is fine").await.unwrap();
         assert!(result.passed);
 
-        let result = verifier.verify(&task, "ERROR: something broke").await.unwrap();
+        let result = verifier
+            .verify(&task, "ERROR: something broke")
+            .await
+            .unwrap();
         assert!(!result.passed);
     }
 
     #[tokio::test]
     async fn test_rule_based_verifier_min_length() {
-        let verifier = RuleBasedVerifier::new("test")
-            .with_rule(VerificationRule::MinLength(10));
+        let verifier = RuleBasedVerifier::new("test").with_rule(VerificationRule::MinLength(10));
 
         let task = make_task("t1");
         let result = verifier.verify(&task, "short").await.unwrap();
         assert!(!result.passed);
 
-        let result = verifier.verify(&task, "this is a longer string").await.unwrap();
+        let result = verifier
+            .verify(&task, "this is a longer string")
+            .await
+            .unwrap();
         assert!(result.passed);
     }
 
     #[tokio::test]
     async fn test_rule_based_verifier_max_length() {
-        let verifier = RuleBasedVerifier::new("test")
-            .with_rule(VerificationRule::MaxLength(20));
+        let verifier = RuleBasedVerifier::new("test").with_rule(VerificationRule::MaxLength(20));
 
         let task = make_task("t1");
         let result = verifier.verify(&task, "short").await.unwrap();
         assert!(result.passed);
 
-        let result = verifier.verify(&task, "this is a very long string that exceeds the limit").await.unwrap();
+        let result = verifier
+            .verify(&task, "this is a very long string that exceeds the limit")
+            .await
+            .unwrap();
         assert!(!result.passed);
     }
 
     #[tokio::test]
     async fn test_rule_based_verifier_valid_json() {
-        let verifier = RuleBasedVerifier::new("test")
-            .with_rule(VerificationRule::ValidJson);
+        let verifier = RuleBasedVerifier::new("test").with_rule(VerificationRule::ValidJson);
 
         let task = make_task("t1");
         let result = verifier.verify(&task, r#"{"key": "value"}"#).await.unwrap();
@@ -407,13 +434,19 @@ mod tests {
         let result = verifier.verify(&task, "all good").await.unwrap();
         assert!(result.passed);
 
-        let result = verifier.verify(&task, "ERROR: compilation failed").await.unwrap();
+        let result = verifier
+            .verify(&task, "ERROR: compilation failed")
+            .await
+            .unwrap();
         assert!(!result.passed);
 
         let result = verifier.verify(&task, "panic: something").await.unwrap();
         assert!(!result.passed);
 
-        let result = verifier.verify(&task, "// TODO: implement this").await.unwrap();
+        let result = verifier
+            .verify(&task, "// TODO: implement this")
+            .await
+            .unwrap();
         assert!(!result.passed);
     }
 
@@ -438,10 +471,13 @@ mod tests {
     #[tokio::test]
     async fn test_quality_gate_all_required() {
         let gate = QualityGate::new("gate", true)
-            .add_verifier(Box::new(RuleBasedVerifier::new("v1")
-                .with_rule(VerificationRule::Contains("ok".to_string()))))
-            .add_verifier(Box::new(RuleBasedVerifier::new("v2")
-                .with_rule(VerificationRule::MinLength(5))));
+            .add_verifier(Box::new(
+                RuleBasedVerifier::new("v1")
+                    .with_rule(VerificationRule::Contains("ok".to_string())),
+            ))
+            .add_verifier(Box::new(
+                RuleBasedVerifier::new("v2").with_rule(VerificationRule::MinLength(5)),
+            ));
 
         let task = make_task("t1");
 
@@ -457,10 +493,14 @@ mod tests {
     #[tokio::test]
     async fn test_quality_gate_any_required() {
         let gate = QualityGate::new("gate", false)
-            .add_verifier(Box::new(RuleBasedVerifier::new("v1")
-                .with_rule(VerificationRule::Contains("ok".to_string()))))
-            .add_verifier(Box::new(RuleBasedVerifier::new("v2")
-                .with_rule(VerificationRule::Contains("fail".to_string()))));
+            .add_verifier(Box::new(
+                RuleBasedVerifier::new("v1")
+                    .with_rule(VerificationRule::Contains("ok".to_string())),
+            ))
+            .add_verifier(Box::new(
+                RuleBasedVerifier::new("v2")
+                    .with_rule(VerificationRule::Contains("fail".to_string())),
+            ));
 
         let task = make_task("t1");
 

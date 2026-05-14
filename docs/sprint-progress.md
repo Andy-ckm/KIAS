@@ -1,5 +1,37 @@
 
 
+## 最新更新：2026-05-15 05:50 (Sprint 14 — SubWorkflow Stub Fix + Innovation Research)
+
+### 🎯 本次成果
+
+**核心目标**：调查并修复 SubWorkflow stub 问题，评估 Redis cache_mode，搜索创新点
+
+**调查结果**：
+- ✅ **SubWorkflowExecutor 是 shim，非 stub**：真正的子工作流执行在 `WorkflowEngine::execute_subworkflow_node` 中（创建子引擎 + 隔离状态 + checkpoint + event sink）。executor 永远不会被引擎调用（引擎直接走 `execute_process_node`）
+- ✅ **文档修正**：更新 `SubWorkflowExecutor` 的 doc comment，明确说明这是 thin shim，真实执行在 engine 中
+- ✅ **status 从 "completed" 改为 "deferred"**：语义更准确
+- ✅ `cargo test` — **1198/1198 tests pass**
+- ✅ `cargo clippy -- -D warnings` — **0 warnings**
+
+**Redis cache_mode**：
+- `cache_mode: "local"` 是真实实现（SQLite-backed TTL + 命名空间隔离），不是 stub
+- 字段在 config 中存在但 cache crate 不依赖 Redis，无误导性
+
+**GitHub 创新调研**：
+- 发现 golutra/golutra (⭐3462) — 多 agent AI 编排平台
+- YASSERRMD/BarqFlow (⭐14) — Rust workflow engine for agentic automation
+- AndrewAltimit/template-repo (⭐127) — Agent orchestration & security + MCP tool building
+
+### 📊 开发统计
+
+| 指标 | 之前 | 之后 | 变化 |
+|------|------|------|------|
+| 测试数 | 1198 | 1198 | 保持 |
+| SubWorkflow stub | 误导性文档 | 正确的 shim 文档 | ✅ |
+| clippy warnings | 0 | 0 | 保持 |
+
+---
+
 ## 最新更新：2026-05-15 03:36 (Sprint 13 — Controller Reconciler Fix + AgentSpawner Pattern)
 
 ### 🎯 本次成果

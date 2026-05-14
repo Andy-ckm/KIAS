@@ -154,6 +154,23 @@
   - 地理分布感知调度
 - **优先级**: 中
 
+### 16. golutra Multi-Agent Orchestration ⭐3462 🆕
+- **来源**: golutra/golutra
+- **核心**: Multi-agent AI orchestration platform for automation, workflows, and developer tooling
+- **可借鉴点**:
+  - 与 KIAS 定位类似，但 KIAS 的 Rust 实现更高效
+  - 工作流自动化模式 → KIAS workflow-engine 可参考其编排 DSL
+- **差距**: golutra 是 Python，KIAS 是 Rust — 性能优势明显
+- **优先级**: 低（KIAS 已有更优实现）
+
+### 17. BarqFlow Rust Workflow Engine ⭐14 🆕
+- **来源**: YASSERRMD/BarqFlow
+- **核心**: Lightning-fast Rust workflow engine for agentic automation pipelines
+- **可借鉴点**:
+  - 纯 Rust 实现 → KIAS workflow-engine 可对标性能
+  - Agentic pipeline 特定优化
+- **优先级**: 低
+
 ## 创新点优先级排序
 
 | 优先级 | 创新点 | 状态 | 预计工作量 |

@@ -24,10 +24,10 @@
 
 ---
 
-## Sprint 2：核心功能（当前）
+## Sprint 12：Data Layer Architecture（当前）
 
 ### 目标
-完成核心功能实现，集成参考项目精华
+数据层架构：SQLite Repository + HNSW vector storage + Cache + Experience Replay + PrefixCache
 
 ### 开发步骤
 
@@ -35,7 +35,7 @@
 |------|------|----------|------|
 | 2.1 | Controller 故障恢复 + 心跳监控 | 3h | ✅ 已完成 |
 | 2.2 | WorkflowEngine 节点执行 | 3h | ✅ 已完成 |
-| 2.3 | MCP 协议集成 | 3h | ⏳ 待开始 |
+| 2.3 | MCP 协议集成 | 3h | ✅ 已完成 |
 | 2.4 | Rig 框架集成 | 4h | ⏳ 待开始 |
 | 2.5 | A2A 协议集成 | 4h | ✅ 已完成 (HTTP API + SSE streaming + 13 tests) |
 || 2.6 | API Server 集成测试 | 2h | ✅ 已完成 (43 tests) |

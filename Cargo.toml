@@ -87,8 +87,6 @@ rustls-pemfile = "2"
 # Storage
 etcd-client = "0.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
-redis = { version = "0.26", features = ["tokio-comp"] }
-
 # Utils
 dashmap = "6"
 url = "2"

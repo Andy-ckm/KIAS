@@ -77,7 +77,7 @@ pub struct KnowledgeConfigView {
 pub struct StorageConfigView {
     pub etcd_endpoints: String,
     pub sqlite_url: String,
-    pub redis_url: String,
+    pub cache_mode: String,
 }
 
 /// Request body for config updates.
@@ -145,7 +145,7 @@ pub async fn get_config(State(state): State<AppState>) -> Json<SanitizedConfig> 
         storage: StorageConfigView {
             etcd_endpoints: cfg.storage.etcd_endpoints.clone(),
             sqlite_url: cfg.storage.sqlite_url.clone(),
-            redis_url: cfg.storage.redis_url.clone(),
+            cache_mode: cfg.storage.cache_mode.clone(),
         },
     })
 }

@@ -1,5 +1,37 @@
 # KIAS Sprint 进度报告
 
+## 最新更新：2026-05-15 (Sprint 12 — Data Layer Architecture)
+
+### 🎯 本次成果
+
+**核心目标**：实现完整数据层架构，支持向量存储、缓存、经验回放
+
+**结果**：
+- ✅ `cargo build` — **0 errors, 0 warnings**
+- ✅ `cargo test` — **1198/1198 tests pass** (从 1047 增长到 1198，+151)
+- ✅ SQLite Repository 抽象层（Repository<T> trait + SqliteRepository facade）
+- ✅ 8 个数据模型（Agent, Task, Workflow, Config, Skill, Component, ExperienceReplay, PrefixCache）
+- ✅ 4 个迁移（core tables, vector, cache, experience replay + prefix cache）
+- ✅ 向量持久化存储（SQLite + DashMap write-through）
+- ✅ 缓存策略（TTL + 命名空间隔离 + 访问计数）
+- ✅ Experience Replay 存储（batch insert, episode 追踪, 随机采样）
+- ✅ Prefix Cache 存储（DeepSeek 风格 KV 缓存, hit tracking, LRU eviction）
+- ✅ 健康检查 + 连接池统计
+- ✅ NaN fix in vector.rs
+- ✅ unwrap fix in goal-engine
+
+### 📊 开发统计
+
+| 指标 | 之前 | 之后 | 变化 |
+|------|------|------|------|
+| 总代码行数 | ~39,000 | ~40,500 | +1,500 (+4%) |
+| 总测试数 | 1047 | 1198 | +151 (+14%) |
+| 编译错误 | 0 | 0 | 保持 |
+| 编译警告 | 0 | 0 | 保持 |
+| Crate 数量 | 18 | 19 | +1 (kias-data-store) |
+
+---
+
 ## 最新更新：2026-05-14 09:17 (Sprint 9 — TLS 1.3 + 安全加固)
 
 ### 🎯 本次成果

@@ -100,16 +100,15 @@ pub struct ModelUsage {
     pub requests: u64,
 }
 
-/// Agent 运行结果
+/// Agent 调用结果（来自 POST /api/v1/agents/{id}/invoke）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentRunResult {
     pub run_id: String,
-    pub agent_name: String,
+    pub agent_id: String,
     pub output: String,
-    pub tokens_used: u64,
-    pub cost: f64,
+    pub tokens_used: Option<u64>,
+    pub cost: Option<f64>,
     pub duration_ms: u64,
-    pub model: String,
 }
 
 impl ApiClient {
@@ -167,6 +166,28 @@ impl ApiClient {
     pub async fn get_agent(&self, id: &str) -> Result<AgentInfo, reqwest::Error> {
         let path = format!("/api/v1/agents/{}", id);
         self.request(reqwest::Method::GET, &path)
+            .send()
+            .await?
+            .json()
+            .await
+    }
+
+    /// 调用 Agent（非交互式执行）
+    ///
+    /// POST /api/v1/agents/{id}/invoke
+    pub async fn invoke_agent(
+        &self,
+        id: &str,
+        prompt: &str,
+        timeout_secs: Option<u64>,
+    ) -> Result<AgentRunResult, reqwest::Error> {
+        let path = format!("/api/v1/agents/{}/invoke", id);
+        let body = serde_json::json!({
+            "prompt": prompt,
+            "timeout_secs": timeout_secs,
+        });
+        self.request(reqwest::Method::POST, &path)
+            .json(&body)
             .send()
             .await?
             .json()
@@ -463,18 +484,23 @@ mod tests {
 
     #[test]
     fn test_agent_run_result_deserialize() {
+        // InvokeResponse from POST /api/v1/agents/{id}/invoke
         let json = r#"{
             "run_id": "run-001",
-            "agent_name": "test",
-            "output": "Hello",
+            "agent_id": "agent-abc",
+            "output": "Hello world",
             "tokens_used": 150,
             "cost": 0.003,
-            "duration_ms": 1200,
-            "model": "gpt-4"
+            "duration_ms": 1200
         }"#;
         let result: Result<AgentRunResult, _> = serde_json::from_str(json);
         assert!(result.is_ok());
         let result = result.expect("should deserialize");
         assert_eq!(result.run_id, "run-001");
+        assert_eq!(result.agent_id, "agent-abc");
+        assert_eq!(result.output, "Hello world");
+        assert_eq!(result.tokens_used, Some(150));
+        assert_eq!(result.cost, Some(0.003));
+        assert_eq!(result.duration_ms, 1200);
     }
 }

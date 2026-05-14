@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::error::{RouterError, RouterResult};
@@ -247,7 +246,7 @@ impl RoutingFilter for CostFilter {
     async fn apply(
         &self,
         candidates: Vec<usize>,
-        providers: &[Box<dyn Provider>],
+        _providers: &[Box<dyn Provider>],
         request: &ChatRequest,
     ) -> RouterResult<Vec<usize>> {
         let max_cost = request

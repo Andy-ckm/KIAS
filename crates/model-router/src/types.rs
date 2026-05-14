@@ -7,10 +7,9 @@ use serde::{Deserialize, Serialize};
 // ---------------------------------------------------------------------------
 
 /// Load balancing strategy for routing requests.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RoutingStrategy {
     /// Round-robin across providers.
-    #[default]
     RoundRobin,
     /// Route to provider with lowest latency.
     LeastLatency,
@@ -22,6 +21,16 @@ pub enum RoutingStrategy {
     WeightedRandom,
     /// Route to specific provider (pinned).
     Pinned(String),
+    /// Least busy - route to provider with fewest active requests.
+    LeastBusy,
+    /// Usage-based routing - route based on TPM/RPM limits.
+    UsageBased,
+}
+
+impl Default for RoutingStrategy {
+    fn default() -> Self {
+        Self::RoundRobin
+    }
 }
 
 

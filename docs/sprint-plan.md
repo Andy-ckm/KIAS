@@ -119,7 +119,7 @@
 | 故障自动恢复 | K8S | 可用性 99.99% | ✅ 已集成 |
 | DAG 工作流引擎 | Temporal | 复杂任务编排 | ✅ 已集成 |
 | A2A 协议 | Google | 跨系统互操作 | ✅ 已完成 (HTTP API + SSE + routing) |
-| MCP 协议 | Anthropic | LLM 工具集成 | 📋 设计中 |
+| MCP 协议 | Anthropic | LLM 工具集成 | ✅ 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests) |
 | Rig 框架 | Rust 社区 | 原生 AI 能力 | 📋 设计中 |
 | DeepSeek MLA | DeepSeek | 显存优化 90% | 📋 设计中 |
 | Volcano GPU 调度 | K8S | GPU 利用率 +50% | 📋 设计中 |

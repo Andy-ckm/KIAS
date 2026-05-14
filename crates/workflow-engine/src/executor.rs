@@ -322,8 +322,16 @@ impl NodeExecutor for LlmExecutor {
 
 // ─── SubWorkflow Executor ────────────────────────────────────────────────────
 
-/// Sub-workflow executor — for now returns a placeholder.
-/// In a full implementation this would instantiate and run a nested WorkflowEngine.
+/// Sub-workflow executor.
+///
+/// Note: SubWorkflow nodes are primarily executed by `WorkflowEngine::execute_subworkflow_node`
+/// (which creates a child engine with isolated state). This executor exists for cases where
+/// a sub-workflow needs to be invoked via the generic executor registry rather than through
+/// direct engine composition. It is a thin shim that validates the config and records the intent.
+///
+/// For most hierarchical workflow patterns, prefer direct engine composition (as implemented in
+/// `execute_subworkflow_node`) over using this executor, because the engine has full access to
+/// the graph topology, checkpoint store, and event sink needed for correct subgraph execution.
 #[derive(Debug, Default)]
 pub struct SubWorkflowExecutor;
 
@@ -338,7 +346,7 @@ impl NodeExecutor for SubWorkflowExecutor {
     async fn execute(
         &self,
         config: &ExecutorConfig,
-        _state_data: &HashMap<String, serde_json::Value>,
+        state_data: &HashMap<String, serde_json::Value>,
     ) -> ExecutionResult {
         let workflow_id = match config {
             ExecutorConfig::SubWorkflow { workflow_id } => workflow_id,
@@ -349,17 +357,19 @@ impl NodeExecutor for SubWorkflowExecutor {
             }
         };
 
-        tracing::info!(workflow_id = %workflow_id, "Executing sub-workflow (stub)");
+        tracing::info!(
+            workflow_id = %workflow_id,
+            state_keys = state_data.len(),
+            "SubWorkflow executor called — subgraph execution is handled by WorkflowEngine::execute_subworkflow_node"
+        );
 
-        // In a real implementation, this would:
-        // 1. Load the sub-workflow graph
-        // 2. Create a child state
-        // 3. Execute the child workflow via WorkflowEngine
-        // 4. Merge the child state back
+        // Return structured output documenting that this executor is a shim.
+        // The actual subgraph execution happens in the engine's `execute_subworkflow_node`,
+        // which has access to the full graph, checkpoint store, and event sink.
         ExecutionResult::success(serde_json::json!({
             "sub_workflow_id": workflow_id,
-            "status": "completed",
-            "message": "Sub-workflow executed (stub)"
+            "status": "deferred",
+            "message": "SubWorkflow execution is handled by WorkflowEngine::execute_subworkflow_node"
         }))
     }
 }

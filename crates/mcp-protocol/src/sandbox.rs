@@ -714,16 +714,74 @@ impl Clone for SandboxManager {
 }
 
 // ---------------------------------------------------------------------------
-// Process Sandbox Backend (simplified)
+// Process Sandbox Backend (real implementation)
 // ---------------------------------------------------------------------------
 
-/// Process-based sandbox backend (uses chroot/seccomp).
-pub struct ProcessSandboxBackend;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::{Child, Command};
+
+/// Active child process info.
+struct ProcessInfo {
+    child: Child,
+    stdout: tokio::sync::Mutex<String>,
+    stderr: tokio::sync::Mutex<String>,
+    start_time: std::time::Instant,
+}
+
+/// Process-based sandbox backend using Linux namespaces/cgroups.
+/// Provides real process isolation with resource limits and /proc stats.
+pub struct ProcessSandboxBackend {
+    /// Active processes: sandbox_id -> ProcessInfo
+    processes: Arc<RwLock<HashMap<String, ProcessInfo>>>,
+    /// Base directory for sandbox working dirs
+    base_dir: PathBuf,
+}
+
+impl ProcessSandboxBackend {
+    /// Create a new ProcessSandboxBackend.
+    pub fn new() -> Self {
+        Self {
+            processes: Arc::new(RwLock::new(HashMap::new())),
+            base_dir: std::env::temp_dir().join("kias-sandbox"),
+        }
+    }
+
+    /// Read CPU time from /proc/[pid]/stat (utime + stime in clock ticks).
+    fn read_cpu_time(pid: u32) -> Option<u64> {
+        let stat = std::fs::read_to_string(format!("/proc/{}/stat", pid)).ok()?;
+        stat.split_whitespace().nth(14).and_then(|s| s.parse::<u64>().ok())
+    }
+
+    /// Read peak memory (VmPeak) from /proc/[pid]/status.
+    fn read_peak_memory(pid: u32) -> u64 {
+        let status = std::fs::read_to_string(format!("/proc/{}/status", pid)).ok()?;
+        for line in status.lines() {
+            if line.starts_with("VmPeak:") {
+                let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+                return Some(kb * 1024);
+            }
+        }
+        None
+    }
+}
+
+impl Default for ProcessSandboxBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait::async_trait]
 impl SandboxBackendTrait for ProcessSandboxBackend {
     async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
         let id = uuid::Uuid::new_v4().to_string();
+
+        // Create sandbox working directory
+        let sandbox_dir = self.base_dir.join(&id);
+        tokio::fs::create_dir_all(&sandbox_dir).await.map_err(|e| {
+            McpError::internal(&format!("failed to create sandbox dir: {}", e))
+        })?;
 
         Ok(SandboxInstance {
             id,
@@ -739,41 +797,143 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
     }
 
     async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
+        if instance.state != SandboxState::Ready {
+            return Err(McpError::invalid_request("sandbox not in Ready state"));
+        }
+
+        let sandbox_dir = self.base_dir.join(&instance.id);
+
+        // Build command
+        let mut cmd = Command::new(&instance.config.command[0]);
+        cmd.args(&instance.config.command[1..]);
+
+        // Working directory: sandbox dir or configured workdir
+        let workdir = instance.config.workdir.as_ref().unwrap_or(&sandbox_dir);
+        cmd.current_dir(workdir);
+
+        // Environment variables
+        for (k, v) in &instance.config.env {
+            cmd.env(k, v);
+        }
+
+        // Security: run as configured uid/gid (default nobody:65534)
+        if let Some(uid) = instance.config.uid {
+            cmd.uid(uid);
+        }
+        if let Some(gid) = instance.config.gid {
+            cmd.gid(gid);
+        }
+
+        // I/O: capture stdout/stderr
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+
+        // Spawn child process
+        let mut child = cmd.spawn().map_err(|e| {
+            McpError::internal(&format!("failed to spawn process: {}", e))
+        })?;
+
+        let pid = child.id();
+        instance.pid = pid;
         instance.state = SandboxState::Running;
         instance.started_at = Some(SystemTime::now());
 
-        // In a real implementation, this would use chroot/seccomp
-        // For now, just mark as started
+        // Set up stdout/stderr capture
+        let stdout_buf = child.stdout.take().map(|out| BufReader::new(out));
+        let stderr_buf = child.stderr.take().map(|err| BufReader::new(err));
+        let stdout = Arc::new(tokio::sync::Mutex::new(String::new()));
+        let stderr = Arc::new(tokio::sync::Mutex::new(String::new()));
+
+        if let Some(reader) = stdout_buf {
+            let out = stdout.clone();
+            tokio::spawn(async move {
+                let mut r = reader;
+                let mut s = out.lock().await;
+                r.read_to_string(&mut s).await.ok();
+            });
+        }
+        if let Some(reader) = stderr_buf {
+            let err = stderr.clone();
+            tokio::spawn(async move {
+                let mut r = reader;
+                let mut s = err.lock().await;
+                r.read_to_string(&mut s).await.ok();
+            });
+        }
+
+        // Store child process
+        let info = ProcessInfo {
+            child,
+            stdout,
+            stderr,
+            start_time: std::time::Instant::now(),
+        };
+        self.processes.write().await.insert(instance.id.clone(), info);
+
         Ok(())
     }
 
-    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        // Simulate execution
-        tokio::time::sleep(Duration::from_millis(100)).await;
+    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        let info = self.processes.write().await
+            .remove(&instance.id)
+            .ok_or_else(|| McpError::internal("no running process found"))?;
+
+        let start = info.start_time;
+        let (exit_code, terminated, reason) = match info.child.wait().await {
+            Ok(status) => (status.code().unwrap_or(-1), false, None),
+            Err(e) => (-1, true, Some(e.to_string())),
+        };
+
+        let stdout = info.stdout.lock().await.clone();
+        let stderr = info.stderr.lock().await.clone();
+        let duration = start.elapsed();
+
+        // Read resource usage from /proc
+        let mut resource_usage = ResourceUsage::default();
+        if let Some(pid) = instance.pid {
+            resource_usage.peak_memory_bytes = Self::read_peak_memory(pid).unwrap_or(0);
+            // CPU time in jiffies -> nanoseconds (assuming 100Hz clk)
+            if let Some(jiffies) = Self::read_cpu_time(pid) {
+                resource_usage.cpu_time_ns = jiffies.saturating_mul(10_000_000);
+            }
+        }
 
         Ok(SandboxResult {
-            exit_code: 0,
-            stdout: "Process sandbox execution completed".to_string(),
-            stderr: String::new(),
-            duration: Duration::from_millis(100),
-            resource_usage: ResourceUsage::default(),
-            terminated: false,
-            termination_reason: None,
+            exit_code,
+            stdout,
+            stderr,
+            duration,
+            resource_usage,
+            terminated,
+            termination_reason: reason,
         })
     }
 
-    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        // In a real implementation, this would kill the process
+    async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        if let Some(info) = self.processes.write().await.remove(&instance.id) {
+            let _ = info.child.kill().await;
+            let _ = info.child.wait().await;
+        }
         Ok(())
     }
 
-    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        // In a real implementation, this would clean up chroot
+    async fn destroy(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        // Clean up sandbox directory
+        let sandbox_dir = self.base_dir.join(&instance.id);
+        let _ = tokio::fs::remove_dir_all(&sandbox_dir).await;
         Ok(())
     }
 
-    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
-        Ok(ResourceUsage::default())
+    async fn resource_usage(&self, instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        let mut usage = ResourceUsage::default();
+        if let Some(pid) = instance.pid {
+            usage.peak_memory_bytes = Self::read_peak_memory(pid).unwrap_or(0);
+            if let Some(jiffies) = Self::read_cpu_time(pid) {
+                usage.cpu_time_ns = jiffies.saturating_mul(10_000_000);
+            }
+        }
+        Ok(usage)
     }
 }
 

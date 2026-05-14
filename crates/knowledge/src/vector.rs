@@ -996,12 +996,12 @@ mod tests {
             // Create semi-structured vectors (not fully random)
             // Each vector has a dominant dimension
             v[i % dim] = 5.0; // Strong signal
-            for j in 0..dim {
+            for (j, val) in v.iter_mut().enumerate().take(dim) {
                 if j != i % dim {
                     seed = seed
                         .wrapping_mul(6364136223846793005)
                         .wrapping_add(1442695040888963407);
-                    v[j] = ((seed >> 33) as f32) / (u32::MAX as f32) * 0.5;
+                    *val = ((seed >> 33) as f32) / (u32::MAX as f32) * 0.5;
                 }
             }
             let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();

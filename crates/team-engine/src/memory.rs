@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn test_long_term_memory_no_expiry() {
         let mut ltm = LongTermMemory::new(1000);
-        let id = ltm.store("a1", "permanent knowledge", vec![]);
+        let _id = ltm.store("a1", "permanent knowledge", vec![]);
         let results = ltm.search("permanent", 10);
         assert_eq!(results.len(), 1);
         assert!(results[0].expires_at.is_none());

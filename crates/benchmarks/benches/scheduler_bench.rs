@@ -6,10 +6,9 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use kias_benchmarks::fixtures;
-use kias_common::{Agent, KiasError, Node, Priority, Resources, ScheduleResult};
+use kias_common::{Agent, Priority, Resources};
 use kias_scheduler::config::SchedulerConfig;
 use kias_scheduler::scheduler::Scheduler;
-use std::collections::HashMap;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -179,7 +178,7 @@ fn bench_cluster_scaling(c: &mut Criterion) {
             |b, _| {
                 let rt = tokio::runtime::Runtime::new().expect("rt");
                 b.iter(|| {
-                    rt.block_on(async {
+                    let _ = rt.block_on(async {
                         black_box(scheduler.schedule_agent(&agent, &nodes).await)
                     });
                 });

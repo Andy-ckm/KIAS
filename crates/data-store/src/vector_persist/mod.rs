@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_embedding_serialization() {
-        let original = vec![1.0f32, -0.5, 3.14, 0.0];
+        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0];
         let bytes = embedding_to_bytes(&original);
         let restored = bytes_to_embedding(&bytes);
         assert_eq!(original.len(), restored.len());

@@ -134,14 +134,31 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
-    fn test_state() -> AppState {
+    async fn test_state() -> AppState {
         let config = kias_common::config::KiasConfig::default();
-        AppState::new(config)
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine = Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever = kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+            .await
+            .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+        }
     }
 
     #[tokio::test]
     async fn test_token_analytics_empty() {
-        let state = test_state();
+        let state = test_state().await;
         let result = token_analytics(State(state)).await;
         assert_eq!(result.total_tokens, 0);
         assert_eq!(result.total_requests, 0);
@@ -181,6 +198,12 @@ mod tests {
             a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
             connection_registry: crate::websocket::ConnectionRegistry::default(),
             event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(
+                kias_knowledge::vector::VectorRetriever::new(
+                    kias_knowledge::graph::KnowledgeGraph::new(),
+                    Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim()),
+                ).await.unwrap()
+            ),
         };
 
         let result = token_analytics(State(state)).await;
@@ -193,7 +216,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_time_series_has_24_hours() {
-        let state = test_state();
+        let state = test_state().await;
         let result = token_analytics(State(state)).await;
         assert_eq!(result.time_series.len(), 24);
         // All entries should have non-negative values

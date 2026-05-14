@@ -166,16 +166,80 @@ pub async fn scheduler_status(State(state): State<AppState>) -> Json<SchedulerSt
 mod tests {
     use super::*;
     use axum::extract::State;
+    use crate::models::agent::AgentStatus;
+    use crate::models::node::{Node, NodeStatus, ResourceCapacity};
     use std::collections::HashMap;
 
-    fn test_state() -> AppState {
+    async fn test_state() -> AppState {
         let config = kias_common::config::KiasConfig::default();
-        AppState::new(config)
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine = Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever = kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+            .await
+            .expect("Failed to create knowledge retriever");
+
+        // Seed 2 default nodes matching AppState::new()
+        let mut nodes = std::collections::HashMap::new();
+        nodes.insert(
+            "node-1".to_string(),
+            Node {
+                id: "node-1".to_string(),
+                name: "node-1".to_string(),
+                status: NodeStatus::Ready,
+                resources: ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                allocatable: ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                labels: Default::default(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                last_heartbeat: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+        nodes.insert(
+            "node-2".to_string(),
+            Node {
+                id: "node-2".to_string(),
+                name: "node-2".to_string(),
+                status: NodeStatus::Ready,
+                resources: ResourceCapacity {
+                    cpu: "4".to_string(),
+                    memory: "8Gi".to_string(),
+                    gpu: "0".to_string(),
+                },
+                allocatable: ResourceCapacity {
+                    cpu: "4".to_string(),
+                    memory: "8Gi".to_string(),
+                    gpu: "0".to_string(),
+                },
+                labels: Default::default(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                last_heartbeat: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
+        AppState {
+            config: Arc::new(config),
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(nodes)),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+        }
     }
 
     #[tokio::test]
     async fn test_scheduler_status_empty() {
-        let state = test_state();
+        let state = test_state().await;
         let result = scheduler_status(State(state)).await;
         assert_eq!(result.queue_depth.pending, 0);
         assert_eq!(result.queue_depth.running, 0);
@@ -222,6 +286,12 @@ mod tests {
             a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
             connection_registry: crate::websocket::ConnectionRegistry::default(),
             event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(
+                kias_knowledge::vector::VectorRetriever::new(
+                    kias_knowledge::graph::KnowledgeGraph::new(),
+                    Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim()),
+                ).await.unwrap()
+            ),
         };
 
         let result = scheduler_status(State(state)).await;
@@ -235,7 +305,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_node_utilization() {
-        let state = test_state();
+        let state = test_state().await;
         let result = scheduler_status(State(state)).await;
         // Default state has 2 nodes
         assert_eq!(result.node_utilization.len(), 2);

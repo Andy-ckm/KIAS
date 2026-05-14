@@ -6,7 +6,7 @@ description = "KIAS CLI - Enterprise Agent Management Tool (超越阿里云 Agen
 
 [dependencies]
 kias-common = { path = "../common" }
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

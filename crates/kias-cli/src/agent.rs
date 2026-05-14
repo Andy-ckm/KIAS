@@ -6,6 +6,7 @@ use std::collections::HashMap;
 /// KIAS Agent 定义（K8S 风格）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentDefinition {
+    #[serde(rename = "apiVersion")]
     pub api_version: String,
     pub kind: String,
     pub metadata: AgentMetadata,
@@ -182,6 +183,7 @@ pub struct RuntimeAgentConfig {
 /// Workflow 定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowDefinition {
+    #[serde(rename = "apiVersion")]
     pub api_version: String,
     pub kind: String,
     pub metadata: AgentMetadata,

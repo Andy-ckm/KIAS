@@ -39,6 +39,18 @@ pub async fn create_agent(
 
     tracing::info!(id = %agent_clone.id, name = %agent_clone.spec.name, "Agent created");
 
+    // Publish WebSocket event + buffer for replay
+    let event = crate::websocket::WsEvent {
+        event_type: crate::websocket::EventType::AgentCreated,
+        data: serde_json::json!({
+            "agent_id": agent_clone.id,
+            "name": agent_clone.spec.name,
+        }),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    state.event_bus.publish(event.clone());
+    state.event_replay_buffer.push(event).await;
+
     Ok((
         axum::http::StatusCode::CREATED,
         Json(ApiResponse { data: agent_clone }),
@@ -91,6 +103,15 @@ pub async fn delete_agent(
 
     tracing::info!(id = %id, name = %agent.spec.name, "Agent deleted");
 
+    // Publish WebSocket event + buffer for replay
+    let event = crate::websocket::WsEvent {
+        event_type: crate::websocket::EventType::AgentDeleted,
+        data: serde_json::json!({ "agent_id": id }),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    state.event_bus.publish(event.clone());
+    state.event_replay_buffer.push(event).await;
+
     Ok(Json(ActionResponse {
         message: format!("Agent '{}' deleted successfully", agent.spec.name),
     }))
@@ -108,12 +129,30 @@ pub async fn update_agent_status(
         .get_mut(&id)
         .ok_or_else(|| ApiError::not_found(format!("Agent '{id}' not found")))?;
 
+    let old_status = format!("{:?}", agent.status);
+    let old_status_clone = old_status.clone();
     agent.status = new_status;
     agent.updated_at = chrono::Utc::now().to_rfc3339();
+    let new_status_str = format!("{:?}", agent.status);
 
     tracing::info!(id = %id, status = ?agent.status, "Agent status updated");
 
+    let agent_clone = agent.clone();
+
+    // Publish WebSocket event + buffer for replay
+    let event = crate::websocket::WsEvent {
+        event_type: crate::websocket::EventType::AgentStatusChanged,
+        data: serde_json::json!({
+            "agent_id": id,
+            "old_status": old_status_clone,
+            "new_status": new_status_str,
+        }),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    state.event_bus.publish(event.clone());
+    state.event_replay_buffer.push(event).await;
+
     Ok(Json(ApiResponse {
-        data: agent.clone(),
+        data: agent_clone,
     }))
 }

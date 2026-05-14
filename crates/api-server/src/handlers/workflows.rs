@@ -138,7 +138,21 @@ pub async fn create_workflow(
     };
 
     let mut workflows = state.workflows.write().await;
-    workflows.insert(id, workflow.clone());
+    workflows.insert(id.clone(), workflow.clone());
+
+    // Publish WebSocket event + buffer for replay
+    let event = crate::websocket::WsEvent {
+        event_type: crate::websocket::EventType::WorkflowUpdate,
+        data: serde_json::json!({
+            "workflow_id": id,
+            "workflow_name": workflow.name,
+            "status": "Draft",
+            "action": "created",
+        }),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    state.event_bus.publish(event.clone());
+    state.event_replay_buffer.push(event).await;
 
     Ok(Json(workflow))
 }
@@ -168,6 +182,22 @@ pub async fn delete_workflow(
     if removed.is_none() {
         return Err(ApiError::not_found(format!("Workflow '{id}' not found")));
     }
+
+    let workflow_name = removed.map(|w| w.name).unwrap_or_default();
+
+    // Publish WebSocket event + buffer for replay
+    let event = crate::websocket::WsEvent {
+        event_type: crate::websocket::EventType::WorkflowUpdate,
+        data: serde_json::json!({
+            "workflow_id": id,
+            "workflow_name": workflow_name,
+            "status": "Deleted",
+            "action": "deleted",
+        }),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    state.event_bus.publish(event.clone());
+    state.event_replay_buffer.push(event).await;
 
     Ok(Json(serde_json::json!({
         "message": format!("Workflow '{}' deleted", id)

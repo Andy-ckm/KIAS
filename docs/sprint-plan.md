@@ -37,7 +37,7 @@
 | 2.2 | WorkflowEngine 节点执行 | 3h | ✅ 已完成 |
 | 2.3 | MCP 协议集成 | 3h | ⏳ 待开始 |
 | 2.4 | Rig 框架集成 | 4h | ⏳ 待开始 |
-| 2.5 | A2A 协议集成 | 4h | ⏳ 待开始 |
+| 2.5 | A2A 协议集成 | 4h | ✅ 已完成 (HTTP API + SSE streaming + 13 tests) |
 || 2.6 | API Server 集成测试 | 2h | ✅ 已完成 (43 tests) |
 || 2.7 | kias-main 服务编排 | 3h | ✅ 已完成 (27 tests) |
 | 2.8 | Knowledge 向量检索 | 3h | ✅ 已完成 (24 tests) |
@@ -47,7 +47,7 @@
 - [ ] Agent 调度 < 300ms (P95)
 - [ ] 测试覆盖率 > 60%（当前 192 测试）
 - [ ] MCP 协议基础支持
-- [ ] A2A 协议基础支持
+- [x] A2A 协议基础支持
 
 ### 当前进度
 - ✅ Controller 从 30% → 85%
@@ -102,7 +102,7 @@
 | Cache Aware Scheduling | DeepSeek | 成本降低 90% | ✅ 已集成 |
 | 故障自动恢复 | K8S | 可用性 99.99% | ✅ 已集成 |
 | DAG 工作流引擎 | Temporal | 复杂任务编排 | ✅ 已集成 |
-| A2A 协议 | Google | 跨系统互操作 | 📋 设计中 |
+| A2A 协议 | Google | 跨系统互操作 | ✅ 已完成 (HTTP API + SSE + routing) |
 | MCP 协议 | Anthropic | LLM 工具集成 | 📋 设计中 |
 | Rig 框架 | Rust 社区 | 原生 AI 能力 | 📋 设计中 |
 | DeepSeek MLA | DeepSeek | 显存优化 90% | 📋 设计中 |
@@ -136,17 +136,18 @@
 
 ## 当前任务
 
-**Sprint 10 — 压力测试 + 性能基准**
+**Sprint 11 — A2A 协议 + 创新功能**
 
-当前状态：979 tests, ~35,670 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
+当前状态：1003 tests, ~37,000 行(Rust), 0 errors, 0 warnings, 17 crates + 1 前端项目
 
 已完成：
 - ✅ TLS 1.3 加密支持（rustls + tokio-rustls + mTLS + 自签名证书）
-- ✅ WebSocket 实时推送（EventBus + 9 种事件类型 + 客户端订阅过滤）
+- ✅ WebSocket 实时推送（EventBus + 14 种事件类型 + 客户端订阅过滤）
 - ✅ Agent 协作协议 - CrewAI 风格委托代理（delegation + memory + skill_matcher + crew 模块）
 - ✅ Descheduler 集群重平衡（3 策略 + PDB + dry-run）
 - ✅ 压力测试 + 性能基准（Criterion benchmarks，3 个 benchmark suite）
 - ✅ Knowledge 向量检索（HNSW ANN index + cosine similarity + LocalEmbeddingEngine + VectorRetriever，24 tests）
+- ✅ A2A 协议完整集成（HTTP API + Agent Card discovery + SSE streaming + 5 routing strategies + 13 tests）
 
 性能基准结果：
 - 单 Agent 调度：1.5-2.1µs（621K ops/sec）
@@ -154,4 +155,4 @@
 - 并发 500 Agent：1.1ms（455K agents/sec）
 - 控制器 10K Agent 扫描：40µs
 
-下一步：A2A 协议集成 / Rig 框架集成 / DeepSeek MLA Cache 优化
+下一步：Rig 框架集成 / DeepSeek MLA Cache 优化 / LangGraph 状态图编排

@@ -64,6 +64,16 @@ pub enum EventType {
     SchedulerDecision,
     /// System alert (high resource usage, etc).
     SystemAlert,
+    /// An A2A task was submitted.
+    A2aTaskSubmitted,
+    /// An A2A task started processing.
+    A2aTaskWorking,
+    /// An A2A task completed.
+    A2aTaskCompleted,
+    /// An A2A task was cancelled.
+    A2aTaskCancelled,
+    /// An A2A task was deleted.
+    A2aTaskDeleted,
 }
 
 /// A broadcast event sent over WebSocket.

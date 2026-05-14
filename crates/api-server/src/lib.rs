@@ -15,6 +15,7 @@ pub struct AppState {
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
     pub audit_log: Arc<MemoryAuditLog>,
     pub event_bus: EventBus,
+    pub a2a_tasks: handlers::a2a::A2aTaskStore,
 }
 
 impl AppState {
@@ -72,6 +73,7 @@ impl AppState {
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
             event_bus: EventBus::default(),
+            a2a_tasks: handlers::a2a::A2aTaskStore::new(),
         }
     }
 }

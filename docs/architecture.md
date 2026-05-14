@@ -39,6 +39,19 @@
 - **技术**：axum (HTTP) + tonic (gRPC)
 - **依赖**：scheduler, controller
 
+### A2A Protocol (Agent-to-Agent)
+- **职责**：标准化 Agent 间通信，任务委派，能力发现
+- **参考**：Google A2A 协议规范
+- **端点**：
+  - `GET /.well-known/agent.json` — Agent Card 发现
+  - `GET /a2a/v1/agents` — 列出所有 Agent Card
+  - `POST /a2a/v1/tasks` — 发送任务（支持 Direct/Capability/LoadBalanced/Broadcast/Chain 路由）
+  - `GET /a2a/v1/tasks/:id` — 查询任务状态
+  - `GET /a2a/v1/tasks/:id/stream` — SSE 实时推送
+  - `POST /a2a/v1/tasks/:id/cancel` — 取消任务
+- **路由策略**：5 种（Direct、Capability、LoadBalanced、Broadcast、Chain）
+- **任务生命周期**：Submitted → Working → Completed/Failed/Cancelled
+
 ### Scheduler
 - **职责**：资源调度，Agent 分配
 - **算法**：

@@ -178,6 +178,7 @@ mod tests {
             workflows: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
             event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
         };
 
         let result = token_analytics(State(state)).await;

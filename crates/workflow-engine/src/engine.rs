@@ -199,6 +199,21 @@ impl WorkflowEngine {
                             timestamp: chrono::Utc::now(),
                         })
                         .await;
+                } else if state.status == WorkflowStatus::Failed {
+                    let error_msg = state
+                        .data
+                        .get(&format!("{}_error", node.id))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("node execution failed")
+                        .to_string();
+                    self.event_sink
+                        .emit(StreamingEvent::WorkflowFailed {
+                            workflow_id: state.workflow_id.clone(),
+                            error: error_msg,
+                            failed_node: Some(node.id.clone()),
+                            timestamp: chrono::Utc::now(),
+                        })
+                        .await;
                 }
                 break;
             }
@@ -911,13 +926,28 @@ mod tests {
 
     #[tokio::test]
     async fn test_workflow_with_subworkflow_node() {
+        // Build a simple child graph
+        let mut child = WorkflowGraph::new("inner-wf");
+        child.add_node(
+            Node::new("inner", "Inner", NodeType::Process).with_executor(ExecutorConfig::Shell {
+                command: "echo".into(),
+                args: vec!["inner".into()],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: None,
+            }),
+        );
+        child.add_node(Node::new("inner_end", "InnerEnd", NodeType::Process));
+        child.add_edge(Edge::new("inner", "inner_end"));
+        child.set_entry("inner");
+        child.add_exit_node("inner_end");
+
+        let subgraph = SubGraph::new(child);
+
         let mut graph = WorkflowGraph::new("test-subwf");
         graph.add_node(
-            Node::new("sub", "Sub", NodeType::SubWorkflow).with_executor(
-                ExecutorConfig::SubWorkflow {
-                    workflow_id: "inner-wf".into(),
-                },
-            ),
+            Node::new("sub", "Sub", NodeType::SubWorkflow)
+                .with_config(serde_json::json!({"subgraph": "inner-wf"})),
         );
         graph.add_node(Node::new("end", "End", NodeType::Process));
         graph.add_edge(Edge::new("sub", "end"));
@@ -925,7 +955,7 @@ mod tests {
         graph.add_exit_node("end");
 
         let state = WorkflowState::new("wf-sub", &graph.entry_node);
-        let engine = WorkflowEngine::new();
+        let engine = WorkflowEngine::new().with_subgraph("inner-wf", subgraph);
         let result = engine.execute(&graph, state).await.unwrap();
 
         assert_eq!(result.status, WorkflowStatus::Completed);
@@ -1229,9 +1259,11 @@ mod tests {
 
         let state = WorkflowState::new("wf-no-sub", &parent.entry_node);
         let engine = WorkflowEngine::new();
-        let result = engine.execute(&parent, state).await.unwrap();
+        let result = engine.execute(&parent, state).await;
 
-        // Should fail because subgraph not found
-        assert_eq!(result.status, WorkflowStatus::Failed);
+        // Should fail with validation error (subgraph not registered)
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("SubGraph 'missing' not registered"));
     }
 }

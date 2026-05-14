@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::error::McpError;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 // ---------------------------------------------------------------------------
 // OAuth 2.0 Types
@@ -241,13 +243,31 @@ impl JwtAuthProvider {
         self
     }
 
-    /// Decode and validate a JWT token (simplified — in production use jsonwebtoken crate).
+    /// Decode and validate a JWT token with HMAC-SHA256 signature verification.
     fn decode_jwt(&self, token: &str) -> Result<TokenClaims, McpError> {
         // Split JWT into parts
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             return Err(McpError::Authentication("Invalid JWT format".to_string()));
         }
+
+        // ─── HMAC-SHA256 Signature Verification ─────────────────────────────────
+        // Reconstruct the signing input: "header.payload"
+        let signing_input = format!("{}.{}", parts[0], parts[1]);
+
+        // Decode the base64url-encoded signature
+        let signature_bytes = base64_decode(parts[2])
+            .map_err(|e| McpError::Authentication(format!("Invalid signature encoding: {}", e)))?;
+
+        // Create HMAC-SHA256 verifier using the secret key
+        type HmacSha256 = Hmac<Sha256>;
+        let mut mac = HmacSha256::new_from_slice(&self.key)
+            .map_err(|_| McpError::Authentication("HMAC init failed".to_string()))?;
+        mac.update(signing_input.as_bytes());
+
+        // Verify the signature matches
+        mac.verify_slice(&signature_bytes)
+            .map_err(|_| McpError::Authentication("Invalid JWT signature".to_string()))?;
 
         // Decode payload (base64url)
         let payload = parts[1];

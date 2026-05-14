@@ -7,6 +7,38 @@ use crate::algorithms::{
     CacheAwareScheduler, LeastLoadedScheduler, ResourceAwareScheduler, RoundRobinScheduler,
     SchedulingAlgorithm,
 };
+
+/// Tenant context for multi-tenant scheduling isolation.
+#[derive(Debug, Clone)]
+pub struct TenantContext {
+    pub tenant_id: String,
+    pub namespace: String,
+    pub resource_quota: ResourceQuota,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ResourceQuota {
+    pub max_agents: u32,
+    pub max_nodes: u32,
+    pub cpu_limit: f64,
+    pub memory_limit_mb: u64,
+}
+
+impl TenantContext {
+    pub fn new(tenant_id: impl Into<String>) -> Self {
+        let tid = tenant_id.into();
+        Self {
+            tenant_id: tid.clone(),
+            namespace: format!("tenant-{}", tid),
+            resource_quota: ResourceQuota::default(),
+        }
+    }
+
+    pub fn with_quota(mut self, quota: ResourceQuota) -> Self {
+        self.resource_quota = quota;
+        self
+    }
+}
 use crate::config::SchedulerConfig;
 use crate::optimizer::CacheOptimizer;
 use crate::policies::{AffinityFilter, PrioritySorter};

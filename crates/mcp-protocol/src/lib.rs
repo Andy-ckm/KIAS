@@ -15,6 +15,7 @@
 //! - Metrics collection & Prometheus export (with `metrics` feature)
 //! - Credential management with encryption (with `credentials` feature)
 //! - Tool hot-reload from YAML/JSON files (with `hot-reload` feature)
+//! - Sandbox execution environments (with `sandbox` feature)
 
 // Core modules (always available)
 pub mod capabilities;
@@ -42,6 +43,9 @@ pub mod credentials;
 
 #[cfg(feature = "hot-reload")]
 pub mod hot_reload;
+
+#[cfg(feature = "sandbox")]
+pub mod sandbox;
 
 // Re-export core types
 pub use capabilities::ServerCapabilities;
@@ -94,6 +98,15 @@ pub use credentials::{
 #[cfg(feature = "hot-reload")]
 pub use hot_reload::{
     ToolDefinitionFile, ToolImplementation, ToolRegistry, ToolRegistryEntry, ToolVersion,
+};
+
+// Re-export sandbox types
+#[cfg(feature = "sandbox")]
+pub use sandbox::{
+    FilesystemConfig, MountPoint, NetworkPolicy, ProcessSandboxBackend, ResourceLimits,
+    ResourceUsage, SandboxAction, SandboxAuditEntry, SandboxBackend, SandboxBackendTrait,
+    SandboxConfig, SandboxInstance, SandboxManager, SandboxManagerConfig, SandboxResult,
+    SandboxState,
 };
 
 /// JSON-RPC protocol version constant.

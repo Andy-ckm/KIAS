@@ -2,22 +2,24 @@
 //!
 //! Intelligent multi-model router with:
 //! - Multiple LLM provider support (OpenAI, Anthropic, DeepSeek, Qwen, Ollama)
-//! - Load balancing strategies (round-robin, least-latency, cost-based)
+//! - Load balancing strategies (round-robin, least-latency, cost-based, least-busy, usage-based)
+//! - Layered filter pipeline (health, cooldown, capability, latency, cost)
 //! - Circuit breaker and failover
 //! - Request caching
 //! - Cost tracking and budget enforcement
 //! - Streaming support
 
 pub mod error;
+pub mod filter;
 pub mod provider;
 pub mod router;
 pub mod types;
 
 pub use error::{RouterError, RouterResult};
+pub use filter::{CooldownFilter, FilterPipeline, RoutingFilter};
 pub use provider::{Provider, ProviderConfig};
-pub use types::ProviderHealth;
 pub use router::{ModelRouter, RouterConfig};
 pub use types::{
     ChatMessage, ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse,
-    ModelCapability, ModelInfo, RoutingStrategy, Usage,
+    ModelCapability, ModelInfo, ProviderHealth, RoutingStrategy, Usage,
 };

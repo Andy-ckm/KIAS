@@ -14,6 +14,7 @@
 //! - Circuit breaker & rate limiting (with `resilience` feature)
 //! - Metrics collection & Prometheus export (with `metrics` feature)
 //! - Credential management with encryption (with `credentials` feature)
+//! - Tool hot-reload from YAML/JSON files (with `hot-reload` feature)
 
 // Core modules (always available)
 pub mod capabilities;
@@ -38,6 +39,9 @@ pub mod metrics;
 
 #[cfg(feature = "credentials")]
 pub mod credentials;
+
+#[cfg(feature = "hot-reload")]
+pub mod hot_reload;
 
 // Re-export core types
 pub use capabilities::ServerCapabilities;
@@ -84,6 +88,12 @@ pub use credentials::{
     AuditAction, AuditEntry, Credential, CredentialFilter, CredentialManager,
     CredentialManagerConfig, CredentialStatus, CredentialStore, CredentialType,
     InMemoryCredentialStore, RotationPolicy,
+};
+
+// Re-export hot-reload types
+#[cfg(feature = "hot-reload")]
+pub use hot_reload::{
+    ToolDefinitionFile, ToolImplementation, ToolRegistry, ToolRegistryEntry, ToolVersion,
 };
 
 /// JSON-RPC protocol version constant.

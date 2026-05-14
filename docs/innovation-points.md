@@ -48,6 +48,29 @@
 - **核心**: 7 个 Prometheus 指标（Agent、Scheduler、Cache、Token、Node）
 - **特点**: Token 逐笔拆账，成本计算
 
+## 2026-05 研究发现的新创新点
+
+### AutoAgents (liquidos-ai/AutoAgents) ⭐633 Rust 多 Agent 框架
+- **架构特点**: 模块化设计，Type-safe Agent 模型，结构化工具调用，可插拔 Memory
+- **可借鉴点**:
+  - LLM Guardrails（推理安全保障）→ KIAS 可集成到 autonomy-controller
+  - WASM 沙箱执行工具 → KIAS sandbox 模块可参考
+  - OpenTelemetry 可观测性 → KIAS monitor 可增强
+  - 统一 LLM 接口（OpenAI/Anthropic/DeepSeek/xAI）→ KIAS model-router 可对标
+- **差距**: KIAS 已有类似模块，但 AutoAgents 的"Guardrails + Optimization passes"（cache/retry）是新增的
+
+### GraphBit (InfinitiBit/graphbit) ⭐538 企业级 Agentic 框架
+- **架构特点**: Rust 核心 + Python 包装器，企业级，HNSW 向量存储
+- **可借鉴点**:
+  - 企业级就绪标识（监控、指标、错误处理）
+  - 多租户支持
+- **差距**: KIAS data-store 的 HNSW 实现已经类似
+
+### mcp-memory-service (doobuidoo/mcp-memory-service) ⭐1838
+- **LangGraph/CrewAI/AutoGen 持久化 Memory** → KIAS team-engine memory 模块可集成 MCP Memory 协议
+
+---
+
 ## 待集成的创新点（2025-05 研究）
 
 ### 8. Google A2A 协议（Agent-to-Agent）📋

@@ -147,6 +147,49 @@ impl AgentDefinition {
             errors.push("prompt 不能为空".to_string());
         }
 
+        if self.spec.model.name.is_empty() {
+            errors.push("model.name 不能为空".to_string());
+        }
+
+        // 验证 temperature 范围
+        if let Some(temp) = self.spec.model.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                errors.push(format!("temperature 必须在 0.0-2.0 之间，当前值: {}", temp));
+            }
+        }
+
+        // 验证 max_tokens
+        if let Some(tokens) = self.spec.model.max_tokens {
+            if tokens == 0 {
+                errors.push("max_tokens 不能为 0".to_string());
+            }
+        }
+
+        // 验证 timeout
+        if let Some(timeout) = self.spec.timeout {
+            if timeout == 0 {
+                errors.push("timeout 不能为 0".to_string());
+            }
+        }
+
+        // 验证 retry
+        if let Some(ref retry) = self.spec.retry {
+            if retry.backoff_ms == 0 {
+                errors.push("retry.backoff_ms 不能为 0".to_string());
+            }
+        }
+
+        // 验证 name 格式（只允许小写字母、数字、连字符）
+        if !self.metadata.name.is_empty()
+            && !self
+                .metadata
+                .name
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        {
+            errors.push("name 只能包含小写字母、数字和连字符".to_string());
+        }
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -214,4 +257,330 @@ pub struct WorkflowEdge {
     pub to: String,
     #[serde(default)]
     pub condition: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const VALID_YAML: &str = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+  namespace: default
+  labels:
+    env: test
+spec:
+  prompt: "You are a helpful assistant"
+  model:
+    name: gpt-4
+    temperature: 0.7
+    max_tokens: 4096
+  tools:
+    - web_search
+    - code_exec
+  skills:
+    - summarization
+  timeout: 300
+"#;
+
+    #[test]
+    fn test_from_yaml_valid() {
+        let def = AgentDefinition::from_yaml(VALID_YAML);
+        assert!(def.is_ok());
+        let def = def.expect("should parse");
+        assert_eq!(def.api_version, "kias/v1");
+        assert_eq!(def.kind, "Agent");
+        assert_eq!(def.metadata.name, "test-agent");
+        assert_eq!(def.spec.model.name, "gpt-4");
+        assert_eq!(def.spec.tools.len(), 2);
+    }
+
+    #[test]
+    fn test_from_yaml_invalid_syntax() {
+        let result = AgentDefinition::from_yaml("not: [valid: yaml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_valid() {
+        let def = AgentDefinition::from_yaml(VALID_YAML).expect("should parse");
+        assert!(def.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_wrong_api_version() {
+        let yaml = r#"
+apiVersion: v2
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("api_version")));
+    }
+
+    #[test]
+    fn test_validate_wrong_kind() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Workflow
+metadata:
+  name: test
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("kind")));
+    }
+
+    #[test]
+    fn test_validate_empty_name() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: ""
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("name")));
+    }
+
+    #[test]
+    fn test_validate_empty_prompt() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: ""
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("prompt")));
+    }
+
+    #[test]
+    fn test_validate_empty_model_name() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: ""
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("model.name")));
+    }
+
+    #[test]
+    fn test_validate_temperature_out_of_range() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+    temperature: 3.0
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("temperature")));
+    }
+
+    #[test]
+    fn test_validate_zero_max_tokens() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+    max_tokens: 0
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("max_tokens")));
+    }
+
+    #[test]
+    fn test_validate_zero_timeout() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+  timeout: 0
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("timeout")));
+    }
+
+    #[test]
+    fn test_validate_invalid_name_chars() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: "Test_Agent!"
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(errors.iter().any(|e| e.contains("小写字母")));
+    }
+
+    #[test]
+    fn test_validate_multiple_errors() {
+        let yaml = r#"
+apiVersion: v2
+kind: Workflow
+metadata:
+  name: ""
+spec:
+  prompt: ""
+  model:
+    name: ""
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let errors = def.validate().expect_err("should fail");
+        assert!(
+            errors.len() >= 4,
+            "Expected at least 4 errors, got {}",
+            errors.len()
+        );
+    }
+
+    #[test]
+    fn test_to_runtime_config() {
+        let def = AgentDefinition::from_yaml(VALID_YAML).expect("should parse");
+        let runtime = def.to_runtime_config();
+        assert_eq!(runtime.name, "test-agent");
+        assert_eq!(runtime.model, "gpt-4");
+        assert_eq!(runtime.max_tokens, 4096);
+        assert!((runtime.temperature - 0.7).abs() < f64::EPSILON);
+        assert_eq!(runtime.tools, vec!["web_search", "code_exec"]);
+        assert_eq!(runtime.skills, vec!["summarization"]);
+    }
+
+    #[test]
+    fn test_to_runtime_config_defaults() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: minimal-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        let runtime = def.to_runtime_config();
+        assert_eq!(runtime.max_tokens, 4096);
+        assert!((runtime.temperature - 0.7).abs() < f64::EPSILON);
+        assert!(runtime.tools.is_empty());
+        assert!(runtime.skills.is_empty());
+    }
+
+    #[test]
+    fn test_workflow_definition_parse() {
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Workflow
+metadata:
+  name: my-workflow
+spec:
+  entry: step1
+  nodes:
+    - name: step1
+      agent: agent-a
+      prompt: "do something"
+    - name: step2
+      agent: agent-b
+  edges:
+    - from: step1
+      to: step2
+"#;
+        let wf: WorkflowDefinition = serde_yaml::from_str(yaml).expect("should parse");
+        assert_eq!(wf.api_version, "kias/v1");
+        assert_eq!(wf.metadata.name, "my-workflow");
+        assert_eq!(wf.spec.entry, "step1");
+        assert_eq!(wf.spec.nodes.len(), 2);
+        assert_eq!(wf.spec.edges.len(), 1);
+    }
+
+    #[test]
+    fn test_agent_metadata_labels() {
+        let def = AgentDefinition::from_yaml(VALID_YAML).expect("should parse");
+        assert_eq!(def.metadata.labels.get("env"), Some(&"test".to_string()));
+    }
+
+    #[test]
+    fn test_validate_boundary_temperature() {
+        // temperature = 0.0 is valid
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+    temperature: 0.0
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        assert!(def.validate().is_ok());
+
+        // temperature = 2.0 is valid
+        let yaml = r#"
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: test-agent
+spec:
+  prompt: "hello"
+  model:
+    name: gpt-4
+    temperature: 2.0
+"#;
+        let def = AgentDefinition::from_yaml(yaml).expect("should parse");
+        assert!(def.validate().is_ok());
+    }
 }

@@ -97,3 +97,70 @@ pub fn print_error(msg: &str, code: ExitCode, format: &OutputFormat) -> i32 {
     }
     code as i32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exit_code_values() {
+        assert_eq!(ExitCode::Success as i32, 0);
+        assert_eq!(ExitCode::ArgumentError as i32, 1);
+        assert_eq!(ExitCode::AuthError as i32, 2);
+        assert_eq!(ExitCode::NotFound as i32, 3);
+        assert_eq!(ExitCode::PermissionDenied as i32, 4);
+        assert_eq!(ExitCode::ServerError as i32, 5);
+        assert_eq!(ExitCode::Timeout as i32, 6);
+        assert_eq!(ExitCode::CostExceeded as i32, 7);
+    }
+
+    #[test]
+    fn test_print_error_json_format() {
+        let code = print_error("test error", ExitCode::ServerError, &OutputFormat::Json);
+        assert_eq!(code, 5);
+    }
+
+    #[test]
+    fn test_print_error_table_format() {
+        let code = print_error("test error", ExitCode::ArgumentError, &OutputFormat::Table);
+        assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn test_print_error_yaml_format() {
+        let code = print_error("test error", ExitCode::AuthError, &OutputFormat::Yaml);
+        assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn test_print_error_quiet_format() {
+        let code = print_error("test error", ExitCode::NotFound, &OutputFormat::Quiet);
+        assert_eq!(code, 3);
+    }
+
+    #[test]
+    fn test_print_message_json() {
+        // Should not panic
+        print_message("hello", &OutputFormat::Json);
+        print_message("hello", &OutputFormat::Table);
+        print_message("hello", &OutputFormat::Yaml);
+        print_message("hello", &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_command_result_serialization() {
+        let result = CommandResult {
+            status: "ok".to_string(),
+            data: "test-data".to_string(),
+            metadata: ResultMetadata {
+                duration_ms: 100,
+                tokens_used: Some(50),
+                cost: Some(0.001),
+                request_id: "req-001".to_string(),
+            },
+        };
+        let json = serde_json::to_string(&result).expect("should serialize");
+        assert!(json.contains("ok"));
+        assert!(json.contains("req-001"));
+    }
+}

@@ -70,3 +70,99 @@ impl Default for CliConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let cfg = CliConfig::default();
+        assert_eq!(cfg.profiles.len(), 1);
+        assert_eq!(cfg.active_profile, "default");
+        let profile = cfg.active_profile().expect("should have active profile");
+        assert_eq!(profile.name, "default");
+        assert_eq!(profile.api_endpoint, "http://localhost:8080");
+        assert_eq!(profile.namespace, Some("default".to_string()));
+        assert_eq!(profile.output_format, Some("json".to_string()));
+        assert!(profile.api_key.is_none());
+    }
+
+    #[test]
+    fn test_active_profile_found() {
+        let cfg = CliConfig::default();
+        let profile = cfg.active_profile();
+        assert!(profile.is_some());
+        assert_eq!(profile.expect("should exist").name, "default");
+    }
+
+    #[test]
+    fn test_active_profile_not_found() {
+        let cfg = CliConfig {
+            profiles: vec![Profile {
+                name: "prod".to_string(),
+                api_endpoint: "https://prod.example.com".to_string(),
+                api_key: Some("key".to_string()),
+                namespace: None,
+                output_format: None,
+            }],
+            active_profile: "staging".to_string(),
+        };
+        assert!(cfg.active_profile().is_none());
+    }
+
+    #[test]
+    fn test_config_serialization_roundtrip() {
+        let cfg = CliConfig::default();
+        let json = serde_json::to_string_pretty(&cfg).expect("should serialize");
+        let loaded: CliConfig = serde_json::from_str(&json).expect("should deserialize");
+        assert_eq!(loaded.profiles.len(), cfg.profiles.len());
+        assert_eq!(loaded.active_profile, cfg.active_profile);
+        assert_eq!(
+            loaded.profiles[0].api_endpoint,
+            cfg.profiles[0].api_endpoint
+        );
+    }
+
+    #[test]
+    fn test_profile_with_api_key() {
+        let profile = Profile {
+            name: "prod".to_string(),
+            api_endpoint: "https://api.kias.io".to_string(),
+            api_key: Some("sk-test-key".to_string()),
+            namespace: Some("production".to_string()),
+            output_format: Some("table".to_string()),
+        };
+        let cfg = CliConfig {
+            profiles: vec![profile],
+            active_profile: "prod".to_string(),
+        };
+        let active = cfg.active_profile().expect("should exist");
+        assert_eq!(active.api_key, Some("sk-test-key".to_string()));
+    }
+
+    #[test]
+    fn test_multiple_profiles() {
+        let cfg = CliConfig {
+            profiles: vec![
+                Profile {
+                    name: "dev".to_string(),
+                    api_endpoint: "http://localhost:8080".to_string(),
+                    api_key: None,
+                    namespace: None,
+                    output_format: None,
+                },
+                Profile {
+                    name: "prod".to_string(),
+                    api_endpoint: "https://prod.kias.io".to_string(),
+                    api_key: Some("key".to_string()),
+                    namespace: Some("production".to_string()),
+                    output_format: Some("json".to_string()),
+                },
+            ],
+            active_profile: "prod".to_string(),
+        };
+        let active = cfg.active_profile().expect("should find prod");
+        assert_eq!(active.api_endpoint, "https://prod.kias.io");
+    }
+}

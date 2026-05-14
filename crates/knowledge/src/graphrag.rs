@@ -305,7 +305,7 @@ impl GraphRAGEngine {
             // Get 2-hop neighbors for context
             let neighbors = self.get_n_hop_neighbors(seed_id, query.max_depth.min(2));
 
-            for (node_id, _depth) in &neighbors {
+            for node_id in neighbors.keys() {
                 if seen.contains(node_id) {
                     continue;
                 }
@@ -373,7 +373,7 @@ impl GraphRAGEngine {
         let query_terms = Self::tokenize(&query.text_query);
         let mut results = Vec::new();
 
-        for (node_id, _depth) in &neighbors {
+        for node_id in neighbors.keys() {
             if let Some(node) = self.graph.get_node(node_id) {
                 let text_score = if query_terms.is_empty() {
                     0.1 // Small base score when no text query
@@ -597,7 +597,7 @@ impl GraphRAGEngine {
         }
 
         let mut result: Vec<Vec<String>> = communities.into_values().collect();
-        result.sort_by(|a, b| b.len().cmp(&a.len()));
+        result.sort_by_key(|b| std::cmp::Reverse(b.len()));
         self.community_cache = Some(labels);
         result
     }

@@ -4,6 +4,8 @@ use kias_common::audit::MemoryAuditLog;
 use kias_common::config::KiasConfig;
 use tokio::sync::RwLock;
 
+use crate::websocket::EventBus;
+
 /// Shared application state passed to all handlers
 #[derive(Clone)]
 pub struct AppState {
@@ -12,6 +14,7 @@ pub struct AppState {
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
     pub audit_log: Arc<MemoryAuditLog>,
+    pub event_bus: EventBus,
 }
 
 impl AppState {
@@ -68,6 +71,7 @@ impl AppState {
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
+            event_bus: EventBus::default(),
         }
     }
 }
@@ -79,3 +83,4 @@ pub mod middleware;
 pub mod models;
 pub mod routes;
 pub mod tls;
+pub mod websocket;

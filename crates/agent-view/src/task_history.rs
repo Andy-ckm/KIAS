@@ -179,7 +179,7 @@ impl TaskHistory {
     pub fn recent_failures(&self, limit: usize) -> Vec<&TaskRecord> {
         let filter = TaskFilter { outcome: Some(TaskOutcome::Failure), ..Default::default() };
         let mut results = self.query(&filter);
-        results.sort_by(|a, b| b.completed_at.cmp(&a.completed_at));
+        results.sort_by_key(|r| std::cmp::Reverse(r.completed_at));
         results.into_iter().take(limit).collect()
     }
 

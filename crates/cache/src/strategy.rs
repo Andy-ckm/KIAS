@@ -223,7 +223,7 @@ impl PrefixCacheStrategy {
             // The cached key is a prefix of the query — meaning the query extends the cached prompt
             if query_key.starts_with(k.as_str()) {
                 let match_len = k.len();
-                if best_match.as_ref().map_or(true, |(_, len)| match_len > *len) {
+                if best_match.as_ref().is_none_or(|(_, len)| match_len > *len) {
                     best_match = Some((k.clone(), match_len));
                 }
             }
@@ -249,6 +249,11 @@ impl PrefixCacheStrategy {
 
     pub fn len(&self) -> usize {
         self.cache.read().unwrap().len()
+    }
+
+    /// Returns true if the cache is empty.
+    pub fn is_empty(&self) -> bool {
+        self.cache.read().unwrap().is_empty()
     }
 }
 

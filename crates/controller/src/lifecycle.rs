@@ -81,6 +81,7 @@ pub trait LifecycleHook: Send + Sync {
 }
 
 /// Named collections of lifecycle hooks.
+#[derive(Default)]
 pub struct LifecycleHooks {
     /// Run before an agent enters the Running state.
     pub pre_start: Vec<Arc<dyn LifecycleHook>>,
@@ -90,17 +91,6 @@ pub struct LifecycleHooks {
     pub pre_stop: Vec<Arc<dyn LifecycleHook>>,
     /// Run after an agent enters a terminal/stop state.
     pub post_stop: Vec<Arc<dyn LifecycleHook>>,
-}
-
-impl Default for LifecycleHooks {
-    fn default() -> Self {
-        Self {
-            pre_start: Vec::new(),
-            post_start: Vec::new(),
-            pre_stop: Vec::new(),
-            post_stop: Vec::new(),
-        }
-    }
 }
 
 /// Orchestrates agent lifecycle through validated state transitions,

@@ -335,7 +335,7 @@ impl TaskExecutor for HttpExecutor {
             Ok(resp) => {
                 let status_code = resp.status().as_u16();
                 let body_text = resp.text().await.unwrap_or_default();
-                let success = status_code >= 200 && status_code < 300;
+                let success = (200..300).contains(&status_code);
 
                 Ok(TaskResult {
                     task_id: task.id.clone(),
@@ -427,7 +427,7 @@ impl TaskExecutor for LlmExecutor {
                 let status = resp.status().as_u16();
                 let body = resp.text().await.unwrap_or_default();
 
-                if status >= 200 && status < 300 {
+                if (200..300).contains(&status) {
                     let parsed: serde_json::Result<serde_json::Value> = serde_json::from_str(&body);
                     let content = parsed
                         .ok()

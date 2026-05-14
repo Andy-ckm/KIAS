@@ -45,15 +45,14 @@ struct PriorityEntry {
 impl PriorityEntry {
     /// Effective priority considering aging.
     fn effective_priority(&self) -> u64 {
-        let aged = if self.base_priority <= Priority::Low as u64 && self.wait_rounds >= AGING_THRESHOLD
+        if self.base_priority <= Priority::Low as u64 && self.wait_rounds >= AGING_THRESHOLD
         {
             let boost_steps = (self.wait_rounds - AGING_THRESHOLD) / AGING_THRESHOLD;
             let boost = boost_steps * AGING_BOOST;
             self.base_priority + boost.min(AGING_CAP - self.base_priority)
         } else {
             self.base_priority
-        };
-        aged
+        }
     }
 }
 
@@ -138,7 +137,7 @@ impl PriorityAwareScheduler {
     /// Check if starvation prevention forces us to pick a low-priority agent.
     fn must_schedule_low(&self) -> bool {
         let round = self.round_counter.load(AtomicOrdering::Relaxed);
-        if round > 0 && round % LOW_PRIORITY_GUARANTEE_WINDOW == 0 {
+        if round > 0 && round.is_multiple_of(LOW_PRIORITY_GUARANTEE_WINDOW) {
             // Reset window counter
             self.low_priority_in_window.store(0, AtomicOrdering::Relaxed);
             return false;

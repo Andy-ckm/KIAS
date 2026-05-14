@@ -84,7 +84,7 @@ pub async fn token_analytics(State(state): State<AppState>) -> Json<TokenAnalyti
     }
 
     // Sort by total tokens descending
-    per_agent.sort_by(|a, b| b.total_tokens.cmp(&a.total_tokens));
+    per_agent.sort_by_key(|b| std::cmp::Reverse(b.total_tokens));
 
     // Generate time-series data (last 24 hours, hourly buckets)
     let now = chrono::Utc::now();
@@ -177,6 +177,7 @@ mod tests {
             nodes: Arc::new(RwLock::new(HashMap::new())),
             workflows: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            event_bus: crate::websocket::EventBus::default(),
         };
 
         let result = token_analytics(State(state)).await;

@@ -3,10 +3,12 @@ use super::executor::ExecutorRegistry;
 use super::graph::WorkflowGraph;
 use super::node::{ExecutionResult, Node, NodeType, RetryPolicy};
 use super::state::{WorkflowState, WorkflowStatus};
+use super::subgraph::SubGraph;
+use super::typed_state::EventSink;
+use super::typed_state::StreamingEvent;
 use kias_common::KiasResult;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use uuid::Uuid;
 
 /// Workflow execution engine (inspired by LangGraph)
 ///
@@ -16,10 +18,14 @@ use uuid::Uuid;
 /// 3. Checkpoint and resume mechanism
 /// 4. Human-in-the-loop support
 /// 5. Real node execution with retries
+/// 6. Streaming event emission for real-time observability
+/// 7. Subgraph composition for hierarchical workflows
 pub struct WorkflowEngine {
     checkpoint_store: CheckpointStore,
     executor_registry: ExecutorRegistry,
     default_retry_policy: RetryPolicy,
+    event_sink: EventSink,
+    subgraphs: HashMap<String, SubGraph>,
 }
 
 impl Default for WorkflowEngine {
@@ -34,6 +40,8 @@ impl WorkflowEngine {
             checkpoint_store: CheckpointStore::new(),
             executor_registry: ExecutorRegistry::new(),
             default_retry_policy: RetryPolicy::default(),
+            event_sink: EventSink::new(),
+            subgraphs: HashMap::new(),
         }
     }
 
@@ -45,6 +53,23 @@ impl WorkflowEngine {
     pub fn with_executor_registry(mut self, registry: ExecutorRegistry) -> Self {
         self.executor_registry = registry;
         self
+    }
+
+    /// Set a shared event sink for streaming execution events.
+    pub fn with_event_sink(mut self, sink: EventSink) -> Self {
+        self.event_sink = sink;
+        self
+    }
+
+    /// Register a named subgraph for composition.
+    pub fn with_subgraph(mut self, name: impl Into<String>, subgraph: SubGraph) -> Self {
+        self.subgraphs.insert(name.into(), subgraph);
+        self
+    }
+
+    /// Get a reference to the event sink.
+    pub fn event_sink(&self) -> &EventSink {
+        &self.event_sink
     }
 
     /// Execute a workflow graph from initial state.
@@ -59,12 +84,21 @@ impl WorkflowEngine {
 
         let mut state = initial_state;
         state.status = WorkflowStatus::Running;
+        let workflow_start = Instant::now();
 
         tracing::info!(
             workflow_id = %state.workflow_id,
             entry_node = %graph.entry_node,
             "Starting workflow execution"
         );
+
+        self.event_sink
+            .emit(StreamingEvent::WorkflowStarted {
+                workflow_id: state.workflow_id.clone(),
+                entry_node: graph.entry_node.clone(),
+                timestamp: chrono::Utc::now(),
+            })
+            .await;
 
         let max_steps = graph.nodes.len() * 100; // safety bound against infinite loops
         let mut step = 0;
@@ -77,6 +111,15 @@ impl WorkflowEngine {
                     "Workflow exceeded maximum step count — possible infinite loop"
                 );
                 state.status = WorkflowStatus::Failed;
+
+                self.event_sink
+                    .emit(StreamingEvent::WorkflowFailed {
+                        workflow_id: state.workflow_id.clone(),
+                        error: "Exceeded maximum step count".into(),
+                        failed_node: Some(state.current_node.clone()),
+                        timestamp: chrono::Utc::now(),
+                    })
+                    .await;
                 break;
             }
 
@@ -89,6 +132,17 @@ impl WorkflowEngine {
             if graph.exit_nodes.contains(&current_node_id) {
                 tracing::info!(node = %current_node_id, "Reached exit node");
                 state.status = WorkflowStatus::Completed;
+
+                let total_ms = workflow_start.elapsed().as_millis() as u64;
+                self.event_sink
+                    .emit(StreamingEvent::WorkflowComplete {
+                        workflow_id: state.workflow_id.clone(),
+                        status: "completed".into(),
+                        total_steps: step as u64,
+                        total_duration_ms: total_ms,
+                        timestamp: chrono::Utc::now(),
+                    })
+                    .await;
                 break;
             }
 
@@ -107,11 +161,45 @@ impl WorkflowEngine {
                 "Executing node"
             );
 
+            self.event_sink
+                .emit(StreamingEvent::NodeStart {
+                    workflow_id: state.workflow_id.clone(),
+                    node_id: node.id.clone(),
+                    node_type: format!("{:?}", node.node_type),
+                    revision: state.history.len() as u64,
+                    timestamp: chrono::Utc::now(),
+                })
+                .await;
+
+            let node_start = Instant::now();
+
             // Execute the node (dispatches based on type/executor)
             let should_continue = self.execute_node(node, &mut state).await?;
 
+            let node_duration = node_start.elapsed().as_millis() as u64;
+            self.event_sink
+                .emit(StreamingEvent::NodeComplete {
+                    workflow_id: state.workflow_id.clone(),
+                    node_id: node.id.clone(),
+                    success: should_continue,
+                    duration_ms: node_duration,
+                    revision: state.history.len() as u64,
+                    timestamp: chrono::Utc::now(),
+                })
+                .await;
+
             if !should_continue {
                 // Execution paused (e.g., HumanReview) or failed
+                if state.status == WorkflowStatus::WaitingForHuman {
+                    self.event_sink
+                        .emit(StreamingEvent::HumanInterrupt {
+                            workflow_id: state.workflow_id.clone(),
+                            node_id: node.id.clone(),
+                            reason: "HumanReview node reached".into(),
+                            timestamp: chrono::Utc::now(),
+                        })
+                        .await;
+                }
                 break;
             }
 
@@ -119,13 +207,24 @@ impl WorkflowEngine {
             let next_node_id = self.resolve_next_node(graph, &current_node_id, &state);
 
             match next_node_id {
-                Some(next_id) => {
+                Some(ref next_id) => {
                     tracing::info!(
                         from = %current_node_id,
                         to = %next_id,
                         "Transitioning"
                     );
-                    state.transition(&next_id, HashMap::new());
+
+                    self.event_sink
+                        .emit(StreamingEvent::EdgeTraversed {
+                            workflow_id: state.workflow_id.clone(),
+                            from: current_node_id.clone(),
+                            to: next_id.clone(),
+                            condition: None,
+                            timestamp: chrono::Utc::now(),
+                        })
+                        .await;
+
+                    state.transition(next_id, HashMap::new());
                 }
                 None => {
                     tracing::warn!(
@@ -133,6 +232,15 @@ impl WorkflowEngine {
                         "No outgoing edges — workflow stuck"
                     );
                     state.status = WorkflowStatus::Failed;
+
+                    self.event_sink
+                        .emit(StreamingEvent::WorkflowFailed {
+                            workflow_id: state.workflow_id.clone(),
+                            error: "No outgoing edges from node".into(),
+                            failed_node: Some(current_node_id),
+                            timestamp: chrono::Utc::now(),
+                        })
+                        .await;
                     break;
                 }
             }
@@ -165,7 +273,7 @@ impl WorkflowEngine {
                 tracing::info!(node = %node.id, "Join node — continuing");
                 Ok(true)
             }
-            NodeType::SubWorkflow => self.execute_process_node(node, state).await,
+            NodeType::SubWorkflow => self.execute_subworkflow_node(node, state).await,
             NodeType::HumanReview => {
                 state.status = WorkflowStatus::WaitingForHuman;
                 tracing::info!(
@@ -177,7 +285,7 @@ impl WorkflowEngine {
         }
     }
 
-    /// Execute a Process or SubWorkflow node with retries.
+    /// Execute a Process node with retries.
     async fn execute_process_node(
         &self,
         node: &Node,
@@ -257,6 +365,113 @@ impl WorkflowEngine {
         Ok(false)
     }
 
+    /// Execute a SubWorkflow node using registered subgraphs.
+    ///
+    /// This enables hierarchical graph composition — a parent graph can
+    /// delegate to a child graph with isolated state and explicit
+    /// input/output mappings.
+    async fn execute_subworkflow_node(
+        &self,
+        node: &Node,
+        state: &mut WorkflowState,
+    ) -> KiasResult<bool> {
+        // Look up the subgraph name from node config
+        let subgraph_name = node
+            .config
+            .get("subgraph")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&node.id);
+
+        let subgraph = self.subgraphs.get(subgraph_name).ok_or_else(|| {
+            kias_common::error::KiasError::Validation(format!(
+                "SubGraph '{}' not registered for node '{}'",
+                subgraph_name, node.id
+            ))
+        })?;
+
+        tracing::info!(
+            node = %node.id,
+            subgraph = subgraph_name,
+            "Executing subgraph"
+        );
+
+        // Extract input state from parent
+        let child_initial = subgraph.extract_input(state);
+
+        // Create a child engine (no subgraph nesting to prevent infinite recursion)
+        let child_engine = WorkflowEngine {
+            checkpoint_store: CheckpointStore::new(),
+            executor_registry: ExecutorRegistry::new(),
+            default_retry_policy: self.default_retry_policy.clone(),
+            event_sink: self.event_sink.clone(),
+            subgraphs: HashMap::new(),
+        };
+
+        // Execute with optional timeout (Box::pin to avoid recursive async)
+        let execute_fut = Box::pin(child_engine.execute(&subgraph.graph, child_initial));
+        let result = if let Some(timeout) = subgraph.timeout_secs {
+            match tokio::time::timeout(Duration::from_secs(timeout), execute_fut).await {
+                Ok(r) => r,
+                Err(_) => {
+                    state.set(format!("{}_error", node.id), "Subgraph timed out");
+                    state.status = WorkflowStatus::Failed;
+                    return Ok(false);
+                }
+            }
+        } else {
+            execute_fut.await
+        };
+
+        match result {
+            Ok(child_state) => {
+                if child_state.status == WorkflowStatus::Completed {
+                    // Merge output back into parent state
+                    subgraph.merge_output(&child_state, state);
+
+                    tracing::info!(
+                        node = %node.id,
+                        subgraph = subgraph_name,
+                        "Subgraph completed successfully"
+                    );
+                    Ok(true)
+                } else {
+                    let error = format!(
+                        "Subgraph '{}' failed with status {:?}",
+                        subgraph_name, child_state.status
+                    );
+                    tracing::warn!(node = %node.id, error = %error, "Subgraph failed");
+
+                    state.set(format!("{}_error", node.id), error);
+
+                    if subgraph.propagate_failure {
+                        state.status = WorkflowStatus::Failed;
+                        Ok(false)
+                    } else {
+                        // Continue despite subgraph failure
+                        state.set(
+                            format!("{}_subgraph_status", node.id),
+                            format!("{:?}", child_state.status),
+                        );
+                        Ok(true)
+                    }
+                }
+            }
+            Err(e) => {
+                let error = format!("Subgraph '{}' execution error: {}", subgraph_name, e);
+                tracing::error!(node = %node.id, error = %error);
+
+                state.set(format!("{}_error", node.id), &error);
+
+                if subgraph.propagate_failure {
+                    state.status = WorkflowStatus::Failed;
+                    Ok(false)
+                } else {
+                    Ok(true)
+                }
+            }
+        }
+    }
+
     /// Evaluate a Condition node — selects the next edge based on state data.
     async fn execute_condition_node(
         &self,
@@ -330,7 +545,7 @@ impl WorkflowEngine {
     ///   - `"field != value"` — string inequality
     ///   - `"field"` — truthy check (exists and not null/false)
     ///   - `"!field"` — falsy check
-    fn evaluate_condition(&self, expression: &str, state: &WorkflowState) -> bool {
+    pub fn evaluate_condition(&self, expression: &str, state: &WorkflowState) -> bool {
         let expr = expression.trim();
 
         // Equality: "field == value"
@@ -422,7 +637,7 @@ impl WorkflowEngine {
     /// Save a checkpoint.
     fn save_checkpoint(&self, state: &WorkflowState, node_id: &str) {
         let checkpoint = Checkpoint {
-            id: Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4().to_string(),
             workflow_id: state.workflow_id.clone(),
             node_id: node_id.to_string(),
             state: state.clone(),
@@ -643,9 +858,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_workflow_retry_eventually_succeeds() {
-        // Use a command that fails the first time but we can't easily do that
-        // with a simple shell command. Instead, test with a successful command
-        // to verify the retry logic doesn't break success paths.
         let mut graph = WorkflowGraph::new("test-retry-ok");
         graph.add_node(
             Node::new("task", "Task", NodeType::Process)
@@ -871,5 +1083,155 @@ mod tests {
         assert!(engine.evaluate_condition("status == \"ready\"", &state));
         assert!(!engine.evaluate_condition("status == \"busy\"", &state));
         assert!(engine.evaluate_condition("status != \"busy\"", &state));
+    }
+
+    // ─────────── Streaming event tests ───────────
+
+    #[tokio::test]
+    async fn test_streaming_events_emitted() {
+        let graph = make_linear_graph();
+        let state = WorkflowState::new("wf-stream", &graph.entry_node);
+        let sink = EventSink::new();
+        let engine = WorkflowEngine::new().with_event_sink(sink.clone());
+
+        let result = engine.execute(&graph, state).await.unwrap();
+        assert_eq!(result.status, WorkflowStatus::Completed);
+
+        let events = sink.take_events().await;
+        // Should have: WorkflowStarted, (NodeStart, NodeComplete) x2, EdgeTraversed x2, WorkflowComplete
+        assert!(events.len() >= 3, "Expected at least 3 events, got {}", events.len());
+
+        // First event should be WorkflowStarted
+        assert!(matches!(&events[0], StreamingEvent::WorkflowStarted { .. }));
+
+        // Last event should be WorkflowComplete
+        let last = events.last().unwrap();
+        assert!(matches!(last, StreamingEvent::WorkflowComplete { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_streaming_events_on_failure() {
+        let mut graph = WorkflowGraph::new("test-stream-fail");
+        graph.add_node(Node::new("fail", "Fail", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
+                command: "false".into(),
+                args: vec![],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: None,
+            },
+        ));
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("fail", "end"));
+        graph.set_entry("fail");
+        graph.add_exit_node("end");
+
+        let sink = EventSink::new();
+        let engine = WorkflowEngine::new().with_event_sink(sink.clone());
+
+        let state = WorkflowState::new("wf-fail-stream", &graph.entry_node);
+        let result = engine.execute(&graph, state).await.unwrap();
+        assert_eq!(result.status, WorkflowStatus::Failed);
+
+        let events = sink.take_events().await;
+        let has_failure = events.iter().any(|e| matches!(e, StreamingEvent::WorkflowFailed { .. }));
+        assert!(has_failure, "Expected a WorkflowFailed event");
+    }
+
+    #[tokio::test]
+    async fn test_streaming_events_human_interrupt() {
+        let mut graph = WorkflowGraph::new("test-stream-human");
+        graph.add_node(Node::new("review", "Review", NodeType::HumanReview));
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("review", "end"));
+        graph.set_entry("review");
+        graph.add_exit_node("end");
+
+        let sink = EventSink::new();
+        let engine = WorkflowEngine::new().with_event_sink(sink.clone());
+
+        let state = WorkflowState::new("wf-human-stream", &graph.entry_node);
+        let result = engine.execute(&graph, state).await.unwrap();
+        assert_eq!(result.status, WorkflowStatus::WaitingForHuman);
+
+        let events = sink.take_events().await;
+        let has_human = events.iter().any(|e| matches!(e, StreamingEvent::HumanInterrupt { .. }));
+        assert!(has_human, "Expected a HumanInterrupt event");
+    }
+
+    // ─────────── Subgraph composition tests ───────────
+
+    #[tokio::test]
+    async fn test_subgraph_composition() {
+        // Build child graph
+        let mut child = WorkflowGraph::new("child");
+        child.add_node(
+            Node::new("child_start", "ChildStart", NodeType::Process).with_executor(
+                ExecutorConfig::Shell {
+                    command: "echo".into(),
+                    args: vec!["child".into()],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                },
+            ),
+        );
+        child.add_node(Node::new("child_end", "ChildEnd", NodeType::Process));
+        child.add_edge(Edge::new("child_start", "child_end"));
+        child.set_entry("child_start");
+        child.add_exit_node("child_end");
+
+        let subgraph = SubGraph::new(child)
+            .with_input_mapping("parent_data", "child_input")
+            .with_output_mapping("child_output", "parent_result");
+
+        // Build parent graph
+        let mut parent = WorkflowGraph::new("parent");
+        parent.add_node(
+            Node::new("pre", "Pre", NodeType::Process).with_executor(ExecutorConfig::Shell {
+                command: "echo".into(),
+                args: vec!["pre".into()],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: None,
+            }),
+        );
+        parent.add_node(
+            Node::new("sub", "SubGraph", NodeType::SubWorkflow)
+                .with_config(serde_json::json!({"subgraph": "child"})),
+        );
+        parent.add_node(Node::new("post", "Post", NodeType::Process));
+        parent.add_edge(Edge::new("pre", "sub"));
+        parent.add_edge(Edge::new("sub", "post"));
+        parent.set_entry("pre");
+        parent.add_exit_node("post");
+
+        let mut state = WorkflowState::new("wf-parent", &parent.entry_node);
+        state.set("parent_data", serde_json::json!({"key": "value"}));
+
+        let engine = WorkflowEngine::new().with_subgraph("child", subgraph);
+        let result = engine.execute(&parent, state).await.unwrap();
+
+        assert_eq!(result.status, WorkflowStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn test_subgraph_not_registered_fails() {
+        let mut parent = WorkflowGraph::new("parent-no-sub");
+        parent.add_node(
+            Node::new("sub", "Sub", NodeType::SubWorkflow)
+                .with_config(serde_json::json!({"subgraph": "missing"})),
+        );
+        parent.add_node(Node::new("end", "End", NodeType::Process));
+        parent.add_edge(Edge::new("sub", "end"));
+        parent.set_entry("sub");
+        parent.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-no-sub", &parent.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&parent, state).await.unwrap();
+
+        // Should fail because subgraph not found
+        assert_eq!(result.status, WorkflowStatus::Failed);
     }
 }

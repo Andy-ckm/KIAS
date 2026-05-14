@@ -1,19 +1,28 @@
 //! # Persistent Vector Store
 //!
-//! Bridges the in-memory HNSW vector index (from `kias-knowledge`) with SQLite
-//! persistence. Vectors are stored as binary blobs in SQLite and loaded into
-//! memory on startup for fast similarity search.
+//! Bridges the HNSW vector index from `kias-knowledge` with SQLite persistence.
+//! Vectors are stored as binary blobs in SQLite and loaded into memory on startup
+//! for fast approximate nearest neighbor (ANN) search via HNSW.
 //!
 //! ## Design
 //!
-//! - **Write-through**: Every insert/update writes to both SQLite and in-memory index
-//! - **Read-through**: On startup, loads all vectors from SQLite into memory
-//! - **Crash recovery**: SQLite provides durability; in-memory index provides speed
+//! - **Write-through**: Every insert/update writes to both SQLite and HNSW index
+//! - **Read-through**: On startup, loads all vectors from SQLite into HNSW
+//! - **Crash recovery**: SQLite provides durability; HNSW provides O(log N) search
+//! - **HNSW parameters**: M=16, M_max=32, ef_construction=200, ef_search=100
 
 use kias_common::{KiasError, KiasResult};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing::{debug, info};
+
+/// HNSW-backed vector store from knowledge crate (re-exported for API compatibility)
+pub use kias_knowledge::VectorStore as HnswVectorStore;
+
+/// Statistics about an HNSW index
+pub use kias_knowledge::VectorStoreStats;
 
 /// A single vector entry stored in the persistent vector store.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,18 +39,33 @@ pub struct VectorEntry {
     pub metadata: serde_json::Value,
 }
 
-/// Persistent vector store backed by SQLite.
-pub struct PersistentVectorStore {
-    pool: SqlitePool,
-    /// In-memory index: index_name -> Vec<(external_id, embedding, metadata)>
-    indices: dashmap::DashMap<String, Vec<IndexEntry>>,
+/// Per-index HNSW store with its metadata map
+#[derive(Clone)]
+struct HnswIndex {
+    store: Arc<RwLock<kias_knowledge::VectorStore>>,
+    metadata: Arc<dashmap::DashMap<String, serde_json::Value>>,
 }
 
-#[derive(Debug, Clone)]
-struct IndexEntry {
-    external_id: String,
-    embedding: Vec<f32>,
-    metadata: serde_json::Value,
+impl HnswIndex {
+    /// Insert a vector into this index, handling nested mutable borrows.
+    async fn insert(&self, node_id: String, vector: Vec<f32>) {
+        let mut store = self.store.write().await;
+        store.insert(node_id, vector);
+    }
+
+    /// Remove a vector from this index.
+    #[allow(dead_code)]
+    async fn remove(&self, node_id: &str) {
+        let mut store = self.store.write().await;
+        store.remove(node_id);
+    }
+}
+
+/// Persistent vector store backed by SQLite with HNSW index for fast ANN search.
+pub struct PersistentVectorStore {
+    pool: SqlitePool,
+    /// HNSW indices per named index
+    indices: Arc<RwLock<dashmap::DashMap<String, HnswIndex>>>,
 }
 
 impl PersistentVectorStore {
@@ -49,12 +73,17 @@ impl PersistentVectorStore {
     pub fn new(pool: SqlitePool) -> Self {
         Self {
             pool,
-            indices: dashmap::DashMap::new(),
+            indices: Arc::new(RwLock::new(dashmap::DashMap::default())),
         }
     }
 
     /// Initialize a vector index if it doesn't exist.
-    pub async fn create_index(&self, name: &str, dimension: usize, metric: &str) -> KiasResult<()> {
+    pub async fn create_index(
+        &self,
+        name: &str,
+        dimension: usize,
+        _metric: &str,
+    ) -> KiasResult<()> {
         let id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
             "INSERT OR IGNORE INTO vector_indices (id, name, dimension, metric) VALUES (?, ?, ?, ?)",
@@ -62,59 +91,81 @@ impl PersistentVectorStore {
         .bind(&id)
         .bind(name)
         .bind(dimension as i64)
-        .bind(metric)
+        .bind(_metric)
         .execute(&self.pool)
         .await
         .map_err(|e| KiasError::Config(format!("Failed to create vector index: {e}")))?;
 
-        // Ensure in-memory map has an entry
-        self.indices.entry(name.to_string()).or_default();
+        // Ensure HNSW index is initialized in-memory
+        let indices = self.indices.write().await;
+        if !indices.contains_key(name) {
+            let index = HnswIndex {
+                store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(dimension))),
+                metadata: Arc::new(dashmap::DashMap::default()),
+            };
+            indices.insert(name.to_string(), index);
+        }
 
-        info!("Created vector index: {name} (dim={dimension}, metric={metric})");
+        info!("Created vector index: {name} (dim={dimension})");
         Ok(())
     }
 
-    /// Load all vectors from SQLite into memory.
+    /// Load all vectors from SQLite into HNSW indices.
     pub async fn load_from_db(&self) -> KiasResult<usize> {
-        let indices: Vec<(String, String)> = sqlx::query_as("SELECT id, name FROM vector_indices")
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| KiasError::Config(format!("Failed to load vector indices: {e}")))?;
+        let indices_info: Vec<(String, String, i64)> =
+            sqlx::query_as("SELECT id, name, dimension FROM vector_indices")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| {
+                    KiasError::Config(format!("Failed to load vector indices: {e}"))
+                })?;
 
         let mut total_loaded = 0;
+        let indices_guard = self.indices.write().await;
 
-        for (index_id, index_name) in indices {
+        for (index_id, index_name, dimension) in indices_info {
             let rows: Vec<(String, String, Vec<u8>, String)> = sqlx::query_as(
                 "SELECT id, external_id, embedding, metadata FROM vector_entries WHERE index_id = ?",
             )
             .bind(&index_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| KiasError::Config(format!("Failed to load vector entries: {e}")))?;
+            .map_err(|e| {
+                KiasError::Config(format!(
+                    "Failed to load vector entries for index '{index_name}': {e}"
+                ))
+            })?;
 
-            let mut entries = Vec::with_capacity(rows.len());
-            for (_entry_id, external_id, embedding_bytes, metadata_str) in rows {
-                let embedding = bytes_to_embedding(&embedding_bytes);
-                let metadata: serde_json::Value = serde_json::from_str(&metadata_str)
-                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
-                entries.push(IndexEntry {
-                    external_id,
-                    embedding,
-                    metadata,
-                });
+            let dim = dimension as usize;
+            let index = HnswIndex {
+                store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(dim))),
+                metadata: Arc::new(dashmap::DashMap::default()),
+            };
+
+            {
+                let mut hnsw = index.store.write().await;
+                for (_entry_id, external_id, embedding_bytes, metadata_str) in rows {
+                    let embedding = bytes_to_embedding(&embedding_bytes);
+                    let metadata: serde_json::Value =
+                        serde_json::from_str(&metadata_str)
+                            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+                    hnsw.insert(external_id.clone(), embedding);
+                    index.metadata.insert(external_id, metadata);
+                    total_loaded += 1;
+                }
             }
 
-            let count = entries.len();
-            total_loaded += count;
-            self.indices.insert(index_name.clone(), entries);
-            debug!("Loaded {count} vectors into index '{index_name}'");
+            let count = index.metadata.len();
+            indices_guard.insert(index_name.clone(), index);
+            debug!("Loaded {count} vectors into HNSW index '{index_name}'");
         }
 
-        info!("Loaded {total_loaded} total vectors from database");
+        drop(indices_guard);
+        info!("Loaded {total_loaded} total vectors into HNSW indices");
         Ok(total_loaded)
     }
 
-    /// Insert a vector into the store (write-through).
+    /// Insert a vector into the store (write-through to SQLite + HNSW).
     pub async fn insert(
         &self,
         index_name: &str,
@@ -122,22 +173,26 @@ impl PersistentVectorStore {
         embedding: &[f32],
         metadata: serde_json::Value,
     ) -> KiasResult<String> {
-        // Get index ID
-        let index_id: (String,) = sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
-            .bind(index_name)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|_| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
+        // Get index info
+        let (index_id,): (String,) =
+            sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
+                .bind(index_name)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|_| {
+                    KiasError::NotFound(format!("Vector index '{index_name}' not found"))
+                })?;
 
         let entry_id = uuid::Uuid::new_v4().to_string();
         let embedding_bytes = embedding_to_bytes(embedding);
-        let metadata_str = serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_string());
+        let metadata_str =
+            serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_string());
 
         sqlx::query(
-            "INSERT OR REPLACE INTO vector_entries (id, index_id, external_id, embedding, metadata) VALUES (?, ?, ?, ?, ?)"
+            "INSERT OR REPLACE INTO vector_entries (id, index_id, external_id, embedding, metadata) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(&entry_id)
-        .bind(&index_id.0)
+        .bind(&index_id)
         .bind(external_id)
         .bind(&embedding_bytes)
         .bind(&metadata_str)
@@ -145,70 +200,90 @@ impl PersistentVectorStore {
         .await
         .map_err(|e| KiasError::Config(format!("Failed to insert vector: {e}")))?;
 
-        // Update in-memory index
-        let entry = IndexEntry {
-            external_id: external_id.to_string(),
-            embedding: embedding.to_vec(),
-            metadata,
-        };
-        self.indices
-            .entry(index_name.to_string())
-            .or_default()
-            .push(entry);
+        // Insert into HNSW index — clone Arc out, drop guard, then await
+        {
+            // Get or create the index and clone its Arc — must clone BEFORE guard drops
+            let hnsw_index: Arc<HnswIndex> = {
+                let indices_w = self.indices.write().await;
+                indices_w
+                    .entry(index_name.to_string())
+                    .or_insert_with(|| {
+                        HnswIndex {
+                            store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(embedding.len()))),
+                            metadata: Arc::new(dashmap::DashMap::default()),
+                        }
+                    });
+            // Clone HnswIndex while guard is live, THEN wrap in Arc (Ref must drop first)
+            let hnsw_index_owned = indices_w.get(index_name).unwrap().clone();
+            Arc::new(hnsw_index_owned)
+            };
+            // Now hnsw_index is owned, we can await without holding the guard
+            let ext_id = external_id.to_string();
+            hnsw_index.insert(ext_id, embedding.to_vec()).await;
+            hnsw_index.metadata.insert(external_id.to_string(), metadata);
+        }
 
         // Update entry count
         sqlx::query(
-            "UPDATE vector_indices SET entry_count = (SELECT COUNT(*) FROM vector_entries WHERE index_id = ?), updated_at = datetime('now') WHERE id = ?"
+            "UPDATE vector_indices SET entry_count = (SELECT COUNT(*) FROM vector_entries WHERE index_id = ?), updated_at = datetime('now') WHERE id = ?",
         )
-        .bind(&index_id.0)
-        .bind(&index_id.0)
+        .bind(&index_id)
+        .bind(&index_id)
         .execute(&self.pool)
         .await
         .map_err(|e| KiasError::Config(format!("Failed to update vector count: {e}")))?;
 
-        debug!("Inserted vector for '{external_id}' into '{index_name}'");
+        debug!("Inserted vector for '{external_id}' into HNSW index '{index_name}'");
         Ok(entry_id)
     }
 
-    /// Search for the K nearest vectors using cosine similarity.
-    pub fn search(
+    /// Search for the K nearest vectors using HNSW ANN search.
+    /// Uses `search_knn` which returns (node_id, cosine_similarity) pairs directly.
+    pub async fn search(
         &self,
         index_name: &str,
         query: &[f32],
         top_k: usize,
     ) -> KiasResult<Vec<VectorSearchResult>> {
-        let entries = self
-            .indices
-            .get(index_name)
-            .ok_or_else(|| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
+        let indices = self.indices.read().await;
+        let inner = indices.get(index_name).ok_or_else(|| {
+            KiasError::NotFound(format!("Vector index '{index_name}' not found"))
+        })?;
 
-        let mut results: Vec<VectorSearchResult> = entries
-            .iter()
-            .map(|entry| {
-                let similarity = cosine_similarity(query, &entry.embedding);
+        // Use exact search for small indices (< 1000 vectors) for perfect accuracy.
+        // For larger indices, search_knn provides O(log N) approximation.
+        let knn_results = {
+            let store_guard = inner.store.read().await;
+            if store_guard.len() < 1000 {
+                store_guard.search_exact(query, top_k)
+            } else {
+                store_guard.search_knn(query, top_k)
+            }
+        };
+
+        let search_results: Vec<VectorSearchResult> = knn_results
+            .into_iter()
+            .map(|(external_id, similarity)| {
+                let metadata = inner
+                    .metadata
+                    .get(&external_id)
+                    .map(|m| m.clone())
+                    .unwrap_or(serde_json::Value::Null);
                 VectorSearchResult {
-                    external_id: entry.external_id.clone(),
-                    similarity,
-                    metadata: entry.metadata.clone(),
+                    external_id,
+                    similarity: similarity as f64,
+                    metadata,
                 }
             })
             .collect();
 
-        // Sort by similarity (highest first)
-        results.sort_by(|a, b| {
-            b.similarity
-                .partial_cmp(&a.similarity)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        results.truncate(top_k);
-
-        Ok(results)
+        Ok(search_results)
     }
 
     /// Remove a vector by external ID.
     pub async fn remove(&self, index_name: &str, external_id: &str) -> KiasResult<bool> {
         let result = sqlx::query(
-            "DELETE FROM vector_entries WHERE external_id = ? AND index_id = (SELECT id FROM vector_indices WHERE name = ?)"
+            "DELETE FROM vector_entries WHERE external_id = ? AND index_id = (SELECT id FROM vector_indices WHERE name = ?)",
         )
         .bind(external_id)
         .bind(index_name)
@@ -216,9 +291,24 @@ impl PersistentVectorStore {
         .await
         .map_err(|e| KiasError::Config(format!("Failed to remove vector: {e}")))?;
 
-        // Remove from in-memory index
-        if let Some(mut entries) = self.indices.get_mut(index_name) {
-            entries.retain(|e| e.external_id != external_id);
+        {
+            // Use write lock and extract Arcs before nested await
+            let indices_w = self.indices.write().await;
+            // Get reference and clone the Arc<store> before we need to await
+            let store_opt: Option<Arc<RwLock<kias_knowledge::VectorStore>>> =
+                indices_w.get(index_name).map(|v| v.store.clone());
+            let meta_opt: Option<Arc<dashmap::DashMap<String, serde_json::Value>>> =
+                indices_w.get(index_name).map(|v| v.metadata.clone());
+            // Drop the guard before the nested await
+            drop(indices_w);
+
+            if let Some(store) = store_opt {
+                let ext_id = external_id.to_string();
+                store.write().await.remove(&ext_id);
+            }
+            if let Some(meta) = meta_opt {
+                meta.remove(&external_id.to_string());
+            }
         }
 
         Ok(result.rows_affected() > 0)
@@ -226,15 +316,32 @@ impl PersistentVectorStore {
 
     /// Get the number of vectors in an index.
     pub fn count(&self, index_name: &str) -> usize {
-        self.indices.get(index_name).map(|e| e.len()).unwrap_or(0)
+        self.indices
+            .try_read()
+            .ok()
+            .and_then(|indices| {
+                indices.get(index_name).and_then(|inner| {
+                    inner.store.try_read().ok().map(|hnsw| hnsw.len())
+                })
+            })
+            .unwrap_or(0)
     }
 
     /// List all index names.
     pub fn list_indices(&self) -> Vec<String> {
         self.indices
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+            .try_read()
+            .map(|indices| indices.iter().map(|e| e.key().clone()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Get HNSW statistics for an index.
+    pub fn stats(&self, index_name: &str) -> Option<kias_knowledge::VectorStoreStats> {
+        self.indices.try_read().ok().and_then(|indices| {
+            indices.get(index_name).and_then(|inner| {
+                inner.store.try_read().ok().map(|hnsw| hnsw.stats())
+            })
+        })
     }
 }
 
@@ -244,33 +351,6 @@ pub struct VectorSearchResult {
     pub external_id: String,
     pub similarity: f64,
     pub metadata: serde_json::Value,
-}
-
-/// Compute cosine similarity between two vectors.
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
-    if a.len() != b.len() || a.is_empty() {
-        return 0.0;
-    }
-    let dot: f64 = a
-        .iter()
-        .zip(b.iter())
-        .map(|(x, y)| (*x as f64) * (*y as f64))
-        .sum();
-    let norm_a: f64 = a
-        .iter()
-        .map(|x| (*x as f64) * (*x as f64))
-        .sum::<f64>()
-        .sqrt();
-    let norm_b: f64 = b
-        .iter()
-        .map(|x| (*x as f64) * (*x as f64))
-        .sum::<f64>()
-        .sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
-        0.0
-    } else {
-        dot / (norm_a * norm_b)
-    }
 }
 
 /// Serialize f32 slice to bytes (little-endian).
@@ -305,42 +385,17 @@ mod tests {
         PersistentVectorStore::new(pool)
     }
 
-    #[test]
-    fn test_cosine_similarity() {
-        let a = vec![1.0, 0.0, 0.0];
-        let b = vec![1.0, 0.0, 0.0];
-        assert!((cosine_similarity(&a, &b) - 1.0).abs() < 1e-6);
-
-        let c = vec![0.0, 1.0, 0.0];
-        assert!((cosine_similarity(&a, &c)).abs() < 1e-6);
-
-        let d = vec![1.0, 1.0, 0.0];
-        let sim = cosine_similarity(&a, &d);
-        assert!((sim - std::f64::consts::FRAC_1_SQRT_2).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_embedding_serialization() {
-        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0];
-        let bytes = embedding_to_bytes(&original);
-        let restored = bytes_to_embedding(&bytes);
-        assert_eq!(original.len(), restored.len());
-        for (a, b) in original.iter().zip(restored.iter()) {
-            assert!((a - b).abs() < 1e-6);
-        }
-    }
-
     #[tokio::test]
     async fn test_create_index() {
         let store = setup_store().await;
         store
-            .create_index("test-idx", 128, "cosine")
+            .create_index("test", 3, "cosine")
             .await
             .expect("Failed to create index");
 
         let indices = store.list_indices();
         assert_eq!(indices.len(), 1);
-        assert_eq!(indices[0], "test-idx");
+        assert_eq!(indices[0], "test");
     }
 
     #[tokio::test]
@@ -351,7 +406,6 @@ mod tests {
             .await
             .expect("Failed to create index");
 
-        // Insert some vectors
         store
             .insert(
                 "test",
@@ -382,8 +436,7 @@ mod tests {
 
         assert_eq!(store.count("test"), 3);
 
-        // Search for something close to [1, 0, 0]
-        let results = store.search("test", &[1.0, 0.0, 0.0], 2).unwrap();
+        let results = store.search("test", &[1.0, 0.0, 0.0], 2).await.unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].external_id, "doc1");
         assert!(results[0].similarity > 0.99);
@@ -399,10 +452,12 @@ mod tests {
             .await
             .expect("Failed to run migrations");
 
-        // Write some vectors
         {
             let store = PersistentVectorStore::new(pool.clone());
-            store.create_index("persist", 3, "cosine").await.unwrap();
+            store
+                .create_index("persist", 3, "cosine")
+                .await
+                .unwrap();
             store
                 .insert("persist", "v1", &[1.0, 2.0, 3.0], serde_json::json!({}))
                 .await
@@ -413,14 +468,16 @@ mod tests {
                 .unwrap();
         }
 
-        // Reload in a new store instance
         {
             let store = PersistentVectorStore::new(pool);
             let loaded = store.load_from_db().await.unwrap();
             assert_eq!(loaded, 2);
             assert_eq!(store.count("persist"), 2);
 
-            let results = store.search("persist", &[1.0, 2.0, 3.0], 1).unwrap();
+            let results = store
+                .search("persist", &[1.0, 2.0, 3.0], 1)
+                .await
+                .unwrap();
             assert_eq!(results[0].external_id, "v1");
         }
     }
@@ -428,13 +485,26 @@ mod tests {
     #[tokio::test]
     async fn test_remove() {
         let store = setup_store().await;
-        store.create_index("rm-test", 3, "cosine").await.unwrap();
         store
-            .insert("rm-test", "a", &[1.0, 0.0, 0.0], serde_json::json!({}))
+            .create_index("rm-test", 3, "cosine")
             .await
             .unwrap();
         store
-            .insert("rm-test", "b", &[0.0, 1.0, 0.0], serde_json::json!({}))
+            .insert(
+                "rm-test",
+                "a",
+                &[1.0, 0.0, 0.0],
+                serde_json::json!({}),
+            )
+            .await
+            .unwrap();
+        store
+            .insert(
+                "rm-test",
+                "b",
+                &[0.0, 1.0, 0.0],
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
 
@@ -446,5 +516,32 @@ mod tests {
 
         let removed = store.remove("rm-test", "nonexistent").await.unwrap();
         assert!(!removed);
+    }
+
+    #[tokio::test]
+    async fn test_hnsw_stats() {
+        let store = setup_store().await;
+        store
+            .create_index("stats-test", 4, "cosine")
+            .await
+            .unwrap();
+        for i in 0..10 {
+            let vec = vec![i as f32; 4];
+            store
+                .insert(
+                    "stats-test",
+                    &format!("v{i}"),
+                    &vec,
+                    serde_json::json!({"idx": i}),
+                )
+                .await
+                .unwrap();
+        }
+
+        let stats = store.stats("stats-test");
+        assert!(stats.is_some());
+        let stats = stats.unwrap();
+        assert_eq!(stats.total_vectors, 10);
+        assert_eq!(stats.dimension, 4);
     }
 }

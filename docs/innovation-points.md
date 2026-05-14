@@ -50,6 +50,22 @@
 
 ## 2026-05 研究发现的新创新点
 
+### microsandbox (superradcompany/microsandbox) ⭐6081 安全的本地沙箱
+- **架构特点**: 安全的本地和可编程沙箱，支持 AI agents，支持 Docker
+- **可借鉴点**:
+  - KIAS 的 sandbox 模块（mcp-protocol/sandbox.rs）已有基础，但 microsandbox 的"安全本地沙箱"模式更成熟
+  - 隔离执行环境 → KIAS sandbox 可增强资源限制和网络隔离
+  - Docker 容器化 → KIAS 可支持容器级别的 sandbox 部署
+- **差距**: KIAS sandbox 是进程级，microsandbox 是容器级，隔离性更强
+
+### agentos (iii-experimental/agentos) ⭐140 Agent OS
+- **架构特点**: The agent OS that evolves itself，内置 MCP 支持
+- **可借鉴点**:
+  - WAL + Snapshots 持久化 → KIAS workflow-engine checkpoint 模块可对标
+  - 演进式 Agent 自优化 → KIAS goal-engine 可借鉴
+  - 内置 MCP 支持 → KIAS mcp-protocol 可与 agentos 生态互通
+- **差距**: KIAS 已有 checkpoint 机制，agentos 的 WAL 模式是增量持久化，更适合超长对话
+
 ### AutoAgents (liquidos-ai/AutoAgents) ⭐633 Rust 多 Agent 框架
 - **架构特点**: 模块化设计，Type-safe Agent 模型，结构化工具调用，可插拔 Memory
 - **可借鉴点**:
@@ -150,6 +166,8 @@
 | P1 | Anthropic MCP (mcp-protocol crate) | ✅ 已完成 | - |
 | P1 | Chidori 持久化 Agent 状态 | 📋 待研究 | 1 周 |
 | P1 | YoMo 边缘 AI 调度 | 📋 待研究 | 2 周 |
+| P1 | microsandbox 容器级沙箱 | 📋 待研究 | 1 周 |
+| P1 | agentos WAL 增量持久化 | 📋 待研究 | 1 周 |
 | P2 | Volcano GPU 调度 | 📋 待实现 | 3 周 |
 | P2 | DeepSeek MLA | 📋 待实现 | 2 周 |
 | P3 | CrewAI 声明式编排 | 📋 待实现 | 2 周 |

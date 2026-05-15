@@ -343,4 +343,72 @@ mod tests {
         let filter = CooldownFilter::new(Duration::from_secs(30));
         assert_eq!(filter.name(), "cooldown");
     }
+
+    #[test]
+    fn test_health_check_filter_name() {
+        let filter = HealthCheckFilter;
+        assert_eq!(filter.name(), "health-check");
+    }
+
+    #[test]
+    fn test_capability_filter_name() {
+        let filter = CapabilityFilter;
+        assert_eq!(filter.name(), "capability");
+    }
+
+    #[test]
+    fn test_latency_filter_name() {
+        let filter = LatencyFilter;
+        assert_eq!(filter.name(), "latency");
+    }
+
+    #[test]
+    fn test_cost_filter_name() {
+        let filter = CostFilter;
+        assert_eq!(filter.name(), "cost");
+    }
+
+    #[tokio::test]
+    async fn test_cooldown_filter_cooldown_and_check() {
+        let filter = CooldownFilter::new(Duration::from_secs(60));
+
+        // Initially not in cooldown
+        assert!(!filter.is_in_cooldown("provider-a").await);
+
+        // Put in cooldown
+        filter.cooldown("provider-a").await;
+        assert!(filter.is_in_cooldown("provider-a").await);
+
+        // Different provider not affected
+        assert!(!filter.is_in_cooldown("provider-b").await);
+    }
+
+    #[tokio::test]
+    async fn test_cooldown_filter_expires() {
+        let filter = CooldownFilter::new(Duration::from_millis(50));
+
+        filter.cooldown("provider-a").await;
+        assert!(filter.is_in_cooldown("provider-a").await);
+
+        // Wait for cooldown to expire
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(!filter.is_in_cooldown("provider-a").await);
+    }
+
+    #[test]
+    fn test_filter_pipeline_default() {
+        let pipeline = FilterPipeline::default();
+        assert_eq!(pipeline.filters.len(), 5);
+    }
+
+    #[test]
+    fn test_filter_pipeline_custom() {
+        let pipeline = FilterPipeline::with_filters(vec![
+            Box::new(HealthCheckFilter),
+            Box::new(CostFilter),
+        ]);
+        assert_eq!(pipeline.filters.len(), 2);
+        assert_eq!(pipeline.filters[0].name(), "health-check");
+        assert_eq!(pipeline.filters[1].name(), "cost");
+    }
 }

@@ -79,11 +79,17 @@ impl RequestCache {
     }
 
     fn get(&self, key: &str) -> Option<ChatResponse> {
-        if let Some(entry) = self.entries.get(key) {
-            if entry.created_at.elapsed() < entry.ttl {
-                return Some(entry.response.clone());
+        let expired = {
+            if let Some(entry) = self.entries.get(key) {
+                if entry.created_at.elapsed() < entry.ttl {
+                    return Some(entry.response.clone());
+                }
+                true
+            } else {
+                false
             }
-            // Expired, remove
+        }; // read guard dropped here
+        if expired {
             self.entries.remove(key);
         }
         None
@@ -751,5 +757,338 @@ mod tests {
         assert!(config.circuit_breaker_enabled);
         assert_eq!(config.circuit_breaker_threshold, 5);
         assert_eq!(config.circuit_breaker_recovery_secs, 60);
+    }
+
+    // ── RequestCache Tests ────────────────────────────────────────
+
+    #[test]
+    fn test_request_cache_set_and_get() {
+        let cache = RequestCache::new();
+        let response = ChatResponse {
+            id: "test-1".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            latency_ms: 100,
+            cost_usd: 0.01,
+        };
+
+        cache.set("key1".to_string(), response.clone(), Duration::from_secs(60));
+        let cached = cache.get("key1");
+        assert!(cached.is_some());
+        assert_eq!(cached.unwrap().id, "test-1");
+    }
+
+    #[test]
+    fn test_request_cache_miss() {
+        let cache = RequestCache::new();
+        assert!(cache.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_request_cache_expired() {
+        let cache = RequestCache::new();
+        let response = ChatResponse {
+            id: "test-2".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            latency_ms: 100,
+            cost_usd: 0.01,
+        };
+
+        // Set with very short TTL
+        cache.set("key2".to_string(), response, Duration::from_millis(1));
+
+        // Wait for expiry
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(cache.get("key2").is_none());
+    }
+
+    #[test]
+    fn test_request_cache_clear() {
+        let cache = RequestCache::new();
+        let response = ChatResponse {
+            id: "test-3".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            latency_ms: 100,
+            cost_usd: 0.01,
+        };
+
+        cache.set("key3".to_string(), response, Duration::from_secs(60));
+        assert!(cache.get("key3").is_some());
+
+        cache.clear();
+        assert!(cache.get("key3").is_none());
+    }
+
+    #[test]
+    fn test_request_cache_overwrite() {
+        let cache = RequestCache::new();
+        let response1 = ChatResponse {
+            id: "first".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            latency_ms: 100,
+            cost_usd: 0.01,
+        };
+        let response2 = ChatResponse {
+            id: "second".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![],
+            usage: Usage::default(),
+            latency_ms: 200,
+            cost_usd: 0.02,
+        };
+
+        cache.set("key".to_string(), response1, Duration::from_secs(60));
+        cache.set("key".to_string(), response2, Duration::from_secs(60));
+
+        let cached = cache.get("key").unwrap();
+        assert_eq!(cached.id, "second");
+    }
+
+    // ── Circuit Breaker Additional Tests ──────────────────────────
+
+    #[test]
+    fn test_circuit_breaker_half_open_success_closes() {
+        let mut cb = CircuitBreaker::new(2, 0);
+
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+
+        // Transition to half-open
+        assert!(cb.allow_request());
+        assert_eq!(cb.state, CircuitState::HalfOpen);
+
+        // Success in half-open closes the circuit
+        cb.record_success();
+        assert_eq!(cb.state, CircuitState::Closed);
+        assert_eq!(cb.failure_count, 0);
+    }
+
+    #[test]
+    fn test_circuit_breaker_half_open_failure_reopens() {
+        let mut cb = CircuitBreaker::new(2, 0);
+
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+
+        // Transition to half-open
+        assert!(cb.allow_request());
+        assert_eq!(cb.state, CircuitState::HalfOpen);
+
+        // Failure in half-open reopens
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+    }
+
+    #[test]
+    fn test_circuit_breaker_threshold_boundary() {
+        let mut cb = CircuitBreaker::new(3, 60);
+
+        // Exactly at threshold - 1
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Closed);
+
+        // At threshold
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+    }
+
+    #[test]
+    fn test_circuit_breaker_open_blocks_requests() {
+        let mut cb = CircuitBreaker::new(1, 60);
+
+        cb.record_failure();
+        assert_eq!(cb.state, CircuitState::Open);
+        assert!(!cb.allow_request());
+    }
+
+    // ── RouterConfig Tests ────────────────────────────────────────
+
+    #[test]
+    fn test_router_config_custom() {
+        let config = RouterConfig {
+            default_strategy: RoutingStrategy::LeastLatency,
+            max_retries: 5,
+            cache_enabled: true,
+            cache_ttl_secs: 600,
+            circuit_breaker_enabled: false,
+            circuit_breaker_threshold: 10,
+            circuit_breaker_recovery_secs: 120,
+            global_budget: Some(100.0),
+            logging_enabled: false,
+        };
+
+        assert_eq!(config.default_strategy, RoutingStrategy::LeastLatency);
+        assert_eq!(config.max_retries, 5);
+        assert!(config.cache_enabled);
+        assert_eq!(config.cache_ttl_secs, 600);
+        assert!(!config.circuit_breaker_enabled);
+        assert_eq!(config.global_budget, Some(100.0));
+    }
+
+    #[test]
+    fn test_router_config_serialization() {
+        let config = RouterConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: RouterConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.default_strategy, RoutingStrategy::RoundRobin);
+        assert_eq!(deserialized.max_retries, 3);
+    }
+
+    // ── Cache Key Tests ───────────────────────────────────────────
+
+    #[test]
+    fn test_cache_key_different_messages() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let req1 = ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![ChatMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            temperature: None,
+            max_tokens: None,
+            top_p: None,
+            stop: None,
+            stream: false,
+            tools: None,
+            user: None,
+            routing: None,
+        };
+
+        let req2 = ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![ChatMessage {
+                role: "user".to_string(),
+                content: "World".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            temperature: None,
+            max_tokens: None,
+            top_p: None,
+            stop: None,
+            stream: false,
+            tools: None,
+            user: None,
+            routing: None,
+        };
+
+        let key1 = router.cache_key(&req1);
+        let key2 = router.cache_key(&req2);
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn test_cache_key_same_input_same_key() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let make_request = || ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![ChatMessage {
+                role: "user".to_string(),
+                content: "test".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            temperature: Some(0.7),
+            max_tokens: Some(100),
+            top_p: None,
+            stop: None,
+            stream: false,
+            tools: None,
+            user: None,
+            routing: None,
+        };
+
+        let key1 = router.cache_key(&make_request());
+        let key2 = router.cache_key(&make_request());
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn test_cache_key_temperature_sensitive() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let make_request = |temp: Option<f64>| ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![ChatMessage {
+                role: "user".to_string(),
+                content: "test".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            temperature: temp,
+            max_tokens: None,
+            top_p: None,
+            stop: None,
+            stream: false,
+            tools: None,
+            user: None,
+            routing: None,
+        };
+
+        let key1 = router.cache_key(&make_request(Some(0.5)));
+        let key2 = router.cache_key(&make_request(Some(0.9)));
+        assert_ne!(key1, key2);
+    }
+
+    // ── RouterStats Tests ─────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_router_stats_empty() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let stats = router.stats().await;
+        assert_eq!(stats.providers.len(), 0);
+        assert_eq!(stats.total_cost, 0.0);
+        assert_eq!(stats.cache_size, 0);
+    }
+
+    #[tokio::test]
+    async fn test_router_user_cost_default() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let cost = router.user_cost("nonexistent-user").await;
+        assert_eq!(cost, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_router_multiple_providers() {
+        let config = RouterConfig::default();
+        let router = ModelRouter::new(config);
+
+        let config1 = ProviderConfig::openai("openai", "sk-1", vec!["gpt-4".to_string()]);
+        let config2 = ProviderConfig::anthropic("anthropic", "sk-ant-1", vec!["claude-3".to_string()]);
+
+        router.add_provider(config1).await.unwrap();
+        router.add_provider(config2).await.unwrap();
+
+        let stats = router.stats().await;
+        assert_eq!(stats.providers.len(), 2);
+        assert_eq!(stats.providers[0].name, "openai");
+        assert_eq!(stats.providers[1].name, "anthropic");
     }
 }

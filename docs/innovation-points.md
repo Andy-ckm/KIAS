@@ -95,6 +95,43 @@
 ### mcp-memory-service (doobuidoo/mcp-memory-service) ⭐1838
 - **LangGraph/CrewAI/AutoGen 持久化 Memory** → KIAS team-engine memory 模块可集成 MCP Memory 协议
 
+### open-multi-agent ⭐6136 — Goal-to-DAG 自动编排 🆕
+- **来源**: open-multi-agent/open-multi-agent (TypeScript, 2026-03)
+- **核心**: "From a goal to a task DAG, automatically" — 目标自动分解为任务图
+- **可借鉴点**:
+  - 自动 DAG 生成：用户输入目标 → LLM 自动生成执行图 → KIAS goal-engine 可增加 goal→workflow 自动生成
+  - MCP 原生支持：内置 MCP 集成 → KIAS mcp-protocol 可对标
+  - Live tracing：实时任务追踪 → KIAS agentsight 可参考
+- **差距**: KIAS goal-engine 需要手动定义评估器，open-multi-agent 自动分解目标
+- **集成优先级**: P2（goal→DAG 自动生成器）
+
+### holaOS ⭐5601 — 工作流即代码 🆕
+- **来源**: holaboss-ai/holaOS (TypeScript, 2026-03)
+- **核心**: "Turn repeat work into running AI work-streams" — 重复工作自动化
+- **可借鉴点**:
+  - Agent harness 模式：统一 agent 运行时 → KIAS kias-main 可对标
+  - 工作流模板化：常见任务预定义模板 → KIAS workflow-engine 可增加模板库
+- **差距**: KIAS 已有更底层的控制（DAG + checkpoint），holaOS 更偏用户友好
+
+### ccswarm ⭐138 — Git Worktree 隔离的多 Agent 🆕
+- **来源**: nwiizo/ccswarm (Rust, 2025-06)
+- **核心**: Claude Code + Git worktree 隔离 + 专业化 AI agents 协作
+- **可借鉴点**:
+  - Git worktree 作为 agent 隔离机制 → KIAS sandbox 可增加 git worktree 模式
+  - 专业化 agent 分工（code/review/test）→ KIAS team-engine skill_matcher 可对标
+  - **Rust 实现** — 可直接参考代码结构
+- **差距**: KIAS sandbox 是进程级隔离，ccswarm 用 git worktree 做文件级隔离
+- **集成优先级**: P3（sandbox 增强）
+
+### openclaw-a2a-gateway ⭐489 — A2A v0.3.0 网关 🆕
+- **来源**: win4r/openclaw-a2a-gateway (TypeScript, 2026-02)
+- **核心**: A2A 协议 v0.3.0 双向 agent 通信网关
+- **可借鉴点**:
+  - A2A v0.3.0 协议实现 → KIAS 可升级 A2A 实现到最新版本
+  - Agent Card 注册/发现 → KIAS api-server 可增加 agent registry
+  - 双向通信（不仅是请求-响应）→ KIAS 可增加 agent→agent 直连通道
+- **差距**: KIAS A2A 是 v0.1 级别，openclaw 已实现 v0.3.0 的完整规范
+
 ---
 
 ## 待集成的创新点（2025-05 研究）

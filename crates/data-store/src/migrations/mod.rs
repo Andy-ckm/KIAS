@@ -46,6 +46,12 @@ pub const MIGRATIONS: &[Migration] = &[
         up_sql: include_str!("004_experience_replay.sql"),
         down_sql: "DROP TABLE IF EXISTS prefix_cache; DROP TABLE IF EXISTS experience_replay;",
     },
+    Migration {
+        version: 5,
+        description: "Create audit log and dead letter queue tables",
+        up_sql: include_str!("005_audit_dlq.sql"),
+        down_sql: "DROP TABLE IF EXISTS dead_letter_queue; DROP TABLE IF EXISTS audit_log;",
+    },
 ];
 
 /// Manages database migrations.
@@ -176,14 +182,14 @@ mod tests {
         let runner = MigrationRunner::new(pool.clone());
         let applied = runner.run_all().await.expect("Failed to run migrations");
 
-        assert_eq!(applied.len(), 4, "Should apply 4 migrations");
-        assert_eq!(applied, vec![1, 2, 3, 4]);
+        assert_eq!(applied.len(), 5, "Should apply 5 migrations");
+        assert_eq!(applied, vec![1, 2, 3, 4, 5]);
 
         let version = runner
             .current_version()
             .await
             .expect("Failed to get version");
-        assert_eq!(version, 4, "Should be at version 4");
+        assert_eq!(version, 5, "Should be at version 5");
 
         // Running again should be a no-op
         let applied_again = runner

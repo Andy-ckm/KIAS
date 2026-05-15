@@ -1659,7 +1659,7 @@ mod tests {
 
         let health = repo.health_check().await;
         assert!(health.connected);
-        assert_eq!(health.schema_version, 4);
+        assert_eq!(health.schema_version, 5);
     }
 
     #[tokio::test]

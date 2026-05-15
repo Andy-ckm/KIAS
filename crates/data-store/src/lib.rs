@@ -29,13 +29,17 @@
 //! └──────────────────────────────────────────────────────────────┘
 //! ```
 
+pub mod audit_persist;
 pub mod cache_persist;
+pub mod dlq;
 pub mod migrations;
 pub mod models;
 pub mod repository;
 pub mod vector_persist;
 
+pub use audit_persist::SqliteAuditLog;
 pub use cache_persist::{CacheEntry, CacheStrategy, SqliteCacheStrategy};
+pub use dlq::{DeadLetterEntry, DeadLetterQueue, DeadLetterReason, DlqStats};
 pub use migrations::MigrationRunner;
 pub use models::{
     AgentRow, ComponentRow, ConfigRow, ExperienceReplayRow, PrefixCacheRow, SkillRow, TaskRow,

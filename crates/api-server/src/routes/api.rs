@@ -48,6 +48,7 @@ pub fn create_router(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/health", axum::routing::get(health::liveness))
         .route("/readyz", axum::routing::get(health::readiness))
+        .route("/healthz/deep", axum::routing::get(health::deep_health))
         .route("/ws", axum::routing::get(crate::websocket::ws_handler))
         .route(
             "/.well-known/agent.json",

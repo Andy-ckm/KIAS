@@ -15,6 +15,7 @@ pub mod audit;
 pub mod config;
 pub mod data_mask;
 pub mod error;
+pub mod graceful_shutdown;
 pub mod logging;
 pub mod messaging;
 pub mod metrics;

@@ -39,6 +39,11 @@ rustls-pemfile.workspace = true
 futures.workspace = true
 tokio-stream = { version = "0.1", features = ["sync"] }
 
+# System monitoring
+num_cpus = "1.16"
+libc = "0.2"
+once_cell.workspace = true
+
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }
 axum-test = "16"

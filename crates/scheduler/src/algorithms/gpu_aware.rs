@@ -262,7 +262,11 @@ impl SchedulingAlgorithm for GpuAwareScheduler {
         let strategy = agent
             .affinity
             .as_ref()
-            .and_then(|a| a.preferred.iter().find(|p| p.label == "gpu-scheduler-strategy"))
+            .and_then(|a| {
+                a.preferred
+                    .iter()
+                    .find(|p| p.label == "gpu-scheduler-strategy")
+            })
             .and_then(|p| match p.value.as_str() {
                 "spread" => Some(GpuStrategy::Spread),
                 "binpack" => Some(GpuStrategy::BinPack),
@@ -275,7 +279,8 @@ impl SchedulingAlgorithm for GpuAwareScheduler {
         let mut best_reason = String::new();
 
         for node in nodes {
-            if let Some((score, reason)) = score_gpu_node(node, &agent.resource_request, agent, strategy)
+            if let Some((score, reason)) =
+                score_gpu_node(node, &agent.resource_request, agent, strategy)
             {
                 if score > best_score {
                     best_score = score;
@@ -371,7 +376,14 @@ mod tests {
         labels.insert("gpu-type".into(), "nvidia-a100".into());
 
         let nodes = vec![
-            make_gpu_node("cpu-only", 0, 0, 16.0, 32 * 1024 * 1024 * 1024, HashMap::new()),
+            make_gpu_node(
+                "cpu-only",
+                0,
+                0,
+                16.0,
+                32 * 1024 * 1024 * 1024,
+                HashMap::new(),
+            ),
             make_gpu_node("gpu-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels),
         ];
 
@@ -386,8 +398,22 @@ mod tests {
     #[tokio::test]
     async fn test_rejects_no_gpu_nodes() {
         let nodes = vec![
-            make_gpu_node("cpu-only-1", 0, 0, 16.0, 32 * 1024 * 1024 * 1024, HashMap::new()),
-            make_gpu_node("cpu-only-2", 0, 0, 8.0, 16 * 1024 * 1024 * 1024, HashMap::new()),
+            make_gpu_node(
+                "cpu-only-1",
+                0,
+                0,
+                16.0,
+                32 * 1024 * 1024 * 1024,
+                HashMap::new(),
+            ),
+            make_gpu_node(
+                "cpu-only-2",
+                0,
+                0,
+                8.0,
+                16 * 1024 * 1024 * 1024,
+                HashMap::new(),
+            ),
         ];
 
         let scheduler = GpuAwareScheduler::new();
@@ -496,8 +522,22 @@ mod tests {
         labels_pcie.insert("gpu-interconnect".into(), "pcie".into());
 
         let nodes = vec![
-            make_gpu_node("pcie-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_pcie),
-            make_gpu_node("nvlink-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_nvlink),
+            make_gpu_node(
+                "pcie-node",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                labels_pcie,
+            ),
+            make_gpu_node(
+                "nvlink-node",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                labels_nvlink,
+            ),
         ];
 
         let scheduler = GpuAwareScheduler::new();
@@ -551,12 +591,24 @@ mod tests {
 
     #[test]
     fn test_gpu_vendor_from_label() {
-        assert_eq!(GpuVendor::from_label("nvidia-a100"), Some(GpuVendor::Nvidia));
-        assert_eq!(GpuVendor::from_label("NVIDIA-H100"), Some(GpuVendor::Nvidia));
+        assert_eq!(
+            GpuVendor::from_label("nvidia-a100"),
+            Some(GpuVendor::Nvidia)
+        );
+        assert_eq!(
+            GpuVendor::from_label("NVIDIA-H100"),
+            Some(GpuVendor::Nvidia)
+        );
         assert_eq!(GpuVendor::from_label("amd-mi250"), Some(GpuVendor::Amd));
         assert_eq!(GpuVendor::from_label("mi300x"), Some(GpuVendor::Amd));
-        assert_eq!(GpuVendor::from_label("intel-max-1550"), Some(GpuVendor::Intel));
-        assert_eq!(GpuVendor::from_label("ponte-vecchio"), Some(GpuVendor::Intel));
+        assert_eq!(
+            GpuVendor::from_label("intel-max-1550"),
+            Some(GpuVendor::Intel)
+        );
+        assert_eq!(
+            GpuVendor::from_label("ponte-vecchio"),
+            Some(GpuVendor::Intel)
+        );
         assert_eq!(GpuVendor::from_label("unknown-gpu"), None);
     }
 
@@ -577,7 +629,14 @@ mod tests {
         amd_labels.insert("gpu-type".into(), "amd-mi250".into());
 
         let nodes = vec![
-            make_gpu_node("nvidia-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, nvidia_labels),
+            make_gpu_node(
+                "nvidia-node",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                nvidia_labels,
+            ),
             make_gpu_node("amd-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, amd_labels),
         ];
 
@@ -599,7 +658,14 @@ mod tests {
         labels_no_mig.insert("gpu-type".into(), "nvidia-a100".into());
 
         let nodes = vec![
-            make_gpu_node("no-mig-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_no_mig),
+            make_gpu_node(
+                "no-mig-node",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                labels_no_mig,
+            ),
             make_gpu_node("mig-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_mig),
         ];
 
@@ -646,8 +712,22 @@ mod tests {
         labels_mig_no_profile.insert("gpu-mig-enabled".into(), "true".into());
 
         let nodes = vec![
-            make_gpu_node("mig-basic", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_mig_no_profile),
-            make_gpu_node("mig-profiled", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_mig_profile),
+            make_gpu_node(
+                "mig-basic",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                labels_mig_no_profile,
+            ),
+            make_gpu_node(
+                "mig-profiled",
+                4,
+                4,
+                32.0,
+                64 * 1024 * 1024 * 1024,
+                labels_mig_profile,
+            ),
         ];
 
         let mut preferred = vec![];

@@ -127,9 +127,7 @@ impl PersistentVectorStore {
             sqlx::query_as("SELECT id, name, dimension FROM vector_indices")
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|e| {
-                    KiasError::Config(format!("Failed to load vector indices: {e}"))
-                })?;
+                .map_err(|e| KiasError::Config(format!("Failed to load vector indices: {e}")))?;
 
         let mut total_loaded = 0;
         let indices_guard = self.indices.write().await;
@@ -157,9 +155,8 @@ impl PersistentVectorStore {
                 let mut hnsw = index.store.write().await;
                 for (_entry_id, external_id, embedding_bytes, metadata_str) in rows {
                     let embedding = bytes_to_embedding(&embedding_bytes);
-                    let metadata: serde_json::Value =
-                        serde_json::from_str(&metadata_str)
-                            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+                    let metadata: serde_json::Value = serde_json::from_str(&metadata_str)
+                        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
                     hnsw.insert(external_id.clone(), embedding);
                     index.metadata.insert(external_id, metadata);
                     total_loaded += 1;
@@ -185,19 +182,15 @@ impl PersistentVectorStore {
         metadata: serde_json::Value,
     ) -> KiasResult<String> {
         // Get index info
-        let (index_id,): (String,) =
-            sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
-                .bind(index_name)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|_| {
-                    KiasError::NotFound(format!("Vector index '{index_name}' not found"))
-                })?;
+        let (index_id,): (String,) = sqlx::query_as("SELECT id FROM vector_indices WHERE name = ?")
+            .bind(index_name)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
 
         let entry_id = uuid::Uuid::new_v4().to_string();
         let embedding_bytes = embedding_to_bytes(embedding);
-        let metadata_str =
-            serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_string());
+        let metadata_str = serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_string());
 
         sqlx::query(
             "INSERT OR REPLACE INTO vector_entries (id, index_id, external_id, embedding, metadata) VALUES (?, ?, ?, ?, ?)",
@@ -218,20 +211,22 @@ impl PersistentVectorStore {
                 let indices_w = self.indices.write().await;
                 indices_w
                     .entry(index_name.to_string())
-                    .or_insert_with(|| {
-                        HnswIndex {
-                            store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(embedding.len()))),
-                            metadata: Arc::new(dashmap::DashMap::default()),
-                        }
+                    .or_insert_with(|| HnswIndex {
+                        store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(
+                            embedding.len(),
+                        ))),
+                        metadata: Arc::new(dashmap::DashMap::default()),
                     });
-            // Clone HnswIndex while guard is live, THEN wrap in Arc (Ref must drop first)
-            let hnsw_index_owned = indices_w.get(index_name).unwrap().clone();
-            Arc::new(hnsw_index_owned)
+                // Clone HnswIndex while guard is live, THEN wrap in Arc (Ref must drop first)
+                let hnsw_index_owned = indices_w.get(index_name).unwrap().clone();
+                Arc::new(hnsw_index_owned)
             };
             // Now hnsw_index is owned, we can await without holding the guard
             let ext_id = external_id.to_string();
             hnsw_index.insert(ext_id, embedding.to_vec()).await;
-            hnsw_index.metadata.insert(external_id.to_string(), metadata);
+            hnsw_index
+                .metadata
+                .insert(external_id.to_string(), metadata);
         }
 
         // Update entry count
@@ -257,9 +252,9 @@ impl PersistentVectorStore {
         top_k: usize,
     ) -> KiasResult<Vec<VectorSearchResult>> {
         let indices = self.indices.read().await;
-        let inner = indices.get(index_name).ok_or_else(|| {
-            KiasError::NotFound(format!("Vector index '{index_name}' not found"))
-        })?;
+        let inner = indices
+            .get(index_name)
+            .ok_or_else(|| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
 
         // Use HNSW ANN search for all index sizes — the implementation provides
         // O(log N) query time with proper beam search and connection pruning.
@@ -329,9 +324,9 @@ impl PersistentVectorStore {
             .try_read()
             .ok()
             .and_then(|indices| {
-                indices.get(index_name).and_then(|inner| {
-                    inner.store.try_read().ok().map(|hnsw| hnsw.len())
-                })
+                indices
+                    .get(index_name)
+                    .and_then(|inner| inner.store.try_read().ok().map(|hnsw| hnsw.len()))
             })
             .unwrap_or(0)
     }
@@ -347,9 +342,9 @@ impl PersistentVectorStore {
     /// Get HNSW statistics for an index.
     pub fn stats(&self, index_name: &str) -> Option<kias_knowledge::VectorStoreStats> {
         self.indices.try_read().ok().and_then(|indices| {
-            indices.get(index_name).and_then(|inner| {
-                inner.store.try_read().ok().map(|hnsw| hnsw.stats())
-            })
+            indices
+                .get(index_name)
+                .and_then(|inner| inner.store.try_read().ok().map(|hnsw| hnsw.stats()))
         })
     }
 }
@@ -463,10 +458,7 @@ mod tests {
 
         {
             let store = PersistentVectorStore::new(pool.clone());
-            store
-                .create_index("persist", 3, "cosine")
-                .await
-                .unwrap();
+            store.create_index("persist", 3, "cosine").await.unwrap();
             store
                 .insert("persist", "v1", &[1.0, 2.0, 3.0], serde_json::json!({}))
                 .await
@@ -483,10 +475,7 @@ mod tests {
             assert_eq!(loaded, 2);
             assert_eq!(store.count("persist"), 2);
 
-            let results = store
-                .search("persist", &[1.0, 2.0, 3.0], 1)
-                .await
-                .unwrap();
+            let results = store.search("persist", &[1.0, 2.0, 3.0], 1).await.unwrap();
             assert_eq!(results[0].external_id, "v1");
         }
     }
@@ -494,26 +483,13 @@ mod tests {
     #[tokio::test]
     async fn test_remove() {
         let store = setup_store().await;
+        store.create_index("rm-test", 3, "cosine").await.unwrap();
         store
-            .create_index("rm-test", 3, "cosine")
+            .insert("rm-test", "a", &[1.0, 0.0, 0.0], serde_json::json!({}))
             .await
             .unwrap();
         store
-            .insert(
-                "rm-test",
-                "a",
-                &[1.0, 0.0, 0.0],
-                serde_json::json!({}),
-            )
-            .await
-            .unwrap();
-        store
-            .insert(
-                "rm-test",
-                "b",
-                &[0.0, 1.0, 0.0],
-                serde_json::json!({}),
-            )
+            .insert("rm-test", "b", &[0.0, 1.0, 0.0], serde_json::json!({}))
             .await
             .unwrap();
 
@@ -530,10 +506,7 @@ mod tests {
     #[tokio::test]
     async fn test_hnsw_stats() {
         let store = setup_store().await;
-        store
-            .create_index("stats-test", 4, "cosine")
-            .await
-            .unwrap();
+        store.create_index("stats-test", 4, "cosine").await.unwrap();
         for i in 0..10 {
             let vec = vec![i as f32; 4];
             store

@@ -47,13 +47,26 @@ impl DefaultOwner {
 impl Owner for DefaultOwner {
     async fn understand_goal(&self, input: &str) -> KiasResult<String> {
         // 非 LLM 占位符：简单清理和规范化输入
-        let cleaned = input
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
+        let cleaned = input.split_whitespace().collect::<Vec<_>>().join(" ");
 
         // 简单关键词提取：识别动作动词和关键名词
-        let action_words = ["create", "build", "implement", "fix", "update", "add", "remove", "refactor", "test", "deploy", "configure", "setup", "analyze", "design", "review"];
+        let action_words = [
+            "create",
+            "build",
+            "implement",
+            "fix",
+            "update",
+            "add",
+            "remove",
+            "refactor",
+            "test",
+            "deploy",
+            "configure",
+            "setup",
+            "analyze",
+            "design",
+            "review",
+        ];
         let lower = cleaned.to_lowercase();
 
         let mut understood = cleaned.to_string();
@@ -79,7 +92,9 @@ impl Owner for DefaultOwner {
 
         // 移除理解goal时添加的前缀
         let goal_clean = goal
-            .trim_start_matches(|c: char| c == '[' || c == ']' || c.is_ascii_uppercase() || c == ' ')
+            .trim_start_matches(|c: char| {
+                c == '[' || c == ']' || c.is_ascii_uppercase() || c == ' '
+            })
             .trim();
 
         let mut tasks = Vec::new();

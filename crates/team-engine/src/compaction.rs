@@ -181,10 +181,7 @@ impl ContextCompactor {
 
         // 1. System message (updated with summary context)
         if let Some(mut sys) = system_msg {
-            sys.content = format!(
-                "{}\n\n[Context Compacted]\n{}",
-                sys.content, summary
-            );
+            sys.content = format!("{}\n\n[Context Compacted]\n{}", sys.content, summary);
             result.push(sys);
         } else {
             // Inject a summary message
@@ -299,7 +296,10 @@ mod tests {
         assert_eq!(ContextCompactor::estimate_tokens(""), 0);
         assert_eq!(ContextCompactor::estimate_tokens("abcd"), 1);
         assert_eq!(ContextCompactor::estimate_tokens("abcde"), 2);
-        assert_eq!(ContextCompactor::estimate_tokens("a".repeat(100).as_str()), 25);
+        assert_eq!(
+            ContextCompactor::estimate_tokens("a".repeat(100).as_str()),
+            25
+        );
     }
 
     #[test]
@@ -395,8 +395,14 @@ mod tests {
         // Create messages with substantial content
         let mut msgs = vec![Message::system("System prompt")];
         for i in 0..10 {
-            msgs.push(Message::user(format!("This is user message number {} with some extra content to make it longer", i)));
-            msgs.push(Message::assistant(format!("This is assistant reply number {} with detailed explanation of the topic at hand", i)));
+            msgs.push(Message::user(format!(
+                "This is user message number {} with some extra content to make it longer",
+                i
+            )));
+            msgs.push(Message::assistant(format!(
+                "This is assistant reply number {} with detailed explanation of the topic at hand",
+                i
+            )));
         }
 
         let result = compactor.compact(&msgs);

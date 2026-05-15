@@ -442,9 +442,7 @@ impl TaskExecutor for ShellExecutor {
             })
             .unwrap_or_else(|| vec!["python".to_string(), "app.py".to_string()]);
 
-        let timeout_dur = task
-            .timeout
-            .unwrap_or(self.default_timeout);
+        let timeout_dur = task.timeout.unwrap_or(self.default_timeout);
 
         tracing::info!(
             task_id = %task.id,
@@ -503,16 +501,14 @@ impl TaskExecutor for ShellExecutor {
                     })
                 }
             }
-            Ok(Err(e)) => {
-                Ok(TaskResult {
-                    task_id: task.id.clone(),
-                    status: TaskStatus::Failed,
-                    output: None,
-                    error: Some(format!("Failed to execute command: {e}")),
-                    started_at: start_time,
-                    completed_at: end_time,
-                })
-            }
+            Ok(Err(e)) => Ok(TaskResult {
+                task_id: task.id.clone(),
+                status: TaskStatus::Failed,
+                output: None,
+                error: Some(format!("Failed to execute command: {e}")),
+                started_at: start_time,
+                completed_at: end_time,
+            }),
             Err(_) => {
                 // Timeout
                 Ok(TaskResult {
@@ -646,8 +642,6 @@ impl TaskExecutor for LlmExecutor {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

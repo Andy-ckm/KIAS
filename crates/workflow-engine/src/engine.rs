@@ -214,9 +214,7 @@ impl WorkflowEngine {
                 // Execution paused (e.g., HumanReview) or failed.
                 // Only run saga rollback on *failure*, NOT on human-review pauses
                 // (the workflow is still live and may be resumed after human input).
-                if state.status == WorkflowStatus::Failed
-                    && !compensation_stack.is_empty()
-                {
+                if state.status == WorkflowStatus::Failed && !compensation_stack.is_empty() {
                     self.run_compensations(&compensation_stack, &state.workflow_id)
                         .await;
                 }
@@ -766,10 +764,7 @@ impl WorkflowEngine {
             }
         }
 
-        tracing::warn!(
-            workflow_id = workflow_id,
-            "Saga rollback complete"
-        );
+        tracing::warn!(workflow_id = workflow_id, "Saga rollback complete");
     }
 }
 
@@ -1401,15 +1396,15 @@ mod tests {
                     },
                 }),
         );
-        graph.add_node(Node::new("step2", "Step2", NodeType::Process).with_executor(
-            ExecutorConfig::Shell {
+        graph.add_node(
+            Node::new("step2", "Step2", NodeType::Process).with_executor(ExecutorConfig::Shell {
                 command: "false".into(),
                 args: vec![],
                 env: HashMap::new(),
                 working_dir: None,
                 timeout_secs: None,
-            },
-        ));
+            }),
+        );
         graph.add_node(Node::new("end", "End", NodeType::Process));
         graph.add_edge(Edge::new("step1", "step2"));
         graph.add_edge(Edge::new("step2", "end"));

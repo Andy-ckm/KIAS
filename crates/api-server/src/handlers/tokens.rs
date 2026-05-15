@@ -137,10 +137,12 @@ mod tests {
     async fn test_state() -> AppState {
         let config = kias_common::config::KiasConfig::default();
         let graph = kias_knowledge::graph::KnowledgeGraph::new();
-        let embedding_engine = Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
-        let knowledge_retriever = kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
-            .await
-            .expect("Failed to create knowledge retriever");
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
 
         AppState {
             config: Arc::new(config),
@@ -206,7 +208,9 @@ mod tests {
                 kias_knowledge::vector::VectorRetriever::new(
                     kias_knowledge::graph::KnowledgeGraph::new(),
                     Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim()),
-                ).await.unwrap()
+                )
+                .await
+                .unwrap(),
             ),
         };
 

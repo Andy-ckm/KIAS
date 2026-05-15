@@ -38,7 +38,7 @@ fn make_agent(id: &str) -> Agent {
         system_prompt_hash: Some(42),
         affinity: None,
         anti_affinity: None,
-            tenant_id: None,
+        tenant_id: None,
     }
 }
 
@@ -209,9 +209,8 @@ fn bench_affinity_algorithm(c: &mut Criterion) {
                 let rt = tokio::runtime::Runtime::new().expect("rt");
                 b.iter(|| {
                     for agent in &agents {
-                        let _ = rt.block_on(async {
-                            black_box(scheduler.schedule(agent, &nodes).await)
-                        });
+                        let _ = rt
+                            .block_on(async { black_box(scheduler.schedule(agent, &nodes).await) });
                     }
                 });
             },
@@ -237,9 +236,8 @@ fn bench_priority_aware(c: &mut Criterion) {
                 let rt = tokio::runtime::Runtime::new().expect("rt");
                 b.iter(|| {
                     for agent in &agents {
-                        let _ = rt.block_on(async {
-                            black_box(scheduler.schedule(agent, &nodes).await)
-                        });
+                        let _ = rt
+                            .block_on(async { black_box(scheduler.schedule(agent, &nodes).await) });
                     }
                 });
             },
@@ -265,9 +263,8 @@ fn bench_gpu_aware(c: &mut Criterion) {
                 let rt = tokio::runtime::Runtime::new().expect("rt");
                 b.iter(|| {
                     for agent in &agents {
-                        let _ = rt.block_on(async {
-                            black_box(scheduler.schedule(agent, &nodes).await)
-                        });
+                        let _ = rt
+                            .block_on(async { black_box(scheduler.schedule(agent, &nodes).await) });
                     }
                 });
             },

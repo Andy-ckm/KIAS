@@ -205,7 +205,10 @@ async fn handle_agent_run(name: String, prompt: String, model: Option<String>, c
     };
 
     if let Some(ref _m) = model {
-        eprintln!("{}: 模型覆盖功能待实现（需要 Agent 级别配置）", "→".yellow());
+        eprintln!(
+            "{}: 模型覆盖功能待实现（需要 Agent 级别配置）",
+            "→".yellow()
+        );
     }
 
     println!("{}: 正在运行 Agent '{}' ...", "→".blue().bold(), name);
@@ -216,13 +219,11 @@ async fn handle_agent_run(name: String, prompt: String, model: Option<String>, c
     } else {
         // 查找名为 name 的 agent
         match client.list_agents().await {
-            Ok(agents) => {
-                agents
-                    .into_iter()
-                    .find(|a| a.name == name)
-                    .map(|a| a.id)
-                    .unwrap_or_else(|| name.clone())
-            }
+            Ok(agents) => agents
+                .into_iter()
+                .find(|a| a.name == name)
+                .map(|a| a.id)
+                .unwrap_or_else(|| name.clone()),
             Err(_) => name.clone(),
         }
     };
@@ -230,7 +231,11 @@ async fn handle_agent_run(name: String, prompt: String, model: Option<String>, c
     // 调用 Agent 执行
     match client.invoke_agent(&agent_id, &prompt, None).await {
         Ok(result) => {
-            println!("{}: Agent 运行完成 (run_id: {})", "✓".green().bold(), result.run_id);
+            println!(
+                "{}: Agent 运行完成 (run_id: {})",
+                "✓".green().bold(),
+                result.run_id
+            );
             output_data(&result, &cli.output);
             ExitCode::Success as i32
         }
@@ -1001,7 +1006,10 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
                 // 后台运行
                 println!("  以守护进程模式启动...");
                 // TODO: 实现真正的守护进程模式
-                println!("{}: 后台模式暂未实现，请直接运行 kias-main", "警告".yellow());
+                println!(
+                    "{}: 后台模式暂未实现，请直接运行 kias-main",
+                    "警告".yellow()
+                );
                 ExitCode::Success as i32
             } else {
                 // 前台运行 - 直接调用 kias-main

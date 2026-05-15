@@ -123,7 +123,11 @@ impl Session {
             }
         };
 
-        let session = Self { config, fs, metadata };
+        let session = Self {
+            config,
+            fs,
+            metadata,
+        };
         session.persist_metadata().await?;
         Ok(session)
     }
@@ -279,8 +283,14 @@ mod tests {
         let mut session = Session::new(config, fs).await.unwrap();
 
         session.append_message("user", "Hello").await.unwrap();
-        session.append_message("assistant", "Hi there!").await.unwrap();
-        session.append_message("user", "How are you?").await.unwrap();
+        session
+            .append_message("assistant", "Hi there!")
+            .await
+            .unwrap();
+        session
+            .append_message("user", "How are you?")
+            .await
+            .unwrap();
 
         let history = session.get_history().await.unwrap();
         assert_eq!(history.len(), 3);
@@ -316,7 +326,10 @@ mod tests {
         let config = SessionConfig::new("s1", "u1", "");
         let mut session = Session::new(config, fs).await.unwrap();
 
-        session.append_message("system", "You are helpful").await.unwrap();
+        session
+            .append_message("system", "You are helpful")
+            .await
+            .unwrap();
         session.append_message("user", "question").await.unwrap();
         session.append_message("assistant", "answer").await.unwrap();
 
@@ -370,8 +383,14 @@ mod tests {
         // Create session and add messages
         {
             let mut session = Session::new(config.clone(), fs.clone()).await.unwrap();
-            session.append_message("user", "first message").await.unwrap();
-            session.append_message("assistant", "first reply").await.unwrap();
+            session
+                .append_message("user", "first message")
+                .await
+                .unwrap();
+            session
+                .append_message("assistant", "first reply")
+                .await
+                .unwrap();
         }
 
         // Resume the same session from the same VFS
@@ -396,12 +415,18 @@ mod tests {
         session.append_message("user", "hello world").await.unwrap();
 
         // Verify the file is stored under the workspace root
-        let log_bytes = fs.read("workspaces/w1/sessions/sess-42/log.jsonl").await.unwrap();
+        let log_bytes = fs
+            .read("workspaces/w1/sessions/sess-42/log.jsonl")
+            .await
+            .unwrap();
         let log_text = String::from_utf8_lossy(&log_bytes);
         assert!(log_text.contains("hello world"));
 
         // Metadata also under the workspace root
-        let meta_bytes = fs.read("workspaces/w1/sessions/sess-42/metadata.json").await.unwrap();
+        let meta_bytes = fs
+            .read("workspaces/w1/sessions/sess-42/metadata.json")
+            .await
+            .unwrap();
         let meta: SessionMetadata = serde_json::from_slice(&meta_bytes).unwrap();
         assert_eq!(meta.session_id, "sess-42");
         assert_eq!(meta.message_count, 1);

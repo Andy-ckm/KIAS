@@ -2,7 +2,6 @@ mod services;
 
 use services::KiasServiceManager;
 
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -34,11 +33,12 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
     // Wait for shutdown signal.
-    let _ = shutdown.wait_for_phase(
-        kias_common::graceful_shutdown::ShutdownPhase::Complete,
-        std::time::Duration::from_secs(u64::MAX), // Wait forever
-    )
-    .await;
+    let _ = shutdown
+        .wait_for_phase(
+            kias_common::graceful_shutdown::ShutdownPhase::Complete,
+            std::time::Duration::from_secs(u64::MAX), // Wait forever
+        )
+        .await;
 
     // Graceful shutdown.
     manager.shutdown().await?;

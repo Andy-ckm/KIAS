@@ -143,7 +143,8 @@ impl ApiKey {
     pub fn record_rate_limit(&mut self, cooldown_secs: u64) {
         self.failure_count += 1;
         self.status = KeyStatus::Cooldown;
-        self.cooldown_until = Some(chrono::Utc::now() + chrono::Duration::seconds(cooldown_secs as i64));
+        self.cooldown_until =
+            Some(chrono::Utc::now() + chrono::Duration::seconds(cooldown_secs as i64));
         warn!(
             key = self.label.as_deref().unwrap_or(&self.key[..8]),
             cooldown_secs = cooldown_secs,
@@ -270,7 +271,10 @@ impl KeyRotator {
                         if chrono::Utc::now() >= until {
                             key.status = KeyStatus::Active;
                             key.cooldown_until = None;
-                            debug!(key = key.label.as_deref().unwrap_or("unknown"), "Key recovered from cooldown");
+                            debug!(
+                                key = key.label.as_deref().unwrap_or("unknown"),
+                                "Key recovered from cooldown"
+                            );
                         }
                     }
                 }
@@ -280,7 +284,10 @@ impl KeyRotator {
         match self.config.strategy {
             KeyRotationStrategy::RoundRobin => {
                 for _ in 0..len {
-                    let idx = self.rr_index.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % len;
+                    let idx = self
+                        .rr_index
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                        % len;
                     if keys[idx].is_available() {
                         return Ok(keys[idx].key.clone());
                     }
@@ -351,21 +358,26 @@ impl KeyRotator {
     /// Get stats for all keys (for monitoring/dashboard)
     pub async fn stats(&self) -> Vec<KeyStats> {
         let keys = self.keys.read().await;
-        keys.iter().map(|k| KeyStats {
-            label: k.label.clone().unwrap_or_else(|| mask_key(&k.key)),
-            status: k.status.clone(),
-            success_count: k.success_count,
-            failure_count: k.failure_count,
-            spend_usd: k.spend_usd,
-            budget_usd: k.budget_usd,
-            last_used: k.last_used,
-        }).collect()
+        keys.iter()
+            .map(|k| KeyStats {
+                label: k.label.clone().unwrap_or_else(|| mask_key(&k.key)),
+                status: k.status.clone(),
+                success_count: k.success_count,
+                failure_count: k.failure_count,
+                spend_usd: k.spend_usd,
+                budget_usd: k.budget_usd,
+                last_used: k.last_used,
+            })
+            .collect()
     }
 
     /// Add a new key to the pool
     pub async fn add_key(&self, key: ApiKey) {
         let mut keys = self.keys.write().await;
-        info!(label = key.label.as_deref().unwrap_or("unlabeled"), "Adding new API key");
+        info!(
+            label = key.label.as_deref().unwrap_or("unlabeled"),
+            "Adding new API key"
+        );
         keys.push(key);
     }
 
@@ -463,8 +475,7 @@ mod tests {
     use super::*;
 
     fn make_key(label: &str) -> ApiKey {
-        ApiKey::new(format!("sk-test-{}-{}", label, "x".repeat(20)))
-            .with_label(label)
+        ApiKey::new(format!("sk-test-{}-{}", label, "x".repeat(20))).with_label(label)
     }
 
     #[tokio::test]
@@ -508,10 +519,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_keys_exhausted() {
-        let rotator = KeyRotator::new(
-            vec![make_key("a")],
-            KeyRotationConfig::default(),
-        );
+        let rotator = KeyRotator::new(vec![make_key("a")], KeyRotationConfig::default());
         let k = rotator.get_key().await.unwrap();
         rotator.record_rate_limit(&k).await;
         // Only one key, in cooldown — should fail
@@ -534,10 +542,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_success_tracking() {
-        let rotator = KeyRotator::new(
-            vec![make_key("a")],
-            KeyRotationConfig::default(),
-        );
+        let rotator = KeyRotator::new(vec![make_key("a")], KeyRotationConfig::default());
         let k = rotator.get_key().await.unwrap();
         rotator.record_success(&k, 0.01).await;
         rotator.record_success(&k, 0.02).await;
@@ -549,10 +554,7 @@ mod tests {
     #[tokio::test]
     async fn test_budget_enforcement() {
         let key = make_key("budget").with_budget(0.10);
-        let rotator = KeyRotator::new(
-            vec![key],
-            KeyRotationConfig::default(),
-        );
+        let rotator = KeyRotator::new(vec![key], KeyRotationConfig::default());
         let k = rotator.get_key().await.unwrap();
         // Spend up to budget
         rotator.record_success(&k, 0.05).await;
@@ -564,10 +566,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_and_remove_key() {
-        let rotator = KeyRotator::new(
-            vec![make_key("a")],
-            KeyRotationConfig::default(),
-        );
+        let rotator = KeyRotator::new(vec![make_key("a")], KeyRotationConfig::default());
         assert_eq!(rotator.total_count().await, 1);
         rotator.add_key(make_key("b")).await;
         assert_eq!(rotator.total_count().await, 2);
@@ -578,10 +577,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_reset_all() {
-        let rotator = KeyRotator::new(
-            vec![make_key("a")],
-            KeyRotationConfig::default(),
-        );
+        let rotator = KeyRotator::new(vec![make_key("a")], KeyRotationConfig::default());
         let k = rotator.get_key().await.unwrap();
         rotator.record_rate_limit(&k).await;
         assert_eq!(rotator.available_count().await, 0);

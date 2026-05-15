@@ -113,12 +113,10 @@ impl LocalFs {
 impl VirtualFs for LocalFs {
     async fn read(&self, path: &str) -> Result<Vec<u8>, VfsError> {
         let full = self.resolve(path)?;
-        tokio::fs::read(&full)
-            .await
-            .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => VfsError::NotFound(path.to_string()),
-                _ => VfsError::Io(e),
-            })
+        tokio::fs::read(&full).await.map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => VfsError::NotFound(path.to_string()),
+            _ => VfsError::Io(e),
+        })
     }
 
     async fn write(&self, path: &str, data: &[u8]) -> Result<(), VfsError> {
@@ -269,11 +267,7 @@ impl VirtualFs for MemoryFs {
                         entries.push(DirEntry {
                             name: first.to_string(),
                             is_dir,
-                            size: if is_dir {
-                                0
-                            } else {
-                                files[key].len() as u64
-                            },
+                            size: if is_dir { 0 } else { files[key].len() as u64 },
                         });
                     }
                 }

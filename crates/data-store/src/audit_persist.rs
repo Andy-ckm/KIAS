@@ -106,13 +106,12 @@ impl SqliteAuditLog {
 
     /// Purge audit events older than the given number of days.
     pub async fn purge_older_than(&self, days: i64) -> KiasResult<u64> {
-        let result = sqlx::query(
-            "DELETE FROM audit_log WHERE timestamp < datetime('now', ? || ' days')"
-        )
-        .bind(format!("-{days}"))
-        .execute(&self.pool)
-        .await
-        .map_err(|e| kias_common::KiasError::Config(format!("audit purge failed: {e}")))?;
+        let result =
+            sqlx::query("DELETE FROM audit_log WHERE timestamp < datetime('now', ? || ' days')")
+                .bind(format!("-{days}"))
+                .execute(&self.pool)
+                .await
+                .map_err(|e| kias_common::KiasError::Config(format!("audit purge failed: {e}")))?;
         Ok(result.rows_affected())
     }
 }
@@ -230,7 +229,7 @@ mod tests {
                 ip_address TEXT,
                 user_agent TEXT,
                 outcome TEXT NOT NULL CHECK (outcome IN ('Success', 'Failure'))
-            )"
+            )",
         )
         .execute(&pool)
         .await
@@ -270,9 +269,12 @@ mod tests {
         let pool = setup_db().await;
         let log = SqliteAuditLog::new(pool);
 
-        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Success)).await;
-        log.log_event(make_event("u1", AuditAction::Delete, AuditOutcome::Failure)).await;
-        log.log_event(make_event("u2", AuditAction::Create, AuditOutcome::Success)).await;
+        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Success))
+            .await;
+        log.log_event(make_event("u1", AuditAction::Delete, AuditOutcome::Failure))
+            .await;
+        log.log_event(make_event("u2", AuditAction::Create, AuditOutcome::Success))
+            .await;
 
         let creates = log.query(None, Some("Create"), None, 100).await.unwrap();
         assert_eq!(creates.len(), 2);
@@ -286,7 +288,12 @@ mod tests {
         let pool = setup_db().await;
         let log = SqliteAuditLog::new(pool);
 
-        log.log_event(make_event("admin", AuditAction::Create, AuditOutcome::Success)).await;
+        log.log_event(make_event(
+            "admin",
+            AuditAction::Create,
+            AuditOutcome::Success,
+        ))
+        .await;
 
         let agents = log.query(None, None, Some("agent"), 100).await.unwrap();
         assert_eq!(agents.len(), 1);
@@ -318,7 +325,11 @@ mod tests {
         let log = SqliteAuditLog::new(pool);
 
         for i in 0..5 {
-            let mut event = make_event(&format!("user-{i}"), AuditAction::Execute, AuditOutcome::Success);
+            let mut event = make_event(
+                &format!("user-{i}"),
+                AuditAction::Execute,
+                AuditOutcome::Success,
+            );
             event.details = format!("event-{i}");
             log.log_event(event).await;
         }

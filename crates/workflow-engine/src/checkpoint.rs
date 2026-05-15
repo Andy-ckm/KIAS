@@ -173,7 +173,13 @@ impl CheckpointStore for SqliteCheckpointStore {
         conn.execute(
             "INSERT INTO checkpoints (id, workflow_id, node_id, state_json, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![checkpoint.id, checkpoint.workflow_id, checkpoint.node_id, state_json, created_at],
+            params![
+                checkpoint.id,
+                checkpoint.workflow_id,
+                checkpoint.node_id,
+                state_json,
+                created_at
+            ],
         )?;
         Ok(())
     }
@@ -185,7 +191,8 @@ impl CheckpointStore for SqliteCheckpointStore {
     ) -> anyhow::Result<Option<Checkpoint>> {
         let conn = self.conn.lock().map_err(|e| anyhow::anyhow!("lock: {e}"))?;
 
-        let (sql, param_values): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = match checkpoint_id {
+        let (sql, param_values): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = match checkpoint_id
+        {
             Some(id) => (
                 "SELECT id, workflow_id, node_id, state_json, created_at \
                  FROM checkpoints WHERE workflow_id = ?1 AND id = ?2 \
@@ -201,7 +208,8 @@ impl CheckpointStore for SqliteCheckpointStore {
         };
 
         let mut stmt = conn.prepare(sql)?;
-        let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let mut row_iter = stmt.query_map(params_ref.as_slice(), row_to_checkpoint)?;
 
         if let Some(row) = row_iter.next() {
@@ -368,10 +376,7 @@ mod tests {
                 .unwrap();
         }
 
-        let specific = store
-            .load_checkpoint("wf-1", Some("cp-1"))
-            .await
-            .unwrap();
+        let specific = store.load_checkpoint("wf-1", Some("cp-1")).await.unwrap();
         assert!(specific.is_some());
         assert_eq!(specific.unwrap().node_id, "node-1");
 
@@ -409,11 +414,7 @@ mod tests {
     #[tokio::test]
     async fn test_sqlite_empty() {
         let store = SqliteCheckpointStore::open_in_memory().unwrap();
-        assert!(store
-            .load_checkpoint("nope", None)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(store.load_checkpoint("nope", None).await.unwrap().is_none());
         assert!(store.list_checkpoints("nope").await.unwrap().is_empty());
     }
 
@@ -436,11 +437,7 @@ mod tests {
             .await
             .unwrap();
 
-        let loaded = store
-            .load_checkpoint("wf-rt", None)
-            .await
-            .unwrap()
-            .unwrap();
+        let loaded = store.load_checkpoint("wf-rt", None).await.unwrap().unwrap();
         assert_eq!(
             loaded.state.data.get("key1").unwrap().as_str().unwrap(),
             "value1"

@@ -288,9 +288,10 @@ pub struct LocalModelInfo {
 /// Auto-detect local model server type.
 pub async fn detect_server(endpoint: &str) -> Option<LocalServerType> {
     let client = reqwest::Client::new();
-    
+
     // Try Ollama
-    if client.get(format!("{}/api/tags", endpoint))
+    if client
+        .get(format!("{}/api/tags", endpoint))
         .send()
         .await
         .ok()
@@ -299,9 +300,10 @@ pub async fn detect_server(endpoint: &str) -> Option<LocalServerType> {
     {
         return Some(LocalServerType::Ollama);
     }
-    
+
     // Try vLLM (OpenAI-compatible)
-    if client.get(format!("{}/v1/models", endpoint))
+    if client
+        .get(format!("{}/v1/models", endpoint))
         .send()
         .await
         .ok()
@@ -310,9 +312,10 @@ pub async fn detect_server(endpoint: &str) -> Option<LocalServerType> {
     {
         return Some(LocalServerType::Vllm);
     }
-    
+
     // Try llama.cpp
-    if client.get(format!("{}/health", endpoint))
+    if client
+        .get(format!("{}/health", endpoint))
         .send()
         .await
         .ok()
@@ -321,7 +324,7 @@ pub async fn detect_server(endpoint: &str) -> Option<LocalServerType> {
     {
         return Some(LocalServerType::LlamaCpp);
     }
-    
+
     None
 }
 
@@ -340,9 +343,10 @@ mod tests {
 
     #[test]
     fn test_local_model_config_vllm() {
-        let config = LocalModelConfig::vllm("http://localhost:8000", "meta-llama/Llama-3.1-8B-Instruct")
-            .with_temperature(0.5)
-            .with_max_tokens(4096);
+        let config =
+            LocalModelConfig::vllm("http://localhost:8000", "meta-llama/Llama-3.1-8B-Instruct")
+                .with_temperature(0.5)
+                .with_max_tokens(4096);
         assert_eq!(config.server_type, LocalServerType::Vllm);
         assert_eq!(config.model_params.temperature, Some(0.5));
         assert_eq!(config.model_params.max_tokens, Some(4096));
@@ -350,8 +354,8 @@ mod tests {
 
     #[test]
     fn test_local_model_config_llama_cpp() {
-        let config = LocalModelConfig::llama_cpp("http://localhost:8080", "model.gguf")
-            .with_concurrency(1);
+        let config =
+            LocalModelConfig::llama_cpp("http://localhost:8080", "model.gguf").with_concurrency(1);
         assert_eq!(config.server_type, LocalServerType::LlamaCpp);
         assert_eq!(config.max_concurrency, 1);
     }

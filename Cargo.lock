@@ -1843,6 +1843,7 @@ dependencies = [
  "http-body-util",
  "jsonwebtoken",
  "kias-common",
+ "kias-data-store",
  "kias-executor",
  "kias-knowledge",
  "libc",

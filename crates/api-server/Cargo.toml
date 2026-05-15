@@ -11,6 +11,7 @@ path = "src/main.rs"
 kias-common.workspace = true
 kias-executor = { path = "../executor" }
 kias-knowledge = { path = "../knowledge" }
+kias-data-store = { path = "../data-store" }
 
 tokio.workspace = true
 axum.workspace = true

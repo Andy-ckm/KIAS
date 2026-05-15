@@ -2,6 +2,7 @@ mod services;
 
 use services::KiasServiceManager;
 
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -18,17 +19,33 @@ async fn main() -> anyhow::Result<()> {
     let health = manager.health_check();
     tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial health check");
 
-    // Get a shutdown handle for background tasks.
-    let _shutdown_handle = manager.shutdown_handle();
+    // Get the graceful shutdown coordinator.
+    let shutdown = manager.graceful_shutdown();
+
+    // Spawn signal handler (SIGTERM/SIGINT).
+    let shutdown_for_signal = shutdown.clone();
+    let signal_handle = tokio::spawn(async move {
+        kias_common::graceful_shutdown::wait_for_signal().await;
+        tracing::info!("Signal received, initiating graceful shutdown");
+        shutdown_for_signal.shutdown().await;
+    });
 
     tracing::info!("KIAS System started successfully");
+    tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
-    // Wait for Ctrl-C.
-    tokio::signal::ctrl_c().await?;
+    // Wait for shutdown signal.
+    let _ = shutdown.wait_for_phase(
+        kias_common::graceful_shutdown::ShutdownPhase::Complete,
+        std::time::Duration::from_secs(u64::MAX), // Wait forever
+    )
+    .await;
 
     // Graceful shutdown.
     manager.shutdown().await?;
     tracing::info!("KIAS System shut down gracefully");
+
+    // Wait for signal handler to finish.
+    let _ = signal_handle.await;
 
     Ok(())
 }

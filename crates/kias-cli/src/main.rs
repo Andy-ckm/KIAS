@@ -99,6 +99,7 @@ async fn main() {
         Commands::Model { ref action } => handle_model(action.clone(), &cli).await,
         Commands::Config { ref action } => handle_config(action.clone(), &cli).await,
         Commands::Cluster { ref action } => handle_cluster(action.clone(), &cli).await,
+        Commands::Server { ref action } => handle_server(action.clone(), &cli).await,
     };
 
     process::exit(exit_code);
@@ -974,5 +975,95 @@ async fn handle_cluster(action: kias_cli::ClusterAction, cli: &Cli) -> i32 {
                 ExitCode::ServerError as i32
             }
         },
+    }
+}
+
+// ─── Server 操作 ───────────────────────────────────────────────────
+
+async fn handle_server(action: kias_cli::ServerAction, cli: &Cli) -> i32 {
+    match action {
+        kias_cli::ServerAction::Start { config, daemon } => {
+            println!("{}: 启动 KIAS 服务...", "→".blue().bold());
+
+            // 确定配置文件
+            let config_path = config.unwrap_or_else(|| {
+                std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string())
+            });
+
+            // 检查配置文件是否存在
+            if !std::path::Path::new(&config_path).exists() {
+                eprintln!("{}: 配置文件不存在: {}", "错误".red().bold(), config_path);
+                eprintln!("  运行 `kias config init` 创建配置文件");
+                return ExitCode::ConfigError as i32;
+            }
+
+            if daemon {
+                // 后台运行
+                println!("  以守护进程模式启动...");
+                // TODO: 实现真正的守护进程模式
+                println!("{}: 后台模式暂未实现，请直接运行 kias-main", "警告".yellow());
+                ExitCode::Success as i32
+            } else {
+                // 前台运行 - 直接调用 kias-main
+                println!("  配置文件: {}", config_path);
+                println!("  按 Ctrl+C 停止服务");
+                println!();
+
+                // 调用 kias-main 二进制
+                let status = std::process::Command::new("kias-main")
+                    .arg("--config")
+                    .arg(&config_path)
+                    .status();
+
+                match status {
+                    Ok(s) => {
+                        if s.success() {
+                            ExitCode::Success as i32
+                        } else {
+                            s.code().unwrap_or(1) as i32
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("{}: 启动失败: {}", "错误".red().bold(), e);
+                        eprintln!("  请确保 kias-main 在 PATH 中");
+                        ExitCode::ServerError as i32
+                    }
+                }
+            }
+        }
+        kias_cli::ServerAction::Stop => {
+            println!("{}: 停止 KIAS 服务...", "→".blue().bold());
+            // 发送 SIGTERM 到 kias-main 进程
+            // TODO: 实现进程管理
+            println!("{}: 请使用 Ctrl+C 或 kill 命令停止服务", "提示".yellow());
+            ExitCode::Success as i32
+        }
+        kias_cli::ServerAction::Status => {
+            println!("{}: KIAS 服务状态", "→".blue().bold());
+            // 检查健康端点
+            let client = reqwest::Client::new();
+            match client.get("http://localhost:8080/healthz").send().await {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        println!("{}: 服务运行中", "✓".green().bold());
+                        println!("  端点: http://localhost:8080");
+                        ExitCode::Success as i32
+                    } else {
+                        println!("{}: 服务异常 (HTTP {})", "✗".red().bold(), resp.status());
+                        ExitCode::ServerError as i32
+                    }
+                }
+                Err(_) => {
+                    println!("{}: 服务未运行", "✗".red().bold());
+                    ExitCode::ServerError as i32
+                }
+            }
+        }
+        kias_cli::ServerAction::Restart => {
+            println!("{}: 重启 KIAS 服务...", "→".blue().bold());
+            // TODO: 实现重启逻辑
+            println!("{}: 请先停止再启动服务", "提示".yellow());
+            ExitCode::Success as i32
+        }
     }
 }

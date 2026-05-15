@@ -643,3 +643,38 @@
 - **特点**: SQLite-backed, exactly-once delivery, crash recovery
 - **KIAS 差距**: KIAS data-store already has SQLite persistence + checkpoint system. Exactly-once semantics is a gap — KIAS workflows use at-least-once with retry. Could add idempotency keys to workflow engine.
 - **优先级**: 🟡 Low — Concept is right but project is brand new (0 stars). KIAS already has SQLite + checkpoint. The exactly-once pattern is worth noting for future workflow improvements.
+
+### 52. KAOS — K8s Agent Orchestration System ⭐251 🆕
+- **来源**: axsaucedo/kaos (TypeScript)
+- **核心**: K8S-native agent orchestration for large-scale distributed multi-agent systems
+- **特点**: Kubernetes CRDs for agents, distributed scheduling, operator pattern
+- **KIAS 差距**: KAOS is K8S-native (runs ON k8s), KIAS borrows K8S concepts but runs standalone. KAOS's operator pattern is interesting for KIAS's controller — could add CRD-like agent definitions. KIAS's Rust core + SQLite persistence is lighter-weight than K8S dependency.
+- **优先级**: 🟡 Medium — K8S-native approach is heavier than KIAS's standalone model, but the operator reconciliation pattern matches KIAS's controller design
+
+### 53. native-cli-ai — Rust Agent Orchestration CLI ⭐129 🆕
+- **来源**: madebyaris/native-cli-ai (Rust)
+- **核心**: Native Rust CLI for orchestrating AI agents with persistent sessions, worktrees, local-first architecture
+- **特点**: Git worktree isolation, persistent sessions, project-scoped agents, local-first
+- **KIAS 差距**: Similar Rust-first philosophy to KIAS. Worktree isolation is a novel agent sandboxing concept — each agent gets its own git worktree for code changes. KIAS's sandbox (process/docker/wasm) is more general but worktree-based isolation is simpler for code-focused agents.
+- **优先级**: 🟡 Medium — Worktree isolation pattern worth studying for KIAS's code-agent use cases
+
+### 54. aionrs — Multi-Provider AI Agent CLI ⭐85 🆕
+- **来源**: iOfficeAI/aionrs (Rust)
+- **核心**: Multi-provider AI agent CLI with tool orchestration support
+- **特点**: Provider abstraction, tool registry, Rust-native
+- **KIAS 差距**: KIAS already has model-router with provider rotation. aionrs's tool orchestration approach may have patterns worth comparing with KIAS's executor registry.
+- **优先级**: 🟢 Low — KIAS model-router already covers multi-provider; worth monitoring for tool orchestration patterns
+
+### 55. Agentic Developer Environment (acepe) ⭐78 🆕
+- **来源**: flazouh/acepe (TypeScript)
+- **核心**: Agentic Developer Environment to orchestrate Claude Code, Codex, Copilot, Cursor, Opencode
+- **特点**: Unified orchestration of multiple coding agents, IDE integration
+- **KIAS 差距**: acepe focuses on coding agent orchestration specifically. KIAS's team-engine (Owner-Worker-Verifier) is more general-purpose but could adopt coding-agent-specific patterns.
+- **优先级**: 🟢 Low — Coding-specific orchestration, not directly applicable to KIAS's general agent scheduling
+
+### 56. Tutti — Multi-Agent Orchestration CLI ⭐35 🆕
+- **来源**: nutthouse/tutti (Rust)
+- **核心**: Multi-agent orchestration CLI — "your agents, all together"
+- **特点**: Rust-native, CLI-first, agent coordination
+- **KIAS 差距**: Early-stage Rust project focused on CLI orchestration. KIAS's kias-cli already covers agent management commands. Monitor for novel coordination patterns.
+- **优先级**: 🟢 Low — Early stage, but Rust-native approach validates KIAS's language choice

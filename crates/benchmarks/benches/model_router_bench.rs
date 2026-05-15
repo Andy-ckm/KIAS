@@ -77,10 +77,7 @@ impl kias_model_router::Provider for MockProvider {
         }
     }
 
-    async fn chat(
-        &self,
-        _request: &ChatRequest,
-    ) -> kias_model_router::RouterResult<ChatResponse> {
+    async fn chat(&self, _request: &ChatRequest) -> kias_model_router::RouterResult<ChatResponse> {
         self.call_count.fetch_add(1, Ordering::Relaxed);
         Ok(ChatResponse {
             id: "mock-1".to_string(),
@@ -234,19 +231,14 @@ fn bench_provider_registration(c: &mut Criterion) {
     let mut group = c.benchmark_group("router/provider_registration");
 
     for count in &[1, 5, 10, 50] {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            count,
-            |b, &n| {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                b.iter(|| {
-                    let router =
-                        rt.block_on(build_router(n, RoutingStrategy::RoundRobin));
-                    black_box(n);
-                    drop(router);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &n| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            b.iter(|| {
+                let router = rt.block_on(build_router(n, RoutingStrategy::RoundRobin));
+                black_box(n);
+                drop(router);
+            });
+        });
     }
 
     group.finish();
@@ -273,19 +265,15 @@ fn bench_routing_strategies(c: &mut Criterion) {
             let label = format!("{}/{}_providers", strategy_name, providers);
             let router = rt.block_on(build_router(*providers, strategy));
 
-            group.bench_with_input(
-                BenchmarkId::new("single_chat", &label),
-                &label,
-                |b, _| {
-                    let request = make_request("gpt-4");
-                    b.iter(|| {
-                        let req = request.clone();
-                        rt.block_on(async {
-                            black_box(router.chat(req).await.unwrap());
-                        });
+            group.bench_with_input(BenchmarkId::new("single_chat", &label), &label, |b, _| {
+                let request = make_request("gpt-4");
+                b.iter(|| {
+                    let req = request.clone();
+                    rt.block_on(async {
+                        black_box(router.chat(req).await.unwrap());
                     });
-                },
-            );
+                });
+            });
         }
     }
 
@@ -354,11 +342,7 @@ fn bench_cached_requests(c: &mut Criterion) {
     };
     let router = ModelRouter::new(config);
     rt.block_on(async {
-        let mock = MockProvider::new(
-            "cache-provider",
-            vec!["gpt-4".to_string()],
-            1.0,
-        );
+        let mock = MockProvider::new("cache-provider", vec!["gpt-4".to_string()], 1.0);
         router.add_custom_provider(Box::new(mock)).await;
     });
 

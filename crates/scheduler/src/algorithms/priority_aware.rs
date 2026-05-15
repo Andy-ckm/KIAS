@@ -226,7 +226,9 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
             for entry in rest {
                 queue.push(entry);
             }
-            best_low.or_else(|| queue.pop()).ok_or(KiasError::NoAvailableNodes)?
+            best_low
+                .or_else(|| queue.pop())
+                .ok_or(KiasError::NoAvailableNodes)?
         } else {
             queue.pop().ok_or(KiasError::NoAvailableNodes)?
         };

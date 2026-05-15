@@ -218,6 +218,39 @@
 - **差距**: KIAS 缺实时语音和 artifact 生成
 - **优先级**: 低（短期不涉及语音）
 
+
+
+### 22. conikeec/mcpr MCP Rust Implementation ⭐349 🆕
+- **来源**: conikeec/mcpr (Rust)
+- **核心**: Model Context Protocol (MCP) implementation in Rust
+- **可借鉴点**:
+  - 纯 Rust MCP 实现 → KIAS mcp-protocol 可对标或集成
+  - 成熟的 JSON-RPC 2.0 处理 → KIAS 可参考其错误处理模式
+- **差距**: KIAS 已有 mcp-protocol crate，mcpr 更轻量但功能类似
+- **优先级**: 低（KIAS 已有完整实现）
+
+### 23. Derek-X-Wang/mcp-rust-sdk MCP Rust SDK ⭐132 🆕
+- **来源**: Derek-X-Wang/mcp-rust-sdk (Rust)
+- **核心**: Rust SDK for the Model Context Protocol (MCP)
+- **可借鉴点**:
+  - SDK 设计模式 → KIAS 可提供类似的 SDK 接口
+  - 类型安全的 MCP 工具定义 → KIAS 可增强工具定义的类型安全
+- **优先级**: 低
+
+## Sprint 15 改进总结 (2026-05-15)
+
+### 代码质量改进
+- ✅ **HNSW 统一搜索**: 移除 O(N) exact search 回退，所有索引大小统一使用 O(log N) HNSW
+- ✅ **distance→similarity 转换修复**: search_knn 返回 cosine_distance，vector_persist 正确转换为 similarity
+- ✅ **Redis 配置误导清理**: cache_mode 从 "local or redis" 改为诚实的 "sqlite or memory"
+- ✅ **scheduler 编译修复**: gpu_aware.rs PartialEq 比较错误修复
+- ✅ **测试数**: 1205 → 1215 (+10 tests from rebuild)
+
+### 技术债务清理
+- 移除了虚假的 Redis 依赖声明
+- 统一了向量搜索路径，消除了代码分叉
+- 修复了潜在的相似度计算错误（distance vs similarity 混淆）
+
 ## 创新点优先级排序
 
 | 优先级 | 创新点 | 状态 | 预计工作量 |

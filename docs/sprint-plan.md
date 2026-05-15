@@ -51,12 +51,12 @@
 - [x] SQLite Repository trait + SqliteRepository 实现
 - [x] 8 个数据模型（Agent, Task, Workflow, Config, Skill, Component, ExperienceReplay, PrefixCache）
 - [x] HNSW vector search (kias-knowledge VectorStore 实现, O(log N) ANN)
-- [x] Hybrid search: <1000 vectors → exact, ≥1000 vectors → HNSW
+- [x] HNSW ANN search: all index sizes use O(log N) HNSW (no O(N) fallback)
 - [x] Cache strategy: TTL + 命名空间隔离
 - [x] Experience Replay: batch insert + episode 追踪
 - [x] Prefix Cache: DeepSeek 风格 token-level KV cache
 - [x] 迁移系统：4 个迁移 (core, vector, cache, experience_replay)
-- [x] 测试覆盖：1198 tests (从 1047 → 1198, +14%)
+- [x] 测试覆盖：1215 tests (从 1047 → 1198, +14%)
 
 ### 验收标准（Sprint 2）
 - [ ] API 响应 < 200ms (P95)
@@ -154,7 +154,7 @@
 
 **Sprint 14 — Data Layer Architecture + LangGraph State Graph Engine + Innovations**
 
-当前状态：1198 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
+当前状态：1215 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
 
 已完成：
 - ✅ kias-data-store crate 完整实现（L1 架构层）
@@ -170,6 +170,6 @@
 - ✅ 设计文档：docs/design-docs/data-layer-architecture.md
 - ✅ LangGraph 状态图引擎 (crates/langgraph-engine)
 - ✅ DeepSeek MLA Cache 优化 (references/deepseek-mla-cache-pattern.md)
-- ✅ 1198 tests passing, 0 clippy warnings, lint-arch OK
+- ✅ 1215 tests passing, 0 clippy warnings, lint-arch OK
 
 下一步：前端 Agent 详情页 / Volcano GPU 调度 / 其他创新功能

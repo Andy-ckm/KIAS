@@ -335,7 +335,7 @@ find docs -name "*.md" | sort
 ## 架构特性
 - Rust 为核心（21 个 crate）
 - React + TypeScript 前端（Dashboard）
-- etcd + SQLite + Redis 存储
+- etcd + SQLite 存储
 - 完整的可追溯性文档体系
 - 智能Key轮转和负载均衡
 - 虚拟文件系统和工作空间管理

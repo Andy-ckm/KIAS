@@ -980,7 +980,7 @@ async fn handle_cluster(action: kias_cli::ClusterAction, cli: &Cli) -> i32 {
 
 // ─── Server 操作 ───────────────────────────────────────────────────
 
-async fn handle_server(action: kias_cli::ServerAction, cli: &Cli) -> i32 {
+async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
     match action {
         kias_cli::ServerAction::Start { config, daemon } => {
             println!("{}: 启动 KIAS 服务...", "→".blue().bold());
@@ -1020,7 +1020,7 @@ async fn handle_server(action: kias_cli::ServerAction, cli: &Cli) -> i32 {
                         if s.success() {
                             ExitCode::Success as i32
                         } else {
-                            s.code().unwrap_or(1) as i32
+                            s.code().unwrap_or(1)
                         }
                     }
                     Err(e) => {

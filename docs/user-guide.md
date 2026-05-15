@@ -77,7 +77,8 @@ port = 8080
 algorithm = "cache_aware"
 
 [cache_hub]
-redis_url = "redis://localhost:6379"
+mode = "sqlite"  # sqlite (persistent) or memory (volatile)
+db_path = "kias-cache.db"
 ```
 
 ### 1.3 启动服务
@@ -400,8 +401,8 @@ metrics_port = 9090
 [cache_hub]
 prefix_cache_size = 1073741824  # 1GB
 semantic_cache_enabled = true
-redis_url = "redis://localhost:6379"
-redis_pool_size = 10
+mode = "sqlite"  # sqlite (persistent) or memory (volatile)
+db_path = "kias-cache.db"
 
 [knowledge]
 storage_path = "~/.kias/knowledge"
@@ -428,7 +429,7 @@ path = "/metrics"
 | `KIAS_API_HOST` | API 监听地址 | `0.0.0.0` |
 | `KIAS_API_PORT` | API 监听端口 | `8080` |
 | `KIAS_LOG_LEVEL` | 日志级别 | `info` |
-| `KIAS_REDIS_URL` | Redis 地址 | `redis://localhost:6379` |
+| `KIAS_DB_PATH` | SQLite 数据库路径 | `kias.db` |
 | `KIAS_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
 
 ---

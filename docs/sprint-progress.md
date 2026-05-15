@@ -1,3 +1,34 @@
+## 最新更新：2026-05-15 22:40 (Sprint 22 — Build Fix + Doc Cleanup)
+
+### 🎯 Sprint 22 循环开发
+
+**核心目标**：修复 kias-cli 编译错误、清理文档中残留的 Redis 引用
+
+**完成事项**：
+1. ✅ **kias-cli 编译修复**：添加 `ExitCode::ConfigError` 变体（output.rs），修复 `handle_server` 未使用变量警告，移除不必要的 `as i32` 类型转换
+2. ✅ **Redis 文档清理**：
+   - README.md: "In-memory (Redis-compatible planned)" → "SQLite-backed persistent cache + in-memory LRU"
+   - docs/user-guide.md: 移除 `redis_url` 配置示例，替换为 `mode = "sqlite"` + `db_path`
+   - docs/user-guide.md: `KIAS_REDIS_URL` 环境变量 → `KIAS_DB_PATH`
+   - docs/development-log.md: "etcd + SQLite + Redis" → "etcd + SQLite"
+   - docs/traceability/architecture-evolution.md: "Redis集成" → "分布式缓存扩展（当前 SQLite + 内存 LRU）"
+3. ✅ **HNSW 验证确认**：kias-knowledge VectorStore 是真实 HNSW 实现（M=16, M_max=32, ef_construction=200, ef_search=100，多层图 + BinaryHeap beam search）
+4. ✅ **全量测试通过**：1419 tests passed, 0 failed
+5. ✅ **Clippy 零警告**：`cargo clippy -- -D warnings` 通过
+
+### 📊 当前质量指标
+
+| 指标 | 数值 | 变化 | 说明 |
+|------|------|------|------|
+| **总测试数** | **1419** | 不变 | 全部通过 ✅ |
+| **Clippy 警告** | **0** | 不变 | `-D warnings` 零警告 ✅ |
+| **Rust 代码行数** | **72,352** | 不变 | crates/ 目录下 |
+| **Crate 数量** | **21** | 不变 | 单仓 monorepo |
+| **编译错误** | **0** | 修复 2 个 | kias-cli ConfigError + unused var |
+| **Redis 文档引用** | **0** (KIAS 相关) | 清理 5 处 | litellm-analysis.md 保留（参考项目） |
+
+---
+
 ## 最新更新：2026-05-15 22:07 (Sprint 21 — 验证周期 + 创新调研)
 
 ### 🎯 Sprint 21 验证周期

@@ -24,6 +24,7 @@ kias-autonomy-controller = { path = "../autonomy-controller" }
 kias-data-store = { path = "../data-store" }
 
 tokio.workspace = true
+axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

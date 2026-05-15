@@ -2084,6 +2084,7 @@ name = "kias-main"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "chrono",
  "kias-api-server",
  "kias-autonomy-controller",

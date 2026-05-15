@@ -32,8 +32,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Create AppState (synchronous, for production)
-    pub fn new(config: KiasConfig) -> Self {
+    /// Create AppState (async, for use in tokio runtime)
+    pub async fn new(config: KiasConfig) -> Self {
         let mut nodes = std::collections::HashMap::new();
 
         // Seed default demo nodes
@@ -83,8 +83,8 @@ impl AppState {
         // Build knowledge retriever with an empty graph (populated at runtime)
         let graph = KnowledgeGraph::new();
         let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
-        let knowledge_retriever = tokio::runtime::Handle::current()
-            .block_on(VectorRetriever::new(graph, embedding_engine))
+        let knowledge_retriever = VectorRetriever::new(graph, embedding_engine)
+            .await
             .expect("Failed to initialize knowledge retriever");
 
         Self {

@@ -250,28 +250,26 @@ impl PersistentVectorStore {
             KiasError::NotFound(format!("Vector index '{index_name}' not found"))
         })?;
 
-        // Use exact search for small indices (< 1000 vectors) for perfect accuracy.
-        // For larger indices, search_knn provides O(log N) approximation.
+        // Use HNSW ANN search for all index sizes — the implementation provides
+        // O(log N) query time with proper beam search and connection pruning.
         let knn_results = {
             let store_guard = inner.store.read().await;
-            if store_guard.len() < 1000 {
-                store_guard.search_exact(query, top_k)
-            } else {
-                store_guard.search_knn(query, top_k)
-            }
+            store_guard.search_knn(query, top_k)
         };
 
         let search_results: Vec<VectorSearchResult> = knn_results
             .into_iter()
-            .map(|(external_id, similarity)| {
+            .map(|(external_id, distance)| {
                 let metadata = inner
                     .metadata
                     .get(&external_id)
                     .map(|m| m.clone())
                     .unwrap_or(serde_json::Value::Null);
+                // search_knn returns cosine_distance (1 - similarity), convert back
+                let similarity = 1.0 - distance as f64;
                 VectorSearchResult {
                     external_id,
-                    similarity: similarity as f64,
+                    similarity,
                     metadata,
                 }
             })

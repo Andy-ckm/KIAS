@@ -1,5 +1,30 @@
 
 
+## 最新更新：2026-05-15 10:30 (Sprint 15 — HNSW Fix + Redis Stub Cleanup + Build Fix)
+
+### 🎯 本次成果
+
+**核心目标**：修复 O(N) 向量搜索、清理 Redis 配置误导、修复编译错误
+
+**修复内容**：
+- ✅ **HNSW 统一搜索**：移除 `search_exact` 回退（<1000 向量时的 O(N) 暴力搜索），所有索引大小统一使用 HNSW ANN 搜索
+- ✅ **distance→similarity 转换修复**：`search_knn` 返回 cosine_distance（1-similarity），vector_persist 之前直接当作 similarity 使用，导致相似度值错误。修复为 `similarity = 1.0 - distance`
+- ✅ **Redis 配置误导清理**：`cache_mode` 配置注释从 "local or redis" 改为 "sqlite or memory"，明确无 Redis 依赖
+- ✅ **scheduler 编译修复**：`gpu_aware.rs` 中 `&String == String` 比较错误，修复为 `*t == *required_type`
+- ✅ **磁盘清理**：清理 21GB cargo target 目录，释放 /mnt 空间
+
+### 📊 开发统计
+
+| 指标 | 之前 | 之后 | 变化 |
+|------|------|------|------|
+| 总测试数 | 1205 | 1215 | +10 |
+| data-store 测试 | 39 | 40 | +1 |
+| 编译错误 | 1 | 0 | ✅ |
+| 向量搜索 | O(N) for <1000 | O(log N) all | ✅ |
+| Redis 配置 | 误导 "redis" | 诚实 "sqlite/memory" | ✅ |
+
+---
+
 ## 最新更新：2026-05-15 05:50 (Sprint 14 — SubWorkflow Stub Fix + Innovation Research)
 
 ### 🎯 本次成果

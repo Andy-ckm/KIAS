@@ -132,7 +132,8 @@ pub struct StorageConfig {
     pub etcd_endpoints: String,
     /// SQLite database URL.  Default: `sqlite://kias.db`.
     pub sqlite_url: String,
-    /// Cache mode: `local` or `redis`.  Default: `local`.
+    /// Cache mode: `sqlite` (default, persistent) or `memory` (volatile, in-process).
+    /// Note: there is no Redis dependency — cache is either SQLite-backed or in-memory.
     pub cache_mode: String,
 }
 

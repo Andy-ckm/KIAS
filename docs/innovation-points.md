@@ -453,3 +453,40 @@
 3. **并行 Agent 编排**: Composio(7K⭐)、open-multi-agent(6.1K⭐)、plan-cascade(80⭐) — 并行调度成为主流
 4. **Agent-as-OS 趋势**: openfang(17K⭐)、Arbor(checkpoint-native) — Agent 越来越像操作系统
 
+## Sprint 18 创新调研 (2026-05-15 14:53)
+
+### 36. superhq-ai/superhq Sandboxed Agent Orchestration ⭐245 🆕
+- **来源**: superhq-ai/superhq (Rust)
+- **核心**: Sandboxed AI agent orchestration platform — sandbox-first 架构
+- **可借鉴点**:
+  - **Sandbox-first**: 从设计之初就将沙箱作为核心，非事后添加 → KIAS sandbox 可升级为 first-class citizen
+  - **Rust 实现**: 同语言，可直接参考架构模式
+  - **Orchestration platform**: 不只是编排器，是完整平台 → KIAS 可参考其平台化设计
+- **优先级**: P1（sandbox 架构升级参考）
+
+### 37. Lumio-Research/hermes-agent-rs Self-Evolving Agent ⭐37 🆕
+- **来源**: Lumio-Research/hermes-agent-rs (Rust)
+- **核心**: Self-evolving AI agent — 10 LLM providers, 30+ tools, 17 platform adapters
+- **可借鉴点**:
+  - **Self-evolving**: Agent 自我进化能力 → KIAS goal-engine 可增加自适应策略
+  - **10 LLM providers**: 多 Provider 支持 → KIAS model-router 已有类似设计
+  - **30+ tools**: 丰富的工具生态 → KIAS MCP 工具注册表可扩展
+  - **17 platform adapters**: 多平台适配 → KIAS 可增加 Discord/Slack 等适配器
+- **优先级**: P2（self-evolution 模式参考）
+
+### 38. ISO-Framework Git Worktree Isolation ⭐13 🆕
+- **来源**: snehith01001110/ISO-Framework (Rust)
+- **核心**: Safe, isolated, concurrent Git worktree lifecycle management for coding agents
+- **可借鉴点**:
+  - **Git worktree 隔离**: 每个 Agent 在独立 worktree 中工作，避免冲突 → KIAS VFS 可参考
+  - **并发安全**: 多 Agent 同时操作同一仓库而不冲突 → KIAS team-engine 并发控制
+  - **MCP 集成**: 提供 MCP 工具接口 → 验证 KIAS MCP 策略
+- **优先级**: P2（workspace 隔离参考）
+
+### Sprint 18 技术趋势更新
+
+1. **Sandbox-first 架构**: superhq(245⭐) 将沙箱作为核心组件，而非附加层 — KIAS 应考虑类似升级
+2. **Self-evolving Agent**: hermes-agent-rs(37⭐) 的自我进化模式值得关注 — goal-engine 可增加自适应策略
+3. **Git Worktree 隔离**: ISO-Framework 用 Git worktree 实现 Agent 间文件隔离 — 比 VFS 更轻量
+4. **Rust Agent 生态加速**: 新增 10+ Rust Agent 框架，生态日趋成熟
+

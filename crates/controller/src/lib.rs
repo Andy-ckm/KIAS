@@ -1,3 +1,4 @@
+pub mod autonomy_integration;
 pub mod events;
 pub mod handoff;
 pub mod health;
@@ -7,6 +8,7 @@ pub mod reconciler;
 pub mod recovery;
 pub mod state;
 
+pub use autonomy_integration::{ActionApproval, AutonomyGate};
 pub use events::{
     AgentEvent, AgentEventEnvelope, AlertProcessor, EventBus, EventProcessor, EventType,
     LoggingProcessor, MetricsProcessor,

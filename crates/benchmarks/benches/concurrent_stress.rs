@@ -45,6 +45,7 @@ fn bench_parallel_scheduling(c: &mut Criterion) {
                 system_prompt_hash: Some((i as u64) % 5),
                 affinity: None,
                 anti_affinity: None,
+            tenant_id: None,
             })
             .collect();
 
@@ -109,6 +110,7 @@ fn bench_cache_contention(c: &mut Criterion) {
                 system_prompt_hash: Some(42), // Same hash for all
                 affinity: None,
                 anti_affinity: None,
+            tenant_id: None,
             })
             .collect();
 
@@ -180,6 +182,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
                 system_prompt_hash: Some((i as u64) % 20),
                 affinity: None,
                 anti_affinity: None,
+            tenant_id: None,
             }
         })
         .collect();

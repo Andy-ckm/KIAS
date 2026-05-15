@@ -361,6 +361,7 @@ mod tests {
             system_prompt_hash: None,
             affinity: None,
             anti_affinity: None,
+            tenant_id: None,
         }
     }
 
@@ -474,6 +475,7 @@ mod tests {
                 preferred: vec![],
             }),
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let scheduler = GpuAwareScheduler::new();
@@ -540,6 +542,7 @@ mod tests {
             system_prompt_hash: None,
             affinity: None,
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let result = scheduler.schedule(&agent, &nodes).await;
@@ -623,6 +626,7 @@ mod tests {
                 preferred,
             }),
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let scheduler = GpuAwareScheduler::new();
@@ -669,6 +673,7 @@ mod tests {
                 preferred,
             }),
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let scheduler = GpuAwareScheduler::new();

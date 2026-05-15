@@ -20,7 +20,7 @@ pub use algorithms::{
     ResourceAwareScheduler, RoundRobinScheduler, SchedulingAlgorithm,
 };
 pub use config::SchedulerConfig;
-pub use scheduler::Scheduler;
+pub use scheduler::{ResourceQuota, Scheduler, TenantContext, TenantStats};
 
 // Edge scheduling
 pub use edge::{

@@ -88,6 +88,10 @@ pub enum KiasError {
     #[error("Scheduler error: {0}")]
     Scheduler(String),
 
+    /// Tenant quota exceeded.
+    #[error("Tenant quota exceeded: {0}")]
+    TenantQuotaExceeded(String),
+
     // ── Concurrency errors ────────────────────────────────────────
     /// A mutex / RwLock was poisoned.
     #[error("Lock poisoned: {0}")]

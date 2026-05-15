@@ -123,6 +123,7 @@ mod tests {
                 preferred: vec![],
             }),
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let filtered = AffinityFilter::filter_by_affinity(&agent, &nodes);
@@ -154,6 +155,7 @@ mod tests {
                 avoid_labels: avoid,
                 avoid_agent_types: vec![],
             }),
+            tenant_id: None,
         };
 
         let filtered = AffinityFilter::filter_by_anti_affinity(&agent, &node_refs);
@@ -182,6 +184,7 @@ mod tests {
                 }],
             }),
             anti_affinity: None,
+            tenant_id: None,
         };
 
         let score = AffinityFilter::affinity_score(&agent, &node);

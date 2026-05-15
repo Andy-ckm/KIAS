@@ -22,3 +22,5 @@ async-trait.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 rand.workspace = true
+kias-autonomy-controller = { path = "../autonomy-controller" }
+

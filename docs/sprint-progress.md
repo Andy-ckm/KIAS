@@ -1,13 +1,14 @@
 
-## 最新更新：2026-05-15 14:04 (Sprint 17 — 全面健康检查 + 文档同步)
+## 最新更新：2026-05-15 14:53 (Sprint 18 — 自主循环验证 + 创新调研)
 
-### 🎯 Sprint 17 状态检查
+### 🎯 Sprint 18 状态检查
 
 **验证结果**：
 - ✅ `cargo build` — **0 errors**
 - ✅ `cargo test` — **1376/1376 passed, 0 failed**
 - ✅ `cargo clippy -- -D warnings` — **0 warnings**
-- ✅ 所有优先级任务已在前序 Sprint 完成（HNSW O(N)修复、Redis stub清理、MCP协议）
+- ✅ 所有优先级任务已在前序 Sprint 完成（HNSW、Redis stub、MCP、sprint-plan 更新）
+- ✅ 3 个新创新点发现（superhq ⭐245, hermes-agent-rs ⭐37, ISO-Framework ⭐13）
 
 ### 📊 当前质量指标
 
@@ -20,20 +21,22 @@
 | **Rust 源文件** | **215** | |
 | **编译错误** | **0** | `cargo build` 干净 |
 | **测试通过率** | **100%** | 0 failures |
+| **创新点总数** | **38** | 新增 3 个 (Sprint 18) |
 
-### 📈 Sprint 16 → 17 增长
+### 🏗️ Sprint 18 关键变更
 
-| 指标 | Sprint 16 | Sprint 17 | 变化 |
-|------|-----------|-----------|------|
-| 测试数 | 1309 | 1376 | +67 (+5.1%) |
-| 代码行数 | 65,682 | 69,437 | +3,755 (+5.7%) |
-| Clippy | 0 | 0 | 保持 ✅ |
+1. **创新调研**: 新发现 3 个 Rust Agent 框架（superhq, hermes-agent-rs, ISO-Framework）
+2. **健康检查**: 全量 build + test + clippy 通过，系统状态健康
+3. **文档更新**: innovation-points.md 新增 Sprint 18 调研结果
+4. **磁盘状态**: /mnt 65% 使用率，健康
 
-### 🏗️ Sprint 17 关键变更
+### 💡 Sprint 18 新创新点
 
-1. **team-engine 扩展**: VFS workspace + context compaction + session persistence + sandbox isolation levels
-2. **代码增长**: +3,755 行 Rust 代码（主要在 team-engine、model-router 等）
-3. **测试增长**: +67 测试（1309 → 1376）
+| # | 项目 | ⭐ | 核心特点 | 优先级 |
+|---|------|-----|---------|--------|
+| 36 | superhq-ai/superhq | 245 | Sandbox-first 架构 | P1 |
+| 37 | hermes-agent-rs | 37 | Self-evolving Agent | P2 |
+| 38 | ISO-Framework | 13 | Git Worktree 隔离 | P2 |
 
 ### 📦 各 Crate 代码行数
 

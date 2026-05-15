@@ -9,6 +9,10 @@ pub mod swarm;
 pub mod team;
 pub mod verifier;
 pub mod worker;
+pub mod workspace;
+pub mod compaction;
+pub mod session;
+pub mod subagent;
 
 pub use crew::{Crew, CrewConfig, CrewResult, CrewStats, CrewTask, ProcessMode, TaskExecutor};
 pub use delegation::{
@@ -27,3 +31,12 @@ pub use swarm::{SwarmOrchestrator, SwarmStrategy};
 pub use team::Team;
 pub use verifier::{QualityGate, RuleBasedVerifier, VerificationRule, Verifier};
 pub use worker::{CodeWorker, LlmWorker, ResearchWorker, Worker};
+pub use workspace::{Workspace, WorkspaceConfig, SkillDef};
+pub use compaction::{CompactionConfig, CompactionResult, ContextCompactor, Message, extract_key_facts};
+pub use session::{Session, SessionConfig, SessionMessage, SessionMetadata};
+pub use subagent::{
+    DelegationMode, DelegationOutcome, SubAgentError, SubAgentExecutor, SubAgentRegistry,
+    SubAgentRunner, SubAgentSpec,
+    TaskHandle,
+    TaskStatus as SubAgentTaskStatus,
+};

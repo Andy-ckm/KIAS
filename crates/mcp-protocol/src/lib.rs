@@ -103,11 +103,14 @@ pub use hot_reload::{
 // Re-export sandbox types
 #[cfg(feature = "sandbox")]
 pub use sandbox::{
-    FilesystemConfig, MountPoint, NetworkPolicy, ProcessSandboxBackend, ResourceLimits,
-    ResourceUsage, SandboxAction, SandboxAuditEntry, SandboxBackend, SandboxBackendTrait,
-    SandboxConfig, SandboxInstance, SandboxManager, SandboxManagerConfig, SandboxResult,
-    SandboxState,
+    FilesystemConfig, FirecrackerSandboxBackend, GVisorSandboxBackend, MountPoint,
+    NetworkPolicy, ProcessSandboxBackend, ResourceLimits, ResourceUsage, SandboxAction,
+    SandboxAuditEntry, SandboxBackend, SandboxBackendTrait, SandboxConfig, SandboxInstance,
+    SandboxManager, SandboxManagerConfig, SandboxResult, SandboxState, WasmSandboxBackend,
 };
+
+#[cfg(feature = "docker")]
+pub use sandbox::DockerSandboxBackend;
 
 /// JSON-RPC protocol version constant.
 pub const JSONRPC_VERSION: &str = "2.0";

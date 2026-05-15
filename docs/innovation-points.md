@@ -99,7 +99,7 @@
 
 ## 待集成的创新点（2025-05 研究）
 
-### 8. Google A2A 协议（Agent-to-Agent）📋
+### 8. Google A2A 协议（Agent-to-Agent）✅
 - **来源**: Google A2A 开放标准
 - **协议**: JSON-RPC over HTTP + Agent Cards
 - **集成点**: KIAS 的 Agent 间通信层
@@ -109,7 +109,7 @@
   - 支持多厂商 Agent 生态
 - **优先级**: 高
 
-### 9. Anthropic MCP（Model Context Protocol）📋
+### 9. Anthropic MCP（Model Context Protocol）✅
 - **来源**: Anthropic MCP 标准
 - **协议**: 通用工具接口（"AI 的 USB-C"）
 - **集成点**: KIAS 的工具/服务接口层
@@ -129,7 +129,7 @@
   - GPU 拓扑感知：NVLink/PCIe 感知调度
 - **优先级**: 中
 
-### 11. DeepSeek MLA（Multi-head Latent Attention）📋
+### 11. DeepSeek MLA（Multi-head Latent Attention）✅
 - **来源**: DeepSeek-V3
 - **核心**: KV Cache 压缩 93.3%
 - **集成点**: KIAS 的推理优化层
@@ -332,7 +332,7 @@
 | P1 | microsandbox 容器级沙箱 | 📋 待研究 | 1 周 |
 | P1 | agentos WAL 增量持久化 | 📋 待研究 | 1 周 |
 | P2 | Volcano GPU 调度 | 📋 待实现 | 3 周 |
-| P2 | DeepSeek MLA | 📋 待实现 | 2 周 |
+| P2 | DeepSeek MLA | ✅ 已完成 | - |
 | P3 | CrewAI 声明式编排 | 📋 待实现 | 2 周 |
 
 ## Sprint 16 创新调研 (2026-05-15)

@@ -20,6 +20,9 @@ import type {
   WorkflowSummary,
   CreateWorkflowRequest,
   SchedulerStatus,
+  AgentResourceHistory,
+  LogEntry,
+  StatusTransition,
 } from '../types';
 
 const BASE_URL = '';  // Use Vite proxy in dev
@@ -158,6 +161,27 @@ export async function createWorkflow(req: CreateWorkflowRequest): Promise<Workfl
 
 export async function deleteWorkflow(id: string): Promise<ActionResponse> {
   return request(`/api/v1/workflows/${id}`, { method: 'DELETE' });
+}
+
+// ── Agent Detail ───────────────────────────────────────────────────────────
+
+export async function getAgentStatusHistory(id: string): Promise<StatusTransition[]> {
+  return request(`/api/v1/agents/${id}/status-history`);
+}
+
+export async function getAgentLogs(
+  id: string,
+  params?: { limit?: number; level?: string }
+): Promise<ListResponse<LogEntry>> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set('limit', String(params.limit));
+  if (params?.level) searchParams.set('level', params.level);
+  const qs = searchParams.toString();
+  return request(`/api/v1/agents/${id}/logs${qs ? `?${qs}` : ''}`);
+}
+
+export async function getAgentResourceHistory(id: string): Promise<AgentResourceHistory> {
+  return request(`/api/v1/agents/${id}/resources`);
 }
 
 // ── Scheduler ──────────────────────────────────────────────────────────────

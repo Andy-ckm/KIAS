@@ -17,10 +17,15 @@ harness = false
 name = "controller_bench"
 harness = false
 
+[[bench]]
+name = "workflow_bench"
+harness = false
+
 [dependencies]
 kias-common = { path = "../common" }
 kias-scheduler = { path = "../scheduler" }
 kias-controller = { path = "../controller" }
+kias-workflow-engine = { path = "../workflow-engine" }
 tokio.workspace = true
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 serde.workspace = true

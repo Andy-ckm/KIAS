@@ -1,5 +1,6 @@
 pub mod affinity;
 pub mod cache_aware;
+pub mod gpu_aware;
 pub mod least_loaded;
 pub mod priority_aware;
 pub mod resource_aware;
@@ -21,6 +22,7 @@ pub trait SchedulingAlgorithm: Send + Sync {
 
 pub use affinity::AffinityScheduler;
 pub use cache_aware::CacheAwareScheduler;
+pub use gpu_aware::GpuAwareScheduler;
 pub use least_loaded::LeastLoadedScheduler;
 pub use priority_aware::PriorityAwareScheduler;
 pub use resource_aware::ResourceAwareScheduler;

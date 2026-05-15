@@ -21,3 +21,4 @@ tracing-subscriber.workspace = true
 async-trait.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+rand.workspace = true

@@ -9,14 +9,14 @@ pub mod state;
 pub mod subgraph;
 pub mod typed_state;
 
-pub use checkpoint::{Checkpoint, CheckpointStore};
+pub use checkpoint::{Checkpoint, CheckpointInfo, CheckpointStore, InMemoryCheckpointStore, SqliteCheckpointStore};
 pub use edge::{Condition, Edge};
 pub use engine::WorkflowEngine;
 pub use executor::{
     ExecutorRegistry, HttpExecutor, LlmExecutor, NodeExecutor, ShellExecutor, SubWorkflowExecutor,
 };
 pub use graph::WorkflowGraph;
-pub use node::{ExecutionResult, ExecutorConfig, Node, NodeType, RetryPolicy};
+pub use node::{CompensatingAction, ExecutionResult, ExecutorConfig, Node, NodeType, RetryPolicy};
 pub use replay::{
     EffectType, ExecutionEntry, ExecutionLog, ExecutionRecorder, ReplayEngine, ReplayStore,
 };

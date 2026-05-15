@@ -33,6 +33,48 @@ export interface Agent {
   restart_count: number;
 }
 
+// ── Agent Detail ────────────────────────────────────────────────────────────
+
+export interface LogEntry {
+  timestamp: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  source: string;
+  message: string;
+  agent_id?: string;
+}
+
+export interface ResourceTimePoint {
+  timestamp: string;
+  cpu_percent: number;
+  memory_mb: number;
+  token_count: number;
+}
+
+export interface AgentResourceHistory {
+  agent_id: string;
+  points: ResourceTimePoint[];
+}
+
+export interface StatusTransition {
+  from: AgentStatus;
+  to: AgentStatus;
+  timestamp: string;
+  reason?: string;
+}
+
+export interface AgentDetailData {
+  agent: Agent;
+  status_history: StatusTransition[];
+  recent_logs: LogEntry[];
+  resource_history: AgentResourceHistory;
+}
+
+export interface WsEvent {
+  event: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+}
+
 export interface AgentSummary {
   id: string;
   name: string;

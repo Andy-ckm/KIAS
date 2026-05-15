@@ -10,6 +10,17 @@
 //! - **Read-through**: On startup, loads all vectors from SQLite into HNSW
 //! - **Crash recovery**: SQLite provides durability; HNSW provides O(log N) search
 //! - **HNSW parameters**: M=16, M_max=32, ef_construction=200, ef_search=100
+//!
+//! ## Implementation Status
+//!
+//! The HNSW index in `kias-knowledge` is a hand-rolled implementation with
+//! proper multi-layer graph, beam search, and connection pruning — it is
+//! NOT a brute-force O(N) scan. However, it lacks battle-tested quality
+//! (SIMD distance, parallel build, disk-backed graphs, recall benchmarks).
+//!
+//! **TODO(#real-hnsw)**: Feature-gate `hnsw_rs` crate as a production-grade
+//! alternative. Enable via `cargo build --features real-hnsw`. See
+//! `Cargo.toml` `[features]` section.
 
 use kias_common::{KiasError, KiasResult};
 use serde::{Deserialize, Serialize};

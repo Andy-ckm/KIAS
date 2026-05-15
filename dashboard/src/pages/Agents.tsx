@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 import { listAgents, createAgent, deleteAgent } from '../api/client';
 import { StatusBadge, Spinner, ErrorBanner, EmptyState } from '../components/Common';
 import type { AgentSummary, AgentSpec, ListResponse } from '../types';
+import { Link } from 'react-router-dom';
 
 function CreateAgentModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState('');
@@ -157,7 +158,9 @@ export default function AgentsPage() {
               {agents.map(agent => (
                 <tr key={agent.id} className="hover:bg-slate-700/20 transition-colors">
                   <td className="px-5 py-3">
-                    <span className="text-sm font-medium text-white">{agent.name}</span>
+                    <Link to={`/agents/${agent.id}`} className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                      {agent.name}
+                    </Link>
                   </td>
                   <td className="px-5 py-3">
                     <StatusBadge status={agent.status} />

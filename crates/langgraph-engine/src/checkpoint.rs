@@ -190,3 +190,157 @@ impl CheckpointStore for InMemoryCheckpointStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::GraphState;
+
+    fn make_checkpoint(id: &str, run_id: &str, node: &str, version: u64) -> Checkpoint {
+        let mut state = GraphState::new();
+        state.set("step", version as i32);
+        Checkpoint {
+            id: id.to_string(),
+            run_id: run_id.to_string(),
+            node: node.to_string(),
+            state,
+            timestamp: Utc::now(),
+            version,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_by_id() {
+        let store = InMemoryCheckpointStore::new();
+        let cp = make_checkpoint("cp1", "run1", "start", 0);
+        let id = store.save(cp).await.unwrap();
+        assert_eq!(id, "cp1");
+
+        let loaded = store.load_by_id("cp1").await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().node, "start");
+    }
+
+    #[tokio::test]
+    async fn test_load_by_id_missing() {
+        let store = InMemoryCheckpointStore::new();
+        let loaded = store.load_by_id("nonexistent").await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_latest() {
+        let store = InMemoryCheckpointStore::new();
+        store
+            .save(make_checkpoint("cp1", "run1", "node_a", 0))
+            .await
+            .unwrap();
+        store
+            .save(make_checkpoint("cp2", "run1", "node_b", 1))
+            .await
+            .unwrap();
+
+        let latest = store.load_latest("run1").await.unwrap().unwrap();
+        assert_eq!(latest.id, "cp2");
+    }
+
+    #[tokio::test]
+    async fn test_load_latest_missing_run() {
+        let store = InMemoryCheckpointStore::new();
+        let latest = store.load_latest("no_such_run").await.unwrap();
+        assert!(latest.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_history_ordered() {
+        let store = InMemoryCheckpointStore::new();
+        store
+            .save(make_checkpoint("cp1", "run1", "a", 2))
+            .await
+            .unwrap();
+        store
+            .save(make_checkpoint("cp2", "run1", "b", 0))
+            .await
+            .unwrap();
+        store
+            .save(make_checkpoint("cp3", "run1", "c", 1))
+            .await
+            .unwrap();
+
+        let history = store.load_history("run1").await.unwrap();
+        assert_eq!(history.len(), 3);
+        assert_eq!(history[0].version, 0);
+        assert_eq!(history[1].version, 1);
+        assert_eq!(history[2].version, 2);
+    }
+
+    #[tokio::test]
+    async fn test_load_history_empty_run() {
+        let store = InMemoryCheckpointStore::new();
+        let history = store.load_history("no_run").await.unwrap();
+        assert!(history.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_delete_run() {
+        let store = InMemoryCheckpointStore::new();
+        store
+            .save(make_checkpoint("cp1", "run1", "a", 0))
+            .await
+            .unwrap();
+        store
+            .save(make_checkpoint("cp2", "run1", "b", 1))
+            .await
+            .unwrap();
+        assert_eq!(store.count(), 2);
+
+        store.delete_run("run1").await.unwrap();
+        assert_eq!(store.count(), 0);
+        assert!(store.load_latest("run1").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_run() {
+        let store = InMemoryCheckpointStore::new();
+        store.delete_run("no_run").await.unwrap(); // should not error
+    }
+
+    #[tokio::test]
+    async fn test_count() {
+        let store = InMemoryCheckpointStore::new();
+        assert_eq!(store.count(), 0);
+        store
+            .save(make_checkpoint("cp1", "run1", "a", 0))
+            .await
+            .unwrap();
+        assert_eq!(store.count(), 1);
+        store
+            .save(make_checkpoint("cp2", "run1", "b", 1))
+            .await
+            .unwrap();
+        assert_eq!(store.count(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_runs_isolated() {
+        let store = InMemoryCheckpointStore::new();
+        store
+            .save(make_checkpoint("cp1", "run1", "a", 0))
+            .await
+            .unwrap();
+        store
+            .save(make_checkpoint("cp2", "run2", "b", 0))
+            .await
+            .unwrap();
+
+        store.delete_run("run1").await.unwrap();
+        assert_eq!(store.count(), 1);
+        assert!(store.load_latest("run2").await.unwrap().is_some());
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let store = InMemoryCheckpointStore::default();
+        assert_eq!(store.count(), 0);
+    }
+}

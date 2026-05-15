@@ -204,7 +204,6 @@ pub trait AuthProvider: Send + Sync {
 /// JWT-based authentication provider.
 pub struct JwtAuthProvider {
     /// JWT secret key (for HMAC) or public key (for RSA/EC).
-    #[allow(dead_code)]
     key: Vec<u8>,
     /// Expected issuer.
     issuer: Option<String>,
@@ -251,6 +250,22 @@ impl JwtAuthProvider {
             return Err(McpError::Authentication("Invalid JWT format".to_string()));
         }
 
+        // Validate JWT header algorithm
+        let header_bytes = base64_decode(parts[0])
+            .map_err(|e| McpError::Authentication(format!("Invalid JWT header: {}", e)))?;
+        let header: serde_json::Value = serde_json::from_slice(&header_bytes)
+            .map_err(|e| McpError::Authentication(format!("Invalid JWT header JSON: {}", e)))?;
+        let alg = header
+            .get("alg")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| McpError::Authentication("JWT header missing 'alg' field".to_string()))?;
+        if alg != "HS256" {
+            return Err(McpError::Authentication(format!(
+                "Unsupported JWT algorithm '{}', expected 'HS256'",
+                alg
+            )));
+        }
+
         // ─── HMAC-SHA256 Signature Verification ─────────────────────────────────
         // Reconstruct the signing input: "header.payload"
         let signing_input = format!("{}.{}", parts[0], parts[1]);
@@ -278,14 +293,15 @@ impl JwtAuthProvider {
             .map_err(|e| McpError::Authentication(format!("Invalid JWT claims: {}", e)))?;
 
         // Validate expiration
-        if let Some(exp) = claims.exp {
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            if exp + self.clock_skew_secs < now {
-                return Err(McpError::Authentication("Token expired".to_string()));
-            }
+        let exp = claims.exp.ok_or_else(|| {
+            McpError::Authentication("Token missing required 'exp' claim".to_string())
+        })?;
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if exp + self.clock_skew_secs < now {
+            return Err(McpError::Authentication("Token expired".to_string()));
         }
 
         // Validate issuer
@@ -815,5 +831,165 @@ mod tests {
             .check_permission(&user, &Permission::ToolsCall("other-tool".to_string()))
             .await
             .unwrap());
+    }
+
+    // ─── JWT Security Tests ─────────────────────────────────────────────────
+
+    fn base64url_encode(data: &[u8]) -> String {
+        use base64::Engine;
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data)
+    }
+
+    fn make_jwt(key: &[u8], claims: &serde_json::Value, header: Option<&serde_json::Value>) -> String {
+        let default_header = serde_json::json!({"alg": "HS256", "typ": "JWT"});
+        let hdr = header.unwrap_or(&default_header);
+        let header_b64 = base64url_encode(hdr.to_string().as_bytes());
+        let payload_b64 = base64url_encode(claims.to_string().as_bytes());
+        let signing_input = format!("{}.{}", header_b64, payload_b64);
+
+        type HmacSha256 = Hmac<Sha256>;
+        let mut mac = HmacSha256::new_from_slice(key).unwrap();
+        mac.update(signing_input.as_bytes());
+        let sig_b64 = base64url_encode(&mac.finalize().into_bytes());
+
+        format!("{}.{}.{}", header_b64, payload_b64, sig_b64)
+    }
+
+    #[tokio::test]
+    async fn test_jwt_expired_token() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec());
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "exp": now - 3600, // expired 1 hour ago
+            "iat": now - 7200
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("expired"),
+            "Expected 'expired' in error, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_jwt_wrong_signature() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let wrong_key = b"completely-different-key-32bytes!!";
+        let provider = JwtAuthProvider::new(key.to_vec());
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(wrong_key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("signature"),
+            "Expected 'signature' in error, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_jwt_missing_exp_claim() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec());
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        // No "exp" claim at all
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("exp"),
+            "Expected error about missing 'exp', got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_jwt_missing_sub_claim() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec());
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        // No "sub" claim - serde will fail deserializing TokenClaims
+        let claims = serde_json::json!({
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("claims") || err_msg.contains("sub"),
+            "Expected error about missing claims, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_jwt_wrong_issuer() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec()).with_issuer("kias");
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "iss": "evil-issuer",
+            "aud": "mcp-server",
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("issuer"),
+            "Expected 'issuer' in error, got: {}",
+            err_msg
+        );
     }
 }

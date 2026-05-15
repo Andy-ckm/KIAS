@@ -186,11 +186,13 @@ impl KiasServiceManager {
             heartbeat: kias_controller::HeartbeatConfig {
                 check_interval_secs: config.controller.heartbeat_interval_secs,
                 timeout_secs: config.controller.failure_timeout_secs,
+                ..Default::default()
             },
             recovery: kias_controller::RecoveryConfig {
                 max_retries: config.controller.max_retries,
                 ..Default::default()
             },
+            ..Default::default()
         };
         let health_checker = kias_controller::HealthChecker::new(health_check_config);
         tracing::info!(

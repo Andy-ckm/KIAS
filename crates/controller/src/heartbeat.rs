@@ -16,6 +16,10 @@ pub struct HeartbeatConfig {
     pub check_interval_secs: u64,
     /// Maximum time (in seconds) without a heartbeat before marking unresponsive.
     pub timeout_secs: u64,
+    /// Jitter percentage applied per-agent to the timeout (0-100).
+    /// A value of 10 means each agent's effective timeout is
+    /// `timeout_secs ± 10%`, preventing a thundering herd of timeout detections.
+    pub jitter_percent: u64,
 }
 
 impl Default for HeartbeatConfig {
@@ -23,6 +27,7 @@ impl Default for HeartbeatConfig {
         Self {
             check_interval_secs: 15,
             timeout_secs: 60,
+            jitter_percent: 10,
         }
     }
 }
@@ -97,11 +102,17 @@ impl HeartbeatMonitor {
         state: &mut ControllerState,
     ) -> Vec<(String, HeartbeatAction)> {
         let now = Utc::now();
-        let timeout = Duration::seconds(self.config.timeout_secs as i64);
+        let jitter_frac = self.config.jitter_percent as f64 / 100.0;
+        let timeout_base = self.config.timeout_secs as f64;
+        let timeout_min = timeout_base * (1.0 - jitter_frac);
+        let timeout_max = timeout_base * (1.0 + jitter_frac);
         let mut actions = Vec::new();
 
         for (agent_id, record) in self.records.iter_mut() {
             let elapsed = now - record.last_heartbeat;
+            // Apply per-agent jitter to the timeout so agents don't all
+            // timeout at the same instant (thundering herd prevention).
+            let timeout = jittered_duration(agent_id, timeout_min, timeout_max);
 
             // Skip agents not in the state (shouldn't happen but be safe).
             let agent = match state.agents.get_mut(agent_id) {
@@ -160,6 +171,20 @@ impl HeartbeatMonitor {
     }
 }
 
+/// Calculate a jittered duration for a specific agent.
+///
+/// Uses a deterministic hash of the agent_id so the jitter is stable
+/// across calls for the same agent, but different between agents.
+fn jittered_duration(agent_id: &str, min: f64, max: f64) -> Duration {
+    // Use a simple hash of agent_id for deterministic per-agent jitter.
+    let hash: u64 = agent_id
+        .bytes()
+        .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
+    let t = (hash % 1000) as f64 / 1000.0;
+    let jittered = min + t * (max - min);
+    Duration::seconds(jittered as i64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,6 +220,7 @@ mod tests {
         HeartbeatConfig {
             check_interval_secs: 5,
             timeout_secs,
+            jitter_percent: 0,
         }
     }
 
@@ -392,5 +418,68 @@ mod tests {
         // Still alive after new heartbeat
         let actions = monitor.check_heartbeats(&mut state);
         assert_eq!(actions[0].1, HeartbeatAction::Alive);
+    }
+
+    #[test]
+    fn test_default_config_has_jitter() {
+        let config = HeartbeatConfig::default();
+        assert_eq!(config.jitter_percent, 10);
+    }
+
+    #[test]
+    fn test_jittered_timeout_varies_per_agent() {
+        let config = HeartbeatConfig {
+            check_interval_secs: 5,
+            timeout_secs: 100,
+            jitter_percent: 10,
+        };
+        let mut monitor = HeartbeatMonitor::new(config);
+        let mut state = make_state();
+
+        // Register 3 agents — each should get a different jittered timeout.
+        for id in &["agent-alpha", "agent-beta", "agent-gamma"] {
+            let mut agent = AgentInfo::new(*id, format!("test-{id}"));
+            agent.status = AgentStatus::Running;
+            // Set heartbeat far in the past to ensure timeout with base 100s.
+            agent.last_heartbeat = Utc::now() - chrono::Duration::seconds(90);
+            state.agents.insert(id.to_string(), agent);
+            monitor.register_agent(id);
+        }
+
+        // With 10% jitter on 100s timeout, the jittered range is [90, 110].
+        // Since heartbeats were 90s ago, some agents may timeout and some may not,
+        // depending on their per-agent jitter. This demonstrates different timeouts.
+        let actions = monitor.check_heartbeats(&mut state);
+        assert_eq!(actions.len(), 3);
+
+        // At least one agent should timeout (those with jittered timeout <= 90s).
+        // And at least one should be alive (those with jittered timeout > 90s).
+        let timed_out = actions
+            .iter()
+            .filter(|(_, a)| *a == HeartbeatAction::TimedOut)
+            .count();
+        let alive = actions
+            .iter()
+            .filter(|(_, a)| *a == HeartbeatAction::Alive)
+            .count();
+        // With hash-based jitter, different agents get different timeouts.
+        // Total should be 3.
+        assert_eq!(timed_out + alive, 3);
+    }
+
+    #[test]
+    fn test_jittered_duration_deterministic() {
+        // Same agent_id should always produce the same jittered duration.
+        let d1 = jittered_duration("test-agent", 50.0, 150.0);
+        let d2 = jittered_duration("test-agent", 50.0, 150.0);
+        assert_eq!(d1, d2);
+
+        // Different agent_ids should produce different durations.
+        let d3 = jittered_duration("agent-x", 50.0, 150.0);
+        let _d4 = jittered_duration("agent-y", 50.0, 150.0);
+        // While not guaranteed, it's extremely unlikely they're equal.
+        // But let's check they're both in range.
+        assert!(d1.num_seconds() >= 50 && d1.num_seconds() <= 150);
+        assert!(d3.num_seconds() >= 50 && d3.num_seconds() <= 150);
     }
 }

@@ -423,6 +423,29 @@ impl SandboxConfig {
         }
     }
 
+    /// Create a Firecracker microVM sandbox configuration.
+    pub fn firecracker(name: &str, kernel: &str, rootfs: &str) -> Self {
+        Self {
+            backend: SandboxBackend::Firecracker,
+            name: name.to_string(),
+            image: None,
+            command: vec![],
+            workdir: None,
+            env: HashMap::new(),
+            limits: ResourceLimits::default(),
+            network: NetworkPolicy::default(),
+            filesystem: FilesystemConfig {
+                rootfs: Some(PathBuf::from(rootfs)),
+                ..FilesystemConfig::default()
+            },
+            seccomp: false,
+            apparmor: false,
+            uid: None,
+            gid: None,
+            labels: HashMap::from([("kernel".to_string(), kernel.to_string())]),
+        }
+    }
+
     /// Create a WASM sandbox configuration.
     pub fn wasm(name: &str, module: &str) -> Self {
         Self {
@@ -1704,28 +1727,201 @@ impl SandboxBackendTrait for DockerSandboxBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Firecracker Sandbox Backend (stub – not yet implemented)
+// Firecracker Sandbox Backend (real implementation)
 // ---------------------------------------------------------------------------
+
+/// Information about a running Firecracker VM.
+struct FirecrackerVmInfo {
+    /// Handle to the firecracker process.
+    child: tokio::process::Child,
+    /// Path to the API Unix socket.
+    socket_path: PathBuf,
+    /// VM start time.
+    start_time: std::time::Instant,
+    /// Captured stdout from the firecracker process.
+    stdout: Arc<tokio::sync::Mutex<String>>,
+    /// Captured stderr from the firecracker process.
+    stderr: Arc<tokio::sync::Mutex<String>>,
+}
 
 /// Firecracker microVM sandbox backend.
 ///
-/// TODO: implement via the Firecracker API socket (`/tmp/firecracker.socket`).
-/// Requires: firecracker binary, a rootfs image, and a vmlinux kernel.
-/// API reference: <https://github.com/firecracker-microvm/firecracker/blob/main/docs/api.md>
+/// Communicates with the Firecracker VMM via its REST API over a Unix domain
+/// socket at `/tmp/firecracker-$id.socket`.
 ///
-/// Implementation plan:
-/// 1. Spawn firecracker process with `--api-sock /tmp/firecracker-$id.socket`
-/// 2. PUT /machine-config (vcpu_count, mem_size_mib)
-/// 3. PUT /drives/rootfs (path_on_host, is_root_device)
-/// 4. PUT /boot-source (kernel_image_path, boot_args)
-/// 5. PUT /actions with InstanceStart
-/// 6. Use vsock or polling for lifecycle events
-pub struct FirecrackerSandboxBackend;
+/// Lifecycle:
+/// 1. `create()` — allocate an ID, prepare the sandbox working directory.
+/// 2. `start()`  — spawn `firecracker --api-sock`, then PUT machine-config,
+///    boot-source, drives, and InstanceStart via the REST API.
+/// 3. `wait()`   — poll the firecracker process until it exits.
+/// 4. `terminate()` — kill the firecracker process.
+/// 5. `destroy()` — clean up socket, log files, and working directory.
+pub struct FirecrackerSandboxBackend {
+    /// Active VMs: sandbox_id -> FirecrackerVmInfo
+    vms: Arc<RwLock<HashMap<String, FirecrackerVmInfo>>>,
+    /// Path to the firecracker binary.
+    firecracker_bin: String,
+    /// Base directory for working dirs.
+    base_dir: PathBuf,
+}
 
 impl FirecrackerSandboxBackend {
     /// Create a new `FirecrackerSandboxBackend`.
     pub fn new() -> Self {
-        Self
+        Self {
+            vms: Arc::new(RwLock::new(HashMap::new())),
+            firecracker_bin: "firecracker".to_string(),
+            base_dir: std::env::temp_dir().join("kias-sandbox"),
+        }
+    }
+
+    /// Use a custom firecracker binary path.
+    pub fn with_binary(bin: impl Into<String>) -> Self {
+        Self {
+            firecracker_bin: bin.into(),
+            ..Self::new()
+        }
+    }
+
+    /// Use a custom base directory.
+    pub fn with_base_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.base_dir = dir.into();
+        self
+    }
+
+    /// Compute the API socket path for a given sandbox ID.
+    fn socket_path(id: &str) -> PathBuf {
+        PathBuf::from(format!("/tmp/firecracker-{}.socket", id))
+    }
+
+    /// Send an HTTP request over the Firecracker Unix-domain-socket API and
+    /// return `(status_code, body)`.
+    async fn api_request(
+        socket_path: &std::path::Path,
+        method: &str,
+        path: &str,
+        body: &str,
+    ) -> Result<(u16, String), McpError> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::net::UnixStream;
+
+        let mut stream = UnixStream::connect(socket_path).await.map_err(|e| {
+            McpError::Internal(format!("failed to connect to Firecracker API socket: {}", e))
+        })?;
+
+        let request = format!(
+            "{method} {path} HTTP/1.1\r\n\
+             Host: localhost\r\n\
+             Content-Type: application/json\r\n\
+             Content-Length: {}\r\n\
+             Connection: close\r\n\
+             \r\n\
+             {}",
+            body.len(),
+            body,
+        );
+
+        stream
+            .write_all(request.as_bytes())
+            .await
+            .map_err(|e| McpError::Internal(format!("failed to write API request: {}", e)))?;
+
+        let mut response = Vec::new();
+        stream
+            .read_to_end(&mut response)
+            .await
+            .map_err(|e| McpError::Internal(format!("failed to read API response: {}", e)))?;
+
+        let response_str = String::from_utf8_lossy(&response);
+
+        // Parse status line: "HTTP/1.1 <code> ..."
+        let status_code = response_str
+            .lines()
+            .next()
+            .and_then(|line| {
+                line.split_whitespace()
+                    .nth(1)
+                    .and_then(|code| code.parse::<u16>().ok())
+            })
+            .unwrap_or(0);
+
+        // Body is after the first blank line.
+        let body = response_str
+            .splitn(2, "\r\n\r\n")
+            .nth(1)
+            .unwrap_or("")
+            .to_string();
+
+        Ok((status_code, body))
+    }
+
+    /// Configure the VM via the Firecracker REST API.
+    async fn configure_vm(&self, id: &str, config: &SandboxConfig) -> Result<(), McpError> {
+        let socket = Self::socket_path(id);
+
+        // 1. PUT /machine-config
+        let mem_mib = config
+            .limits
+            .memory_bytes
+            .map(|b| b / (1024 * 1024))
+            .unwrap_or(512);
+        let vcpu_count = config.limits.cpu_cores.map(|c| c as u32).unwrap_or(1);
+        let machine_body = serde_json::json!({
+            "vcpu_count": vcpu_count,
+            "mem_size_mib": mem_mib,
+        })
+        .to_string();
+        let (code, _) = Self::api_request(&socket, "PUT", "/machine-config", &machine_body).await?;
+        if code >= 400 {
+            return Err(McpError::Internal(format!(
+                "PUT /machine-config returned HTTP {}",
+                code
+            )));
+        }
+
+        // 2. PUT /boot-source — kernel image from labels["kernel"], default boot args
+        let kernel_path = config
+            .labels
+            .get("kernel")
+            .cloned()
+            .unwrap_or_else(|| "/opt/vmlinux".to_string());
+        let boot_args = "console=ttyS0 reboot=k panic=1 pci=off";
+        let boot_body = serde_json::json!({
+            "kernel_image_path": kernel_path,
+            "boot_args": boot_args,
+        })
+        .to_string();
+        let (code, _) = Self::api_request(&socket, "PUT", "/boot-source", &boot_body).await?;
+        if code >= 400 {
+            return Err(McpError::Internal(format!(
+                "PUT /boot-source returned HTTP {}",
+                code
+            )));
+        }
+
+        // 3. PUT /drives/rootfs
+        let rootfs_path = config
+            .filesystem
+            .rootfs
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/opt/rootfs.ext4".to_string());
+        let drive_body = serde_json::json!({
+            "drive_id": "rootfs",
+            "path_on_host": rootfs_path,
+            "is_root_device": true,
+            "is_read_only": false,
+        })
+        .to_string();
+        let (code, _) = Self::api_request(&socket, "PUT", "/drives/rootfs", &drive_body).await?;
+        if code >= 400 {
+            return Err(McpError::Internal(format!(
+                "PUT /drives/rootfs returned HTTP {}",
+                code
+            )));
+        }
+
+        Ok(())
     }
 }
 
@@ -1737,41 +1933,204 @@ impl Default for FirecrackerSandboxBackend {
 
 #[async_trait::async_trait]
 impl SandboxBackendTrait for FirecrackerSandboxBackend {
-    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
-        // TODO: implement via Firecracker API
-        Err(McpError::Internal(
-            "Firecracker backend not yet implemented".to_string(),
-        ))
+    async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        let id = uuid::Uuid::new_v4().to_string();
+
+        // Create sandbox working directory
+        let sandbox_dir = self.base_dir.join(&id);
+        tokio::fs::create_dir_all(&sandbox_dir)
+            .await
+            .map_err(|e| McpError::Internal(format!("failed to create sandbox dir: {}", e)))?;
+
+        Ok(SandboxInstance {
+            id,
+            config: config.clone(),
+            state: SandboxState::Ready,
+            created_at: SystemTime::now(),
+            started_at: None,
+            completed_at: None,
+            result: None,
+            pid: None,
+            container_id: None,
+        })
     }
 
-    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
-        // TODO: PUT /actions with action_type=InstanceStart
-        Err(McpError::Internal(
-            "Firecracker backend not yet implemented".to_string(),
-        ))
+    async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
+        if instance.state != SandboxState::Ready {
+            return Err(McpError::InvalidRequest(
+                "sandbox not in Ready state".to_string(),
+            ));
+        }
+
+        let socket_path = Self::socket_path(&instance.id);
+
+        // Remove stale socket if present
+        let _ = tokio::fs::remove_file(&socket_path).await;
+
+        // Spawn firecracker process
+        let mut cmd = tokio::process::Command::new(&self.firecracker_bin);
+        cmd.args(["--api-sock", socket_path.to_str().unwrap_or_default()]);
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| McpError::Internal(format!("failed to spawn firecracker: {}", e)))?;
+
+        let stdout_buf = child.stdout.take().map(|o| BufReader::new(o));
+        let stderr_buf = child.stderr.take().map(|e| BufReader::new(e));
+        let stdout = Arc::new(tokio::sync::Mutex::new(String::new()));
+        let stderr = Arc::new(tokio::sync::Mutex::new(String::new()));
+
+        if let Some(mut reader) = stdout_buf {
+            let out = stdout.clone();
+            tokio::spawn(async move {
+                let mut s = out.lock().await;
+                let _ = reader.read_to_string(&mut s).await;
+            });
+        }
+        if let Some(mut reader) = stderr_buf {
+            let err = stderr.clone();
+            tokio::spawn(async move {
+                let mut s = err.lock().await;
+                let _ = reader.read_to_string(&mut s).await;
+            });
+        }
+
+        // Wait for the API socket to become available (up to 5 seconds)
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let mut connected = false;
+        while std::time::Instant::now() < deadline {
+            if tokio::net::UnixStream::connect(&socket_path).await.is_ok() {
+                connected = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        if !connected {
+            // Clean up
+            let _ = child.kill().await;
+            return Err(McpError::Internal(
+                "firecracker API socket did not become available".to_string(),
+            ));
+        }
+
+        // Configure the VM via REST API
+        if let Err(e) = self.configure_vm(&instance.id, &instance.config).await {
+            let _ = child.kill().await;
+            return Err(e);
+        }
+
+        // PUT /actions — InstanceStart
+        let (code, body) = Self::api_request(
+            &socket_path,
+            "PUT",
+            "/actions",
+            r#"{"action_type": "InstanceStart"}"#,
+        )
+        .await?;
+        if code >= 400 {
+            let _ = child.kill().await;
+            return Err(McpError::Internal(format!(
+                "InstanceStart failed (HTTP {}): {}",
+                code, body
+            )));
+        }
+
+        instance.state = SandboxState::Running;
+        instance.started_at = Some(SystemTime::now());
+
+        // Store VM info
+        let info = FirecrackerVmInfo {
+            child,
+            socket_path,
+            start_time: std::time::Instant::now(),
+            stdout,
+            stderr,
+        };
+        self.vms.write().await.insert(instance.id.clone(), info);
+
+        Ok(())
     }
 
-    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        // TODO: poll VM state or use vsock for exit notification
-        Err(McpError::Internal(
-            "Firecracker backend not yet implemented".to_string(),
-        ))
+    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        let mut info = self
+            .vms
+            .write()
+            .await
+            .remove(&instance.id)
+            .ok_or_else(|| McpError::Internal("no running Firecracker VM found".to_string()))?;
+
+        let start = info.start_time;
+        let exit_code = match info.child.wait().await {
+            Ok(status) => status.code().unwrap_or(-1),
+            Err(e) => {
+                return Ok(SandboxResult {
+                    exit_code: -1,
+                    stdout: String::new(),
+                    stderr: format!("firecracker process error: {}", e),
+                    duration: start.elapsed(),
+                    resource_usage: ResourceUsage::default(),
+                    terminated: true,
+                    termination_reason: Some(e.to_string()),
+                });
+            }
+        };
+
+        let stdout = info.stdout.lock().await.clone();
+        let stderr = info.stderr.lock().await.clone();
+
+        Ok(SandboxResult {
+            exit_code,
+            stdout,
+            stderr,
+            duration: start.elapsed(),
+            resource_usage: ResourceUsage::default(),
+            terminated: false,
+            termination_reason: None,
+        })
     }
 
-    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        // TODO: PUT /actions with action_type=SendCtrlAltDel or kill firecracker process
-        Err(McpError::Internal(
-            "Firecracker backend not yet implemented".to_string(),
-        ))
+    async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        if let Some(mut info) = self.vms.write().await.remove(&instance.id) {
+            // Try graceful SendCtrlAltDel first
+            let socket = &info.socket_path;
+            let _ = Self::api_request(
+                socket,
+                "PUT",
+                "/actions",
+                r#"{"action_type": "SendCtrlAltDel"}"#,
+            )
+            .await;
+
+            // Give it a moment to shut down, then force-kill
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let _ = info.child.kill().await;
+            let _ = info.child.wait().await;
+        }
+        Ok(())
     }
 
-    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        // TODO: cleanup socket, rootfs overlay, log files
+    async fn destroy(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        // Cleanup socket file
+        let socket_path = Self::socket_path(&instance.id);
+        let _ = tokio::fs::remove_file(&socket_path).await;
+
+        // Cleanup log file (firecracker writes <id>.log in CWD)
+        let _ = tokio::fs::remove_file(format!("{}.log", instance.id)).await;
+
+        // Cleanup sandbox directory
+        let sandbox_dir = self.base_dir.join(&instance.id);
+        let _ = tokio::fs::remove_dir_all(&sandbox_dir).await;
+
+        // Remove from active VMs
+        self.vms.write().await.remove(&instance.id);
         Ok(())
     }
 
     async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
-        // TODO: read from firecracker metrics endpoint
+        // A full implementation would query the Firecracker /metrics endpoint.
         Ok(ResourceUsage::default())
     }
 }
@@ -1837,20 +2196,99 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Wasm Sandbox Backend (stub – not yet implemented)
+// Wasm Sandbox Backend (real implementation)
 // ---------------------------------------------------------------------------
 
-/// WebAssembly sandbox backend.
+/// Information about a running Wasm process.
+struct WasmProcessInfo {
+    /// Handle to the wasmtime/wasmer process.
+    child: tokio::process::Child,
+    /// Captured stdout.
+    stdout: Arc<tokio::sync::Mutex<String>>,
+    /// Captured stderr.
+    stderr: Arc<tokio::sync::Mutex<String>>,
+    /// Process start time.
+    start_time: std::time::Instant,
+}
+
+/// WebAssembly sandbox backend using the Wasmtime CLI.
 ///
-/// TODO: implement via Wasmtime or Wasmer runtime.
-/// Would load a `.wasm` module and execute it with WASI support,
-/// providing near-native speed with memory safety guarantees.
-pub struct WasmSandboxBackend;
+/// Executes `.wasm` modules via the `wasmtime` command-line runtime with WASI
+/// support, providing near-native speed with memory safety guarantees.
+///
+/// The command vector in the sandbox config is interpreted as:
+/// - `config.command[0]` — path to the `.wasm` module
+/// - `config.command[1..]` — arguments passed to the module
+///
+/// Lifecycle:
+/// 1. `create()` — allocate an ID, validate the module path, prepare working dir.
+/// 2. `start()`  — spawn `wasmtime run --wasi <module> [args...]`.
+/// 3. `wait()`   — wait for the process to exit, capture output.
+/// 4. `terminate()` — kill the process.
+/// 5. `destroy()` — clean up the working directory.
+pub struct WasmSandboxBackend {
+    /// Active processes: sandbox_id -> WasmProcessInfo
+    processes: Arc<RwLock<HashMap<String, WasmProcessInfo>>>,
+    /// Path to the wasmtime binary.
+    wasmtime_bin: String,
+    /// Base directory for working dirs.
+    base_dir: PathBuf,
+}
 
 impl WasmSandboxBackend {
     /// Create a new `WasmSandboxBackend`.
     pub fn new() -> Self {
-        Self
+        Self {
+            processes: Arc::new(RwLock::new(HashMap::new())),
+            wasmtime_bin: "wasmtime".to_string(),
+            base_dir: std::env::temp_dir().join("kias-sandbox"),
+        }
+    }
+
+    /// Use a custom wasmtime binary path.
+    pub fn with_binary(bin: impl Into<String>) -> Self {
+        Self {
+            wasmtime_bin: bin.into(),
+            ..Self::new()
+        }
+    }
+
+    /// Use a custom base directory.
+    pub fn with_base_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.base_dir = dir.into();
+        self
+    }
+
+    /// Build the wasmtime CLI arguments for the given config.
+    fn build_wasmtime_args(config: &SandboxConfig) -> Vec<String> {
+        let mut args: Vec<String> = Vec::new();
+
+        // WASI is enabled by default for `wasmtime run`, but we can add
+        // explicit flags for resource limits.
+        args.push("run".to_string());
+
+        // Memory limit (Wasmtime uses --max-wasm-stack, and memory is per-module)
+        if let Some(mem) = config.limits.memory_bytes {
+            // wasmtime doesn't have a direct memory CLI flag, but --fuel can limit execution
+            let fuel = mem / 1000; // rough fuel-to-memory heuristic
+            if fuel > 0 {
+                args.push("--fuel".to_string());
+                args.push(format!("{}", fuel));
+            }
+        }
+
+        // Module path (first argument in command)
+        if let Some(module) = config.command.first() {
+            args.push(module.clone());
+        }
+
+        // Remaining arguments go to the wasm module
+        if config.command.len() > 1 {
+            args.push("--".to_string());
+            args.extend(config.command[1..].iter().cloned());
+        }
+
+        args
     }
 }
 
@@ -1862,39 +2300,158 @@ impl Default for WasmSandboxBackend {
 
 #[async_trait::async_trait]
 impl SandboxBackendTrait for WasmSandboxBackend {
-    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
-        // TODO: implement via Wasmtime/Wasmer
-        // 1. Create Engine with config (fuel, epoch interruption)
-        // 2. Load module from config.command[0]
-        // 3. Create WASI instance with limited capabilities
-        Err(McpError::Internal(
-            "Wasm backend not yet implemented".to_string(),
-        ))
+    async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        let id = uuid::Uuid::new_v4().to_string();
+
+        // Create sandbox working directory
+        let sandbox_dir = self.base_dir.join(&id);
+        tokio::fs::create_dir_all(&sandbox_dir)
+            .await
+            .map_err(|e| McpError::Internal(format!("failed to create sandbox dir: {}", e)))?;
+
+        // Validate that a module path is specified
+        if config.command.is_empty() {
+            return Err(McpError::InvalidRequest(
+                "Wasm sandbox requires at least one command argument (module path)".to_string(),
+            ));
+        }
+
+        Ok(SandboxInstance {
+            id,
+            config: config.clone(),
+            state: SandboxState::Ready,
+            created_at: SystemTime::now(),
+            started_at: None,
+            completed_at: None,
+            result: None,
+            pid: None,
+            container_id: None,
+        })
     }
 
-    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
-        Err(McpError::Internal(
-            "Wasm backend not yet implemented".to_string(),
-        ))
+    async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
+        if instance.state != SandboxState::Ready {
+            return Err(McpError::InvalidRequest(
+                "sandbox not in Ready state".to_string(),
+            ));
+        }
+
+        let sandbox_dir = self.base_dir.join(&instance.id);
+        let args = Self::build_wasmtime_args(&instance.config);
+
+        let mut cmd = tokio::process::Command::new(&self.wasmtime_bin);
+        cmd.args(&args);
+
+        // Set working directory
+        cmd.current_dir(
+            instance
+                .config
+                .workdir
+                .as_ref()
+                .unwrap_or(&sandbox_dir),
+        );
+
+        // Environment variables
+        for (k, v) in &instance.config.env {
+            cmd.env(k, v);
+        }
+
+        // Capture I/O
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| McpError::Internal(format!("failed to spawn wasmtime: {}", e)))?;
+
+        let pid = child.id();
+        instance.pid = pid;
+        instance.state = SandboxState::Running;
+        instance.started_at = Some(SystemTime::now());
+
+        // Set up stdout/stderr capture
+        let stdout_buf = child.stdout.take().map(|o| BufReader::new(o));
+        let stderr_buf = child.stderr.take().map(|e| BufReader::new(e));
+        let stdout = Arc::new(tokio::sync::Mutex::new(String::new()));
+        let stderr = Arc::new(tokio::sync::Mutex::new(String::new()));
+
+        if let Some(mut reader) = stdout_buf {
+            let out = stdout.clone();
+            tokio::spawn(async move {
+                let mut s = out.lock().await;
+                let _ = reader.read_to_string(&mut s).await;
+            });
+        }
+        if let Some(mut reader) = stderr_buf {
+            let err = stderr.clone();
+            tokio::spawn(async move {
+                let mut s = err.lock().await;
+                let _ = reader.read_to_string(&mut s).await;
+            });
+        }
+
+        let info = WasmProcessInfo {
+            child,
+            stdout,
+            stderr,
+            start_time: std::time::Instant::now(),
+        };
+        self.processes
+            .write()
+            .await
+            .insert(instance.id.clone(), info);
+
+        Ok(())
     }
 
-    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        Err(McpError::Internal(
-            "Wasm backend not yet implemented".to_string(),
-        ))
+    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        let mut info = self
+            .processes
+            .write()
+            .await
+            .remove(&instance.id)
+            .ok_or_else(|| McpError::Internal("no running Wasm process found".to_string()))?;
+
+        let start = info.start_time;
+        let (exit_code, terminated, reason) = match info.child.wait().await {
+            Ok(status) => (status.code().unwrap_or(-1), false, None),
+            Err(e) => (-1, true, Some(e.to_string())),
+        };
+
+        let stdout = info.stdout.lock().await.clone();
+        let stderr = info.stderr.lock().await.clone();
+
+        Ok(SandboxResult {
+            exit_code,
+            stdout,
+            stderr,
+            duration: start.elapsed(),
+            resource_usage: ResourceUsage::default(),
+            terminated,
+            termination_reason: reason,
+        })
     }
 
-    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        Err(McpError::Internal(
-            "Wasm backend not yet implemented".to_string(),
-        ))
+    async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        if let Some(mut info) = self.processes.write().await.remove(&instance.id) {
+            let _ = info.child.kill().await;
+            let _ = info.child.wait().await;
+        }
+        Ok(())
     }
 
-    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+    async fn destroy(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        // Cleanup sandbox directory
+        let sandbox_dir = self.base_dir.join(&instance.id);
+        let _ = tokio::fs::remove_dir_all(&sandbox_dir).await;
+        self.processes.write().await.remove(&instance.id);
         Ok(())
     }
 
     async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        // Wasmtime does not expose runtime metrics via CLI.
+        // A library-based integration would use Engine::increment_fuel_consumed().
         Ok(ResourceUsage::default())
     }
 }
@@ -1981,6 +2538,33 @@ mod tests {
     }
 
     #[test]
+    fn test_firecracker_backend_custom_binary() {
+        let backend = FirecrackerSandboxBackend::with_binary("/usr/local/bin/firecracker");
+        assert_eq!(backend.firecracker_bin, "/usr/local/bin/firecracker");
+    }
+
+    #[test]
+    fn test_firecracker_socket_path() {
+        let path = FirecrackerSandboxBackend::socket_path("abc-123");
+        assert_eq!(path, PathBuf::from("/tmp/firecracker-abc-123.socket"));
+    }
+
+    #[test]
+    fn test_sandbox_config_firecracker() {
+        let config = SandboxConfig::firecracker("test-vm", "/opt/vmlinux", "/opt/rootfs.ext4");
+        assert_eq!(config.backend, SandboxBackend::Firecracker);
+        assert_eq!(config.name, "test-vm");
+        assert_eq!(
+            config.filesystem.rootfs,
+            Some(PathBuf::from("/opt/rootfs.ext4"))
+        );
+        assert_eq!(
+            config.labels.get("kernel").unwrap(),
+            "/opt/vmlinux"
+        );
+    }
+
+    #[test]
     fn test_gvisor_backend_stub() {
         let backend = GVisorSandboxBackend::new();
         let _default = GVisorSandboxBackend::default();
@@ -1994,11 +2578,49 @@ mod tests {
         let _ = &backend;
     }
 
+    #[test]
+    fn test_wasm_backend_custom_binary() {
+        let backend = WasmSandboxBackend::with_binary("/usr/local/bin/wasmtime");
+        assert_eq!(backend.wasmtime_bin, "/usr/local/bin/wasmtime");
+    }
+
+    #[test]
+    fn test_wasm_build_args_basic() {
+        let config = SandboxConfig::wasm("test", "module.wasm");
+        let args = WasmSandboxBackend::build_wasmtime_args(&config);
+        assert_eq!(args[0], "run");
+        // should have --fuel from default memory limit
+        assert!(args.contains(&"--fuel".to_string()));
+        assert!(args.contains(&"module.wasm".to_string()));
+    }
+
+    #[test]
+    fn test_wasm_build_args_with_extra_args() {
+        let mut config = SandboxConfig::wasm("test", "module.wasm");
+        config.command.push("--verbose".to_string());
+        config.command.push("42".to_string());
+        let args = WasmSandboxBackend::build_wasmtime_args(&config);
+        assert!(args.contains(&"--".to_string()));
+        assert!(args.contains(&"--verbose".to_string()));
+        assert!(args.contains(&"42".to_string()));
+    }
+
     #[tokio::test]
-    async fn test_firecracker_backend_returns_error() {
+    async fn test_firecracker_backend_create_success() {
         let backend = FirecrackerSandboxBackend::new();
-        let config = SandboxConfig::process("test", vec!["echo".to_string()]);
-        let result = backend.create(&config).await;
+        let config = SandboxConfig::firecracker("test-vm", "/opt/vmlinux", "/opt/rootfs.ext4");
+        let instance = backend.create(&config).await.unwrap();
+        assert_eq!(instance.state, SandboxState::Ready);
+        assert_eq!(instance.config.backend, SandboxBackend::Firecracker);
+        assert!(instance.id.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_firecracker_backend_start_fails_without_binary() {
+        let backend = FirecrackerSandboxBackend::with_binary("/nonexistent/firecracker");
+        let config = SandboxConfig::firecracker("test-vm", "/opt/vmlinux", "/opt/rootfs.ext4");
+        let mut instance = backend.create(&config).await.unwrap();
+        let result = backend.start(&mut instance).await;
         assert!(result.is_err());
     }
 
@@ -2011,11 +2633,50 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_wasm_backend_returns_error() {
+    async fn test_wasm_backend_create_success() {
         let backend = WasmSandboxBackend::new();
         let config = SandboxConfig::wasm("test", "module.wasm");
+        let instance = backend.create(&config).await.unwrap();
+        assert_eq!(instance.state, SandboxState::Ready);
+        assert_eq!(instance.config.backend, SandboxBackend::Wasm);
+        assert_eq!(instance.pid, None);
+    }
+
+    #[tokio::test]
+    async fn test_wasm_backend_create_requires_module() {
+        let backend = WasmSandboxBackend::new();
+        let config = SandboxConfig::process("test", vec![]);
         let result = backend.create(&config).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_wasm_backend_start_fails_without_binary() {
+        let backend = WasmSandboxBackend::with_binary("/nonexistent/wasmtime");
+        let config = SandboxConfig::wasm("test", "module.wasm");
+        let mut instance = backend.create(&config).await.unwrap();
+        let result = backend.start(&mut instance).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_wasm_backend_terminate_without_process() {
+        let backend = WasmSandboxBackend::new();
+        let config = SandboxConfig::wasm("test", "module.wasm");
+        let instance = backend.create(&config).await.unwrap();
+        // Terminate on non-started instance should succeed gracefully
+        let result = backend.terminate(&instance).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_firecracker_backend_terminate_without_process() {
+        let backend = FirecrackerSandboxBackend::new();
+        let config = SandboxConfig::firecracker("test-vm", "/opt/vmlinux", "/opt/rootfs.ext4");
+        let instance = backend.create(&config).await.unwrap();
+        // Terminate on non-started instance should succeed gracefully
+        let result = backend.terminate(&instance).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
@@ -2141,7 +2802,7 @@ mod tests {
         let mut config = SandboxConfig::process("snap-test", vec!["echo".to_string()]);
         config.env.insert("TEST_VAR".into(), "hello".into());
 
-        let instance = manager.execute(config, "test-user").await.unwrap();
+        let _instance = manager.execute(config, "test-user").await.unwrap();
 
         // We need a sandbox that persists (execute consumes it).
         // Create a sandbox manually instead for snapshot testing.

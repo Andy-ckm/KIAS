@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use axum::extract::ConnectInfo;
 use axum::extract::Request;
-use axum::http::header::HeaderName;
+use axum::http::header::{HeaderName, HeaderValue};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -232,15 +232,13 @@ pub async fn rate_limit_middleware(
         RateLimitResult::Allow { remaining } => {
             let mut response = next.run(request).await;
             let headers = response.headers_mut();
-            headers.insert(X_RATELIMIT_LIMIT.clone(), burst_limit.parse().unwrap());
-            headers.insert(
-                X_RATELIMIT_REMAINING.clone(),
-                remaining.to_string().parse().unwrap(),
-            );
-            headers.insert(
-                X_RATELIMIT_RESET.clone(),
-                "1".parse().unwrap(), // reset in 1 second (refill is continuous)
-            );
+            if let Ok(val) = HeaderValue::from_str(&burst_limit) {
+                headers.insert(X_RATELIMIT_LIMIT.clone(), val);
+            }
+            if let Ok(val) = HeaderValue::from_str(&remaining.to_string()) {
+                headers.insert(X_RATELIMIT_REMAINING.clone(), val);
+            }
+            headers.insert(X_RATELIMIT_RESET.clone(), HeaderValue::from_static("1"));
             response
         }
         RateLimitResult::Deny { retry_after } => {

@@ -97,11 +97,11 @@ impl ExecutionLog {
 
     /// Mark execution as complete
     pub fn complete(&mut self, final_state: WorkflowState) {
+        let ended_at = Utc::now();
         self.final_state = Some(final_state);
-        self.ended_at = Some(Utc::now());
+        self.ended_at = Some(ended_at);
         self.total_duration_ms = Some(
-            self.ended_at
-                .unwrap()
+            ended_at
                 .signed_duration_since(self.started_at)
                 .num_milliseconds() as u64,
         );

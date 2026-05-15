@@ -567,11 +567,13 @@ impl GraphRAGEngine {
                 }
 
                 // Pick the label with highest total weight
-                let best_label = label_votes
+                let Some(best_label) = label_votes
                     .iter()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(label, _)| *label)
-                    .unwrap();
+                else {
+                    continue;
+                };
 
                 if labels[node_id] != best_label {
                     labels.insert(node_id.clone(), best_label);

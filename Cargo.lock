@@ -1887,12 +1887,16 @@ dependencies = [
 name = "kias-benchmarks"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "criterion",
  "dashmap",
  "kias-common",
  "kias-controller",
+ "kias-executor",
+ "kias-model-router",
  "kias-scheduler",
+ "kias-team-engine",
  "kias-workflow-engine",
  "rand 0.8.6",
  "serde",

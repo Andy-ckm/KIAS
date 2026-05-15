@@ -103,10 +103,11 @@ pub use hot_reload::{
 // Re-export sandbox types
 #[cfg(feature = "sandbox")]
 pub use sandbox::{
-    FilesystemConfig, FirecrackerSandboxBackend, GVisorSandboxBackend, MountPoint,
+    FilesystemConfig, FirecrackerSandboxBackend, GVisorSandboxBackend, IsolationLevel, MountPoint,
     NetworkPolicy, ProcessSandboxBackend, ResourceLimits, ResourceUsage, SandboxAction,
     SandboxAuditEntry, SandboxBackend, SandboxBackendTrait, SandboxConfig, SandboxInstance,
-    SandboxManager, SandboxManagerConfig, SandboxResult, SandboxState, WasmSandboxBackend,
+    SandboxManager, SandboxManagerConfig, SandboxResult, SandboxSnapshot, SandboxState,
+    WasmSandboxBackend, WorkspaceProjection,
 };
 
 #[cfg(feature = "docker")]

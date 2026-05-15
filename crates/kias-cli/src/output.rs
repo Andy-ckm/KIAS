@@ -32,6 +32,7 @@ pub enum ExitCode {
     ServerError = 5,
     Timeout = 6,
     CostExceeded = 7,
+    ConfigError = 8,
 }
 
 /// 格式化输出

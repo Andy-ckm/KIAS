@@ -134,7 +134,7 @@ kias/
 - **Async**: Tokio
 - **Web**: Axum
 - **Database**: SQLite via sqlx
-- **Cache**: In-memory (Redis-compatible planned)
+- **Cache**: SQLite-backed persistent cache + in-memory LRU
 - **Metrics**: Prometheus
 - **Frontend**: React, TypeScript, TailwindCSS
 

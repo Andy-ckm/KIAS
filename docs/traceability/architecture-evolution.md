@@ -169,7 +169,7 @@ Phase 1: 简单队列 → Phase 2: 优先级队列 → Phase 3: 智能调度 →
 
 ### 短期（1-2个月）
 1. **数据层优化**：SQLite → PostgreSQL迁移
-2. **缓存层**：Redis集成
+2. **缓存层**：分布式缓存扩展（当前 SQLite + 内存 LRU）
 3. **消息队列**：RabbitMQ/Kafka集成
 
 ### 中期（3-6个月）

@@ -1,448 +1,274 @@
-<div align="center">
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skills-repo-dark_2x.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skill-repo-light_2x.png">
+    <img alt="KIAS" src="https://res.cloudinary.com/total-typescript/image/upload/v1777382277/skill-repo-light_2x.png" width="369">
+  </picture>
+</p>
 
-# 🚀 KIAS
-
-### Kubernetes-like Intelligent Agent Scheduling System
-
-**企业级 Rust AI Agent 框架 | 生产就绪 | 高性能**
+# KIAS — Enterprise AI Agent Framework
 
 [![Rust](https://img.shields.io/badge/Rust-1.95.0-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![Tests](https://img.shields.io/badge/Tests-1419%20Passed-brightgreen?style=flat-square)](https://github.com/Andy-ckm/KIAS/actions)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 [![Crates](https://img.shields.io/badge/Crates-21-purple?style=flat-square)](https://crates.io/)
 
-[English](#english) | [中文](#中文)
+**Production-grade Rust framework for building AI Agent systems that actually work in production.**
 
-</div>
+Most AI Agent frameworks are toys. KIAS is different — it's built for real production workloads with enterprise features like graceful shutdown, deep health checks, dead letter queues, and multi-tenant isolation.
 
----
+If you're building AI Agents that need to run 24/7 in production, KIAS is for you.
 
-## 🎯 为什么选择 KIAS？
+## Why KIAS Exists
 
-> **KIAS 不是玩具，是生产级 AI Agent 框架。**
+### #1: Other Frameworks Don't Handle Production
 
-在 AI Agent 框架遍地开花的今天，KIAS 专注于解决一个核心问题：**如何让 AI Agent 在生产环境中稳定、高效、可追踪地运行？**
+> "The best production systems are boring. They just work."
 
-### 💡 核心理念
+**The Problem**: Most AI Agent frameworks focus on demos, not production. They crash on SIGTERM, lose data on restart, and can't handle failures gracefully.
+
+**The Fix**: KIAS includes production-ready features out of the box:
+
+- **Graceful Shutdown** — Handles SIGTERM/SIGINT, coordinates subsystem cleanup
+- **Deep Health Checks** — Monitors memory, disk, CPU, queue depth
+- **Dead Letter Queue** — Archives failed tasks, supports retry strategies
+- **Audit Logging** — Persists to SQLite, survives restarts
+- **Circuit Breakers** — Auto-cuts, rate limiting, degradation
+
+### #2: No Multi-Tenant Isolation
+
+> "Enterprise customers need isolation, not shared everything."
+
+**The Problem**: Most frameworks treat all users as one big tenant. No resource quotas, no namespace isolation, no billing separation.
+
+**The Fix**: KIAS has real multi-tenant support:
+
+- **Resource Quotas** — CPU, memory, GPU limits per tenant
+- **Namespace Isolation** — Agents can't see other tenants' data
+- **Fair Scheduling** — Round-robin across tenants
+- **Tenant Statistics** — Track usage per tenant
+
+### #3: Can't Scale to Real Workloads
+
+> "Python is great for prototypes. Rust is great for production."
+
+**The Problem**: Python-based frameworks hit performance walls. High latency, high memory usage, can't handle concurrent workloads.
+
+**The Fix**: KIAS is built in Rust:
+
+- **Zero-copy** — No garbage collector pauses
+- **Memory safe** — No segfaults, no data races
+- **High concurrency** — Tokio async runtime
+- **Low latency** — Sub-millisecond response times
+
+### #4: No Observability
+
+> "You can't fix what you can't see."
+
+**The Problem**: Most frameworks are black boxes. No metrics, no tracing, no real-time monitoring.
+
+**The Fix**: KIAS has full observability:
+
+- **Prometheus Metrics** — System, agent, and business metrics
+- **Distributed Tracing** — Full request lifecycle tracking
+- **Structured Logging** — tracing + JSON format
+- **Real-time Push** — WebSocket event streaming
+- **Dashboard** — React + TypeScript frontend
+
+## Quickstart (60-second setup)
+
+```bash
+# Clone
+git clone https://github.com/Andy-ckm/KIAS.git
+cd KIAS
+
+# Build
+cargo build --release
+
+# Run
+cargo run --bin kias
+
+# Test
+cargo test --workspace
+```
+
+## Core Features
+
+### Production-Ready
+
+- **[Graceful Shutdown](./crates/common/src/graceful_shutdown.rs)** — SIGTERM/SIGINT handling, subsystem coordination, configurable timeouts
+- **[Deep Health Checks](./crates/api-server/src/handlers/health.rs)** — Memory, disk, CPU, queue depth monitoring via `/healthz/deep`
+- **[Dead Letter Queue](./crates/data-store/src/dlq.rs)** — Failed task archival, retry strategies, operator management
+- **[Audit Logging](./crates/data-store/src/audit_persist.rs)** — SQLite persistence, query/filter/purge, survives restarts
+- **[Circuit Breakers](./crates/controller/src/resilience.rs)** — Auto-cut, rate limiting, degradation, thundering herd protection
+
+### Enterprise-Grade
+
+- **[Multi-Tenant Isolation](./crates/scheduler/src/multi_tenant.rs)** — Resource quotas, namespace isolation, fair scheduling
+- **[RBAC](./crates/api-server/src/auth.rs)** — Role-based access control, JWT/API Key authentication
+- **[Key Rotation](./crates/model-router/src/key_rotation.rs)** — Fisher-Yates shuffle, failure demotion, budget tracking
+- **[TLS 1.3](./crates/common/src/tls.rs)** — Mutual TLS, ALPN negotiation, certificate validation
+
+### AI Agent Capabilities
+
+- **[Multi-Agent Collaboration](./crates/team-engine/src/subagent.rs)** — Owner-Worker-Verifier pattern, declarative YAML
+- **[Workspace Management](./crates/team-engine/src/workspace.rs)** — AGENTS.md, MEMORY.md, skills/, knowledge/
+- **[Context Compaction](./crates/team-engine/src/compaction.rs)** — Token budget management, fact extraction
+- **[Session Persistence](./crates/team-engine/src/session.rs)** — JSONL serialization, context snapshots
+- **[Sandbox Isolation](./crates/mcp-protocol/src/sandbox.rs)** — Three levels: process/container/VM
+- **[Goal-Driven Loop](./crates/goal-engine/src/loop_runner.rs)** — Automatic goal decomposition, execution, evaluation
+- **[Autonomy Control](./crates/autonomy-controller/src/lib.rs)** — Three modes: Suggest/AutoEdit/FullAuto
+
+### Observability
+
+- **[Prometheus Metrics](./crates/monitor/src/prometheus.rs)** — System, agent, and business metrics
+- **[Distributed Tracing](./crates/monitor/src/telemetry.rs)** — Full request lifecycle tracking
+- **[WebSocket Push](./crates/api-server/src/websocket.rs)** — Real-time event streaming
+- **[Dashboard](./dashboard/)** — React + TypeScript frontend with charts
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    KIAS 设计哲学                              │
-├─────────────────────────────────────────────────────────────┤
-│  ✅ 质量第一 — 1419 个测试，零容忍缺陷                        │
-│  ✅ 生产就绪 — 优雅关闭、深度健康检查、死信队列                 │
-│  ✅ 企业级 — 多租户隔离、RBAC、审计日志                        │
-│  ✅ 高性能 — Rust 原生、零拷贝、内存安全                       │
-│  ✅ 可追踪 — 完整的 ADR、特性矩阵、变更日志                    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         KIAS Architecture                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│   │   Scheduler   │  │  Controller  │  │   Monitor    │        │
+│   │  (GPU调度)    │  │  (健康检查)   │  │  (遥测监控)   │        │
+│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘        │
+│          │                  │                  │                │
+│          └──────────────────┼──────────────────┘                │
+│                             │                                   │
+│                    ┌────────▼────────┐                         │
+│                    │   Data Store    │                         │
+│                    │  (SQLite持久化)  │                         │
+│                    └────────┬────────┘                         │
+│                             │                                   │
+│   ┌──────────────┐  ┌──────┴───────┐  ┌──────────────┐        │
+│   │  Team Engine  │  │  Workflow    │  │  Goal Engine │        │
+│   │  (多Agent协作) │  │  (DAG编排)   │  │  (目标驱动)   │        │
+│   └──────────────┘  └──────────────┘  └──────────────┘        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 🏗️ 架构概览
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         KIAS 架构                                   │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│   │   Scheduler   │  │  Controller  │  │   Monitor    │            │
-│   │  (GPU调度)    │  │  (健康检查)   │  │  (遥测监控)   │            │
-│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘            │
-│          │                  │                  │                    │
-│          └──────────────────┼──────────────────┘                    │
-│                             │                                       │
-│                    ┌────────▼────────┐                             │
-│                    │   Data Store    │                             │
-│                    │  (SQLite持久化)  │                             │
-│                    └────────┬────────┘                             │
-│                             │                                       │
-│   ┌──────────────┐  ┌──────┴───────┐  ┌──────────────┐            │
-│   │  Team Engine  │  │  Workflow    │  │  Goal Engine │            │
-│   │  (多Agent协作) │  │  (DAG编排)   │  │  (目标驱动)   │            │
-│   └──────────────┘  └──────────────┘  └──────────────┘            │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## ✨ 核心特性
-
-### 🔥 生产级特性
-
-| 特性 | 描述 | 状态 |
-|------|------|------|
-| **优雅关闭** | SIGTERM/SIGINT 信号处理，子系统协调关闭 | ✅ |
-| **深度健康检查** | 内存/磁盘/CPU/队列深度全面监控 | ✅ |
-| **死信队列** | 失败任务归档，支持重试策略 | ✅ |
-| **审计日志持久化** | SQLite 持久化，重启不丢失 | ✅ |
-| **多租户隔离** | 资源配额、命名空间隔离 | ✅ |
-| **GPU 调度** | NVIDIA/AMD/Intel + MIG 支持 | ✅ |
-| **智能 Key 轮转** | Fisher-Yates shuffle + 失败降权 | ✅ |
-| **熔断器** | 自动熔断、限流、降级 | ✅ |
-
-### 🧠 AI Agent 能力
-
-| 能力 | 描述 | 状态 |
-|------|------|------|
-| **多 Agent 协作** | Owner-Worker-Verifier 模式 | ✅ |
-| **工作空间管理** | AGENTS.md、MEMORY.md、skills/ | ✅ |
-| **上下文压缩** | Token 预算管理、事实提取 | ✅ |
-| **会话持久化** | JSONL 序列化、上下文快照 | ✅ |
-| **子 Agent 编排** | 声明式 YAML、同步/异步执行 | ✅ |
-| **沙箱隔离** | 三级隔离：进程/容器/虚拟机 | ✅ |
-| **目标驱动循环** | 自动目标分解、执行、评估 | ✅ |
-| **自主度控制** | Suggest/AutoEdit/FullAuto 三模式 | ✅ |
-
-### 📊 可观测性
-
-| 能力 | 描述 | 状态 |
-|------|------|------|
-| **Prometheus 指标** | 系统指标、Agent 指标、业务指标 | ✅ |
-| **分布式追踪** | 全链路追踪、性能分析 | ✅ |
-| **结构化日志** | tracing + JSON 格式 | ✅ |
-| **实时推送** | WebSocket 事件推送 | ✅ |
-| **Dashboard** | React + TypeScript 前端 | ✅ |
-
----
-
-## 📦 项目结构
+## Project Structure
 
 ```
 kias/
-├── crates/                    # 21 个 Rust crate
-│   ├── kias-main/            # 主程序入口
-│   ├── api-server/           # REST API 服务器
-│   ├── scheduler/            # 任务调度器
-│   ├── controller/           # 任务控制器
-│   ├── team-engine/          # 多 Agent 协作
-│   ├── workflow-engine/      # DAG 工作流
-│   ├── goal-engine/          # 目标驱动引擎
-│   ├── data-store/           # 数据持久化层
-│   ├── common/               # 公共工具库
-│   └── ...                   # 其他 12 个 crate
-├── dashboard/                 # React + TypeScript 前端
-├── docs/                      # 完整文档体系
-│   ├── adr/                  # 架构决策记录
-│   ├── traceability/         # 可追溯性文档
-│   └── design-docs/          # 设计文档
-└── reference-projects/        # 参考源码
+├── crates/                    # 21 Rust crates
+│   ├── kias-main/            # Main entry point
+│   ├── api-server/           # REST API server
+│   ├── scheduler/            # Task scheduler
+│   ├── controller/           # Task controller
+│   ├── team-engine/          # Multi-agent collaboration
+│   ├── workflow-engine/      # DAG workflow
+│   ├── goal-engine/          # Goal-driven engine
+│   ├── data-store/           # Data persistence
+│   ├── common/               # Shared utilities
+│   └── ...                   # 12 more crates
+├── dashboard/                 # React + TypeScript frontend
+├── docs/                      # Complete documentation
+│   ├── adr/                  # Architecture Decision Records
+│   ├── traceability/         # Traceability documents
+│   └── design-docs/          # Design documents
+└── reference-projects/        # Reference source code
 ```
 
----
+## Tech Stack
 
-## 🚀 快速开始
+### Backend
 
-### 安装
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **Rust** | Core language | 1.95.0 |
+| **Tokio** | Async runtime | 1.x |
+| **Axum** | Web framework | 0.7 |
+| **SQLx** | Database | 0.8 |
+| **Serde** | Serialization | 1.x |
+| **Tracing** | Logging | 0.1 |
 
-```bash
-# 克隆仓库
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
+### Frontend
 
-# 构建项目
-cargo build --release
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **React** | UI framework | 18.x |
+| **TypeScript** | Type system | 5.x |
+| **Vite** | Build tool | 5.x |
+| **TailwindCSS** | Styling | 3.x |
+| **Recharts** | Charts | 2.x |
 
-# 运行测试
-cargo test --workspace
+### Infrastructure
 
-# 启动服务
-cargo run --bin kias
-```
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **SQLite** | Data persistence | 3.x |
+| **Prometheus** | Metrics | 2.x |
+| **WebSocket** | Real-time push | - |
+| **TLS 1.3** | Encryption | - |
 
-### 配置
+## Comparison
 
-```toml
-# config.toml
-[api_server]
-port = 8080
-host = "0.0.0.0"
+| Feature | KIAS | LangChain | AutoGen | CrewAI |
+|---------|------|-----------|---------|--------|
+| **Language** | Rust | Python | Python | Python |
+| **Performance** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **Type Safety** | ✅ | ❌ | ❌ | ❌ |
+| **Production Ready** | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| **Multi-Tenant** | ✅ | ❌ | ❌ | ❌ |
+| **GPU Scheduling** | ✅ | ❌ | ❌ | ❌ |
+| **Audit Logging** | ✅ | ❌ | ❌ | ❌ |
+| **Graceful Shutdown** | ✅ | ❌ | ❌ | ❌ |
+| **Deep Health Checks** | ✅ | ❌ | ❌ | ❌ |
+| **Dead Letter Queue** | ✅ | ❌ | ❌ | ❌ |
 
-[scheduler]
-algorithm = "round-robin"
+## Documentation
 
-[controller]
-heartbeat_interval_secs = 30
-failure_timeout_secs = 300
-max_retries = 3
-```
+### Core Docs
 
-### API 示例
+- 📖 [Architecture Design](docs/architecture.md)
+- 📖 [API Documentation](docs/api-docs.md)
+- 📖 [User Guide](docs/user-guide.md)
+- 📖 [Developer Guide](docs/traceability/developer-guide.md)
 
-```bash
-# 健康检查
-curl http://localhost:8080/health
+### Traceability
 
-# 深度健康检查
-curl http://localhost:8080/healthz/deep
+- 📋 [Architecture Decision Records](docs/adr/)
+- 📋 [Feature Matrix](docs/traceability/feature-matrix.md)
+- 📋 [Test Coverage](docs/traceability/test-coverage.md)
+- 📋 [Changelog](docs/CHANGELOG.md)
 
-# 创建 Agent
-curl -X POST http://localhost:8080/api/v1/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "type": "llm"}'
+## Contributing
 
-# 查询任务
-curl http://localhost:8080/api/v1/tasks
-```
+We welcome all forms of contribution!
 
----
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'feat: add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Create** a Pull Request
 
-## 📈 质量保证
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-### 测试覆盖
+## License
 
-```
-┌─────────────────────────────────────────────────┐
-│              测试统计 (1419 个测试)               │
-├─────────────────────────────────────────────────┤
-│  单元测试:     1200+ (85%)                      │
-│  集成测试:      150+ (11%)                      │
-│  端到端测试:     69+ (4%)                       │
-├─────────────────────────────────────────────────┤
-│  Clippy 警告:    0                              │
-│  代码覆盖率:    >90%                            │
-│  构建时间:      <60s                            │
-└─────────────────────────────────────────────────┘
-```
+MIT License - see [LICENSE](LICENSE) for details.
 
-### 代码质量
+## Acknowledgments
 
-- ✅ **零 Clippy 警告** — 严格模式 `-D warnings`
-- ✅ **零 unsafe 代码** — 100% 安全 Rust
-- ✅ **完整文档** — 42 个 Markdown 文档
-- ✅ **架构合规** — 分层依赖检查通过
+Thanks to these open-source projects for inspiration:
 
----
-
-## 🔧 技术栈
-
-### 后端
-
-| 技术 | 用途 | 版本 |
-|------|------|------|
-| **Rust** | 核心语言 | 1.95.0 |
-| **Tokio** | 异步运行时 | 1.x |
-| **Axum** | Web 框架 | 0.7 |
-| **SQLx** | 数据库 | 0.8 |
-| **Serde** | 序列化 | 1.x |
-| **Tracing** | 日志 | 0.1 |
-
-### 前端
-
-| 技术 | 用途 | 版本 |
-|------|------|------|
-| **React** | UI 框架 | 18.x |
-| **TypeScript** | 类型系统 | 5.x |
-| **Vite** | 构建工具 | 5.x |
-| **TailwindCSS** | 样式 | 3.x |
-| **Recharts** | 图表 | 2.x |
-
-### 基础设施
-
-| 技术 | 用途 | 版本 |
-|------|------|------|
-| **SQLite** | 数据持久化 | 3.x |
-| **Prometheus** | 指标监控 | 2.x |
-| **WebSocket** | 实时推送 | - |
-| **TLS 1.3** | 传输加密 | - |
-
----
-
-## 📚 文档
-
-### 核心文档
-
-- 📖 [架构设计](docs/architecture.md)
-- 📖 [API 文档](docs/api-docs.md)
-- 📖 [用户指南](docs/user-guide.md)
-- 📖 [开发者指南](docs/traceability/developer-guide.md)
-
-### 可追溯性文档
-
-- 📋 [架构决策记录](docs/adr/)
-- 📋 [特性跟踪矩阵](docs/traceability/feature-matrix.md)
-- 📋 [测试覆盖率](docs/traceability/test-coverage.md)
-- 📋 [变更日志](docs/CHANGELOG.md)
-
----
-
-## 🎯 使用场景
-
-### 1. 企业级 AI Agent 平台
-
-```rust
-// 创建多 Agent 协作系统
-let team = TeamEngine::new()
-    .with_owner(owner_agent)
-    .with_workers(vec![worker1, worker2])
-    .with_verifier(verifier_agent)
-    .build();
-
-// 执行任务
-let result = team.execute(task).await?;
-```
-
-### 2. 智能任务调度
-
-```rust
-// GPU 感知调度
-let scheduler = Scheduler::new()
-    .with_algorithm("gpu-aware")
-    .with_preemption(true)
-    .build();
-
-// 调度任务
-let node = scheduler.schedule(agent, &nodes).await?;
-```
-
-### 3. 工作流编排
-
-```rust
-// 定义 DAG 工作流
-let workflow = Workflow::new("data-pipeline")
-    .step("extract", extract_task)
-    .step("transform", transform_task)
-    .step("load", load_task)
-    .depends_on("transform", "extract")
-    .depends_on("load", "transform")
-    .build();
-
-// 执行工作流
-workflow.execute().await?;
-```
-
----
-
-## 🏆 与其他框架对比
-
-| 特性 | KIAS | LangChain | AutoGen | CrewAI |
-|------|------|-----------|---------|--------|
-| **语言** | Rust | Python | Python | Python |
-| **性能** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| **类型安全** | ✅ | ❌ | ❌ | ❌ |
-| **生产就绪** | ✅ | ⚠️ | ⚠️ | ⚠️ |
-| **多租户** | ✅ | ❌ | ❌ | ❌ |
-| **GPU 调度** | ✅ | ❌ | ❌ | ❌ |
-| **审计日志** | ✅ | ❌ | ❌ | ❌ |
-| **优雅关闭** | ✅ | ❌ | ❌ | ❌ |
-| **深度健康检查** | ✅ | ❌ | ❌ | ❌ |
-| **死信队列** | ✅ | ❌ | ❌ | ❌ |
-
----
-
-## 🤝 贡献
-
-我们欢迎所有形式的贡献！
-
-### 如何贡献
-
-1. **Fork** 本仓库
-2. **创建** 特性分支 (`git checkout -b feature/amazing-feature`)
-3. **提交** 更改 (`git commit -m 'feat: add amazing feature'`)
-4. **推送** 到分支 (`git push origin feature/amazing-feature`)
-5. **创建** Pull Request
-
-### 贡献指南
-
-- 📖 [贡献指南](CONTRIBUTING.md)
-- 📖 [代码规范](CODE_OF_CONDUCT.md)
-- 📖 [架构决策](docs/adr/)
-
----
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 🙏 致谢
-
-感谢以下开源项目的启发：
-
-- [ollama-open-router](https://github.com/open-webui/ollama-open-router) - Key 轮转参考
-- [AgentScope](https://github.com/modelscope/agentscope) - Agent 架构参考
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) - 上下文压缩参考
-- [rig](https://github.com/0xPlaygrounds/rig) - Rust Agent 框架参考
+- [ollama-open-router](https://github.com/open-webui/ollama-open-router) — Key rotation reference
+- [AgentScope](https://github.com/modelscope/agentscope) — Agent architecture reference
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Context compaction reference
+- [rig](https://github.com/0xPlaygrounds/rig) — Rust Agent framework reference
 
 ---
 
 <div align="center">
 
-**⭐ 如果觉得有用，请给我们一个 Star！⭐**
+**⭐ Star us if you find KIAS useful! ⭐**
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Andy-ckm/KIAS&type=Date)](https://star-history.com/#Andy-ckm/KIAS&Date)
-
-</div>
-
----
-
-<a name="english"></a>
-## 🇺🇸 English
-
-### Why KIAS?
-
-> **KIAS is not a toy. It's a production-grade AI Agent framework.**
-
-In the era of AI Agent frameworks everywhere, KIAS focuses on solving one core problem: **How to run AI Agents in production stably, efficiently, and traceably?**
-
-### Key Features
-
-- 🚀 **Production-Ready** — Graceful shutdown, deep health checks, dead letter queue
-- 🏢 **Enterprise-Grade** — Multi-tenant isolation, RBAC, audit logging
-- ⚡ **High Performance** — Native Rust, zero-copy, memory safe
-- 🔍 **Traceable** — Complete ADR, feature matrix, changelog
-- 🧪 **Well-Tested** — 1419 tests, zero clippy warnings
-- 📊 **Observable** — Prometheus metrics, distributed tracing, real-time push
-
-### Quick Start
-
-```bash
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
-cargo build --release
-cargo run --bin kias
-```
-
----
-
-<a name="中文"></a>
-## 🇨🇳 中文
-
-### 为什么选择 KIAS？
-
-> **KIAS 不是玩具，是生产级 AI Agent 框架。**
-
-在 AI Agent 框架遍地开花的今天，KIAS 专注于解决一个核心问题：**如何让 AI Agent 在生产环境中稳定、高效、可追踪地运行？**
-
-### 核心优势
-
-- 🚀 **生产就绪** — 优雅关闭、深度健康检查、死信队列
-- 🏢 **企业级** — 多租户隔离、RBAC、审计日志
-- ⚡ **高性能** — Rust 原生、零拷贝、内存安全
-- 🔍 **可追踪** — 完整的 ADR、特性矩阵、变更日志
-- 🧪 **测试充分** — 1419 个测试，零 Clippy 警告
-- 📊 **可观测** — Prometheus 指标、分布式追踪、实时推送
-
-### 快速开始
-
-```bash
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
-cargo build --release
-cargo run --bin kias
-```
-
----
-
-<div align="center">
-
-**Made with ❤️ by the KIAS Team**
-
-[![GitHub](https://img.shields.io/badge/GitHub-Andy--ckm/KIAS-black?style=flat-square&logo=github)](https://github.com/Andy-ckm/KIAS)
-[![Issues](https://img.shields.io/badge/Issues-Open-blue?style=flat-square&logo=github)](https://github.com/Andy-ckm/KIAS/issues)
-[![Pull Requests](https://img.shields.io/badge/PRs-Welcome-green?style=flat-square&logo=github)](https://github.com/Andy-ckm/KIAS/pulls)
 
 </div>

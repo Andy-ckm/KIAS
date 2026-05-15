@@ -42,18 +42,53 @@ Most frameworks are black boxes.
 
 ---
 
+## Installation
+
+### One-liner Install (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
+```
+
+### Docker
+
+```bash
+# Quick start
+docker run -p 8080:8080 ghcr.io/Andy-ckm/kias:latest
+
+# With docker-compose
+git clone https://github.com/Andy-ckm/KIAS
+cd KIAS
+docker-compose up -d
+```
+
+### Cargo Install
+
+```bash
+cargo install kias-cli
+```
+
+### From Source
+
+```bash
+git clone https://github.com/Andy-ckm/KIAS
+cd KIAS
+cargo build --release
+./target/release/kias-main
+```
+
+---
+
 ## Quickstart
 
 ```bash
-# Clone
-git clone https://github.com/Andy-ckm/KIAS
-cd kias
+# Initialize config
+kias config init
 
-# Build
-cargo build --release
+# Start server
+kias start
 
-# Run
-./target/release/kias-main
+# Dashboard at http://localhost:8080
 ```
 
 ---

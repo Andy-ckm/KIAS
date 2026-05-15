@@ -6,6 +6,7 @@ use super::state::{WorkflowState, WorkflowStatus};
 use super::subgraph::SubGraph;
 use super::typed_state::EventSink;
 use super::typed_state::StreamingEvent;
+use kias_common::KiasError;
 use kias_common::KiasResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -395,7 +396,8 @@ impl WorkflowEngine {
         }
 
         // All retries exhausted
-        let failed = last_result.unwrap();
+        let failed =
+            last_result.ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
         let total_ms = start.elapsed().as_millis() as u64;
 
         tracing::error!(

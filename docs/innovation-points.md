@@ -406,3 +406,50 @@
 - **Rig Provider 抽象** (参考 rig): 统一的 LLM Provider 接口，支持 10+ 提供商
 - **TUI 交互模式** (参考 DeepSeek-TUI/jcode): 终端 REPL 交互，实时查看 Agent 执行
 - **长周期任务支持** (参考 deer-flow): 支持小时级研究任务，带检查点恢复
+
+## Sprint 17 创新调研 (2026-05-15)
+
+### 32. greywall Deny-by-Default Sandbox ⭐183 🆕
+- **来源**: GreyhavenHQ/greywall (Go)
+- **核心**: Container-free, deny-by-default sandbox for AI coding agents. Uses Linux Landlock + seccomp + filesystem/network isolation
+- **可借鉴点**:
+  - **Deny-by-default**: 默认拒绝所有访问，白名单放行 → KIAS sandbox 可从 allow-by-default 切换到 deny-by-default
+  - **Landlock**: Linux 内核级文件系统隔离 → 比 Docker 更轻量，比 chroot 更安全
+  - **seccomp**: 系统调用过滤 → KIAS ProcessSandboxBackend 可增加 seccomp 限制
+  - **无容器**: 不需要 Docker daemon → 减少依赖，启动更快
+- **优先级**: P1（KIAS sandbox 安全性提升）
+
+### 33. Arbor Checkpoint-Native Sandbox ⭐12 🆕
+- **来源**: Billy1900/Arbor (Rust)
+- **核心**: Git for running environments. Sandbox for LLM Agents with Checkpoint-native, VPC-first coding workspace. Uses Firecracker microVM + seccomp-bpf
+- **可借鉴点**:
+  - **Checkpoint-native**: 执行环境支持快照/恢复 → KIAS workflow checkpoint 可扩展到环境级别
+  - **Firecracker microVM**: 轻量级 VM 隔离 → 比 Docker 更强的安全边界
+  - **VPC-first**: 网络隔离优先 → KIAS sandbox 可增加网络策略层
+- **优先级**: P2（深度安全隔离，当前进程级沙箱已够用）
+
+### 34. plan-cascade Cascading Development ⭐80 🆕
+- **来源**: Taoidle/plan-cascade
+- **核心**: AI-powered cascading development framework. Decompose complex projects into parallel executable tasks with auto-generated PRDs, design docs, and multi-agent collaboration
+- **可借鉴点**:
+  - **级联分解**: 复杂项目 → 自动 PRD → 设计文档 → 并行任务 → KIAS workflow-engine 可参考
+  - **并行执行**: 任务自动并行化 → KIAS scheduler 的并行调度策略
+  - **多 Agent 协作**: Claude Code + Codex + Aider 协同 → KIAS team-engine 可参考
+- **优先级**: P2（workflow-engine 增强参考）
+
+### 35. mezmo/aura Declarative Agent Config ⭐63 🆕
+- **来源**: mezmo/aura (Rust?)
+- **核心**: Production-ready framework for composing AI agents from declarative TOML configuration, with MCP tool support
+- **可借鉴点**:
+  - **声明式配置**: TOML 定义 Agent → KIAS CLI YAML 定义已有类似设计
+  - **MCP 集成**: 内置 MCP 工具支持 → 验证 KIAS MCP 策略
+  - **生产就绪**: 关注生产部署而非原型 → KIAS 可参考其生产化模式
+- **优先级**: P3（参考价值）
+
+### Sprint 17 技术趋势更新
+
+1. **Sandbox 战争升级**: greywall(Landlock+seccomp)、Arbor(Firecracker)、nono-py(内核隔离) — 容器不再是唯一选择
+2. **Rust Agent 持续增长**: golutra(3.5K⭐)、adk-rust(326⭐)、mcpr(349⭐) — Rust 生态成熟
+3. **并行 Agent 编排**: Composio(7K⭐)、open-multi-agent(6.1K⭐)、plan-cascade(80⭐) — 并行调度成为主流
+4. **Agent-as-OS 趋势**: openfang(17K⭐)、Arbor(checkpoint-native) — Agent 越来越像操作系统
+

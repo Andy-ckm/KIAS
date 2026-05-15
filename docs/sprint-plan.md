@@ -154,7 +154,7 @@
 
 **Sprint 14 — Data Layer Architecture + LangGraph State Graph Engine + Innovations**
 
-当前状态：1309 tests, 65,682 行(Rust) + 10,106 行(Dashboard), 0 errors, 0 warnings, 21 crates + 1 前端项目
+当前状态：1464 tests, 75,324 行(Rust) + 2,392 行(Dashboard), 0 errors, 0 warnings, 21 crates + 1 前端项目
 
 已完成：
 - ✅ kias-data-store crate 完整实现（L1 架构层）
@@ -182,8 +182,8 @@ Sprint 16 更新 (2026-05-15):
 - ✅ sprint-progress.md 更新到 Sprint 16
 
 Sprint 28 更新 (2026-05-16):
-- ✅ 1464 tests passing, 0 clippy warnings, fmt clean
-- ✅ 74,938 lines Rust code across 21 crates
+- ✅ 1464 tests passing, 0 clippy warnings, fmt clean, 0 pedantic warnings
+- ✅ 75,324 lines Rust code across 21 crates + 2,392 lines Dashboard
 - ✅ 71+ innovation points tracked
 - ✅ 所有优先级验证完成 (HNSW, Redis清理, MCP, Data Layer)
 - ✅ fmt 修复: kias-main/src/main.rs 排序问题

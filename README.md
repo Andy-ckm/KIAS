@@ -8,59 +8,155 @@
 
 ---
 
-## Why KIAS Exists
+## What is KIAS?
 
-**Problem 1: Other frameworks don't handle production**
+KIAS is a **production-ready AI Agent framework** that lets you build, deploy, and manage AI agents that actually work in production — not just demos.
 
-Most AI Agent frameworks crash on `SIGTERM`, lose data on restart, and can't handle failures.
+### The Problem
 
-**KIAS fix**: Graceful shutdown, deep health checks, dead letter queues, audit logging, circuit breakers.
+Most AI Agent frameworks are built for demos, not production:
 
----
+- ❌ **Crash on restart** — Lose all state when process dies
+- ❌ **No error handling** — One failure kills everything
+- ❌ **No monitoring** — Can't see what's happening
+- ❌ **No isolation** — All agents share resources, one bad agent affects others
+- ❌ **Python performance** — High latency, high memory, can't scale
+- ❌ **Vendor lock-in** — Only works with one LLM provider
 
-**Problem 2: No multi-tenant isolation**
+### The KIAS Solution
 
-Enterprise customers need resource quotas and namespace isolation.
+KIAS fixes all of this with **enterprise-grade features** out of the box:
 
-**KIAS fix**: Per-tenant CPU/memory/GPU limits, namespace isolation, fair scheduling, tenant stats.
-
----
-
-**Problem 3: Python hits performance walls**
-
-High latency, high memory, can't handle concurrency.
-
-**KIAS fix**: Rust — zero-copy, memory safe, Tokio async, sub-millisecond latency.
-
----
-
-**Problem 4: No observability**
-
-Most frameworks are black boxes.
-
-**KIAS fix**: Prometheus metrics, distributed tracing, structured logging, WebSocket real-time push.
+| Pain Point | KIAS Solution | Benefit |
+|------------|---------------|---------|
+| Crashes lose state | **Graceful Shutdown** + SQLite persistence | Zero data loss on restart |
+| No error handling | **Dead Letter Queue** + **Circuit Breakers** | Auto-recovery from failures |
+| No monitoring | **Prometheus Metrics** + **Health Checks** | Real-time visibility |
+| No isolation | **Multi-tenant** with resource quotas | Safe multi-user deployment |
+| Python slow | **Rust** with Tokio async | 10x faster, 10x less memory |
+| Vendor lock-in | **Multi-provider** support | Switch LLMs without code changes |
 
 ---
 
-## Hardware Requirements
+## What Can KIAS Do?
 
-### Minimum (Development/Testing)
+### 🤖 Agent Management
+- Define agents declaratively (YAML/JSON)
+- Run agents with automatic retry and error handling
+- Monitor agent health and performance in real-time
 
-| Component | Requirement |
-|-----------|-------------|
-| CPU | 4 cores (x86_64 or ARM64) |
-| RAM | 8 GB |
-| Storage | 20 GB SSD |
-| OS | Linux (Ubuntu 22.04+), macOS 12+, Windows WSL2 |
+### ⚡ Workflow Orchestration
+- Build complex workflows with DAG (directed acyclic graph)
+- Parallel execution with dependency management
+- Automatic rollback on failure
 
-### Recommended (Production)
+### 🔧 Tool Integration
+- MCP (Model Context Protocol) support
+- Custom tool registration
+- Sandboxed code execution
 
-| Component | Requirement |
-|-----------|-------------|
-| CPU | 8+ cores |
-| RAM | 32+ GB |
-| Storage | 100+ GB NVMe SSD |
-| GPU | NVIDIA GPU with 8+ GB VRAM (for local models) |
+### 📊 Observability
+- Prometheus metrics out of the box
+- Distributed tracing for request lifecycle
+- Real-time WebSocket event streaming
+
+### 🏢 Enterprise Features
+- Multi-tenant isolation with resource quotas
+- Audit logging for compliance
+- API key rotation with smart failover
+
+---
+
+## Quick Start (5 minutes)
+
+### Step 1: Install KIAS
+
+**Option A: One-liner (Recommended)**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
+```
+
+**Option B: Docker**
+```bash
+docker run -p 8080:8080 ghcr.io/Andy-ckm/kias:latest
+```
+
+**Option C: From Source**
+```bash
+# Prerequisites: Rust 1.95+
+git clone https://github.com/Andy-ckm/KIAS
+cd KIAS
+cargo build --release
+sudo cp target/release/kias-main /usr/local/bin/
+```
+
+### Step 2: Initialize Configuration
+
+```bash
+# Create config directory
+mkdir -p ~/.kias
+
+# Generate default config
+kias config init
+
+# Edit config (optional)
+nano ~/.kias/config.toml
+```
+
+### Step 3: Configure LLM Provider
+
+Edit `~/.kias/config.toml`:
+
+```toml
+[model]
+# Option 1: OpenAI
+provider = "openai"
+api_key = "sk-your-key-here"
+model = "gpt-4o"
+
+# Option 2: Anthropic
+# provider = "anthropic"
+# api_key = "sk-ant-your-key-here"
+# model = "claude-3-5-sonnet-20241022"
+
+# Option 3: Local Ollama (free, no API key needed)
+# provider = "ollama"
+# endpoint = "http://localhost:11434"
+# model = "llama3.1:8b"
+```
+
+### Step 4: Start KIAS
+
+```bash
+# Start in foreground (for testing)
+kias server start
+
+# Or start in background
+kias server start --daemon
+```
+
+### Step 5: Verify Installation
+
+```bash
+# Check health
+curl http://localhost:8080/healthz
+
+# Open dashboard
+open http://localhost:8080
+```
+
+---
+
+## Installation Guide
+
+### System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 2 cores | 4+ cores |
+| RAM | 4 GB | 8+ GB |
+| Storage | 10 GB | 50+ GB |
+| OS | Linux, macOS, Windows WSL2 | Ubuntu 22.04+ |
 
 ### For Local Model Inference
 
@@ -70,7 +166,72 @@ Most frameworks are black boxes.
 | 13B params | 16 GB | 32 GB | Llama 3.1 13B, CodeLlama 13B |
 | 70B params | 48+ GB | 64+ GB | Llama 3.1 70B (quantized) |
 
-> **Note**: CPU-only inference is supported but significantly slower. Recommended for development only.
+### Detailed Installation Steps
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+# 1. Install dependencies
+sudo apt update
+sudo apt install -y curl wget
+
+# 2. Install KIAS
+curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
+
+# 3. Verify installation
+kias --version
+
+# 4. Initialize and start
+kias config init
+kias server start
+```
+
+#### macOS
+
+```bash
+# 1. Install via curl
+curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
+
+# 2. Or install via Homebrew (coming soon)
+# brew install kias
+
+# 3. Initialize and start
+kias config init
+kias server start
+```
+
+#### Docker
+
+```bash
+# 1. Pull image
+docker pull ghcr.io/Andy-ckm/kias:latest
+
+# 2. Run container
+docker run -d \
+  --name kias \
+  -p 8080:8080 \
+  -v kias-data:/app/data \
+  ghcr.io/Andy-ckm/kias:latest
+
+# 3. Check status
+docker logs kias
+curl http://localhost:8080/healthz
+```
+
+#### Docker Compose (Full Stack)
+
+```bash
+# 1. Clone repo
+git clone https://github.com/Andy-ckm/KIAS
+cd KIAS
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. Check status
+docker-compose ps
+curl http://localhost:8080/healthz
+```
 
 ---
 
@@ -196,102 +357,59 @@ graph TB
 
 ---
 
-## Installation
-
-### One-liner Install (recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
-```
-
-### Docker
-
-```bash
-# Quick start
-docker run -p 8080:8080 ghcr.io/Andy-ckm/kias:latest
-
-# With docker-compose
-git clone https://github.com/Andy-ckm/KIAS
-cd KIAS
-docker-compose up -d
-```
-
-### Cargo Install
-
-```bash
-cargo install kias-cli
-```
-
-### From Source
-
-```bash
-git clone https://github.com/Andy-ckm/KIAS
-cd KIAS
-cargo build --release
-./target/release/kias-main
-```
-
----
-
-## Quickstart
-
-```bash
-# Initialize config
-kias config init
-
-# Start server
-kias server start
-
-# Dashboard at http://localhost:8080
-```
-
----
-
 ## Model Support
 
 KIAS supports **both cloud APIs and local models**:
 
 ### Cloud API Providers
 
-| Provider | Models | Configuration |
-|----------|--------|---------------|
-| OpenAI | GPT-4o, GPT-4, GPT-3.5 | `OPENAI_API_KEY` |
-| Anthropic | Claude 3.5 Sonnet, Claude 3 Opus | `ANTHROPIC_API_KEY` |
-| Google | Gemini 1.5 Pro, Gemini 1.5 Flash | `GOOGLE_API_KEY` |
-| Azure OpenAI | All OpenAI models | `AZURE_OPENAI_ENDPOINT` |
-| AWS Bedrock | Claude, Llama, Mistral | `AWS_ACCESS_KEY_ID` |
-| OpenRouter | 100+ models | `OPENROUTER_API_KEY` |
+| Provider | Models | Setup |
+|----------|--------|-------|
+| OpenAI | GPT-4o, GPT-4, GPT-3.5 | Set `OPENAI_API_KEY` |
+| Anthropic | Claude 3.5 Sonnet, Claude 3 Opus | Set `ANTHROPIC_API_KEY` |
+| Google | Gemini 1.5 Pro, Gemini 1.5 Flash | Set `GOOGLE_API_KEY` |
+| Azure OpenAI | All OpenAI models | Set `AZURE_OPENAI_ENDPOINT` |
+| AWS Bedrock | Claude, Llama, Mistral | Set `AWS_ACCESS_KEY_ID` |
+| OpenRouter | 100+ models | Set `OPENROUTER_API_KEY` |
 
 ### Local Model Servers
 
-| Server | Setup | Models |
-|--------|-------|--------|
-| **Ollama** | `ollama serve` | Llama 3.1, Qwen 2.5, CodeLlama, etc. |
-| **vLLM** | `vllm serve` | Any HuggingFace model |
-| **llama.cpp** | `llama-server` | GGUF quantized models |
-| **Text Generation Inference** | `text-generation-launcher` | HuggingFace models |
-| **LocalAI** | `localai` | OpenAI-compatible API |
+| Server | Install | Start | Models |
+|--------|---------|-------|--------|
+| **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | `ollama serve` | Llama 3.1, Qwen 2.5, CodeLlama |
+| **vLLM** | `pip install vllm` | `vllm serve meta-llama/Llama-3.1-8B-Instruct` | Any HuggingFace model |
+| **llama.cpp** | Download from GitHub | `llama-server -m model.gguf` | GGUF quantized models |
+| **LocalAI** | `curl https://localai.io/install.sh \| sh` | `localai` | OpenAI-compatible API |
 
-### Configuration Example
+---
 
-```toml
-# config/kias.toml
+## CLI Commands
 
-[model]
-# Cloud API
-provider = "openai"
-api_key = "${OPENAI_API_KEY}"
-model = "gpt-4o"
+```bash
+# Agent management
+kias agent list                    # List all agents
+kias agent create --file agent.yaml  # Create agent
+kias agent run --name my-agent     # Run agent interactively
+kias agent invoke --name my-agent --text "Hello"  # Non-interactive
 
-# Or local Ollama
-# provider = "ollama"
-# endpoint = "http://localhost:11434"
-# model = "llama3.1:8b"
+# Server management
+kias server start                  # Start server
+kias server start --daemon         # Start in background
+kias server stop                   # Stop server
+kias server status                 # Check status
 
-# Or local vLLM
-# provider = "openai"  # vLLM exposes OpenAI-compatible API
-# endpoint = "http://localhost:8000"
-# model = "meta-llama/Llama-3.1-8B-Instruct"
+# Workflow management
+kias workflow list                 # List workflows
+kias workflow run --name my-workflow  # Run workflow
+
+# Configuration
+kias config init                   # Initialize config
+kias config show                   # Show current config
+kias config set model.provider openai  # Set config value
+
+# Monitoring
+kias metrics                       # Show metrics
+kias health                        # Health check
 ```
 
 ---
@@ -310,18 +428,6 @@ model = "gpt-4o"
 | WebSocket | ✅ | Real-time event streaming |
 | Dashboard | ✅ | React + TypeScript frontend |
 | Local Models | ✅ | Ollama, vLLM, llama.cpp support |
-
----
-
-## Tech Stack
-
-- **Language**: Rust 1.95
-- **Async**: Tokio
-- **Web**: Axum
-- **Database**: SQLite via sqlx
-- **Cache**: In-memory (Redis-compatible planned)
-- **Metrics**: Prometheus
-- **Frontend**: React, TypeScript, TailwindCSS
 
 ---
 

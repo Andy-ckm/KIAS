@@ -12,12 +12,16 @@
 pub mod error;
 pub mod filter;
 pub mod key_rotation;
+pub mod local_models;
 pub mod provider;
 pub mod router;
 pub mod types;
 
 pub use error::{RouterError, RouterResult};
 pub use filter::{CooldownFilter, FilterPipeline, RoutingFilter};
+pub use local_models::{
+    GpuInfo, LocalModelConfig, LocalModelInfo, LocalServerHealth, LocalServerType, ModelParams,
+};
 pub use provider::{Provider, ProviderConfig};
 pub use router::{ModelRouter, RouterConfig};
 pub use types::{

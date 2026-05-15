@@ -102,6 +102,11 @@ pub enum Commands {
         #[command(subcommand)]
         action: ClusterAction,
     },
+    /// 服务管理
+    Server {
+        #[command(subcommand)]
+        action: ServerAction,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -298,4 +303,23 @@ pub enum ClusterAction {
     Nodes,
     /// 查看资源使用
     Resources,
+}
+
+#[derive(Clone, Subcommand)]
+pub enum ServerAction {
+    /// 启动服务
+    Start {
+        /// 配置文件
+        #[arg(short, long)]
+        config: Option<String>,
+        /// 后台运行
+        #[arg(short, long)]
+        daemon: bool,
+    },
+    /// 停止服务
+    Stop,
+    /// 查看服务状态
+    Status,
+    /// 重启服务
+    Restart,
 }

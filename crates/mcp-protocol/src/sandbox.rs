@@ -20,6 +20,174 @@ use tokio::sync::RwLock;
 use crate::error::McpError;
 
 // ---------------------------------------------------------------------------
+// Isolation Levels
+// ---------------------------------------------------------------------------
+
+/// Isolation level for sandbox state recovery and workspace projection.
+///
+/// Determines how snapshots and workspace state are scoped:
+/// - **Session**: per-session; state is isolated to a single session lifetime.
+/// - **User**: per-user; state persists across sessions for the same user.
+/// - **Global**: shared across all users; useful for base images or common state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum IsolationLevel {
+    /// Per-session isolation. Snapshot is scoped to the current session.
+    Session,
+    /// Per-user isolation. Snapshot persists across sessions for the same user.
+    User,
+    /// Global isolation. Snapshot is shared across all users and sessions.
+    Global,
+}
+
+impl std::fmt::Display for IsolationLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IsolationLevel::Session => write!(f, "session"),
+            IsolationLevel::User => write!(f, "user"),
+            IsolationLevel::Global => write!(f, "global"),
+        }
+    }
+}
+
+impl Default for IsolationLevel {
+    fn default() -> Self {
+        Self::Session
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Sandbox Snapshot
+// ---------------------------------------------------------------------------
+
+/// A point-in-time snapshot of sandbox state for recovery purposes.
+///
+/// Captures the key elements needed to recreate a sandbox's working environment:
+/// file contents (key files), environment variables, and working directory.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxSnapshot {
+    /// Unique snapshot identifier.
+    pub id: String,
+    /// ID of the sandbox this snapshot was taken from.
+    pub sandbox_id: String,
+    /// Isolation level governing scope.
+    pub isolation_level: IsolationLevel,
+    /// Optional owner identifier (user ID for `User` level, session ID for `Session`).
+    pub owner: Option<String>,
+    /// Serialized file contents: relative path -> base64-encoded bytes.
+    pub files: HashMap<String, Vec<u8>>,
+    /// Environment variables captured at snapshot time.
+    pub env: HashMap<String, String>,
+    /// Working directory at snapshot time.
+    pub workdir: Option<PathBuf>,
+    /// When the snapshot was created.
+    pub created_at: SystemTime,
+    /// Optional human-readable description.
+    pub description: Option<String>,
+}
+
+impl SandboxSnapshot {
+    /// Create a new empty snapshot for the given sandbox.
+    pub fn new(sandbox_id: impl Into<String>, isolation_level: IsolationLevel) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            sandbox_id: sandbox_id.into(),
+            isolation_level,
+            owner: None,
+            files: HashMap::new(),
+            env: HashMap::new(),
+            workdir: None,
+            created_at: SystemTime::now(),
+            description: None,
+        }
+    }
+
+    /// Set the owner for this snapshot.
+    pub fn with_owner(mut self, owner: impl Into<String>) -> Self {
+        self.owner = Some(owner.into());
+        self
+    }
+
+    /// Set a description for this snapshot.
+    pub fn with_description(mut self, desc: impl Into<String>) -> Self {
+        self.description = Some(desc.into());
+        self
+    }
+
+    /// Add a file to the snapshot.
+    pub fn add_file(&mut self, relative_path: impl Into<String>, contents: Vec<u8>) {
+        self.files.insert(relative_path.into(), contents);
+    }
+
+    /// Serialize the snapshot to JSON bytes.
+    pub fn to_json(&self) -> Result<Vec<u8>, McpError> {
+        serde_json::to_vec(self)
+            .map_err(|e| McpError::Internal(format!("failed to serialize snapshot: {}", e)))
+    }
+
+    /// Deserialize a snapshot from JSON bytes.
+    pub fn from_json(data: &[u8]) -> Result<Self, McpError> {
+        serde_json::from_slice(data)
+            .map_err(|e| McpError::Internal(format!("failed to deserialize snapshot: {}", e)))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Workspace Projection
+// ---------------------------------------------------------------------------
+
+/// Defines which workspace files should be projected into a sandbox.
+///
+/// Workspace projection copies a curated subset of workspace files (AGENTS.md,
+/// skills/, knowledge/, etc.) into the sandbox filesystem so that tools and
+/// agents running inside the sandbox have access to the workspace context.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceProjection {
+    /// Root path of the workspace to project.
+    pub workspace_root: PathBuf,
+    /// Files and directories to include (relative paths).
+    /// Defaults to: ["AGENTS.md", "skills/", "knowledge/"]
+    pub includes: Vec<String>,
+    /// Destination path inside the sandbox (default: /workspace).
+    pub sandbox_dest: PathBuf,
+}
+
+impl Default for WorkspaceProjection {
+    fn default() -> Self {
+        Self {
+            workspace_root: PathBuf::from("."),
+            includes: vec![
+                "AGENTS.md".to_string(),
+                "skills/".to_string(),
+                "knowledge/".to_string(),
+            ],
+            sandbox_dest: PathBuf::from("/workspace"),
+        }
+    }
+}
+
+impl WorkspaceProjection {
+    /// Create a new workspace projection from the given root.
+    pub fn new(workspace_root: impl Into<PathBuf>) -> Self {
+        Self {
+            workspace_root: workspace_root.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Set custom include patterns.
+    pub fn with_includes(mut self, includes: Vec<String>) -> Self {
+        self.includes = includes;
+        self
+    }
+
+    /// Set the destination path inside the sandbox.
+    pub fn with_sandbox_dest(mut self, dest: impl Into<PathBuf>) -> Self {
+        self.sandbox_dest = dest.into();
+        self
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Sandbox Configuration
 // ---------------------------------------------------------------------------
 
@@ -451,6 +619,12 @@ pub enum SandboxAction {
     Fail,
     /// Resource limit exceeded.
     LimitExceeded,
+    /// Snapshot saved.
+    SnapshotSave,
+    /// Snapshot restored.
+    SnapshotRestore,
+    /// Workspace projected into sandbox.
+    WorkspaceProjection,
 }
 
 /// Sandbox manager.
@@ -463,16 +637,27 @@ pub struct SandboxManager {
     backends: Arc<RwLock<HashMap<SandboxBackend, Arc<dyn SandboxBackendTrait>>>>,
     /// Audit log.
     audit_log: Arc<RwLock<Vec<SandboxAuditEntry>>>,
+    /// Stored snapshots (snapshot_id -> SandboxSnapshot).
+    snapshots: Arc<RwLock<HashMap<String, SandboxSnapshot>>>,
+    /// Base directory for snapshot persistence on disk.
+    snapshot_dir: PathBuf,
 }
 
 impl SandboxManager {
     /// Create a new sandbox manager.
     pub fn new(config: SandboxManagerConfig) -> Self {
+        Self::with_snapshot_dir(config, std::env::temp_dir().join("kias-snapshots"))
+    }
+
+    /// Create a new sandbox manager with a custom snapshot directory.
+    pub fn with_snapshot_dir(config: SandboxManagerConfig, snapshot_dir: PathBuf) -> Self {
         let manager = Self {
             config,
             sandboxes: Arc::new(RwLock::new(HashMap::new())),
             backends: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(RwLock::new(Vec::new())),
+            snapshots: Arc::new(RwLock::new(HashMap::new())),
+            snapshot_dir,
         };
 
         // Start cleanup task
@@ -705,6 +890,291 @@ impl SandboxManager {
         let mut log = self.audit_log.write().await;
         log.push(entry);
     }
+
+    // -----------------------------------------------------------------------
+    // Snapshot & State Recovery
+    // -----------------------------------------------------------------------
+
+    /// Save a snapshot of the given sandbox's current state.
+    ///
+    /// Captures key filesystem files, environment variables, and working
+    /// directory into a serializable snapshot. The snapshot is stored both
+    /// in memory and persisted to disk under the manager's snapshot directory.
+    pub async fn save_snapshot(
+        &self,
+        sandbox_id: &str,
+        isolation_level: IsolationLevel,
+        actor: &str,
+    ) -> Result<SandboxSnapshot, McpError> {
+        // Look up sandbox
+        let sandboxes = self.sandboxes.read().await;
+        let instance = sandboxes
+            .get(sandbox_id)
+            .ok_or_else(|| McpError::ResourceNotFound(format!("Sandbox not found: {}", sandbox_id)))?
+            .clone();
+        drop(sandboxes);
+
+        // Build snapshot from sandbox config & runtime state
+        let mut snapshot = SandboxSnapshot::new(sandbox_id, isolation_level);
+        snapshot.env = instance.config.env.clone();
+        snapshot.workdir = instance.config.workdir.clone();
+
+        // Capture files from sandbox working directory (if it exists on disk)
+        if let Some(ref workdir) = instance.config.workdir {
+            Self::collect_files_recursive(workdir, workdir, &mut snapshot.files).ok();
+        }
+
+        // Also capture from the process sandbox base dir
+        let sandbox_dir = std::env::temp_dir()
+            .join("kias-sandbox")
+            .join(sandbox_id);
+        if sandbox_dir.exists() {
+            Self::collect_files_recursive(&sandbox_dir, &sandbox_dir, &mut snapshot.files).ok();
+        }
+
+        // Persist to disk
+        let snapshot_file = self.snapshot_dir.join(format!("{}.json", snapshot.id));
+        if let Some(parent) = snapshot_file.parent() {
+            let _ = tokio::fs::create_dir_all(parent).await;
+        }
+        let json_bytes = snapshot.to_json()?;
+        tokio::fs::write(&snapshot_file, &json_bytes)
+            .await
+            .map_err(|e| McpError::Internal(format!("failed to persist snapshot: {}", e)))?;
+
+        // Store in memory
+        let mut snapshots = self.snapshots.write().await;
+        snapshots.insert(snapshot.id.clone(), snapshot.clone());
+        drop(snapshots);
+
+        self.audit(SandboxAuditEntry {
+            timestamp: SystemTime::now(),
+            sandbox_id: sandbox_id.to_string(),
+            action: SandboxAction::SnapshotSave,
+            actor: actor.to_string(),
+            details: Some(format!("snapshot_id={}", snapshot.id)),
+        })
+        .await;
+
+        Ok(snapshot)
+    }
+
+    /// Restore a sandbox from a previously saved snapshot.
+    ///
+    /// Loads the snapshot (by snapshot ID), then applies its captured files,
+    /// environment variables, and working directory to the target sandbox.
+    /// If no target sandbox ID is given, the snapshot's original sandbox ID is used.
+    pub async fn restore_snapshot(
+        &self,
+        snapshot_id: &str,
+        target_sandbox_id: Option<&str>,
+        actor: &str,
+    ) -> Result<(), McpError> {
+        // Load snapshot from memory (or disk)
+        let snapshot = self.load_snapshot(snapshot_id).await?;
+
+        let target_id = target_sandbox_id.unwrap_or(&snapshot.sandbox_id);
+
+        // Verify target sandbox exists
+        {
+            let sandboxes = self.sandboxes.read().await;
+            if !sandboxes.contains_key(target_id) {
+                return Err(McpError::ResourceNotFound(format!(
+                    "Target sandbox not found: {}",
+                    target_id
+                )));
+            }
+        }
+
+        // Restore files to sandbox directory
+        let sandbox_dir = std::env::temp_dir()
+            .join("kias-sandbox")
+            .join(target_id);
+        for (rel_path, contents) in &snapshot.files {
+            let file_path = sandbox_dir.join(rel_path);
+            if let Some(parent) = file_path.parent() {
+                tokio::fs::create_dir_all(parent)
+                    .await
+                    .map_err(|e| McpError::Internal(format!("failed to create dir: {}", e)))?;
+            }
+            tokio::fs::write(&file_path, contents)
+                .await
+                .map_err(|e| McpError::Internal(format!("failed to restore file: {}", e)))?;
+        }
+
+        // Update sandbox config with snapshot env and workdir
+        {
+            let mut sandboxes = self.sandboxes.write().await;
+            if let Some(instance) = sandboxes.get_mut(target_id) {
+                instance.config.env = snapshot.env.clone();
+                instance.config.workdir = snapshot.workdir.clone();
+            }
+        }
+
+        self.audit(SandboxAuditEntry {
+            timestamp: SystemTime::now(),
+            sandbox_id: target_id.to_string(),
+            action: SandboxAction::SnapshotRestore,
+            actor: actor.to_string(),
+            details: Some(format!("snapshot_id={}", snapshot_id)),
+        })
+        .await;
+
+        Ok(())
+    }
+
+    /// Load a snapshot by ID, checking memory first then disk.
+    async fn load_snapshot(&self, snapshot_id: &str) -> Result<SandboxSnapshot, McpError> {
+        // Check in-memory cache
+        {
+            let snapshots = self.snapshots.read().await;
+            if let Some(snap) = snapshots.get(snapshot_id) {
+                return Ok(snap.clone());
+            }
+        }
+
+        // Try loading from disk
+        let snapshot_file = self.snapshot_dir.join(format!("{}.json", snapshot_id));
+        let json_bytes = tokio::fs::read(&snapshot_file)
+            .await
+            .map_err(|_| McpError::ResourceNotFound(format!("Snapshot not found: {}", snapshot_id)))?;
+        SandboxSnapshot::from_json(&json_bytes)
+    }
+
+    /// List all stored snapshots.
+    pub async fn list_snapshots(&self) -> Vec<SandboxSnapshot> {
+        let snapshots = self.snapshots.read().await;
+        snapshots.values().cloned().collect()
+    }
+
+    /// Delete a snapshot by ID (from memory and disk).
+    pub async fn delete_snapshot(&self, snapshot_id: &str) -> Result<(), McpError> {
+        let mut snapshots = self.snapshots.write().await;
+        snapshots.remove(snapshot_id);
+        drop(snapshots);
+
+        let snapshot_file = self.snapshot_dir.join(format!("{}.json", snapshot_id));
+        let _ = tokio::fs::remove_file(&snapshot_file).await;
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Workspace Projection
+    // -----------------------------------------------------------------------
+
+    /// Project workspace files into a sandbox.
+    ///
+    /// Copies the files specified by the workspace projection (AGENTS.md,
+    /// skills/, knowledge/, etc.) into the sandbox's filesystem, making
+    /// workspace context available to tools running inside the sandbox.
+    pub async fn sync_workspace_to_sandbox(
+        &self,
+        projection: &WorkspaceProjection,
+        sandbox_id: &str,
+        actor: &str,
+    ) -> Result<usize, McpError> {
+        // Verify sandbox exists
+        {
+            let sandboxes = self.sandboxes.read().await;
+            if !sandboxes.contains_key(sandbox_id) {
+                return Err(McpError::ResourceNotFound(format!(
+                    "Sandbox not found: {}",
+                    sandbox_id
+                )));
+            }
+        }
+
+        let sandbox_dir = std::env::temp_dir()
+            .join("kias-sandbox")
+            .join(sandbox_id);
+        let dest_root = sandbox_dir.join(&projection.sandbox_dest);
+
+        let mut copied_count: usize = 0;
+
+        for include in &projection.includes {
+            let source = projection.workspace_root.join(include);
+            if !source.exists() {
+                continue;
+            }
+
+            if source.is_dir() {
+                copied_count += Self::copy_dir_recursive(&source, &dest_root.join(include))
+                    .await
+                    .map_err(|e| McpError::Internal(format!("workspace projection failed: {}", e)))?;
+            } else {
+                let dest_file = dest_root.join(include);
+                if let Some(parent) = dest_file.parent() {
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .map_err(|e| McpError::Internal(format!("failed to create dir: {}", e)))?;
+                }
+                tokio::fs::copy(&source, &dest_file)
+                    .await
+                    .map_err(|e| McpError::Internal(format!("failed to copy file: {}", e)))?;
+                copied_count += 1;
+            }
+        }
+
+        self.audit(SandboxAuditEntry {
+            timestamp: SystemTime::now(),
+            sandbox_id: sandbox_id.to_string(),
+            action: SandboxAction::WorkspaceProjection,
+            actor: actor.to_string(),
+            details: Some(format!("files_copied={}", copied_count)),
+        })
+        .await;
+
+        Ok(copied_count)
+    }
+
+    /// Recursively collect files from a directory into a HashMap.
+    fn collect_files_recursive(
+        base: &std::path::Path,
+        dir: &std::path::Path,
+        files: &mut HashMap<String, Vec<u8>>,
+    ) -> Result<(), std::io::Error> {
+        if !dir.is_dir() {
+            return Ok(());
+        }
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                Self::collect_files_recursive(base, &path, files)?;
+            } else if path.is_file() {
+                let rel = path
+                    .strip_prefix(base)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .to_string();
+                if let Ok(contents) = std::fs::read(&path) {
+                    files.insert(rel, contents);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Recursively copy a directory, returning the count of files copied.
+    async fn copy_dir_recursive(
+        src: &std::path::Path,
+        dst: &std::path::Path,
+    ) -> Result<usize, std::io::Error> {
+        let mut count = 0usize;
+        tokio::fs::create_dir_all(dst).await?;
+        let mut entries = tokio::fs::read_dir(src).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            let dest_path = dst.join(entry.file_name());
+            if path.is_dir() {
+                count += Box::pin(Self::copy_dir_recursive(&path, &dest_path)).await?;
+            } else {
+                tokio::fs::copy(&path, &dest_path).await?;
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
 }
 
 impl Clone for SandboxManager {
@@ -714,6 +1184,8 @@ impl Clone for SandboxManager {
             sandboxes: self.sandboxes.clone(),
             backends: self.backends.clone(),
             audit_log: self.audit_log.clone(),
+            snapshots: self.snapshots.clone(),
+            snapshot_dir: self.snapshot_dir.clone(),
         }
     }
 }

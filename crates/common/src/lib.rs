@@ -21,6 +21,7 @@ pub mod metrics;
 pub mod tls;
 pub mod types;
 pub mod utils;
+pub mod vfs;
 
 // Re-export the most commonly used items at crate root for convenience.
 pub use config::KiasConfig;

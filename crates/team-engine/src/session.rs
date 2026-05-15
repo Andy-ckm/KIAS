@@ -320,7 +320,7 @@ mod tests {
         session.append_message("user", "question").await.unwrap();
         session.append_message("assistant", "answer").await.unwrap();
 
-        let history = session.get_history().await.unwrap();
+        let _history = session.get_history().await.unwrap();
 
         // Save a context snapshot (simulating compaction)
         let snapshot = vec![

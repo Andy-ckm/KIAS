@@ -783,3 +783,11 @@
 - **描述**: 完整开源 AI 协作套件和多 agent 平台，支持 LLM 编排、自动化和虚拟助手
 - **创新点**: 多渠道集成 (WhatsApp, SMS, Messenger)、bot 编排
 - **KIAS 借鉴**: 多渠道消息集成模式
+
+### #72 little-agent (⭐96) — Lightweight Embedded Agent Framework
+- **仓库**: https://github.com/unixzii/little-agent
+- **语言**: Rust
+- **描述**: 轻量级嵌入式 agent 框架，类似 Claude Code 和 OpenAI Codex
+- **创新点**: 嵌入式 agent、轻量级架构、类似 Codex 的 CLI agent
+- **KIAS 借鉴**: 嵌入式 agent 模式可用于 KIAS CLI 的本地 agent 执行
+

@@ -1,10 +1,14 @@
 mod services;
 
-use services::KiasServiceManager;
 use clap::{Parser, Subcommand};
+use services::KiasServiceManager;
 
 #[derive(Parser)]
-#[command(name = "kias", version, about = "KIAS - Kubernetes-inspired Intelligent Agent System")]
+#[command(
+    name = "kias",
+    version,
+    about = "KIAS - Kubernetes-inspired Intelligent Agent System"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

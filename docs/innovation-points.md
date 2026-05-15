@@ -791,3 +791,27 @@
 - **创新点**: 嵌入式 agent、轻量级架构、类似 Codex 的 CLI agent
 - **KIAS 借鉴**: 嵌入式 agent 模式可用于 KIAS CLI 的本地 agent 执行
 
+
+## Innovation Sprint 31 — 2026-05-16 03:56
+
+### 🔬 New Agent Orchestration Frameworks (GitHub Trending)
+
+**#106. jordanhubbard/ACC (Agent Command Center) ⭐5**
+- Rust | Distributed, multi-user, multi-agent orchestrator
+- Common multimedia bus + centralized filesystem
+- Tags: autonomous, orchestration-framework
+- **KIAS relevance**: Our EventBus + workspace model is similar; their multimedia bus is interesting for multi-modal agents
+- Source: https://github.com/jordanhubbard/ACC
+
+**#107. RandallRO/axon ⭐2**
+- Rust | Local-first, zero-trust AI workflow framework
+- Multi-agent orchestration with deterministic execution
+- Tags: agents, ai, axon-framework, code-analysis
+- **KIAS relevance**: Zero-trust execution aligns with our sandbox + autonomy controller; deterministic execution is a differentiator
+- Source: https://github.com/RandallRO/axon
+
+**#108. firstintent/ccteam ⭐4**
+- Rust | Unattended multi-agent orchestration for Claude Code
+- Autonomous dev-team driving software from intent to closed-loop delivery
+- **KIAS relevance**: Similar to our team-engine (Owner-Worker-Verifier); their "intent to delivery" loop mirrors our goal-engine
+- Source: https://github.com/firstintent/ccteam

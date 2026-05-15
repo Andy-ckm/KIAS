@@ -815,3 +815,28 @@
 - Autonomous dev-team driving software from intent to closed-loop delivery
 - **KIAS relevance**: Similar to our team-engine (Owner-Worker-Verifier); their "intent to delivery" loop mirrors our goal-engine
 - Source: https://github.com/firstintent/ccteam
+
+
+**#109. OmarTheGrey/Regula ⭐5**
+- Rust | Production-grade orchestration framework for stateful multi-agent LLM applications
+- Tags: orchestration, multi-agent, production-grade
+- **KIAS relevance**: Production-grade focus aligns with our enterprise approach; stateful agent management is key
+- Source: https://github.com/OmarTheGrey/Regula
+
+**#110. tonitangpotato/rustclaw ⭐5**
+- Rust-native AI agent framework with cognitive memory (Engram), multi-agent orchestration, secure execution
+- Tags: cognitive-memory, multi-agent, security
+- **KIAS relevance**: Cognitive memory (Engram) could inform our memory.rs improvements; security-first execution is important
+- Source: https://github.com/tonitangpotato/rustclaw
+
+**#111. modular-agent/modular-agent-core ⭐3**
+- Rust | Modular multi-agent systems with stream-based message orchestration
+- Tags: modular, stream-orchestration, message-passing
+- **KIAS relevance**: Stream-based message passing could enhance our EventBus architecture
+- Source: https://github.com/modular-agent/modular-agent-core
+
+**#112. EzekTec-Inc/AgentFlow ⭐2**
+- Rust | AI Agent Orchestration & Workflow framework
+- Tags: orchestration, workflow, agent-framework
+- **KIAS relevance**: Another Rust-native approach to agent workflow — validates our architecture direction
+- Source: https://github.com/EzekTec-Inc/AgentFlow

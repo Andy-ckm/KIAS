@@ -1806,7 +1806,10 @@ impl FirecrackerSandboxBackend {
         use tokio::net::UnixStream;
 
         let mut stream = UnixStream::connect(socket_path).await.map_err(|e| {
-            McpError::Internal(format!("failed to connect to Firecracker API socket: {}", e))
+            McpError::Internal(format!(
+                "failed to connect to Firecracker API socket: {}",
+                e
+            ))
         })?;
 
         let request = format!(
@@ -2343,13 +2346,7 @@ impl SandboxBackendTrait for WasmSandboxBackend {
         cmd.args(&args);
 
         // Set working directory
-        cmd.current_dir(
-            instance
-                .config
-                .workdir
-                .as_ref()
-                .unwrap_or(&sandbox_dir),
-        );
+        cmd.current_dir(instance.config.workdir.as_ref().unwrap_or(&sandbox_dir));
 
         // Environment variables
         for (k, v) in &instance.config.env {
@@ -2558,10 +2555,7 @@ mod tests {
             config.filesystem.rootfs,
             Some(PathBuf::from("/opt/rootfs.ext4"))
         );
-        assert_eq!(
-            config.labels.get("kernel").unwrap(),
-            "/opt/vmlinux"
-        );
+        assert_eq!(config.labels.get("kernel").unwrap(), "/opt/vmlinux");
     }
 
     #[test]

@@ -7,10 +7,10 @@
 //! - Parallel task execution with bounded concurrency
 //! - Task payload serialization overhead
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use kias_executor::{SandboxExecutor, SandboxPolicy, Task, TaskExecutor, TaskResult, TaskRuntime};
-use kias_executor::{HttpExecutor, ShellExecutor};
 use chrono::Utc;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use kias_executor::{HttpExecutor, ShellExecutor};
+use kias_executor::{SandboxExecutor, SandboxPolicy, Task, TaskExecutor, TaskResult, TaskRuntime};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -243,22 +243,21 @@ fn bench_parallel_execution(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     for count in &[5, 10, 20, 50] {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            count,
-            |b, &n| {
-                let executor = SandboxExecutor::new();
-                b.iter(|| {
-                    rt.block_on(async {
-                        for _ in 0..n {
-                            black_box(
-                                executor.execute_command("echo parallel-test").await.unwrap(),
-                            );
-                        }
-                    });
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &n| {
+            let executor = SandboxExecutor::new();
+            b.iter(|| {
+                rt.block_on(async {
+                    for _ in 0..n {
+                        black_box(
+                            executor
+                                .execute_command("echo parallel-test")
+                                .await
+                                .unwrap(),
+                        );
+                    }
                 });
-            },
-        );
+            });
+        });
     }
 
     group.finish();

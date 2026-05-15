@@ -32,35 +32,27 @@ fn bench_registration(c: &mut Criterion) {
     let mut group = c.benchmark_group("agent/registration");
 
     for count in &[1, 10, 50, 100] {
-        group.bench_with_input(
-            BenchmarkId::new("add_workers", count),
-            count,
-            |b, &n| {
-                b.iter(|| {
-                    let mut engine = TeamEngine::new("owner");
-                    for i in 0..n {
-                        engine.add_worker(&format!("worker-{}", i));
-                    }
-                    black_box(engine.get_state().workers.len());
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("add_workers", count), count, |b, &n| {
+            b.iter(|| {
+                let mut engine = TeamEngine::new("owner");
+                for i in 0..n {
+                    engine.add_worker(&format!("worker-{}", i));
+                }
+                black_box(engine.get_state().workers.len());
+            });
+        });
     }
 
     for count in &[1, 10, 50, 100] {
-        group.bench_with_input(
-            BenchmarkId::new("add_verifiers", count),
-            count,
-            |b, &n| {
-                b.iter(|| {
-                    let mut engine = TeamEngine::new("owner");
-                    for i in 0..n {
-                        engine.add_verifier(&format!("verifier-{}", i));
-                    }
-                    black_box(engine.get_state().verifiers.len());
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("add_verifiers", count), count, |b, &n| {
+            b.iter(|| {
+                let mut engine = TeamEngine::new("owner");
+                for i in 0..n {
+                    engine.add_verifier(&format!("verifier-{}", i));
+                }
+                black_box(engine.get_state().verifiers.len());
+            });
+        });
     }
 
     group.finish();
@@ -72,18 +64,14 @@ fn bench_task_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("agent/task_creation");
 
     for count in &[10, 100, 500, 1000] {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            count,
-            |b, &n| {
-                b.iter(|| {
-                    let mut engine = TeamEngine::new("owner");
-                    for i in 0..n {
-                        black_box(engine.create_task(&format!("task-{}", i), "benchmark task"));
-                    }
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &n| {
+            b.iter(|| {
+                let mut engine = TeamEngine::new("owner");
+                for i in 0..n {
+                    black_box(engine.create_task(&format!("task-{}", i), "benchmark task"));
+                }
+            });
+        });
     }
 
     group.finish();
@@ -95,26 +83,22 @@ fn bench_task_assignment(c: &mut Criterion) {
     let mut group = c.benchmark_group("agent/task_assignment");
 
     for count in &[10, 50, 100, 500] {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            count,
-            |b, &n| {
-                b.iter(|| {
-                    let mut engine = TeamEngine::new("owner");
-                    let mut worker_ids = Vec::new();
-                    for i in 0..n {
-                        worker_ids.push(engine.add_worker(&format!("w-{}", i)));
-                    }
-                    let mut task_ids = Vec::new();
-                    for i in 0..n {
-                        task_ids.push(engine.create_task(&format!("t-{}", i), "bench"));
-                    }
-                    for (task_id, worker_id) in task_ids.iter().zip(worker_ids.iter()) {
-                        black_box(engine.assign_task(task_id, worker_id).unwrap());
-                    }
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &n| {
+            b.iter(|| {
+                let mut engine = TeamEngine::new("owner");
+                let mut worker_ids = Vec::new();
+                for i in 0..n {
+                    worker_ids.push(engine.add_worker(&format!("w-{}", i)));
+                }
+                let mut task_ids = Vec::new();
+                for i in 0..n {
+                    task_ids.push(engine.create_task(&format!("t-{}", i), "bench"));
+                }
+                for (task_id, worker_id) in task_ids.iter().zip(worker_ids.iter()) {
+                    black_box(engine.assign_task(task_id, worker_id).unwrap());
+                }
+            });
+        });
     }
 
     group.finish();
@@ -126,25 +110,21 @@ fn bench_task_lifecycle(c: &mut Criterion) {
     let mut group = c.benchmark_group("agent/task_lifecycle");
 
     for count in &[10, 50, 100, 500] {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            count,
-            |b, &n| {
-                b.iter(|| {
-                    let mut engine = TeamEngine::new("owner");
-                    let worker_id = engine.add_worker("worker");
-                    let verifier_id = engine.add_verifier("verifier");
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &n| {
+            b.iter(|| {
+                let mut engine = TeamEngine::new("owner");
+                let worker_id = engine.add_worker("worker");
+                let verifier_id = engine.add_verifier("verifier");
 
-                    for i in 0..n {
-                        let task_id = engine.create_task(&format!("t-{}", i), "bench");
-                        engine.assign_task(&task_id, &worker_id).unwrap();
-                        engine.complete_task(&task_id).unwrap();
-                        engine.verify_task(&task_id, &verifier_id, true).unwrap();
-                    }
-                    black_box(engine.get_state().tasks.len());
-                });
-            },
-        );
+                for i in 0..n {
+                    let task_id = engine.create_task(&format!("t-{}", i), "bench");
+                    engine.assign_task(&task_id, &worker_id).unwrap();
+                    engine.complete_task(&task_id).unwrap();
+                    engine.verify_task(&task_id, &verifier_id, true).unwrap();
+                }
+                black_box(engine.get_state().tasks.len());
+            });
+        });
     }
 
     group.finish();
@@ -215,21 +195,17 @@ fn bench_state_queries(c: &mut Criterion) {
             },
         );
 
-        group.bench_with_input(
-            BenchmarkId::new("get_state", count),
-            count,
-            |b, &n| {
-                let mut engine = TeamEngine::new("owner");
-                for i in 0..n {
-                    engine.add_worker(&format!("w-{}", i));
-                }
+        group.bench_with_input(BenchmarkId::new("get_state", count), count, |b, &n| {
+            let mut engine = TeamEngine::new("owner");
+            for i in 0..n {
+                engine.add_worker(&format!("w-{}", i));
+            }
 
-                b.iter(|| {
-                    let state = engine.get_state();
-                    black_box(state.workers.len());
-                });
-            },
-        );
+            b.iter(|| {
+                let state = engine.get_state();
+                black_box(state.workers.len());
+            });
+        });
     }
 
     group.finish();

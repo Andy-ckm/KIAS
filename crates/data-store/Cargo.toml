@@ -11,7 +11,6 @@ path = "src/main.rs"
 
 [dependencies]
 kias-common.workspace = true
-
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -30,6 +29,13 @@ dashmap.workspace = true
 
 # Knowledge crate for HNSW vector index
 kias-knowledge = { path = "../knowledge" }
+
+[features]
+default = []
+# Use battle-tested hnsw_rs crate instead of hand-rolled HNSW in kias-knowledge.
+# TODO(#real-hnsw): Wire up hnsw_rs behind this flag for production use.
+# real-hnsw = ["hnsw_rs"]
+# hnsw_rs = { version = "0.2", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

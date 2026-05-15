@@ -5,6 +5,7 @@
 //! to avoid thundering-herd problems.
 
 use chrono::{DateTime, Duration, Utc};
+use rand::Rng;
 use std::collections::HashMap;
 
 use crate::state::{AgentStatus, ControllerState};
@@ -20,6 +21,10 @@ pub struct RecoveryConfig {
     pub max_backoff_secs: u64,
     /// Multiplier for exponential backoff (typically 2.0).
     pub backoff_multiplier: f64,
+    /// Jitter percentage applied to backoff durations (0-100).
+    /// A value of 10 means ±10% random jitter, preventing synchronized
+    /// retry storms when multiple agents fail simultaneously.
+    pub jitter_percent: u64,
 }
 
 impl Default for RecoveryConfig {
@@ -29,6 +34,7 @@ impl Default for RecoveryConfig {
             base_backoff_secs: 5,
             max_backoff_secs: 300, // 5 minutes
             backoff_multiplier: 2.0,
+            jitter_percent: 10,
         }
     }
 }
@@ -94,15 +100,23 @@ impl RecoveryManager {
 
     /// Calculate the backoff duration for a given retry count using exponential backoff.
     ///
-    /// `backoff = min(base * multiplier^retry_count, max_backoff)`
+    /// `backoff = min(base * multiplier^retry_count, max_backoff) * (1 ± jitter%)`
+    ///
+    /// Jitter is applied to prevent thundering herd when multiple agents
+    /// fail at the same time and would otherwise retry in lockstep.
     pub fn calculate_backoff(&self, retry_count: u32) -> Duration {
         let base = self.config.base_backoff_secs as f64;
         let multiplier = self.config.backoff_multiplier;
         let max_secs = self.config.max_backoff_secs as f64;
 
         let backoff_secs = base * multiplier.powi(retry_count as i32);
-        let capped = backoff_secs.min(max_secs) as i64;
-        Duration::seconds(capped)
+        let capped = backoff_secs.min(max_secs);
+        let jitter_frac = self.config.jitter_percent as f64 / 100.0;
+        let min = capped * (1.0 - jitter_frac);
+        let max = capped * (1.0 + jitter_frac);
+        let mut rng = rand::thread_rng();
+        let jittered = rng.gen_range(min..=max);
+        Duration::seconds(jittered as i64)
     }
 
     /// Detect and process recovery for all failed/unresponsive agents.
@@ -268,6 +282,7 @@ mod tests {
             base_backoff_secs,
             max_backoff_secs: 300,
             backoff_multiplier: 2.0,
+            jitter_percent: 0,
         }
     }
 
@@ -499,5 +514,85 @@ mod tests {
         assert_eq!(manager.tracked_count(), 0);
         manager.process_recovery(&mut state);
         assert_eq!(manager.tracked_count(), 1);
+    }
+
+    #[test]
+    fn test_default_config_has_jitter() {
+        let config = RecoveryConfig::default();
+        assert_eq!(config.jitter_percent, 10);
+    }
+
+    #[test]
+    fn test_jittered_backoff_in_range() {
+        // With 10% jitter, backoff should be within ±10% of the base exponential value.
+        let config = RecoveryConfig {
+            max_retries: 5,
+            base_backoff_secs: 10,
+            max_backoff_secs: 300,
+            backoff_multiplier: 2.0,
+            jitter_percent: 10,
+        };
+        let manager = RecoveryManager::new(config);
+
+        // For retry 0: base = 10, range = [9, 11]
+        for _ in 0..50 {
+            let backoff = manager.calculate_backoff(0);
+            assert!(
+                backoff.num_seconds() >= 9 && backoff.num_seconds() <= 11,
+                "backoff {} out of range [9, 11]",
+                backoff.num_seconds()
+            );
+        }
+
+        // For retry 1: base = 20, range = [18, 22]
+        for _ in 0..50 {
+            let backoff = manager.calculate_backoff(1);
+            assert!(
+                backoff.num_seconds() >= 18 && backoff.num_seconds() <= 22,
+                "backoff {} out of range [18, 22]",
+                backoff.num_seconds()
+            );
+        }
+    }
+
+    #[test]
+    fn test_jittered_backoff_respects_max() {
+        // Even with jitter, backoff should not exceed max_backoff_secs * (1 + jitter%).
+        let config = RecoveryConfig {
+            max_retries: 10,
+            base_backoff_secs: 100,
+            max_backoff_secs: 200,
+            backoff_multiplier: 2.0,
+            jitter_percent: 10,
+        };
+        let manager = RecoveryManager::new(config);
+
+        // For high retry count, base would be huge but capped at 200.
+        // With 10% jitter, max = 220.
+        for _ in 0..50 {
+            let backoff = manager.calculate_backoff(10);
+            assert!(
+                backoff.num_seconds() <= 220,
+                "backoff {} exceeds max with jitter",
+                backoff.num_seconds()
+            );
+        }
+    }
+
+    #[test]
+    fn test_zero_jitter_backoff_exact() {
+        let config = RecoveryConfig {
+            max_retries: 5,
+            base_backoff_secs: 10,
+            max_backoff_secs: 300,
+            backoff_multiplier: 2.0,
+            jitter_percent: 0,
+        };
+        let manager = RecoveryManager::new(config);
+
+        // With 0% jitter, backoff should be exact.
+        assert_eq!(manager.calculate_backoff(0), Duration::seconds(10));
+        assert_eq!(manager.calculate_backoff(1), Duration::seconds(20));
+        assert_eq!(manager.calculate_backoff(2), Duration::seconds(40));
     }
 }

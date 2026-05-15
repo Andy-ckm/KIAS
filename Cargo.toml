@@ -87,6 +87,7 @@ rustls-pemfile = "2"
 # Storage
 etcd-client = "0.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 # Utils
 dashmap = "6"
 url = "2"
@@ -100,6 +101,9 @@ validator = { version = "0.19", features = ["derive"] }
 
 # Async traits
 async-trait = "0.1"
+
+# Random
+rand = "0.8"
 
 # JWT
 jsonwebtoken = "9"

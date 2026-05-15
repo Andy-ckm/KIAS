@@ -795,7 +795,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
         let sandbox_dir = self.base_dir.join(&id);
         tokio::fs::create_dir_all(&sandbox_dir)
             .await
-            .map_err(|e| McpError::Internal(&format!("failed to create sandbox dir: {}", e)))?;
+            .map_err(|e| McpError::Internal(format!("failed to create sandbox dir: {}", e)))?;
 
         Ok(SandboxInstance {
             id,
@@ -832,12 +832,27 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
             cmd.env(k, v);
         }
 
-        // Security: run as configured uid/gid (default nobody:65534)
-        if let Some(uid) = instance.config.uid {
-            cmd.uid(uid);
-        }
-        if let Some(gid) = instance.config.gid {
-            cmd.gid(gid);
+        // Security: run as configured uid/gid (default nobody:65534).
+        // Only setuid/setgid when running as root (euid 0), otherwise the
+        // kernel will return EPERM.  We check via /proc/self/status to
+        // avoid adding a `libc` dependency.
+        let is_root = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find(|l| l.starts_with("Uid:"))
+                    .and_then(|l| l.split_whitespace().nth(1))
+                    .and_then(|v| v.parse::<u32>().ok())
+            })
+            .map(|euid| euid == 0)
+            .unwrap_or(false);
+        if is_root {
+            if let Some(uid) = instance.config.uid {
+                cmd.uid(uid);
+            }
+            if let Some(gid) = instance.config.gid {
+                cmd.gid(gid);
+            }
         }
 
         // I/O: capture stdout/stderr
@@ -848,7 +863,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
         // Spawn child process
         let mut child = cmd
             .spawn()
-            .map_err(|e| McpError::Internal(&format!("failed to spawn process: {}", e)))?;
+            .map_err(|e| McpError::Internal(format!("failed to spawn process: {}", e)))?;
 
         let pid = child.id();
         instance.pid = pid;
@@ -894,7 +909,7 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
     }
 
     async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        let info = self
+        let mut info = self
             .processes
             .write()
             .await
@@ -956,6 +971,455 @@ impl SandboxBackendTrait for ProcessSandboxBackend {
             }
         }
         Ok(usage)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Docker Sandbox Backend (real implementation, feature-gated)
+// ---------------------------------------------------------------------------
+
+/// Docker-based sandbox backend using the Docker CLI.
+///
+/// Provides container-level isolation by wrapping `docker create`, `docker start`,
+/// `docker logs`, `docker stop`, and `docker rm`.
+///
+/// Enable with the `docker` cargo feature.
+#[cfg(feature = "docker")]
+pub struct DockerSandboxBackend {
+    /// Active containers: sandbox_id -> container_id
+    containers: Arc<RwLock<HashMap<String, DockerContainerInfo>>>,
+    /// Default Docker image to use when none is specified in the config.
+    default_image: String,
+}
+
+#[cfg(feature = "docker")]
+struct DockerContainerInfo {
+    container_id: String,
+    start_time: std::time::Instant,
+}
+
+#[cfg(feature = "docker")]
+impl DockerSandboxBackend {
+    /// Create a new `DockerSandboxBackend`.
+    pub fn new() -> Self {
+        Self {
+            containers: Arc::new(RwLock::new(HashMap::new())),
+            default_image: "ubuntu:22.04".to_string(),
+        }
+    }
+
+    /// Create with a custom default image.
+    pub fn with_default_image(image: impl Into<String>) -> Self {
+        Self {
+            containers: Arc::new(RwLock::new(HashMap::new())),
+            default_image: image.into(),
+        }
+    }
+
+    /// Run a docker CLI subcommand and return its output.
+    async fn docker_cmd(args: &[&str]) -> Result<std::process::Output, McpError> {
+        Command::new("docker")
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map_err(|e| McpError::Internal(format!("docker command failed: {}", e)))
+    }
+}
+
+#[cfg(feature = "docker")]
+impl Default for DockerSandboxBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "docker")]
+#[async_trait::async_trait]
+impl SandboxBackendTrait for DockerSandboxBackend {
+    async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let image = config
+            .image
+            .as_deref()
+            .unwrap_or(&self.default_image);
+
+        // Build `docker create` arguments.
+        let mut args: Vec<String> = vec![
+            "create".to_string(),
+            "--name".to_string(),
+            id.clone(),
+        ];
+
+        // Resource limits
+        if let Some(mem) = config.limits.memory_bytes {
+            args.push("--memory".to_string());
+            args.push(format!("{}b", mem));
+        }
+        if let Some(cores) = config.limits.cpu_cores {
+            args.push("--cpus".to_string());
+            args.push(format!("{}", cores));
+        }
+        // Network policy
+        if !config.network.enabled {
+            args.push("--network".to_string());
+            args.push("none".to_string());
+        }
+        // Working directory
+        if let Some(ref workdir) = config.workdir {
+            args.push("--workdir".to_string());
+            args.push(workdir.to_string_lossy().to_string());
+        }
+        // Environment variables
+        for (k, v) in &config.env {
+            args.push("--env".to_string());
+            args.push(format!("{}={}", k, v));
+        }
+        // Filesystem mounts (readonly)
+        for mp in &config.filesystem.readonly_mounts {
+            args.push("--mount".to_string());
+            args.push(format!(
+                "type=bind,source={},target={},readonly",
+                mp.host.display(),
+                mp.guest.display()
+            ));
+        }
+        // Filesystem mounts (read-write)
+        for mp in &config.filesystem.readwrite_mounts {
+            args.push("--mount".to_string());
+            args.push(format!(
+                "type=bind,source={},target={}",
+                mp.host.display(),
+                mp.guest.display()
+            ));
+        }
+
+        // Image + command
+        args.push(image.to_string());
+        args.extend(config.command.iter().cloned());
+
+        let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        let output = Self::docker_cmd(&arg_refs).await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(McpError::Internal(format!(
+                "docker create failed: {}",
+                stderr
+            )));
+        }
+
+        let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        Ok(SandboxInstance {
+            id,
+            config: config.clone(),
+            state: SandboxState::Ready,
+            created_at: SystemTime::now(),
+            started_at: None,
+            completed_at: None,
+            result: None,
+            pid: None,
+            container_id: Some(container_id),
+        })
+    }
+
+    async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
+        if instance.state != SandboxState::Ready {
+            return Err(McpError::InvalidRequest(
+                "sandbox not in Ready state".to_string(),
+            ));
+        }
+
+        let cid = instance.container_id.as_ref().ok_or_else(|| {
+            McpError::Internal("missing container_id".to_string())
+        })?;
+
+        let output = Self::docker_cmd(&["start", cid]).await?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(McpError::Internal(format!(
+                "docker start failed: {}",
+                stderr
+            )));
+        }
+
+        let info = DockerContainerInfo {
+            container_id: cid.clone(),
+            start_time: std::time::Instant::now(),
+        };
+        self.containers
+            .write()
+            .await
+            .insert(instance.id.clone(), info);
+
+        instance.state = SandboxState::Running;
+        instance.started_at = Some(SystemTime::now());
+        Ok(())
+    }
+
+    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        let cid = instance.container_id.as_ref().ok_or_else(|| {
+            McpError::Internal("missing container_id".to_string())
+        })?;
+
+        // Block until the container stops.
+        let wait_out = Self::docker_cmd(&["wait", cid]).await?;
+        let exit_code: i32 = if wait_out.status.success() {
+            String::from_utf8_lossy(&wait_out.stdout)
+                .trim()
+                .parse()
+                .unwrap_or(-1)
+        } else {
+            -1
+        };
+
+        // Capture logs.
+        let logs_out = Self::docker_cmd(&["logs", cid]).await?;
+        let stdout = String::from_utf8_lossy(&logs_out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&logs_out.stderr).to_string();
+
+        let elapsed = self
+            .containers
+            .read()
+            .await
+            .get(&instance.id)
+            .map(|c| c.start_time.elapsed())
+            .unwrap_or_default();
+
+        // Remove tracking entry.
+        self.containers.write().await.remove(&instance.id);
+
+        Ok(SandboxResult {
+            exit_code,
+            stdout,
+            stderr,
+            duration: elapsed,
+            resource_usage: ResourceUsage::default(),
+            terminated: false,
+            termination_reason: None,
+        })
+    }
+
+    async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        if let Some(cid) = &instance.container_id {
+            // Force-kill the container.
+            let _ = Self::docker_cmd(&["kill", cid]).await;
+        }
+        self.containers.write().await.remove(&instance.id);
+        Ok(())
+    }
+
+    async fn destroy(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        if let Some(cid) = &instance.container_id {
+            // Force-remove even if still running.
+            let _ = Self::docker_cmd(&["rm", "-f", cid]).await;
+        }
+        self.containers.write().await.remove(&instance.id);
+        Ok(())
+    }
+
+    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        // `docker stats --no-stream` could be used here for live metrics.
+        // For now return defaults; a full implementation would parse JSON stats.
+        Ok(ResourceUsage::default())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Firecracker Sandbox Backend (stub – not yet implemented)
+// ---------------------------------------------------------------------------
+
+/// Firecracker microVM sandbox backend.
+///
+/// TODO: implement via the Firecracker API socket (`/tmp/firecracker.socket`).
+/// Requires: firecracker binary, a rootfs image, and a vmlinux kernel.
+/// API reference: <https://github.com/firecracker-microvm/firecracker/blob/main/docs/api.md>
+///
+/// Implementation plan:
+/// 1. Spawn firecracker process with `--api-sock /tmp/firecracker-$id.socket`
+/// 2. PUT /machine-config (vcpu_count, mem_size_mib)
+/// 3. PUT /drives/rootfs (path_on_host, is_root_device)
+/// 4. PUT /boot-source (kernel_image_path, boot_args)
+/// 5. PUT /actions with InstanceStart
+/// 6. Use vsock or polling for lifecycle events
+pub struct FirecrackerSandboxBackend;
+
+impl FirecrackerSandboxBackend {
+    /// Create a new `FirecrackerSandboxBackend`.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for FirecrackerSandboxBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl SandboxBackendTrait for FirecrackerSandboxBackend {
+    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        // TODO: implement via Firecracker API
+        Err(McpError::Internal(
+            "Firecracker backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
+        // TODO: PUT /actions with action_type=InstanceStart
+        Err(McpError::Internal(
+            "Firecracker backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        // TODO: poll VM state or use vsock for exit notification
+        Err(McpError::Internal(
+            "Firecracker backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        // TODO: PUT /actions with action_type=SendCtrlAltDel or kill firecracker process
+        Err(McpError::Internal(
+            "Firecracker backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        // TODO: cleanup socket, rootfs overlay, log files
+        Ok(())
+    }
+
+    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        // TODO: read from firecracker metrics endpoint
+        Ok(ResourceUsage::default())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// gVisor Sandbox Backend (stub – not yet implemented)
+// ---------------------------------------------------------------------------
+
+/// gVisor (runsc) container runtime sandbox backend.
+///
+/// TODO: implement using `docker --runtime=runsc` or direct `runsc` CLI.
+/// gVisor provides a user-space kernel that intercepts syscalls for stronger
+/// isolation than standard containers while maintaining compatibility.
+pub struct GVisorSandboxBackend;
+
+impl GVisorSandboxBackend {
+    /// Create a new `GVisorSandboxBackend`.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for GVisorSandboxBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl SandboxBackendTrait for GVisorSandboxBackend {
+    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        // TODO: implement via docker --runtime=runsc or direct runsc create
+        Err(McpError::Internal(
+            "gVisor backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
+        Err(McpError::Internal(
+            "gVisor backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        Err(McpError::Internal(
+            "gVisor backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        Err(McpError::Internal(
+            "gVisor backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        Ok(())
+    }
+
+    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        Ok(ResourceUsage::default())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Wasm Sandbox Backend (stub – not yet implemented)
+// ---------------------------------------------------------------------------
+
+/// WebAssembly sandbox backend.
+///
+/// TODO: implement via Wasmtime or Wasmer runtime.
+/// Would load a `.wasm` module and execute it with WASI support,
+/// providing near-native speed with memory safety guarantees.
+pub struct WasmSandboxBackend;
+
+impl WasmSandboxBackend {
+    /// Create a new `WasmSandboxBackend`.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for WasmSandboxBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl SandboxBackendTrait for WasmSandboxBackend {
+    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        // TODO: implement via Wasmtime/Wasmer
+        // 1. Create Engine with config (fuel, epoch interruption)
+        // 2. Load module from config.command[0]
+        // 3. Create WASI instance with limited capabilities
+        Err(McpError::Internal(
+            "Wasm backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
+        Err(McpError::Internal(
+            "Wasm backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        Err(McpError::Internal(
+            "Wasm backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        Err(McpError::Internal(
+            "Wasm backend not yet implemented".to_string(),
+        ))
+    }
+
+    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        Ok(())
+    }
+
+    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        Ok(ResourceUsage::default())
     }
 }
 
@@ -1030,5 +1494,70 @@ mod tests {
 
         let sandboxes = manager.list().await;
         assert_eq!(sandboxes.len(), 0);
+    }
+
+    #[test]
+    fn test_firecracker_backend_stub() {
+        let backend = FirecrackerSandboxBackend::new();
+        // Verify it's constructible and implements Default
+        let _default = FirecrackerSandboxBackend::default();
+        let _ = &backend;
+    }
+
+    #[test]
+    fn test_gvisor_backend_stub() {
+        let backend = GVisorSandboxBackend::new();
+        let _default = GVisorSandboxBackend::default();
+        let _ = &backend;
+    }
+
+    #[test]
+    fn test_wasm_backend_stub() {
+        let backend = WasmSandboxBackend::new();
+        let _default = WasmSandboxBackend::default();
+        let _ = &backend;
+    }
+
+    #[tokio::test]
+    async fn test_firecracker_backend_returns_error() {
+        let backend = FirecrackerSandboxBackend::new();
+        let config = SandboxConfig::process("test", vec!["echo".to_string()]);
+        let result = backend.create(&config).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_gvisor_backend_returns_error() {
+        let backend = GVisorSandboxBackend::new();
+        let config = SandboxConfig::process("test", vec!["echo".to_string()]);
+        let result = backend.create(&config).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_wasm_backend_returns_error() {
+        let backend = WasmSandboxBackend::new();
+        let config = SandboxConfig::wasm("test", "module.wasm");
+        let result = backend.create(&config).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_process_sandbox_echo_with_args() {
+        let backend = ProcessSandboxBackend::new();
+        let config = SandboxConfig::process(
+            "echo-test",
+            vec!["echo".to_string(), "hello world".to_string()],
+        );
+
+        let mut instance = backend.create(&config).await.unwrap();
+        assert_eq!(instance.state, SandboxState::Ready);
+
+        backend.start(&mut instance).await.unwrap();
+        assert_eq!(instance.state, SandboxState::Running);
+
+        let result = backend.wait(&instance).await.unwrap();
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.stdout.trim(), "hello world");
     }
 }

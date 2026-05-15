@@ -219,7 +219,7 @@ impl Default for StorageConfig {
         Self {
             etcd_endpoints: "http://localhost:2379".into(),
             sqlite_url: "sqlite://kias.db".into(),
-            cache_mode: "local".into(),
+            cache_mode: "sqlite".into(),
         }
     }
 }

@@ -196,3 +196,199 @@ impl EventCollector {
         self.events().iter().map(|e| e.summary()).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stream_emit_and_subscribe() {
+        let stream = ExecutionStream::new();
+        let mut rx = stream.subscribe();
+
+        stream.emit(ExecutionEvent::NodeStart {
+            node: "a".to_string(),
+            step: 0,
+            timestamp_ms: 100,
+        });
+
+        let event = rx.try_recv().unwrap();
+        match event {
+            ExecutionEvent::NodeStart { node, step, .. } => {
+                assert_eq!(node, "a");
+                assert_eq!(step, 0);
+            }
+            _ => panic!("Expected NodeStart"),
+        }
+    }
+
+    #[test]
+    fn test_stream_with_capacity() {
+        let stream = ExecutionStream::with_capacity(64);
+        let mut rx = stream.subscribe();
+
+        stream.emit(ExecutionEvent::Completed {
+            total_steps: 5,
+            total_duration_ms: 1000,
+        });
+
+        let event = rx.try_recv().unwrap();
+        assert!(matches!(event, ExecutionEvent::Completed { .. }));
+    }
+
+    #[test]
+    fn test_stream_subscriber_count() {
+        let stream = ExecutionStream::new();
+        assert_eq!(stream.subscriber_count(), 0);
+
+        let _rx1 = stream.subscribe();
+        assert_eq!(stream.subscriber_count(), 1);
+
+        let _rx2 = stream.subscribe();
+        assert_eq!(stream.subscriber_count(), 2);
+
+        drop(_rx1);
+        assert_eq!(stream.subscriber_count(), 1);
+    }
+
+    #[test]
+    fn test_stream_emit_no_subscribers() {
+        let stream = ExecutionStream::new();
+        // Should not panic even with no subscribers
+        stream.emit(ExecutionEvent::Failed {
+            node: "x".to_string(),
+            error: "test".to_string(),
+        });
+    }
+
+    #[test]
+    fn test_default_stream() {
+        let stream = ExecutionStream::default();
+        assert_eq!(stream.subscriber_count(), 0);
+    }
+
+    #[test]
+    fn test_event_collector() {
+        let collector = EventCollector::new();
+        assert!(collector.is_empty());
+        assert_eq!(collector.len(), 0);
+
+        collector.push(ExecutionEvent::NodeStart {
+            node: "a".to_string(),
+            step: 0,
+            timestamp_ms: 100,
+        });
+        assert!(!collector.is_empty());
+        assert_eq!(collector.len(), 1);
+
+        collector.push(ExecutionEvent::Completed {
+            total_steps: 1,
+            total_duration_ms: 50,
+        });
+        assert_eq!(collector.len(), 2);
+    }
+
+    #[test]
+    fn test_event_collector_events() {
+        let collector = EventCollector::new();
+        collector.push(ExecutionEvent::NodeStart {
+            node: "a".to_string(),
+            step: 0,
+            timestamp_ms: 100,
+        });
+
+        let events = collector.events();
+        assert_eq!(events.len(), 1);
+    }
+
+    #[test]
+    fn test_event_collector_summaries() {
+        let collector = EventCollector::new();
+        collector.push(ExecutionEvent::NodeStart {
+            node: "process".to_string(),
+            step: 2,
+            timestamp_ms: 100,
+        });
+        collector.push(ExecutionEvent::Completed {
+            total_steps: 5,
+            total_duration_ms: 500,
+        });
+
+        let summaries = collector.summaries();
+        assert_eq!(summaries.len(), 2);
+        assert!(summaries[0].contains("process"));
+        assert!(summaries[1].contains("Done"));
+    }
+
+    #[test]
+    fn test_default_collector() {
+        let collector = EventCollector::default();
+        assert!(collector.is_empty());
+    }
+
+    #[test]
+    fn test_event_summary_all_variants() {
+        let events = vec![
+            ExecutionEvent::NodeStart {
+                node: "a".into(),
+                step: 0,
+                timestamp_ms: 1,
+            },
+            ExecutionEvent::NodeComplete {
+                node: "a".into(),
+                step: 0,
+                duration_ms: 10,
+                timestamp_ms: 2,
+            },
+            ExecutionEvent::NodeError {
+                node: "a".into(),
+                step: 0,
+                error: "err".into(),
+                timestamp_ms: 3,
+            },
+            ExecutionEvent::EdgeTaken {
+                from: "a".into(),
+                to: "b".into(),
+                is_conditional: false,
+            },
+            ExecutionEvent::Interrupted {
+                node: "a".into(),
+                reason: "human".into(),
+                checkpoint_id: None,
+            },
+            ExecutionEvent::Completed {
+                total_steps: 3,
+                total_duration_ms: 100,
+            },
+            ExecutionEvent::Failed {
+                node: "a".into(),
+                error: "boom".into(),
+            },
+            ExecutionEvent::CheckpointSaved {
+                checkpoint_id: "12345678-abcd".into(),
+                node: "a".into(),
+            },
+            ExecutionEvent::Resumed {
+                checkpoint_id: "12345678-abcd".into(),
+                node: "a".into(),
+            },
+            ExecutionEvent::BranchStart {
+                source: "a".into(),
+                branches: vec!["b".into(), "c".into()],
+            },
+            ExecutionEvent::BranchComplete {
+                source: "a".into(),
+                branches: vec!["b".into(), "c".into()],
+            },
+        ];
+
+        for event in &events {
+            let summary = event.summary();
+            assert!(
+                !summary.is_empty(),
+                "Summary should not be empty for {:?}",
+                event
+            );
+        }
+    }
+}

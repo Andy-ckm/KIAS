@@ -12,6 +12,23 @@ pub struct Node {
     /// Optional executor configuration for this node.
     /// When set, the engine dispatches to the appropriate executor.
     pub executor: Option<ExecutorConfig>,
+    /// Optional compensating action for saga rollback.
+    /// When set, the engine executes this action in reverse order if a
+    /// downstream node fails (saga pattern).
+    pub compensating_action: Option<CompensatingAction>,
+}
+
+/// A compensating action for saga-pattern rollback.
+///
+/// When a workflow fails mid-execution, the engine walks the list of
+/// successfully-completed nodes in reverse and executes each one's
+/// `CompensatingAction` to undo its side-effects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompensatingAction {
+    /// Human-readable description (for logging / debugging).
+    pub description: String,
+    /// The executor to run for compensation.
+    pub executor: ExecutorConfig,
 }
 
 /// Node types (inspired by LangGraph)
@@ -167,6 +184,7 @@ impl Node {
             node_type,
             config: serde_json::json!({}),
             executor: None,
+            compensating_action: None,
         }
     }
 
@@ -177,6 +195,11 @@ impl Node {
 
     pub fn with_executor(mut self, executor: ExecutorConfig) -> Self {
         self.executor = Some(executor);
+        self
+    }
+
+    pub fn with_compensating_action(mut self, action: CompensatingAction) -> Self {
+        self.compensating_action = Some(action);
         self
     }
 }
@@ -260,5 +283,25 @@ mod tests {
             });
         assert_eq!(node.config["key"], "value");
         assert!(node.executor.is_some());
+    }
+
+    #[test]
+    fn test_node_with_compensating_action() {
+        let comp = CompensatingAction {
+            description: "Delete the created resource".into(),
+            executor: ExecutorConfig::Shell {
+                command: "rm".into(),
+                args: vec!["-rf".into(), "/tmp/resource".into()],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: Some(10),
+            },
+        };
+        let node = Node::new("n1", "Create", NodeType::Process).with_compensating_action(comp);
+        assert!(node.compensating_action.is_some());
+        assert_eq!(
+            node.compensating_action.as_ref().unwrap().description,
+            "Delete the created resource"
+        );
     }
 }

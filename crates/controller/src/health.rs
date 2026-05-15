@@ -10,6 +10,7 @@
 use crate::heartbeat::{HeartbeatAction, HeartbeatConfig, HeartbeatMonitor};
 use crate::recovery::{RecoveryAction, RecoveryConfig, RecoveryManager};
 use crate::state::ControllerState;
+use rand::Rng;
 
 /// Configuration for the health checking loop.
 #[derive(Debug, Clone)]
@@ -20,6 +21,13 @@ pub struct HealthCheckConfig {
     pub heartbeat: HeartbeatConfig,
     /// Recovery manager configuration.
     pub recovery: RecoveryConfig,
+    /// Jitter percentage for the health check interval (0-100).
+    /// A value of 10 means ±10% random jitter is applied to the interval.
+    pub jitter_percent: u64,
+    /// Maximum number of agents that can be marked as failed in a single
+    /// health check cycle. This prevents a cascade where one agent's failure
+    /// triggers a thundering herd of recovery actions that starve healthy agents.
+    pub max_cascade_failures: usize,
 }
 
 impl Default for HealthCheckConfig {
@@ -28,6 +36,8 @@ impl Default for HealthCheckConfig {
             check_interval_ms: 15_000,
             heartbeat: HeartbeatConfig::default(),
             recovery: RecoveryConfig::default(),
+            jitter_percent: 10,
+            max_cascade_failures: 3,
         }
     }
 }
@@ -113,9 +123,25 @@ impl HealthChecker {
         // Phase 2: Process recovery for failed/unresponsive agents.
         let recovery_actions = self.recovery_manager.process_recovery(state);
 
+        // Phase 2b: Cascade isolation — limit how many agents can transition
+        // to a failed/restarted state per cycle to prevent cascading failures.
+        let mut cascade_failures = 0usize;
+
         for (_, action) in &recovery_actions {
             match action {
-                RecoveryAction::Restarted => summary.restarted += 1,
+                RecoveryAction::Restarted => {
+                    if cascade_failures < self.config.max_cascade_failures {
+                        summary.restarted += 1;
+                        cascade_failures += 1;
+                    } else {
+                        // Cascade limit hit — defer this recovery to next cycle.
+                        tracing::warn!(
+                            "Cascade isolation: deferring recovery (limit {} per cycle)",
+                            self.config.max_cascade_failures
+                        );
+                        summary.waiting_for_backoff += 1;
+                    }
+                }
                 RecoveryAction::WaitingForBackoff => summary.waiting_for_backoff += 1,
                 RecoveryAction::PermanentlyFailed => summary.permanently_failed += 1,
                 RecoveryAction::NoAction => summary.no_action += 1,
@@ -150,6 +176,19 @@ impl HealthChecker {
     /// Get the configured check interval in milliseconds.
     pub fn check_interval_ms(&self) -> u64 {
         self.config.check_interval_ms
+    }
+
+    /// Get the check interval with random jitter applied.
+    ///
+    /// Returns a value in the range `[interval * (1 - jitter%), interval * (1 + jitter%)]`.
+    /// This prevents thundering herd when multiple controllers check at the same time.
+    pub fn jittered_check_interval_ms(&self) -> u64 {
+        let base = self.config.check_interval_ms as f64;
+        let jitter_frac = self.config.jitter_percent as f64 / 100.0;
+        let min = base * (1.0 - jitter_frac);
+        let max = base * (1.0 + jitter_frac);
+        let mut rng = rand::thread_rng();
+        rng.gen_range(min..=max) as u64
     }
 
     /// Get a reference to the heartbeat monitor.
@@ -206,13 +245,17 @@ mod tests {
             heartbeat: HeartbeatConfig {
                 check_interval_secs: 5,
                 timeout_secs,
+                jitter_percent: 0,
             },
             recovery: RecoveryConfig {
                 max_retries,
                 base_backoff_secs: 1,
                 max_backoff_secs: 60,
                 backoff_multiplier: 2.0,
+                jitter_percent: 0,
             },
+            jitter_percent: 0,
+            max_cascade_failures: 100,
         }
     }
 
@@ -417,5 +460,86 @@ mod tests {
         assert_eq!(summary.alive, 3); // running1, running2, pending1 (alive heartbeat)
         assert_eq!(summary.restarted, 1); // failed1
                                           // succeeded1: heartbeat NoAction + recovery NoAction
+    }
+
+    #[test]
+    fn test_jittered_check_interval_in_range() {
+        let mut config = make_config(60, 3);
+        config.check_interval_ms = 10_000;
+        config.jitter_percent = 10;
+        let checker = HealthChecker::new(config);
+
+        // With 10% jitter, the range should be [9000, 11000].
+        for _ in 0..100 {
+            let interval = checker.jittered_check_interval_ms();
+            assert!(interval >= 9000, "interval {interval} below min 9000");
+            assert!(interval <= 11000, "interval {interval} above max 11000");
+        }
+    }
+
+    #[test]
+    fn test_jittered_check_interval_zero_jitter() {
+        let mut config = make_config(60, 3);
+        config.check_interval_ms = 5000;
+        config.jitter_percent = 0;
+        let checker = HealthChecker::new(config);
+
+        // With 0% jitter, the interval should always be exact.
+        for _ in 0..20 {
+            assert_eq!(checker.jittered_check_interval_ms(), 5000);
+        }
+    }
+
+    #[test]
+    fn test_cascade_isolation_limits_restarts_per_cycle() {
+        let mut config = make_config(60, 3);
+        config.max_cascade_failures = 1; // Only allow 1 restart per cycle
+        let mut checker = HealthChecker::new(config);
+        let mut state = make_state();
+
+        // 3 failed agents
+        add_agent(&mut state, "a1", AgentStatus::Failed);
+        add_agent(&mut state, "a2", AgentStatus::Failed);
+        add_agent(&mut state, "a3", AgentStatus::Failed);
+
+        checker.register_agent("a1");
+        checker.register_agent("a2");
+        checker.register_agent("a3");
+
+        let summary = checker.check(&mut state);
+
+        // Only 1 should be restarted due to cascade isolation limit.
+        assert_eq!(summary.restarted, 1);
+        // The other 2 should be deferred (counted as waiting_for_backoff).
+        assert_eq!(summary.waiting_for_backoff, 2);
+    }
+
+    #[test]
+    fn test_cascade_isolation_high_limit_allows_all() {
+        let mut config = make_config(60, 3);
+        config.max_cascade_failures = 100; // High limit
+        let mut checker = HealthChecker::new(config);
+        let mut state = make_state();
+
+        add_agent(&mut state, "a1", AgentStatus::Failed);
+        add_agent(&mut state, "a2", AgentStatus::Failed);
+        add_agent(&mut state, "a3", AgentStatus::Failed);
+
+        checker.register_agent("a1");
+        checker.register_agent("a2");
+        checker.register_agent("a3");
+
+        let summary = checker.check(&mut state);
+
+        // All 3 should restart since limit is high.
+        assert_eq!(summary.restarted, 3);
+        assert_eq!(summary.waiting_for_backoff, 0);
+    }
+
+    #[test]
+    fn test_default_config_has_jitter() {
+        let config = HealthCheckConfig::default();
+        assert_eq!(config.jitter_percent, 10);
+        assert_eq!(config.max_cascade_failures, 3);
     }
 }

@@ -8,6 +8,7 @@
 
 use chrono::Utc;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use kias_controller::reconciler::{DefaultReconciler, NoOpSpawner, Reconciler};
 use kias_controller::state::{
     ActualState, AgentConfig, AgentInfo, AgentStatus, ControllerState, DesiredState,
     ResourceRequirements,
@@ -159,6 +160,76 @@ fn bench_agent_info_ops(c: &mut Criterion) {
     group.finish();
 }
 
+fn make_controller_state_with_running(agent_count: usize) -> ControllerState {
+    let mut agents = HashMap::with_capacity(agent_count);
+    for i in 0..agent_count {
+        let mut info = AgentInfo::new(format!("agent-{}", i), format!("agent-{}", i));
+        info.status = AgentStatus::Running;
+        agents.insert(format!("agent-{}", i), info);
+    }
+
+    ControllerState {
+        desired: DesiredState {
+            replicas: agent_count as u32,
+            agent_config: AgentConfig {
+                name: "bench".to_string(),
+                image: "bench:latest".to_string(),
+                resources: ResourceRequirements {
+                    cpu: "100m".to_string(),
+                    memory: "128Mi".to_string(),
+                },
+            },
+        },
+        actual: ActualState {
+            running_replicas: agent_count as u32,
+            agent_status: AgentStatus::Running,
+            last_updated: Utc::now(),
+        },
+        agents,
+    }
+}
+
+// ── Reconciliation loop ───────────────────────────────────────────────────
+
+fn bench_reconcile_scale_up(c: &mut Criterion) {
+    let mut group = c.benchmark_group("controller/reconcile_scale_up");
+    let reconciler = DefaultReconciler::<NoOpSpawner>::default();
+
+    for count in &[5, 20, 50, 100] {
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, _| {
+            let rt = tokio::runtime::Runtime::new().expect("rt");
+            b.iter(|| {
+                let mut state = make_controller_state(*count);
+                // Set desired higher than actual to trigger scale-up
+                state.desired.replicas = (*count as u32) + 10;
+                rt.block_on(async {
+                    black_box(reconciler.reconcile(&mut state).await.unwrap());
+                });
+            });
+        });
+    }
+    group.finish();
+}
+
+fn bench_reconcile_noop(c: &mut Criterion) {
+    let mut group = c.benchmark_group("controller/reconcile_noop");
+    let reconciler = DefaultReconciler::<NoOpSpawner>::default();
+
+    for count in &[50, 500, 1_000, 5_000] {
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, _| {
+            let rt = tokio::runtime::Runtime::new().expect("rt");
+            b.iter(|| {
+                // State already at desired → reconcile should be a no-op
+                let mut state = make_controller_state_with_running(*count);
+                rt.block_on(async {
+                    black_box(reconciler.reconcile(&mut state).await.unwrap());
+                });
+            });
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_count_by_status,
@@ -166,5 +237,7 @@ criterion_group!(
     bench_sync_running,
     bench_recovery_scan,
     bench_agent_info_ops,
+    bench_reconcile_scale_up,
+    bench_reconcile_noop,
 );
 criterion_main!(benches);

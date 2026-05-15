@@ -124,31 +124,25 @@ cache:
 - 多节点集群
 - Agent 迁移后继续使用缓存
 
-**实现**：
+**当前实现**（SQLite + 内存缓存）：
 ```rust
-struct DistributedCache {
-    // 本地缓存
-    local: PrefixCache,
-    // Redis 连接
-    redis: RedisClient,
-    // 一致性哈希
-    ring: ConsistentHashRing,
+struct LocalCache {
+    // SQLite 持久化缓存
+    sqlite: SqliteCacheStrategy,
+    // 内存 LRU 缓存
+    memory: LruCache<String, CacheEntry>,
 }
 
-impl DistributedCache {
-    async fn get(&self, key: &str) -> Option<KvCache> {
-        // 先查本地
-        if let Some(kv) = self.local.get(key) {
-            return Some(kv);
+impl LocalCache {
+    async fn get(&self, key: &str) -> Option<CacheEntry> {
+        // 先查内存
+        if let Some(entry) = self.memory.get(key) {
+            return Some(entry.clone());
         }
-        
-        // 再查 Redis
-        let node = self.ring.get_node(key);
-        let kv = self.redis.get(key).await?;
-        
-        // 写入本地缓存
-        self.local.put(key, kv.clone());
-        Some(kv)
+        // 再查 SQLite（带 TTL 检查）
+        let entry = self.sqlite.get(key).await.ok()??;
+        self.memory.put(key.to_string(), entry.clone());
+        Some(entry)
     }
 }
 ```
@@ -156,11 +150,12 @@ impl DistributedCache {
 **配置**：
 ```yaml
 cache:
-  distributed:
-    enabled: true
-    redis_url: redis://localhost:6379
-    consistency: eventual  # eventual | strong
+  mode: sqlite  # sqlite (持久化) 或 memory (纯内存)
+  ttl_seconds: 3600
+  namespace: default
 ```
+
+> **注意**：KIAS 当前不依赖 Redis。缓存层使用 SQLite 持久化 + 内存 LRU。分布式缓存（Redis）是未来扩展方向。
 
 ## 缓存命中策略
 

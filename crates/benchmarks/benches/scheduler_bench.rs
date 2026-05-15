@@ -38,6 +38,7 @@ fn make_agent(id: &str) -> Agent {
         system_prompt_hash: Some(42),
         affinity: None,
         anti_affinity: None,
+            tenant_id: None,
     }
 }
 

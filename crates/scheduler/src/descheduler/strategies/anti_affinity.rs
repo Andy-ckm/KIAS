@@ -157,6 +157,7 @@ mod tests {
                 avoid_labels: Default::default(),
                 avoid_agent_types: avoid_types.into_iter().map(String::from).collect(),
             }),
+            tenant_id: None,
         }
     }
 
@@ -169,6 +170,7 @@ mod tests {
             system_prompt_hash: None,
             affinity: None,
             anti_affinity: None,
+            tenant_id: None,
         }
     }
 

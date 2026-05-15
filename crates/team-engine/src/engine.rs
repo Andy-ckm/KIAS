@@ -201,6 +201,19 @@ impl TeamEngine {
 
     /// 重试被拒绝的任务
     pub fn retry_task(&mut self, task_id: &str) -> KiasResult<()> {
+        // First, validate and get the previous assigned worker (if any)
+        let previous_worker_id = self
+            .state
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?
+            .assigned_to
+            .clone();
+
+        // Set status to Assigned first
         let task = self
             .state
             .tasks
@@ -218,9 +231,114 @@ impl TeamEngine {
 
         task.status = TaskStatus::Assigned;
         task.updated_at = Utc::now();
+        tracing::info!(task_id = %task_id, "Task status reset to Assigned for retry");
 
-        tracing::info!(task_id = %task_id, "Task retried");
+        // Now reassign to an available worker (prefer different worker)
+        self.reassign_task(task_id, previous_worker_id.as_deref())?;
+
         Ok(())
+    }
+
+    /// Reassign a task to an available worker (optionally preferring a different worker
+    /// than the one specified by `exclude_worker_id`).
+    pub fn reassign_task(
+        &mut self,
+        task_id: &str,
+        exclude_worker_id: Option<&str>,
+    ) -> KiasResult<()> {
+        // Find an available Idle worker, preferring one different from exclude_worker_id
+        let worker_id = self
+            .state
+            .workers
+            .iter()
+            .filter(|w| w.status == AgentStatus::Idle)
+            .min_by_key(|w| {
+                // Prefer a different worker for diversity, then fall back to any idle
+                if Some(w.id.as_str()) == exclude_worker_id {
+                    1
+                } else {
+                    0
+                }
+            })
+            .map(|w| w.id.clone())
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler(
+                    "No idle workers available for reassignment".to_string(),
+                )
+            })?;
+
+        // Set the worker to Busy with this task
+        let worker = self
+            .state
+            .workers
+            .iter_mut()
+            .find(|w| w.id == worker_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Worker not found".to_string())
+            })?;
+
+        worker.status = AgentStatus::Busy;
+        worker.current_task = Some(task_id.to_string());
+
+        // Update task assigned_to and set status to InProgress
+        let task = self
+            .state
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
+
+        task.assigned_to = Some(worker_id.clone());
+        task.status = TaskStatus::InProgress;
+        task.updated_at = Utc::now();
+
+        tracing::info!(task_id = %task_id, worker_id = %worker_id, "Task reassigned to worker");
+        Ok(())
+    }
+
+    /// Execute a task with automatic retry loop.
+    ///
+    /// The flow is: Assign -> Complete -> Verify (via callback) -> If rejected, retry.
+    /// The `should_pass` closure receives the attempt number (0-indexed) and returns
+    /// `true` if the verifier accepts, `false` to reject.
+    /// Returns the final task status.
+    pub fn execute_with_retry(
+        &mut self,
+        task_id: &str,
+        worker_id: &str,
+        verifier_id: &str,
+        mut should_pass: impl FnMut(u32) -> bool,
+    ) -> KiasResult<TaskStatus> {
+        // Initial assignment
+        self.assign_task(task_id, worker_id)?;
+
+        let mut attempt = 0u32;
+        loop {
+            // Worker completes the task
+            self.complete_task(task_id)?;
+
+            // Verifier checks the task
+            let passed = should_pass(attempt);
+            self.verify_task(task_id, verifier_id, passed)?;
+
+            let status = self.get_task_status(task_id).ok_or_else(|| {
+                kias_common::error::KiasError::Scheduler("Task not found".to_string())
+            })?;
+
+            match status {
+                TaskStatus::Verified => return Ok(TaskStatus::Verified),
+                TaskStatus::Failed => return Ok(TaskStatus::Failed),
+                TaskStatus::Rejected => {
+                    // Retry: reassign to a (possibly different) worker
+                    attempt += 1;
+                    self.retry_task(task_id)?;
+                    // Continue the loop - worker will complete again
+                }
+                _ => return Ok(status),
+            }
+        }
     }
 
     /// 获取 Team 状态
@@ -236,7 +354,26 @@ impl TeamEngine {
             .find(|t| t.id == task_id)
             .map(|t| t.status.clone())
     }
+
+    /// 获取任务的 assigned_to agent id
+    pub fn get_task_assigned_to(&self, task_id: &str) -> Option<String> {
+        self.state
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .and_then(|t| t.assigned_to.clone())
+    }
+
+    /// 获取任务的 retry_count
+    pub fn get_task_retry_count(&self, task_id: &str) -> Option<u32> {
+        self.state
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
+            .map(|t| t.retry_count)
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,7 +489,10 @@ mod tests {
         assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
 
         engine.retry_task(&task_id).unwrap();
-        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Assigned));
+        // retry_task now reassigns to a worker, setting status to InProgress
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::InProgress));
+        // Worker should be Busy
+        assert_eq!(engine.get_state().workers[0].status, AgentStatus::Busy);
     }
 
     #[test]
@@ -362,15 +502,22 @@ mod tests {
         let verifier_id = engine.add_verifier("v");
         let task_id = engine.create_task("t", "d");
 
-        // Reject 3 times (max_retries = 3)
-        for _ in 0..3 {
-            engine.assign_task(&task_id, &worker_id).unwrap();
-            engine.complete_task(&task_id).unwrap();
-            engine.verify_task(&task_id, &verifier_id, false).unwrap();
-            if engine.get_task_status(&task_id) == Some(TaskStatus::Rejected) {
-                engine.retry_task(&task_id).unwrap();
-            }
-        }
+        // Initial assignment + reject
+        engine.assign_task(&task_id, &worker_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
+
+        // Retry 1 -> reject (retry_count becomes 2)
+        engine.retry_task(&task_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
+
+        // Retry 2 -> reject (retry_count becomes 3, which >= max_retries=3 -> Failed)
+        engine.retry_task(&task_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
         assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Failed));
     }
 
@@ -404,5 +551,150 @@ mod tests {
         assert_eq!(engine.get_task_status(&tid), Some(TaskStatus::Completed));
         engine.verify_task(&tid, &vid, true).unwrap();
         assert_eq!(engine.get_task_status(&tid), Some(TaskStatus::Verified));
+    }
+
+    #[test]
+    fn test_retry_triggers_re_execution() {
+        // Rejected task gets reassigned to a worker (not stuck in Assigned)
+        let mut engine = TeamEngine::new("owner");
+        let worker_id = engine.add_worker("w");
+        let verifier_id = engine.add_verifier("v");
+        let task_id = engine.create_task("t", "d");
+
+        // Assign -> complete -> reject
+        engine.assign_task(&task_id, &worker_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
+
+        // Retry should reassign to worker with InProgress status
+        engine.retry_task(&task_id).unwrap();
+        assert_eq!(
+            engine.get_task_status(&task_id),
+            Some(TaskStatus::InProgress)
+        );
+
+        // Worker should be Busy (task is actually being worked on)
+        let assigned_worker = engine.get_task_assigned_to(&task_id).unwrap();
+        let worker = engine
+            .get_state()
+            .workers
+            .iter()
+            .find(|w| w.id == assigned_worker)
+            .unwrap();
+        assert_eq!(worker.status, AgentStatus::Busy);
+        assert_eq!(worker.current_task, Some(task_id.clone()));
+    }
+
+    #[test]
+    fn test_retry_exhaustion() {
+        // Fails after max_retries
+        let mut engine = TeamEngine::new("owner");
+        let worker_id = engine.add_worker("w");
+        let verifier_id = engine.add_verifier("v");
+        let task_id = engine.create_task("t", "d");
+
+        // max_retries is 3, so 3 rejections should lead to Failed
+        // Attempt 0 (initial): reject -> retry_count=1
+        engine.assign_task(&task_id, &worker_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
+        assert_eq!(engine.get_task_retry_count(&task_id), Some(1));
+
+        // Attempt 1: retry -> complete -> reject -> retry_count=2
+        engine.retry_task(&task_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Rejected));
+        assert_eq!(engine.get_task_retry_count(&task_id), Some(2));
+
+        // Attempt 2: retry -> complete -> reject -> retry_count=3 >= max_retries -> Failed
+        engine.retry_task(&task_id).unwrap();
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::Failed));
+        assert_eq!(engine.get_task_retry_count(&task_id), Some(3));
+
+        // Cannot retry a Failed task
+        let result = engine.retry_task(&task_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_retry_with_different_worker() {
+        // Prefers different worker on retry
+        let mut engine = TeamEngine::new("owner");
+        let worker1_id = engine.add_worker("w1");
+        let worker2_id = engine.add_worker("w2");
+        let verifier_id = engine.add_verifier("v");
+        let task_id = engine.create_task("t", "d");
+
+        // Assign to worker1 -> complete -> reject
+        engine.assign_task(&task_id, &worker1_id).unwrap();
+        assert_eq!(
+            engine.get_task_assigned_to(&task_id),
+            Some(worker1_id.clone())
+        );
+        engine.complete_task(&task_id).unwrap();
+        engine.verify_task(&task_id, &verifier_id, false).unwrap();
+
+        // After complete_task, worker1 is Idle again. Both workers are Idle.
+        // retry_task should prefer worker2 (different from worker1)
+        engine.retry_task(&task_id).unwrap();
+        assert_eq!(
+            engine.get_task_assigned_to(&task_id),
+            Some(worker2_id.clone())
+        );
+
+        // Worker2 should be Busy, Worker1 should still be Idle
+        let w1 = engine
+            .get_state()
+            .workers
+            .iter()
+            .find(|w| w.id == worker1_id)
+            .unwrap();
+        let w2 = engine
+            .get_state()
+            .workers
+            .iter()
+            .find(|w| w.id == worker2_id)
+            .unwrap();
+        assert_eq!(w1.status, AgentStatus::Idle);
+        assert_eq!(w2.status, AgentStatus::Busy);
+    }
+
+    #[test]
+    fn test_execute_with_retry_full_loop() {
+        // End-to-end retry flow using execute_with_retry
+        let mut engine = TeamEngine::new("owner");
+        let worker_id = engine.add_worker("w");
+        let verifier_id = engine.add_verifier("v");
+        let task_id = engine.create_task("t", "d");
+
+        // Reject the first 2 attempts, accept on the 3rd
+        let result = engine
+            .execute_with_retry(&task_id, &worker_id, &verifier_id, |attempt| attempt >= 2)
+            .unwrap();
+
+        assert_eq!(result, TaskStatus::Verified);
+        assert_eq!(engine.get_task_retry_count(&task_id), Some(2));
+    }
+
+    #[test]
+    fn test_execute_with_retry_exhaustion() {
+        // execute_with_retry fails when verifier always rejects
+        let mut engine = TeamEngine::new("owner");
+        let worker_id = engine.add_worker("w");
+        let verifier_id = engine.add_verifier("v");
+        let task_id = engine.create_task("t", "d");
+
+        // Always reject -> should fail after max_retries (3)
+        let result = engine
+            .execute_with_retry(&task_id, &worker_id, &verifier_id, |_attempt| false)
+            .unwrap();
+
+        assert_eq!(result, TaskStatus::Failed);
+        assert_eq!(engine.get_task_retry_count(&task_id), Some(3));
     }
 }

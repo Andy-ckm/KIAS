@@ -91,6 +91,7 @@ pub fn make_agents(n: usize) -> Vec<Agent> {
                 system_prompt_hash: Some((i as u64) % 10),
                 affinity: None,
                 anti_affinity: None,
+            tenant_id: None,
             }
         })
         .collect()
@@ -159,6 +160,7 @@ pub fn make_gpu_agents(n: usize) -> Vec<Agent> {
             system_prompt_hash: None,
             affinity: None,
             anti_affinity: None,
+            tenant_id: None,
         })
         .collect()
 }
@@ -220,6 +222,7 @@ pub fn make_agents_with_affinity(n: usize) -> Vec<Agent> {
                 system_prompt_hash: None,
                 affinity,
                 anti_affinity: None,
+            tenant_id: None,
             }
         })
         .collect()

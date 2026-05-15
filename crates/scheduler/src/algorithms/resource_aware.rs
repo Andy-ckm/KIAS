@@ -140,6 +140,7 @@ mod tests {
             system_prompt_hash: None,
             affinity: None,
             anti_affinity: None,
+            tenant_id: None,
         }
     }
 

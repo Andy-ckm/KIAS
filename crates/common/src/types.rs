@@ -107,6 +107,9 @@ pub struct Agent {
     /// Node anti-affinity rules
     #[serde(default)]
     pub anti_affinity: Option<AntiAffinity>,
+    /// Tenant identifier for multi-tenant isolation
+    #[serde(default)]
+    pub tenant_id: Option<String>,
 }
 
 /// Affinity: prefer/require nodes matching labels

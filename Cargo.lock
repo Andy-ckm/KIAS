@@ -1974,6 +1974,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "dashmap",
+ "kias-autonomy-controller",
  "kias-common",
  "rand 0.8.6",
  "serde",

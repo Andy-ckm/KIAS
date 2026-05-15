@@ -13,5 +13,6 @@ uuid = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
+chrono = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 dashmap = "6"

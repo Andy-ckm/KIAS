@@ -1087,7 +1087,13 @@ impl SandboxManager {
         let sandbox_dir = std::env::temp_dir()
             .join("kias-sandbox")
             .join(sandbox_id);
-        let dest_root = sandbox_dir.join(&projection.sandbox_dest);
+
+        // Ensure sandbox_dest is treated as relative to sandbox_dir
+        let dest_root = if projection.sandbox_dest.is_absolute() {
+            sandbox_dir.join(projection.sandbox_dest.strip_prefix("/").unwrap_or(&projection.sandbox_dest))
+        } else {
+            sandbox_dir.join(&projection.sandbox_dest)
+        };
 
         let mut copied_count: usize = 0;
 
@@ -2031,5 +2037,314 @@ mod tests {
         let result = backend.wait(&instance).await.unwrap();
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout.trim(), "hello world");
+    }
+
+    // -----------------------------------------------------------------------
+    // Snapshot & State Recovery Tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_isolation_level_display() {
+        assert_eq!(IsolationLevel::Session.to_string(), "session");
+        assert_eq!(IsolationLevel::User.to_string(), "user");
+        assert_eq!(IsolationLevel::Global.to_string(), "global");
+    }
+
+    #[test]
+    fn test_isolation_level_default() {
+        assert_eq!(IsolationLevel::default(), IsolationLevel::Session);
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_new() {
+        let snap = SandboxSnapshot::new("sb-1", IsolationLevel::User);
+        assert_eq!(snap.sandbox_id, "sb-1");
+        assert_eq!(snap.isolation_level, IsolationLevel::User);
+        assert!(snap.files.is_empty());
+        assert!(snap.env.is_empty());
+        assert!(snap.workdir.is_none());
+        assert!(snap.owner.is_none());
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_builder() {
+        let snap = SandboxSnapshot::new("sb-2", IsolationLevel::Global)
+            .with_owner("admin")
+            .with_description("baseline snapshot");
+        assert_eq!(snap.owner, Some("admin".to_string()));
+        assert_eq!(snap.description, Some("baseline snapshot".to_string()));
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_add_file() {
+        let mut snap = SandboxSnapshot::new("sb-3", IsolationLevel::Session);
+        snap.add_file("config.toml", b"key = 'value'".to_vec());
+        snap.add_file("data/input.json", b"{}".to_vec());
+        assert_eq!(snap.files.len(), 2);
+        assert_eq!(snap.files.get("config.toml").unwrap(), &b"key = 'value'");
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_json_roundtrip() {
+        let mut snap = SandboxSnapshot::new("sb-4", IsolationLevel::User)
+            .with_owner("alice")
+            .with_description("test snap");
+        snap.env.insert("FOO".into(), "bar".into());
+        snap.workdir = Some(PathBuf::from("/work"));
+        snap.add_file("hello.txt", b"world".to_vec());
+
+        let json = snap.to_json().unwrap();
+        let restored = SandboxSnapshot::from_json(&json).unwrap();
+
+        assert_eq!(restored.sandbox_id, "sb-4");
+        assert_eq!(restored.isolation_level, IsolationLevel::User);
+        assert_eq!(restored.owner, Some("alice".to_string()));
+        assert_eq!(restored.env.get("FOO").unwrap(), "bar");
+        assert_eq!(restored.workdir, Some(PathBuf::from("/work")));
+        assert_eq!(restored.files.get("hello.txt").unwrap(), &b"world"[..]);
+    }
+
+    #[test]
+    fn test_workspace_projection_default() {
+        let proj = WorkspaceProjection::default();
+        assert_eq!(proj.workspace_root, PathBuf::from("."));
+        assert_eq!(proj.sandbox_dest, PathBuf::from("/workspace"));
+        assert!(proj.includes.contains(&"AGENTS.md".to_string()));
+        assert!(proj.includes.contains(&"skills/".to_string()));
+        assert!(proj.includes.contains(&"knowledge/".to_string()));
+    }
+
+    #[test]
+    fn test_workspace_projection_builder() {
+        let proj = WorkspaceProjection::new("/my/workspace")
+            .with_includes(vec!["README.md".to_string(), "src/".to_string()])
+            .with_sandbox_dest("/app");
+        assert_eq!(proj.workspace_root, PathBuf::from("/my/workspace"));
+        assert_eq!(proj.sandbox_dest, PathBuf::from("/app"));
+        assert_eq!(proj.includes.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_save_and_list_snapshot() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let manager = SandboxManager::with_snapshot_dir(
+            SandboxManagerConfig::default(),
+            tmp_dir.path().to_path_buf(),
+        );
+
+        // Register backend and create a sandbox
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
+
+        let mut config = SandboxConfig::process("snap-test", vec!["echo".to_string()]);
+        config.env.insert("TEST_VAR".into(), "hello".into());
+
+        let instance = manager.execute(config, "test-user").await.unwrap();
+
+        // We need a sandbox that persists (execute consumes it).
+        // Create a sandbox manually instead for snapshot testing.
+        let backend = ProcessSandboxBackend::new();
+        let mut cfg = SandboxConfig::process("sb-snap", vec!["sleep".to_string(), "30".to_string()]);
+        cfg.env.insert("A".into(), "1".into());
+        let mut inst = backend.create(&cfg).await.unwrap();
+        backend.start(&mut inst).await.unwrap();
+
+        // Insert into manager
+        {
+            let mut sandboxes = manager.sandboxes.write().await;
+            sandboxes.insert(inst.id.clone(), inst.clone());
+        }
+
+        // Save snapshot
+        let snapshot = manager
+            .save_snapshot(&inst.id, IsolationLevel::User, "tester")
+            .await
+            .unwrap();
+
+        assert_eq!(snapshot.sandbox_id, inst.id);
+        assert_eq!(snapshot.isolation_level, IsolationLevel::User);
+        assert_eq!(snapshot.env.get("A").unwrap(), "1");
+
+        // List snapshots
+        let snapshots = manager.list_snapshots().await;
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].id, snapshot.id);
+
+        // Audit log should have SnapshotSave entry
+        let log = manager.audit_log().await;
+        let snap_audit = log.iter().find(|e| matches!(e.action, SandboxAction::SnapshotSave));
+        assert!(snap_audit.is_some());
+
+        // Clean up the running process
+        backend.terminate(&inst).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_restore_snapshot_to_sandbox() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let manager = SandboxManager::with_snapshot_dir(
+            SandboxManagerConfig::default(),
+            tmp_dir.path().to_path_buf(),
+        );
+
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
+
+        // Create a snapshot manually (with file contents)
+        let mut snapshot = SandboxSnapshot::new("original-sb", IsolationLevel::Session);
+        snapshot.env.insert("RESTORED".into(), "yes".into());
+        snapshot.add_file("restored.txt", b"restored content".to_vec());
+
+        // Insert snapshot into manager's store
+        {
+            let mut snapshots = manager.snapshots.write().await;
+            snapshots.insert(snapshot.id.clone(), snapshot.clone());
+        }
+
+        // Create target sandbox
+        let backend = ProcessSandboxBackend::new();
+        let cfg = SandboxConfig::process("target-sb", vec!["sleep".to_string(), "30".to_string()]);
+        let mut inst = backend.create(&cfg).await.unwrap();
+        backend.start(&mut inst).await.unwrap();
+
+        {
+            let mut sandboxes = manager.sandboxes.write().await;
+            sandboxes.insert(inst.id.clone(), inst.clone());
+        }
+
+        // Restore snapshot to the target sandbox
+        manager
+            .restore_snapshot(&snapshot.id, Some(&inst.id), "tester")
+            .await
+            .unwrap();
+
+        // Verify env was applied
+        {
+            let sandboxes = manager.sandboxes.read().await;
+            let sb = sandboxes.get(&inst.id).unwrap();
+            assert_eq!(sb.config.env.get("RESTORED").unwrap(), "yes");
+        }
+
+        // Verify file was written to sandbox dir
+        let restored_file = std::env::temp_dir()
+            .join("kias-sandbox")
+            .join(&inst.id)
+            .join("restored.txt");
+        assert!(restored_file.exists());
+        let contents = std::fs::read_to_string(&restored_file).unwrap();
+        assert_eq!(contents, "restored content");
+
+        // Audit should have SnapshotRestore
+        let log = manager.audit_log().await;
+        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::SnapshotRestore)));
+
+        backend.terminate(&inst).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_workspace_projection_sync() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let tmp_path = tmp_dir.path();
+
+        // Create workspace structure
+        std::fs::create_dir_all(tmp_path.join("skills")).unwrap();
+        std::fs::write(tmp_path.join("AGENTS.md"), "# Agents").unwrap();
+        std::fs::write(tmp_path.join("skills/bash.md"), "# Bash Skill").unwrap();
+
+        let manager = SandboxManager::with_snapshot_dir(
+            SandboxManagerConfig::default(),
+            tmp_path.join("snapshots"),
+        );
+
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
+
+        // Create a sandbox
+        let backend = ProcessSandboxBackend::new();
+        let cfg = SandboxConfig::process("ws-test", vec!["sleep".to_string(), "30".to_string()]);
+        let mut inst = backend.create(&cfg).await.unwrap();
+        backend.start(&mut inst).await.unwrap();
+
+        {
+            let mut sandboxes = manager.sandboxes.write().await;
+            sandboxes.insert(inst.id.clone(), inst.clone());
+        }
+
+        // Project workspace
+        let projection = WorkspaceProjection::new(tmp_path);
+        let count = manager
+            .sync_workspace_to_sandbox(&projection, &inst.id, "tester")
+            .await
+            .unwrap();
+
+        // 2 files: AGENTS.md + skills/bash.md
+        assert_eq!(count, 2);
+
+        // Verify files in sandbox
+        let sandbox_dir = std::env::temp_dir()
+            .join("kias-sandbox")
+            .join(&inst.id)
+            .join("workspace");
+        assert!(sandbox_dir.join("AGENTS.md").exists());
+        assert!(sandbox_dir.join("skills/bash.md").exists());
+
+        let agents_content = std::fs::read_to_string(sandbox_dir.join("AGENTS.md")).unwrap();
+        assert_eq!(agents_content, "# Agents");
+
+        // Audit should have WorkspaceProjection
+        let log = manager.audit_log().await;
+        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::WorkspaceProjection)));
+
+        backend.terminate(&inst).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_not_found() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let manager = SandboxManager::with_snapshot_dir(
+            SandboxManagerConfig::default(),
+            tmp_dir.path().to_path_buf(),
+        );
+
+        let result = manager.restore_snapshot("nonexistent-snap", None, "tester").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_snapshot() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let manager = SandboxManager::with_snapshot_dir(
+            SandboxManagerConfig::default(),
+            tmp_dir.path().to_path_buf(),
+        );
+
+        let mut snap = SandboxSnapshot::new("del-test", IsolationLevel::Session);
+        snap.add_file("f.txt", b"data".to_vec());
+
+        {
+            let mut snapshots = manager.snapshots.write().await;
+            snapshots.insert(snap.id.clone(), snap.clone());
+        }
+
+        // Verify it's there
+        assert_eq!(manager.list_snapshots().await.len(), 1);
+
+        // Delete
+        manager.delete_snapshot(&snap.id).await.unwrap();
+
+        // Verify it's gone
+        assert_eq!(manager.list_snapshots().await.len(), 0);
     }
 }

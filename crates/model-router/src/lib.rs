@@ -11,6 +11,7 @@
 
 pub mod error;
 pub mod filter;
+pub mod key_rotation;
 pub mod provider;
 pub mod router;
 pub mod types;

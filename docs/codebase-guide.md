@@ -442,8 +442,7 @@ crates/cache-hub/
 │   │   ├── mod.rs
 │   │   └── cache.rs     # 语义缓存实现
 │   └── distributed/     # 分布式缓存
-│       ├── mod.rs
-│       └── redis.rs     # Redis 实现
+│       └── hub.rs       # 缓存协调
 ```
 
 **关键代码**：
@@ -623,7 +622,7 @@ metrics_port = 9090
 [cache_hub]
 prefix_cache_size = 1073741824  # 1GB
 semantic_cache_enabled = true
-redis_url = "redis://localhost:6379"
+cache_mode = "sqlite"  # sqlite 或 memory
 
 [knowledge]
 storage_path = "./knowledge"
@@ -638,7 +637,6 @@ graph_db_path = "./data/knowledge_graph.db"
 | `KIAS_CONFIG` | 配置文件路径 | `config/default.toml` |
 | `RUST_LOG` | 日志级别 | `info` |
 | `KIAS_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
-| `KIAS_REDIS_URL` | Redis 地址 | `redis://localhost:6379` |
 
 ---
 
@@ -652,7 +650,7 @@ graph_db_path = "./data/knowledge_graph.db"
 1. 检查日志：`RUST_LOG=debug cargo run`
 2. 检查配置：`cat config/local.toml`
 3. 检查端口：`lsof -i :8080`
-4. 检查依赖：`etcd`, `redis` 是否运行
+4. 检查依赖：`etcd` 是否运行
 
 ### 4.2 API 返回 500
 
@@ -717,7 +715,7 @@ batch_size = 100  # 批量调度
 [cache_hub]
 prefix_cache_size = 2147483648  # 2GB
 semantic_cache_enabled = true
-redis_pool_size = 10
+cache_mode = "sqlite"
 ```
 
 ---

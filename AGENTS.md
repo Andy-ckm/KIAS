@@ -7,7 +7,7 @@
 
 KIAS 是一个 Rust 实现的 Agent 集群调度系统，借鉴 K8S 架构 + ANOLISA 可观测性 + DeepSeek 缓存优化。
 
-**技术栈**：Rust (axum/tonic) + TypeScript (React) + etcd + SQLite + Redis
+**技术栈**：Rust (axum/tonic) + TypeScript (React) + etcd + SQLite
 
 **仓库结构**（monorepo）：
 ```
@@ -158,7 +158,6 @@ crates/
 ```bash
 # ~/.kias_env（启动脚本自动 source）
 KIAS_ETCD_ENDPOINTS=http://localhost:2379
-KIAS_REDIS_URL=redis://localhost:6379
 KIAS_LOG_LEVEL=debug
 ```
 

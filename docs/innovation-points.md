@@ -251,6 +251,72 @@
 - 统一了向量搜索路径，消除了代码分叉
 - 修复了潜在的相似度计算错误（distance vs similarity 混淆）
 
+### 24. ralph-orchestrator Rust Agent Orchestration ⭐2859 🆕
+- **来源**: mikeyobrien/ralph-orchestrator (Rust)
+- **核心**: Improved Ralph Wiggum technique for autonomous AI agent orchestration
+- **可借鉴点**:
+  - 自主 Agent 编排技术 → KIAS 可研究其编排模式
+  - 多 Agent 协调的改进算法
+- **优先级**: 中（研究其编排算法的创新点）
+
+### 25. agentgateway Agentic Proxy ⭐2696 🆕
+- **来源**: agentgateway/agentgateway (Rust)
+- **核心**: Next Generation Agentic Proxy for AI Agents and MCP servers
+- **可借鉴点**:
+  - **Agent Proxy**: 为 AI Agent 和 MCP server 提供统一代理层 → KIAS api-server 可增加 proxy 层
+  - **MCP 集成**: 原生支持 MCP 服务器代理 → KIAS mcp-protocol 可集成
+- **差距**: KIAS 没有统一的 proxy 层
+- **优先级**: P1（API Gateway 增强）
+
+### 26. moltis Persistent Agent Server ⭐2680 🆕
+- **来源**: moltis-org/moltis (Rust)
+- **核心**: Secure persistent personal agent server in Rust, one binary, sandboxed execution
+- **可借鉴点**:
+  - **单二进制部署**: 与 KIAS 理念一致 → KIAS kias-main 已实现
+  - **沙箱执行**: 进程级沙箱 → KIAS sandbox 可参考
+  - **持久化 Agent**: 长期运行的 Agent 状态管理 → KIAS controller 可借鉴
+- **优先级**: 低（KIAS 已有类似功能）
+
+### 27. lean-ctx Context OS ⭐1650 🆕
+- **来源**: yvgude/lean-ctx (Rust)
+- **核心**: The Context OS for AI Development, reduce token waste
+- **可借鉴点**:
+  - **Token 优化**: 减少 LLM 中的 token 浪费 → KIAS agentsight 可集成
+  - **上下文管理**: 智能上下文选择和压缩 → KIAS 可用于 Agent 上下文优化
+- **优先级**: 中（token 成本优化）
+
+### 28. hyper-mcp WASM MCP Server ⭐871 🆕
+- **来源**: hyper-mcp-rs/hyper-mcp (Rust)
+- **核心**: Fast, secure MCP server with WebAssembly plugin support
+- **可借鉴点**:
+  - **WASM 插件**: 通过 WASM 扩展 MCP 能力 → KIAS sandbox 可参考 WASM 执行模式
+  - **安全性**: WASM 隔离执行 → KIAS 可增强工具执行隔离
+- **优先级**: 低（KIAS 已有进程级沙箱）
+
+### 29. kreuzberg Document Intelligence ⭐8310 🆕
+- **来源**: kreuzberg-dev/kreuzberg (Rust)
+- **核心**: Polyglot document intelligence framework, extract text/metadata/images from any doc format
+- **可借鉴点**:
+  - **文档解析**: 多格式文档智能提取 → KIAS 可用于 Agent 的文档理解能力
+  - **Rust 核心**: 高性能文档处理 → KIAS 可直接集成
+- **优先级**: 低（功能扩展）
+
+### 30. loong Lightweight Agent Infrastructure ⭐637 🆕
+- **来源**: eastreams/loong (Rust)
+- **核心**: Lightweight, clear, fully extensible AI agent infrastructure
+- **可借鉴点**:
+  - 轻量级设计 → KIAS 可参考其简洁架构
+  - 全可扩展性 → 插件化设计模式
+- **优先级**: 低
+
+### 31. cersei Rust Coding Agent SDK ⭐288 🆕
+- **来源**: pacifio/cersei (Rust)
+- **核心**: Rust SDK for building coding agents — tool execution, LLM streaming, graph memory
+- **可借鉴点**:
+  - **Graph Memory**: 图结构的 Agent 记忆 → KIAS knowledge 模块可参考
+  - **Tool Execution**: 工具执行框架 → KIAS executor 可对标
+- **优先级**: 低
+
 ## 创新点优先级排序
 
 | 优先级 | 创新点 | 状态 | 预计工作量 |

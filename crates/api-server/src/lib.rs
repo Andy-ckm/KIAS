@@ -17,6 +17,10 @@ pub struct AppState {
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
     pub audit_log: Arc<MemoryAuditLog>,
+    /// SQLite-backed audit log for production persistence (optional)
+    pub sqlite_audit_log: Option<Arc<kias_data_store::SqliteAuditLog>>,
+    /// Dead letter queue for failed tasks (optional)
+    pub dead_letter_queue: Option<Arc<kias_data_store::DeadLetterQueue>>,
     pub event_bus: EventBus,
     pub a2a_tasks: handlers::a2a::A2aTaskStore,
     /// Tracks active WebSocket connections and metrics.
@@ -89,6 +93,8 @@ impl AppState {
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
+            sqlite_audit_log: None, // Will be set up if SQLite is configured
+            dead_letter_queue: None, // Will be set up if SQLite is configured
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
             connection_registry: ConnectionRegistry::default(),
@@ -158,6 +164,8 @@ impl AppState {
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
+            sqlite_audit_log: None, // Will be set up if SQLite is configured
+            dead_letter_queue: None, // Will be set up if SQLite is configured
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
             connection_registry: ConnectionRegistry::default(),

@@ -148,7 +148,8 @@ pub struct KiasServiceManager {
     /// Persistent cache strategy.
     #[allow(dead_code)]
     cache_strategy: kias_data_store::SqliteCacheStrategy,
-    shutdown: Arc<ShutdownCoordinator>,
+    /// Graceful shutdown coordinator with signal handling.
+    shutdown: Arc<kias_common::graceful_shutdown::GracefulShutdown>,
     started_at: Instant,
 }
 
@@ -164,7 +165,7 @@ impl KiasServiceManager {
         tracing::info!("Initializing KIAS subsystems");
 
         // ── Shutdown coordinator ───────────────────────────────────
-        let shutdown = Arc::new(ShutdownCoordinator::new());
+        let shutdown = Arc::new(kias_common::graceful_shutdown::GracefulShutdown::with_defaults());
 
         // ── Scheduler ──────────────────────────────────────────────
         let scheduler_config = kias_scheduler::SchedulerConfig {
@@ -318,13 +319,13 @@ impl KiasServiceManager {
         &self.vector_store
     }
 
-    /// The shutdown coordinator.
-    pub fn shutdown_coordinator(&self) -> &ShutdownCoordinator {
+    /// The graceful shutdown coordinator.
+    pub fn graceful_shutdown(&self) -> &Arc<kias_common::graceful_shutdown::GracefulShutdown> {
         &self.shutdown
     }
 
-    /// Clone the Arc to the shutdown coordinator for passing to background tasks.
-    pub fn shutdown_handle(&self) -> Arc<ShutdownCoordinator> {
+    /// Clone the Arc to the graceful shutdown coordinator for passing to background tasks.
+    pub fn shutdown_handle(&self) -> Arc<kias_common::graceful_shutdown::GracefulShutdown> {
         Arc::clone(&self.shutdown)
     }
 
@@ -352,7 +353,8 @@ impl KiasServiceManager {
 
     /// Trigger graceful shutdown of all subsystems.
     pub async fn shutdown(&self) -> KiasResult<()> {
-        self.shutdown.shutdown()
+        self.shutdown.shutdown().await;
+        Ok(())
     }
 
     /// Seconds elapsed since this manager was created.

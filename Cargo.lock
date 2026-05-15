@@ -2086,6 +2086,7 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
+ "clap",
  "kias-api-server",
  "kias-autonomy-controller",
  "kias-cache",

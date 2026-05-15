@@ -746,3 +746,40 @@
 - **描述**: High-Performance Agentic CLI Framework built in Rust for autonomous multi-agent code generation
 - **KIAS 差距**: ARC 是 CLI-first，KIAS 是 API-first。ARC 的 CLI UX 模式可参考 KIAS CLI 设计
 - **优先级**: 🟢 低 — KIAS CLI (kias-agent-view) 已有基础架构
+
+## Sprint 28 验证周期 — 2026-05-16 01:57 新增创新点
+
+### #67 hcom (⭐281) — Multi-agent Terminal Communication
+- **仓库**: https://github.com/aannoo/hcom
+- **语言**: Rust
+- **描述**: 让 AI agent 跨终端互相通信、监控和生成。支持 Claude Code, Gemini CLI, Codex, OpenCode
+- **创新点**: 终程间 agent 通信协议，subagent 生成机制
+- **KIAS 借鉴**: A2A 协议可参考其跨终端消息传递模式
+
+### #68 Decapod (⭐207) — Daemonless Agent Governance Kernel
+- **仓库**: https://github.com/DecapodLabs/decapod
+- **语言**: Rust
+- **描述**: 无守护进程、本地优先的 AI agent 治理内核。Agent 按需调用以收敛人类意图
+- **创新点**: daemonless 架构、intent convergence、context shaping
+- **KIAS 借鉴**: 轻量级治理模式，适合边缘部署场景
+
+### #69 Kheish (⭐144) — Multi-Role LLM Agent
+- **仓库**: https://github.com/graniet/kheish
+- **语言**: Rust
+- **描述**: 多角色 LLM agent，支持代码审计、文件搜索等任务，集成 RAG 和可扩展模块
+- **创新点**: 多角色切换、RAG 集成、模块化设计
+- **KIAS 借鉴**: team-engine 的 Owner-Worker-Verifier 模式可参考其角色切换机制
+
+### #70 PlanDB (⭐87) — AI Agent Issue Tracker
+- **仓库**: https://github.com/Agent-Field/plandb
+- **语言**: Rust
+- **描述**: AI agent 的问题跟踪器，类似 Linear/Jira，支持依赖图和任务图
+- **创新点**: SQLite 存储、依赖图、MCP 集成、task-graph 管理
+- **KIAS 借鉴**: workflow-engine 的 DAG 执行可参考其依赖图实现
+
+### #71 GeneralBots (⭐78) — AI Collaboration Suite
+- **仓库**: https://github.com/generalbots/generalbots
+- **语言**: Rust
+- **描述**: 完整开源 AI 协作套件和多 agent 平台，支持 LLM 编排、自动化和虚拟助手
+- **创新点**: 多渠道集成 (WhatsApp, SMS, Messenger)、bot 编排
+- **KIAS 借鉴**: 多渠道消息集成模式

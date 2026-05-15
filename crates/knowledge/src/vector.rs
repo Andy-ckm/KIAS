@@ -314,7 +314,9 @@ impl VectorStore {
             return;
         }
 
-        let entry_point = self.entry_point.clone().unwrap();
+        let Some(entry_point) = self.entry_point.clone() else {
+            return;
+        };
 
         // Search from top layer down to max_layer+1
         let mut current_nearest = entry_point;

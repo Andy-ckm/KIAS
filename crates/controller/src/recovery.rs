@@ -164,7 +164,9 @@ impl RecoveryManager {
             self.register_agent(agent_id);
         }
 
-        let record = self.records.get(agent_id).unwrap();
+        let Some(record) = self.records.get(agent_id) else {
+            return RecoveryAction::NoAction;
+        };
 
         // Check if we've exceeded max retries.
         if record.retry_count >= self.config.max_retries {
@@ -210,10 +212,11 @@ impl RecoveryManager {
         );
 
         // Update the recovery record.
-        let record = self.records.get_mut(agent_id).unwrap();
-        record.retry_count = retry_count;
-        record.last_attempt = Some(now);
-        record.current_backoff = backoff;
+        if let Some(record) = self.records.get_mut(agent_id) {
+            record.retry_count = retry_count;
+            record.last_attempt = Some(now);
+            record.current_backoff = backoff;
+        }
 
         // Simulate restart: reset agent to Running.
         if let Some(agent) = state.agents.get_mut(agent_id) {

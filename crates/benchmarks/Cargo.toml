@@ -21,11 +21,26 @@ harness = false
 name = "workflow_bench"
 harness = false
 
+[[bench]]
+name = "agent_bench"
+harness = false
+
+[[bench]]
+name = "model_router_bench"
+harness = false
+
+[[bench]]
+name = "sandbox_bench"
+harness = false
+
 [dependencies]
 kias-common = { path = "../common" }
 kias-scheduler = { path = "../scheduler" }
 kias-controller = { path = "../controller" }
 kias-workflow-engine = { path = "../workflow-engine" }
+kias-model-router = { path = "../model-router" }
+kias-executor = { path = "../executor" }
+kias-team-engine = { path = "../team-engine" }
 tokio.workspace = true
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 serde.workspace = true
@@ -33,3 +48,4 @@ serde_json.workspace = true
 chrono.workspace = true
 rand = "0.8"
 dashmap.workspace = true
+async-trait = "0.1"

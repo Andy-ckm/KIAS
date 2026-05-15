@@ -360,8 +360,9 @@ impl Provider for OpenAICompatibleProvider {
             .send()
             .await
             .map_err(|e| {
-                let mut health = self.health.try_write().unwrap();
-                health.record_failure(e.to_string());
+                if let Ok(mut health) = self.health.try_write() {
+                    health.record_failure(e.to_string());
+                }
                 RouterError::ProviderError {
                     provider: self.config.name.clone(),
                     message: e.to_string(),
@@ -374,8 +375,9 @@ impl Provider for OpenAICompatibleProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            let mut health = self.health.try_write().unwrap();
-            health.record_failure(format!("HTTP {}: {}", status, body));
+            if let Ok(mut health) = self.health.try_write() {
+                health.record_failure(format!("HTTP {}: {}", status, body));
+            }
             return Err(RouterError::ProviderError {
                 provider: self.config.name.clone(),
                 message: format!("HTTP {}: {}", status, body),

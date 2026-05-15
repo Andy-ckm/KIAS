@@ -258,7 +258,7 @@ impl SchedulingAlgorithm for AffinityScheduler {
         let (best_node, best_score) = candidates
             .iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap();
+            .ok_or(KiasError::NoAvailableNodes)?;
 
         tracing::info!(
             agent_id = %agent.id,

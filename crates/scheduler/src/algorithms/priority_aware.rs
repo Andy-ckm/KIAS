@@ -115,17 +115,21 @@ impl PriorityAwareScheduler {
             wait_rounds: 0,
             arrival_order: arrival,
         };
-        self.queue.lock().unwrap().push(entry);
+        if let Ok(mut queue) = self.queue.lock() {
+            queue.push(entry);
+        }
     }
 
     /// Get the current queue length.
     pub fn queue_len(&self) -> usize {
-        self.queue.lock().unwrap().len()
+        self.queue.lock().ok().map_or(0, |q| q.len())
     }
 
     /// Increment aging on all waiting entries.
     fn age_entries(&self) {
-        let mut queue = self.queue.lock().unwrap();
+        let Ok(mut queue) = self.queue.lock() else {
+            return;
+        };
         let entries: Vec<PriorityEntry> = queue.drain().collect();
         for mut entry in entries {
             entry.wait_rounds += 1;
@@ -181,7 +185,9 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
         let arrival = self.arrival_counter.fetch_add(1, AtomicOrdering::Relaxed);
         let _is_low = agent.priority <= Priority::Low;
 
-        let mut queue = self.queue.lock().unwrap();
+        let Ok(mut queue) = self.queue.lock() else {
+            return Err(KiasError::NoAvailableNodes);
+        };
         queue.push(PriorityEntry {
             base_priority: agent.priority as u64,
             agent: agent.clone(),
@@ -204,7 +210,9 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
                                 || (entry.effective_priority() == current.effective_priority()
                                     && entry.arrival_order < current.arrival_order)
                             {
-                                rest.push(best_low.take().unwrap());
+                                if let Some(prev) = best_low.take() {
+                                    rest.push(prev);
+                                }
                                 best_low = Some(entry);
                             } else {
                                 rest.push(entry);
@@ -218,9 +226,9 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
             for entry in rest {
                 queue.push(entry);
             }
-            best_low.or_else(|| queue.pop()).unwrap()
+            best_low.or_else(|| queue.pop()).ok_or(KiasError::NoAvailableNodes)?
         } else {
-            queue.pop().unwrap()
+            queue.pop().ok_or(KiasError::NoAvailableNodes)?
         };
 
         // Track low-priority throughput

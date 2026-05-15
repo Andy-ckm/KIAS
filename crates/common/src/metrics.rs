@@ -21,7 +21,7 @@ pub static AGENT_CREATE_TOTAL: Lazy<IntCounter> = Lazy::new(|| {
         "Total agent creation requests",
     ))
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(counter.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(counter.clone()));
     counter
 });
 
@@ -32,7 +32,7 @@ pub static AGENTS_RUNNING: Lazy<IntGaugeVec> = Lazy::new(|| {
         &["node_id"],
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(gauge.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(gauge.clone()));
     gauge
 });
 
@@ -48,7 +48,7 @@ pub static SCHEDULER_DECISIONS: Lazy<IntCounterVec> = Lazy::new(|| {
         &["result"],
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(counter.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(counter.clone()));
     counter
 });
 
@@ -62,7 +62,7 @@ pub static SCHEDULER_LATENCY: Lazy<Histogram> = Lazy::new(|| {
         .buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]),
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(histogram.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(histogram.clone()));
     histogram
 });
 
@@ -78,7 +78,7 @@ pub static CACHE_OPERATIONS: Lazy<IntCounterVec> = Lazy::new(|| {
         &["cache_type", "result"],
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(counter.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(counter.clone()));
     counter
 });
 
@@ -91,7 +91,7 @@ pub static TOKENS_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
         &["direction"],
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(counter.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(counter.clone()));
     counter
 });
 
@@ -102,7 +102,7 @@ pub static COST_TOTAL_CENTS: Lazy<IntCounter> = Lazy::new(|| {
         "Total estimated cost in USD cents",
     ))
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(counter.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(counter.clone()));
     counter
 });
 
@@ -118,7 +118,7 @@ pub static NODE_UTILISATION: Lazy<IntGaugeVec> = Lazy::new(|| {
         &["node_id", "resource"],
     )
     .expect("metric creation failed");
-    REGISTRY.register(Box::new(gauge.clone())).unwrap();
+    let _ = REGISTRY.register(Box::new(gauge.clone()));
     gauge
 });
 

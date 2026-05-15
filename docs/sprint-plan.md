@@ -154,7 +154,7 @@
 
 **Sprint 14 — Data Layer Architecture + LangGraph State Graph Engine + Innovations**
 
-当前状态：1215 tests, ~39,000 行(Rust), 0 errors, 0 warnings, 18 crates + 1 前端项目
+当前状态：1309 tests, 65,046 行(Rust) + 10,106 行(Dashboard), 0 errors, 0 warnings, 18 crates + 1 前端项目
 
 已完成：
 - ✅ kias-data-store crate 完整实现（L1 架构层）
@@ -173,3 +173,10 @@
 - ✅ 1215 tests passing, 0 clippy warnings, lint-arch OK
 
 下一步：前端 Agent 详情页 / Volcano GPU 调度 / 其他创新功能
+
+Sprint 16 更新 (2026-05-15):
+- ✅ model-router 测试扩展: 18 → 55 tests (+37, +206%)
+- ✅ 修复 RequestCache::get DashMap 死锁 (read guard + write guard 冲突)
+- ✅ 代码质量: 0 clippy warnings, 0 test failures
+- ✅ 创新调研: Rust Agent 生态 (openfang 17K⭐, rig 7K⭐, DeepSeek-TUI 29K⭐)
+- ✅ sprint-progress.md 更新到 Sprint 16

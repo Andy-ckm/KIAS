@@ -727,3 +727,22 @@
 - **特点**: KV cache optimization, edge-first, minimal dependencies
 - **KIAS 差距**: EdgeLoop's KV cache optimization approach is directly relevant to KIAS's cache-hub (DeepSeek prefix caching). KIAS already has PrefixCache + MLA cache. Worth monitoring for novel KV cache techniques.
 - **优先级**: 🟡 Medium — KV cache optimization is a KIAS core feature; any new approaches are valuable
+
+
+### 64. nocodo Multi-Agent Framework ⭐50 🆕
+- **来源**: brainless/nocodo.old (Rust)
+- **描述**: Batteries-included multi-agent framework with agents for databases, files, emails, APIs and web crawlers
+- **KIAS 差距**: KIAS 有 MCP 工具协议但缺少内置数据库/文件/邮件 agent 类型。nocodo 的 batteries-included 理念值得借鉴
+- **优先级**: 🟡 参考 — KIAS 可扩展 MCP 工具定义以支持类似内置 agent 类型
+
+### 65. amico Embedded AI Agent ⭐42 🆕
+- **来源**: bitrouter/amico (Rust)
+- **描述**: Next generation Autonomous AI Agent Framework tailored for embedded AI devices and multi-agent systems
+- **KIAS 差距**: KIAS 定位云原生/企业级，amico 聚焦嵌入式/边缘场景。两者互补
+- **优先级**: 🟡 参考 — 如果 KIAS 扩展到边缘调度（edge scheduling），amico 的轻量级设计有参考价值
+
+### 66. ARC CLI Agentic Framework ⭐18 🆕
+- **来源**: Ashutosh0x/arc-cli (Rust)
+- **描述**: High-Performance Agentic CLI Framework built in Rust for autonomous multi-agent code generation
+- **KIAS 差距**: ARC 是 CLI-first，KIAS 是 API-first。ARC 的 CLI UX 模式可参考 KIAS CLI 设计
+- **优先级**: 🟢 低 — KIAS CLI (kias-agent-view) 已有基础架构

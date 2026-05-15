@@ -65,3 +65,102 @@ impl ToolPolicy {
         matches!(self.permission, ToolPermission::RequireConfirmation)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_policy_defaults() {
+        let policy = ToolPolicy::new("shell", ToolPermission::AutoApprove);
+        assert_eq!(policy.tool_name, "shell");
+        assert_eq!(policy.permission, ToolPermission::AutoApprove);
+        assert!(policy.requires_sandbox);
+        assert!(!policy.requires_network);
+        assert!(policy.max_execution_time.is_none());
+    }
+
+    #[test]
+    fn test_forbidden_policy() {
+        let policy = ToolPolicy::new("rm", ToolPermission::Forbidden);
+        assert!(!policy.is_allowed());
+        assert!(!policy.needs_confirmation());
+    }
+
+    #[test]
+    fn test_auto_approve_policy() {
+        let policy = ToolPolicy::new("read", ToolPermission::AutoApprove);
+        assert!(policy.is_allowed());
+        assert!(!policy.needs_confirmation());
+    }
+
+    #[test]
+    fn test_require_confirmation_policy() {
+        let policy = ToolPolicy::new("write", ToolPermission::RequireConfirmation);
+        assert!(policy.is_allowed());
+        assert!(policy.needs_confirmation());
+    }
+
+    #[test]
+    fn test_with_sandbox_builder() {
+        let policy = ToolPolicy::new("exec", ToolPermission::AutoApprove).with_sandbox(false);
+        assert!(!policy.requires_sandbox);
+    }
+
+    #[test]
+    fn test_with_network_builder() {
+        let policy = ToolPolicy::new("curl", ToolPermission::AutoApprove).with_network(true);
+        assert!(policy.requires_network);
+    }
+
+    #[test]
+    fn test_with_timeout_builder() {
+        let policy = ToolPolicy::new("build", ToolPermission::AutoApprove).with_timeout(300);
+        assert_eq!(policy.max_execution_time, Some(300));
+    }
+
+    #[test]
+    fn test_builder_chaining() {
+        let policy = ToolPolicy::new("deploy", ToolPermission::RequireConfirmation)
+            .with_sandbox(true)
+            .with_network(true)
+            .with_timeout(600);
+        assert!(policy.requires_sandbox);
+        assert!(policy.requires_network);
+        assert_eq!(policy.max_execution_time, Some(600));
+        assert!(policy.is_allowed());
+        assert!(policy.needs_confirmation());
+    }
+
+    #[test]
+    fn test_tool_permission_partial_eq() {
+        assert_eq!(ToolPermission::AutoApprove, ToolPermission::AutoApprove);
+        assert_ne!(ToolPermission::AutoApprove, ToolPermission::Forbidden);
+        assert_ne!(
+            ToolPermission::RequireConfirmation,
+            ToolPermission::Forbidden
+        );
+    }
+
+    #[test]
+    fn test_tool_policy_clone() {
+        let policy = ToolPolicy::new("shell", ToolPermission::AutoApprove).with_timeout(60);
+        let cloned = policy.clone();
+        assert_eq!(cloned.tool_name, "shell");
+        assert_eq!(cloned.max_execution_time, Some(60));
+    }
+
+    #[test]
+    fn test_is_allowed_for_all_permissions() {
+        assert!(ToolPolicy::new("a", ToolPermission::AutoApprove).is_allowed());
+        assert!(ToolPolicy::new("b", ToolPermission::RequireConfirmation).is_allowed());
+        assert!(!ToolPolicy::new("c", ToolPermission::Forbidden).is_allowed());
+    }
+
+    #[test]
+    fn test_needs_confirmation_only_require_confirmation() {
+        assert!(!ToolPolicy::new("a", ToolPermission::AutoApprove).needs_confirmation());
+        assert!(ToolPolicy::new("b", ToolPermission::RequireConfirmation).needs_confirmation());
+        assert!(!ToolPolicy::new("c", ToolPermission::Forbidden).needs_confirmation());
+    }
+}

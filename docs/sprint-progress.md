@@ -1,33 +1,49 @@
 
-## 最新更新：2026-05-15 15:20 (Sprint 19 — 质量验证 + 修复)
+## 最新更新：2026-05-15 21:10 (Sprint 20 — 多租户隔离 + 任务重试 + 自主度集成)
 
-### 🎯 Sprint 19 状态检查
+### 🎯 Sprint 20 状态检查
 
 **验证结果**：
 - ✅ `cargo build` — **0 errors**
-- ✅ `cargo test` — **1398/1398 passed, 0 failed**
+- ✅ `cargo test` — **1419/1419 passed, 0 failed**
 - ✅ `cargo clippy -- -D warnings` — **0 warnings**
-- ✅ 所有优先级任务已完成（HNSW 实现、Redis 配置清理、MCP 完成）
-- ✅ 修复 2 个 flaky 测试（graceful_shutdown 时序竞争）
-- ✅ 修复 1 个 clippy 错误（dlq.rs too_many_arguments）
+- ✅ 修复 3 个关键架构缺陷
+- ✅ 磁盘清理: / 盘 91% → 40%
 
 ### 📊 当前质量指标
 
 | 指标 | 数值 | 说明 |
 |------|------|------|
-| **总测试数** | **1398** | 全部通过 ✅ (+22 vs Sprint 18) |
+| **总测试数** | **1419** | 全部通过 ✅ (+21 vs Sprint 19) |
 | **Clippy 警告** | **0** | `-D warnings` 零警告 ✅ |
-| **Rust 代码行数** | **70,977** | crates/ 目录下 (+1,540) |
+| **Rust 代码行数** | **72,317** | crates/ 目录下 (+1,340) |
 | **Crate 数量** | **21** | 单仓 monorepo |
-| **Rust 源文件** | **218** | (+3) |
 | **编译错误** | **0** | `cargo build` 干净 |
 | **测试通过率** | **100%** | 0 failures |
 | **创新点总数** | **38** | |
 
-### 🏗️ Sprint 19 关键变更
+### 🏗️ Sprint 20 关键变更
 
-1. **修复 flaky 测试**: graceful_shutdown 测试使用 `test_config()` 短超时替代 `with_defaults()` 30s 超时
-2. **Clippy 修复**: `dlq.rs` 的 `enqueue` 函数添加 `#[allow(clippy::too_many_arguments)]`
+1. **Scheduler 多租户隔离**: TenantContext + ResourceQuota 真正集成到调度管线
+   - 配额执行（max_agents/CPU/内存）
+   - 命名空间隔离（tenant-xxx 标签过滤）
+   - 租户统计跟踪（TenantStats）
+   - 公平跨租户轮询调度（schedule_batch_fair）
+   - 10 个新测试覆盖
+2. **TeamEngine 任务重试重执行**: retry_task 现在真正重新分配任务给 Worker
+   - `reassign_task()` 自动找空闲 Worker（优先不同 Worker）
+   - `execute_with_retry()` 完整重试循环
+   - 5 个新测试覆盖
+3. **Controller 自主度集成**: AutonomyGate 包装 AutonomyController
+   - Suggest/AutoEdit/FullAuto 三模式行为
+   - 速率限制 + 执行预算
+   - 审计日志记录所有决策
+   - 8 个新测试覆盖
+4. **磁盘管理**: 删除 / 盘重复 target/ (20G)，/ 盘 91% → 40%
+
+### ⚠️ 已知架构债务
+
+- data-store→knowledge 跨层依赖（需提取 VectorStore trait 到 common 层）
 3. **验证优先级**: 确认 HNSW 已是真实实现（multi-layer graph + beam search），非 O(N) brute-force
 4. **Redis 验证**: 确认 Redis 配置清理已在前序 Sprint 完成，代码中无 Redis 依赖
 5. **磁盘状态**: /mnt 65% 使用率，健康

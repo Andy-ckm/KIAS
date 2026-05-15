@@ -263,7 +263,7 @@ fn get_disk_info() -> (u64, u64) {
         use std::ffi::CString;
         use std::mem::MaybeUninit;
 
-        let path = CString::new("/").unwrap();
+        let path = CString::new("/").expect("path is valid");
         let mut stat: MaybeUninit<libc::statvfs> = MaybeUninit::uninit();
 
         unsafe {

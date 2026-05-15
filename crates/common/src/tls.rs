@@ -245,9 +245,13 @@ fn generate_self_signed_openssl(common_name: &str) -> Result<(Vec<u8>, Vec<u8>),
             "-pkeyopt",
             "ec_paramgen_curve:P-256",
             "-keyout",
-            key_path.to_str().unwrap(),
+            key_path
+                .to_str()
+                .ok_or_else(|| KiasError::Config("non-UTF-8 key path".into()))?,
             "-out",
-            cert_path.to_str().unwrap(),
+            cert_path
+                .to_str()
+                .ok_or_else(|| KiasError::Config("non-UTF-8 cert path".into()))?,
             "-days",
             "365",
             "-nodes",

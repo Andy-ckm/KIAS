@@ -192,7 +192,11 @@ impl TaskRuntime {
         let mut results = Vec::with_capacity(tasks.len());
 
         for task in tasks {
-            let _permit = semaphore.clone().acquire_owned().await.unwrap();
+            let _permit = semaphore
+                .clone()
+                .acquire_owned()
+                .await
+                .expect("semaphore closed unexpectedly");
             let result = self.run_task(task).await;
             results.push(result);
         }

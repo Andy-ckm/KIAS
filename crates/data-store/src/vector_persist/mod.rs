@@ -218,7 +218,12 @@ impl PersistentVectorStore {
                         metadata: Arc::new(dashmap::DashMap::default()),
                     });
                 // Clone HnswIndex while guard is live, THEN wrap in Arc (Ref must drop first)
-                let hnsw_index_owned = indices_w.get(index_name).unwrap().clone();
+                let hnsw_index_owned = indices_w
+                    .get(index_name)
+                    .ok_or_else(|| {
+                        KiasError::Storage(format!("HNSW index not found: {index_name}"))
+                    })?
+                    .clone();
                 Arc::new(hnsw_index_owned)
             };
             // Now hnsw_index is owned, we can await without holding the guard

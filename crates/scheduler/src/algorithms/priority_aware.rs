@@ -257,7 +257,7 @@ impl SchedulingAlgorithm for PriorityAwareScheduler {
                     .partial_cmp(&b.load_factor())
                     .unwrap_or(Ordering::Equal)
             })
-            .unwrap();
+            .ok_or(KiasError::NoAvailableNodes)?;
 
         let score = (selected_entry.effective_priority() as f64 / 200.0).min(1.0);
 

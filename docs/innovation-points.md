@@ -244,7 +244,7 @@
 - ✅ **distance→similarity 转换修复**: search_knn 返回 cosine_distance，vector_persist 正确转换为 similarity
 - ✅ **Redis 配置误导清理**: cache_mode 从 "local or redis" 改为诚实的 "sqlite or memory"
 - ✅ **scheduler 编译修复**: gpu_aware.rs PartialEq 比较错误修复
-- ✅ **测试数**: 1205 → 1215 (+10 tests from rebuild)
+- ✅ **测试数**: 1205 → 1234 (+29 tests from rebuild + Sprint 15 enhancements)
 
 ### 技术债务清理
 - 移除了虚假的 Redis 依赖声明
@@ -268,3 +268,38 @@
 | P2 | Volcano GPU 调度 | 📋 待实现 | 3 周 |
 | P2 | DeepSeek MLA | 📋 待实现 | 2 周 |
 | P3 | CrewAI 声明式编排 | 📋 待实现 | 2 周 |
+
+## Sprint 16 创新调研 (2026-05-15)
+
+### Rust Agent 生态新发现
+
+| 项目 | ⭐ | 语言 | 亮点 | KIAS 可借鉴 |
+|------|-----|------|------|-------------|
+| RightNow-AI/openfang | 17,520 | Rust | Agent Operating System, MCP 支持 | OS 级 Agent 抽象、进程管理 |
+| 0xPlaygrounds/rig | 7,281 | Rust | 模块化 LLM 应用框架 | Provider 抽象、RAG pipeline |
+| sigoden/aichat | 9,984 | Rust | 全功能 LLM CLI + RAG + Agents | REPL 交互模式、多模型切换 |
+| Hmbown/DeepSeek-TUI | 29,196 | Rust | DeepSeek 终端 Coding Agent | TUI 交互、代码编辑集成 |
+| 1jehuang/jcode | 6,116 | Rust | Coding Agent Harness | Agent harness 设计模式 |
+
+### Python/TS Agent 框架趋势
+
+| 项目 | ⭐ | 亮点 |
+|------|-----|------|
+| bytedance/deer-flow | 67,767 | 长周期 SuperAgent，研究+编码+创作 |
+| ruvnet/ruflo | 51,127 | Claude Agent 编排平台，swarm 调度 |
+| TauricResearch/TradingAgents | 75,552 | 多 Agent 金融交易框架 |
+| MetaGPT | 67,982 | AI 软件公司，角色扮演协作 |
+| crewAI | 51,422 | 角色扮演 Agent 编排 |
+
+### 技术趋势观察
+1. **Rust Agent 生态爆发**: openfang(17K⭐)、rig(7K⭐)、DeepSeek-TUI(29K⭐) 等 Rust 项目快速增长
+2. **Agent OS 抽象**: openfang 将 Agent 视为操作系统级实体，值得 KIAS 借鉴
+3. **长周期 Agent**: bytedance/deer-flow 支持数小时级别的研究+编码任务
+4. **Swarm 调度**: ruflo 的 swarm 模式与 KIAS 的 K8S 调度理念一致
+5. **MCP 成为标配**: 所有新框架都支持 MCP，验证了 KIAS 的 MCP 策略正确性
+
+### 待实现创新点
+- **Agent OS 抽象** (参考 openfang): 将 Agent 视为进程级实体，支持 fork/exec/signal
+- **Rig Provider 抽象** (参考 rig): 统一的 LLM Provider 接口，支持 10+ 提供商
+- **TUI 交互模式** (参考 DeepSeek-TUI/jcode): 终端 REPL 交互，实时查看 Agent 执行
+- **长周期任务支持** (参考 deer-flow): 支持小时级研究任务，带检查点恢复

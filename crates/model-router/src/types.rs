@@ -249,3 +249,232 @@ pub struct ProviderHealth {
     /// Last health check timestamp.
     pub last_check: std::time::SystemTime,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_routing_strategy_default() {
+        let strategy = RoutingStrategy::default();
+        assert_eq!(strategy, RoutingStrategy::RoundRobin);
+    }
+
+    #[test]
+    fn test_routing_strategy_serialization() {
+        let strategies = vec![
+            RoutingStrategy::RoundRobin,
+            RoutingStrategy::LeastLatency,
+            RoutingStrategy::CostOptimized,
+            RoutingStrategy::CapabilityBased,
+            RoutingStrategy::WeightedRandom,
+            RoutingStrategy::Pinned("openai".to_string()),
+            RoutingStrategy::LeastBusy,
+            RoutingStrategy::UsageBased,
+        ];
+
+        for strategy in strategies {
+            let json = serde_json::to_string(&strategy).unwrap();
+            let deserialized: RoutingStrategy = serde_json::from_str(&json).unwrap();
+            assert_eq!(strategy, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_model_capability_serialization() {
+        let caps = vec![
+            ModelCapability::Chat,
+            ModelCapability::Embedding,
+            ModelCapability::Vision,
+            ModelCapability::FunctionCalling,
+            ModelCapability::Streaming,
+            ModelCapability::LongContext,
+            ModelCapability::CodeGeneration,
+            ModelCapability::Reasoning,
+        ];
+
+        for cap in caps {
+            let json = serde_json::to_string(&cap).unwrap();
+            let deserialized: ModelCapability = serde_json::from_str(&json).unwrap();
+            assert_eq!(cap, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_chat_message_construction() {
+        let msg = ChatMessage {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            tool_call_id: None,
+            tool_calls: None,
+        };
+        assert_eq!(msg.role, "user");
+        assert_eq!(msg.content, "Hello");
+        assert!(msg.tool_call_id.is_none());
+        assert!(msg.tool_calls.is_none());
+    }
+
+    #[test]
+    fn test_chat_message_serialization() {
+        let msg = ChatMessage {
+            role: "assistant".to_string(),
+            content: "Hi there".to_string(),
+            tool_call_id: None,
+            tool_calls: None,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: ChatMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.role, "assistant");
+        assert_eq!(deserialized.content, "Hi there");
+    }
+
+    #[test]
+    fn test_chat_request_construction() {
+        let request = ChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![ChatMessage {
+                role: "user".to_string(),
+                content: "test".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            }],
+            temperature: Some(0.7),
+            max_tokens: Some(100),
+            top_p: Some(0.9),
+            stop: None,
+            stream: false,
+            tools: None,
+            user: Some("user-1".to_string()),
+            routing: None,
+        };
+        assert_eq!(request.model, "gpt-4");
+        assert_eq!(request.messages.len(), 1);
+        assert_eq!(request.temperature, Some(0.7));
+        assert_eq!(request.max_tokens, Some(100));
+    }
+
+    #[test]
+    fn test_chat_request_serialization_roundtrip() {
+        let request = ChatRequest {
+            model: "claude-3".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: "system".to_string(),
+                    content: "You are helpful".to_string(),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                ChatMessage {
+                    role: "user".to_string(),
+                    content: "Hello".to_string(),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+            ],
+            temperature: None,
+            max_tokens: None,
+            top_p: None,
+            stop: Some(vec!["STOP".to_string()]),
+            stream: true,
+            tools: None,
+            user: None,
+            routing: Some(RoutingPreference {
+                strategy: Some(RoutingStrategy::LeastLatency),
+                required_capabilities: vec![ModelCapability::Chat],
+                max_cost: None,
+                max_latency_ms: Some(1000),
+                excluded_providers: vec![],
+            }),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        let deserialized: ChatRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.model, "claude-3");
+        assert_eq!(deserialized.messages.len(), 2);
+        assert!(deserialized.stream);
+        assert!(deserialized.routing.is_some());
+    }
+
+    #[test]
+    fn test_usage_default() {
+        let usage = Usage::default();
+        assert_eq!(usage.prompt_tokens, 0);
+        assert_eq!(usage.completion_tokens, 0);
+        assert_eq!(usage.total_tokens, 0);
+    }
+
+    #[test]
+    fn test_chat_response_serialization() {
+        let response = ChatResponse {
+            id: "chatcmpl-123".to_string(),
+            model: "gpt-4".to_string(),
+            provider: "openai".to_string(),
+            choices: vec![ChatChoice {
+                index: 0,
+                message: ChatMessage {
+                    role: "assistant".to_string(),
+                    content: "Hello!".to_string(),
+                    tool_call_id: None,
+                    tool_calls: None,
+                },
+                finish_reason: Some("stop".to_string()),
+            }],
+            usage: Usage {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+            },
+            latency_ms: 200,
+            cost_usd: 0.001,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: ChatResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "chatcmpl-123");
+        assert_eq!(deserialized.choices.len(), 1);
+        assert_eq!(deserialized.usage.total_tokens, 15);
+    }
+
+    #[test]
+    fn test_embedding_request_serialization() {
+        let request = EmbeddingRequest {
+            model: "text-embedding-3-small".to_string(),
+            input: vec!["Hello world".to_string(), "Test".to_string()],
+            user: Some("user-1".to_string()),
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        let deserialized: EmbeddingRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.model, "text-embedding-3-small");
+        assert_eq!(deserialized.input.len(), 2);
+    }
+
+    #[test]
+    fn test_provider_health_serialization() {
+        let health = ProviderHealth {
+            healthy: true,
+            success_rate: 0.95,
+            avg_latency_ms: 150,
+            total_requests: 1000,
+            failed_requests: 50,
+            last_error: None,
+            last_check: std::time::SystemTime::now(),
+        };
+        let json = serde_json::to_string(&health).unwrap();
+        let deserialized: ProviderHealth = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.healthy);
+        assert!((deserialized.success_rate - 0.95).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_routing_preference_optional_fields() {
+        let pref = RoutingPreference {
+            strategy: None,
+            required_capabilities: vec![],
+            max_cost: None,
+            max_latency_ms: None,
+            excluded_providers: vec![],
+        };
+        let json = serde_json::to_string(&pref).unwrap();
+        assert!(json.contains("required_capabilities"));
+    }
+}

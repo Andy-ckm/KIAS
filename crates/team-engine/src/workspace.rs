@@ -138,8 +138,7 @@ impl Workspace {
             "agents/{}/sessions/{}.json",
             self.config.agent_id, session_id
         ));
-        let bytes = serde_json::to_vec_pretty(data)
-            .map_err(|e| VfsError::Other(e.to_string()))?;
+        let bytes = serde_json::to_vec_pretty(data).map_err(|e| VfsError::Other(e.to_string()))?;
         self.fs.write(&path, &bytes).await
     }
 
@@ -223,7 +222,10 @@ mod tests {
             parameters: None,
         };
         let json = serde_json::to_string(&skill).unwrap();
-        ws.fs.write("skills/summarization.json", json.as_bytes()).await.unwrap();
+        ws.fs
+            .write("skills/summarization.json", json.as_bytes())
+            .await
+            .unwrap();
 
         let skills = ws.list_skills().await.unwrap();
         assert_eq!(skills.len(), 1);
@@ -297,7 +299,10 @@ mod tests {
             parameters: None,
         };
         let json = serde_json::to_string(&skill).unwrap();
-        ws.fs.write("skills/codegen.json", json.as_bytes()).await.unwrap();
+        ws.fs
+            .write("skills/codegen.json", json.as_bytes())
+            .await
+            .unwrap();
 
         let skills = ws.list_skills().await.unwrap();
         assert_eq!(skills.len(), 1);

@@ -910,7 +910,9 @@ impl SandboxManager {
         let sandboxes = self.sandboxes.read().await;
         let instance = sandboxes
             .get(sandbox_id)
-            .ok_or_else(|| McpError::ResourceNotFound(format!("Sandbox not found: {}", sandbox_id)))?
+            .ok_or_else(|| {
+                McpError::ResourceNotFound(format!("Sandbox not found: {}", sandbox_id))
+            })?
             .clone();
         drop(sandboxes);
 
@@ -925,9 +927,7 @@ impl SandboxManager {
         }
 
         // Also capture from the process sandbox base dir
-        let sandbox_dir = std::env::temp_dir()
-            .join("kias-sandbox")
-            .join(sandbox_id);
+        let sandbox_dir = std::env::temp_dir().join("kias-sandbox").join(sandbox_id);
         if sandbox_dir.exists() {
             Self::collect_files_recursive(&sandbox_dir, &sandbox_dir, &mut snapshot.files).ok();
         }
@@ -987,9 +987,7 @@ impl SandboxManager {
         }
 
         // Restore files to sandbox directory
-        let sandbox_dir = std::env::temp_dir()
-            .join("kias-sandbox")
-            .join(target_id);
+        let sandbox_dir = std::env::temp_dir().join("kias-sandbox").join(target_id);
         for (rel_path, contents) in &snapshot.files {
             let file_path = sandbox_dir.join(rel_path);
             if let Some(parent) = file_path.parent() {
@@ -1035,9 +1033,9 @@ impl SandboxManager {
 
         // Try loading from disk
         let snapshot_file = self.snapshot_dir.join(format!("{}.json", snapshot_id));
-        let json_bytes = tokio::fs::read(&snapshot_file)
-            .await
-            .map_err(|_| McpError::ResourceNotFound(format!("Snapshot not found: {}", snapshot_id)))?;
+        let json_bytes = tokio::fs::read(&snapshot_file).await.map_err(|_| {
+            McpError::ResourceNotFound(format!("Snapshot not found: {}", snapshot_id))
+        })?;
         SandboxSnapshot::from_json(&json_bytes)
     }
 
@@ -1084,13 +1082,16 @@ impl SandboxManager {
             }
         }
 
-        let sandbox_dir = std::env::temp_dir()
-            .join("kias-sandbox")
-            .join(sandbox_id);
+        let sandbox_dir = std::env::temp_dir().join("kias-sandbox").join(sandbox_id);
 
         // Ensure sandbox_dest is treated as relative to sandbox_dir
         let dest_root = if projection.sandbox_dest.is_absolute() {
-            sandbox_dir.join(projection.sandbox_dest.strip_prefix("/").unwrap_or(&projection.sandbox_dest))
+            sandbox_dir.join(
+                projection
+                    .sandbox_dest
+                    .strip_prefix("/")
+                    .unwrap_or(&projection.sandbox_dest),
+            )
         } else {
             sandbox_dir.join(&projection.sandbox_dest)
         };
@@ -1106,7 +1107,9 @@ impl SandboxManager {
             if source.is_dir() {
                 copied_count += Self::copy_dir_recursive(&source, &dest_root.join(include))
                     .await
-                    .map_err(|e| McpError::Internal(format!("workspace projection failed: {}", e)))?;
+                    .map_err(|e| {
+                        McpError::Internal(format!("workspace projection failed: {}", e))
+                    })?;
             } else {
                 let dest_file = dest_root.join(include);
                 if let Some(parent) = dest_file.parent() {
@@ -1518,17 +1521,10 @@ impl Default for DockerSandboxBackend {
 impl SandboxBackendTrait for DockerSandboxBackend {
     async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
         let id = uuid::Uuid::new_v4().to_string();
-        let image = config
-            .image
-            .as_deref()
-            .unwrap_or(&self.default_image);
+        let image = config.image.as_deref().unwrap_or(&self.default_image);
 
         // Build `docker create` arguments.
-        let mut args: Vec<String> = vec![
-            "create".to_string(),
-            "--name".to_string(),
-            id.clone(),
-        ];
+        let mut args: Vec<String> = vec!["create".to_string(), "--name".to_string(), id.clone()];
 
         // Resource limits
         if let Some(mem) = config.limits.memory_bytes {
@@ -1610,9 +1606,10 @@ impl SandboxBackendTrait for DockerSandboxBackend {
             ));
         }
 
-        let cid = instance.container_id.as_ref().ok_or_else(|| {
-            McpError::Internal("missing container_id".to_string())
-        })?;
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
 
         let output = Self::docker_cmd(&["start", cid]).await?;
         if !output.status.success() {
@@ -1638,9 +1635,10 @@ impl SandboxBackendTrait for DockerSandboxBackend {
     }
 
     async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        let cid = instance.container_id.as_ref().ok_or_else(|| {
-            McpError::Internal("missing container_id".to_string())
-        })?;
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
 
         // Block until the container stops.
         let wait_out = Self::docker_cmd(&["wait", cid]).await?;
@@ -2148,7 +2146,8 @@ mod tests {
         // We need a sandbox that persists (execute consumes it).
         // Create a sandbox manually instead for snapshot testing.
         let backend = ProcessSandboxBackend::new();
-        let mut cfg = SandboxConfig::process("sb-snap", vec!["sleep".to_string(), "30".to_string()]);
+        let mut cfg =
+            SandboxConfig::process("sb-snap", vec!["sleep".to_string(), "30".to_string()]);
         cfg.env.insert("A".into(), "1".into());
         let mut inst = backend.create(&cfg).await.unwrap();
         backend.start(&mut inst).await.unwrap();
@@ -2176,7 +2175,9 @@ mod tests {
 
         // Audit log should have SnapshotSave entry
         let log = manager.audit_log().await;
-        let snap_audit = log.iter().find(|e| matches!(e.action, SandboxAction::SnapshotSave));
+        let snap_audit = log
+            .iter()
+            .find(|e| matches!(e.action, SandboxAction::SnapshotSave));
         assert!(snap_audit.is_some());
 
         // Clean up the running process
@@ -2244,7 +2245,9 @@ mod tests {
 
         // Audit should have SnapshotRestore
         let log = manager.audit_log().await;
-        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::SnapshotRestore)));
+        assert!(log
+            .iter()
+            .any(|e| matches!(e.action, SandboxAction::SnapshotRestore)));
 
         backend.terminate(&inst).await.ok();
     }
@@ -2305,7 +2308,9 @@ mod tests {
 
         // Audit should have WorkspaceProjection
         let log = manager.audit_log().await;
-        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::WorkspaceProjection)));
+        assert!(log
+            .iter()
+            .any(|e| matches!(e.action, SandboxAction::WorkspaceProjection)));
 
         backend.terminate(&inst).await.ok();
     }
@@ -2318,7 +2323,9 @@ mod tests {
             tmp_dir.path().to_path_buf(),
         );
 
-        let result = manager.restore_snapshot("nonexistent-snap", None, "tester").await;
+        let result = manager
+            .restore_snapshot("nonexistent-snap", None, "tester")
+            .await;
         assert!(result.is_err());
     }
 

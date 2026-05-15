@@ -93,7 +93,7 @@ impl AppState {
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
-            sqlite_audit_log: None, // Will be set up if SQLite is configured
+            sqlite_audit_log: None,  // Will be set up if SQLite is configured
             dead_letter_queue: None, // Will be set up if SQLite is configured
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
@@ -164,7 +164,7 @@ impl AppState {
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
-            sqlite_audit_log: None, // Will be set up if SQLite is configured
+            sqlite_audit_log: None,  // Will be set up if SQLite is configured
             dead_letter_queue: None, // Will be set up if SQLite is configured
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),

@@ -774,7 +774,11 @@ mod tests {
             cost_usd: 0.01,
         };
 
-        cache.set("key1".to_string(), response.clone(), Duration::from_secs(60));
+        cache.set(
+            "key1".to_string(),
+            response.clone(),
+            Duration::from_secs(60),
+        );
         let cached = cache.get("key1");
         assert!(cached.is_some());
         assert_eq!(cached.unwrap().id, "test-1");
@@ -1081,7 +1085,8 @@ mod tests {
         let router = ModelRouter::new(config);
 
         let config1 = ProviderConfig::openai("openai", "sk-1", vec!["gpt-4".to_string()]);
-        let config2 = ProviderConfig::anthropic("anthropic", "sk-ant-1", vec!["claude-3".to_string()]);
+        let config2 =
+            ProviderConfig::anthropic("anthropic", "sk-ant-1", vec!["claude-3".to_string()]);
 
         router.add_provider(config1).await.unwrap();
         router.add_provider(config2).await.unwrap();

@@ -255,10 +255,9 @@ impl JwtAuthProvider {
             .map_err(|e| McpError::Authentication(format!("Invalid JWT header: {}", e)))?;
         let header: serde_json::Value = serde_json::from_slice(&header_bytes)
             .map_err(|e| McpError::Authentication(format!("Invalid JWT header JSON: {}", e)))?;
-        let alg = header
-            .get("alg")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| McpError::Authentication("JWT header missing 'alg' field".to_string()))?;
+        let alg = header.get("alg").and_then(|v| v.as_str()).ok_or_else(|| {
+            McpError::Authentication("JWT header missing 'alg' field".to_string())
+        })?;
         if alg != "HS256" {
             return Err(McpError::Authentication(format!(
                 "Unsupported JWT algorithm '{}', expected 'HS256'",
@@ -840,7 +839,11 @@ mod tests {
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data)
     }
 
-    fn make_jwt(key: &[u8], claims: &serde_json::Value, header: Option<&serde_json::Value>) -> String {
+    fn make_jwt(
+        key: &[u8],
+        claims: &serde_json::Value,
+        header: Option<&serde_json::Value>,
+    ) -> String {
         let default_header = serde_json::json!({"alg": "HS256", "typ": "JWT"});
         let hdr = header.unwrap_or(&default_header);
         let header_b64 = base64url_encode(hdr.to_string().as_bytes());

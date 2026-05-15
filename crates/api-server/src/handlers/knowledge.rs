@@ -32,7 +32,8 @@ pub async fn search_knowledge(
     tracing::info!(query = %params.q, limit = limit, "Knowledge search");
 
     // Retrieve knowledge entries using the vector retriever
-    let scored_nodes = state.knowledge_retriever
+    let scored_nodes = state
+        .knowledge_retriever
         .retrieve(&params.q, limit)
         .await
         .unwrap_or_default();
@@ -48,7 +49,9 @@ pub async fn search_knowledge(
             };
 
             // Use node ID as page_id, content preview as title
-            let title = scored.node.content
+            let title = scored
+                .node
+                .content
                 .lines()
                 .next()
                 .unwrap_or(&scored.node.content)

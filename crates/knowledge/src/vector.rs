@@ -253,7 +253,7 @@ impl Ord for Candidate {
         // NaN distances are filtered out during search, but handle gracefully if they slip through
         match (self.distance.is_finite(), other.distance.is_finite()) {
             (false, false) => std::cmp::Ordering::Equal,
-            (false, true) => std::cmp::Ordering::Greater,  // NaN sorts last
+            (false, true) => std::cmp::Ordering::Greater, // NaN sorts last
             (true, false) => std::cmp::Ordering::Less,    // NaN sorts last
             (true, true) => other
                 .distance

@@ -207,9 +207,7 @@ impl TeamEngine {
             .tasks
             .iter()
             .find(|t| t.id == task_id)
-            .ok_or_else(|| {
-                kias_common::error::KiasError::Scheduler("Task not found".to_string())
-            })?
+            .ok_or_else(|| kias_common::error::KiasError::Scheduler("Task not found".to_string()))?
             .assigned_to
             .clone();
 
@@ -490,7 +488,10 @@ mod tests {
 
         engine.retry_task(&task_id).unwrap();
         // retry_task now reassigns to a worker, setting status to InProgress
-        assert_eq!(engine.get_task_status(&task_id), Some(TaskStatus::InProgress));
+        assert_eq!(
+            engine.get_task_status(&task_id),
+            Some(TaskStatus::InProgress)
+        );
         // Worker should be Busy
         assert_eq!(engine.get_state().workers[0].status, AgentStatus::Busy);
     }

@@ -203,7 +203,10 @@ impl Scheduler {
             candidates
         };
 
-        let candidate_nodes: Vec<Node> = filtered_candidates.iter().map(|(n, _)| (*n).clone()).collect();
+        let candidate_nodes: Vec<Node> = filtered_candidates
+            .iter()
+            .map(|(n, _)| (*n).clone())
+            .collect();
 
         if candidate_nodes.is_empty() {
             tracing::warn!(
@@ -217,7 +220,10 @@ impl Scheduler {
         let mut result = self.algorithm.schedule(agent, &candidate_nodes).await?;
 
         // Step 4: Blend affinity score into the result
-        if let Some((_, affinity_score)) = filtered_candidates.iter().find(|(n, _)| n.id == result.node_id) {
+        if let Some((_, affinity_score)) = filtered_candidates
+            .iter()
+            .find(|(n, _)| n.id == result.node_id)
+        {
             // Combine: 70% algorithm score + 30% affinity score
             result.score = 0.7 * result.score + 0.3 * affinity_score;
         }
@@ -246,11 +252,7 @@ impl Scheduler {
     }
 
     /// Enforce tenant resource quotas before scheduling.
-    async fn enforce_quota(
-        &self,
-        agent: &Agent,
-        ctx: &TenantContext,
-    ) -> Result<(), KiasError> {
+    async fn enforce_quota(&self, agent: &Agent, ctx: &TenantContext) -> Result<(), KiasError> {
         let states = self.tenant_states.read().await;
         let stats = states.get(&ctx.tenant_id);
 
@@ -259,9 +261,7 @@ impl Scheduler {
         let current_memory = stats.map_or(0, |s| s.total_memory_bytes);
 
         // Check max_agents
-        if ctx.resource_quota.max_agents > 0
-            && current_agents >= ctx.resource_quota.max_agents
-        {
+        if ctx.resource_quota.max_agents > 0 && current_agents >= ctx.resource_quota.max_agents {
             tracing::warn!(
                 tenant_id = %ctx.tenant_id,
                 current = current_agents,
@@ -300,7 +300,9 @@ impl Scheduler {
             stats.schedules_rejected_quota += 1;
             return Err(KiasError::TenantQuotaExceeded(format!(
                 "tenant '{}': CPU quota {:.1}/{:.1} exceeded",
-                ctx.tenant_id, current_cpu + agent.resource_request.cpu, ctx.resource_quota.cpu_limit
+                ctx.tenant_id,
+                current_cpu + agent.resource_request.cpu,
+                ctx.resource_quota.cpu_limit
             )));
         }
 
@@ -445,9 +447,7 @@ impl Scheduler {
                     if *offset < agent_list.len() {
                         let agent = agent_list[*offset];
                         let ctx = tenant_ctxs.get(tenant_id);
-                        let result = self
-                            .schedule_agent_with_tenant(agent, nodes, ctx)
-                            .await;
+                        let result = self.schedule_agent_with_tenant(agent, nodes, ctx).await;
                         results.push(result);
                         *offset += 1;
                         has_remaining = true;
@@ -471,12 +471,7 @@ impl Scheduler {
     }
 
     /// Release resources for a tenant's agent (called when an agent is terminated).
-    pub async fn release_tenant_agent(
-        &self,
-        tenant_id: &str,
-        cpu: f64,
-        memory_bytes: u64,
-    ) {
+    pub async fn release_tenant_agent(&self, tenant_id: &str, cpu: f64, memory_bytes: u64) {
         let mut states = self.tenant_states.write().await;
         if let Some(stats) = states.get_mut(tenant_id) {
             stats.active_agents = stats.active_agents.saturating_sub(1);
@@ -740,7 +735,7 @@ mod tests {
         let quota = ResourceQuota {
             max_agents: 2,
             max_nodes: 10,
-            cpu_limit: 0.0,   // no CPU limit
+            cpu_limit: 0.0,     // no CPU limit
             memory_limit_mb: 0, // no memory limit
         };
         let ctx = TenantContext::new("tenant-a").with_quota(quota);
@@ -751,17 +746,26 @@ mod tests {
 
         // Schedule first two agents — should succeed
         let a1 = make_tenant_agent("a1", "tenant-a", Priority::Medium);
-        let result1 = scheduler.schedule_agent_with_tenant(&a1, &nodes, Some(&ctx)).await;
+        let result1 = scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await;
         assert!(result1.is_ok(), "First agent should succeed");
 
         let a2 = make_tenant_agent("a2", "tenant-a", Priority::Medium);
-        let result2 = scheduler.schedule_agent_with_tenant(&a2, &nodes, Some(&ctx)).await;
+        let result2 = scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx))
+            .await;
         assert!(result2.is_ok(), "Second agent should succeed");
 
         // Third agent should be rejected — quota exceeded
         let a3 = make_tenant_agent("a3", "tenant-a", Priority::Medium);
-        let result3 = scheduler.schedule_agent_with_tenant(&a3, &nodes, Some(&ctx)).await;
-        assert!(result3.is_err(), "Third agent should be rejected due to quota");
+        let result3 = scheduler
+            .schedule_agent_with_tenant(&a3, &nodes, Some(&ctx))
+            .await;
+        assert!(
+            result3.is_err(),
+            "Third agent should be rejected due to quota"
+        );
 
         match result3 {
             Err(KiasError::TenantQuotaExceeded(_)) => {} // expected
@@ -803,11 +807,13 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            result_a.node_id.starts_with("node-") && (
-                result_a.node_id.contains("tenant-alpha") ||
+            result_a.node_id.starts_with("node-")
+                && (
+                    result_a.node_id.contains("tenant-alpha") ||
                 result_a.node_id.starts_with("node-0") || // shared nodes
-                result_a.node_id.starts_with("node-1")    // shared nodes
-            ),
+                result_a.node_id.starts_with("node-1")
+                    // shared nodes
+                ),
             "Agent alpha landed on wrong node: {}",
             result_a.node_id
         );
@@ -819,11 +825,13 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            result_b.node_id.starts_with("node-") && (
-                result_b.node_id.contains("tenant-beta") ||
+            result_b.node_id.starts_with("node-")
+                && (
+                    result_b.node_id.contains("tenant-beta") ||
                 result_b.node_id.starts_with("node-0") || // shared nodes
-                result_b.node_id.starts_with("node-1")    // shared nodes
-            ),
+                result_b.node_id.starts_with("node-1")
+                    // shared nodes
+                ),
             "Agent beta landed on wrong node: {}",
             result_b.node_id
         );
@@ -857,7 +865,10 @@ mod tests {
             Err(KiasError::Scheduler(msg)) => {
                 assert!(msg.contains("namespace violation"), "Error: {}", msg);
             }
-            other => panic!("Expected Scheduler error for namespace violation, got {:?}", other),
+            other => panic!(
+                "Expected Scheduler error for namespace violation, got {:?}",
+                other
+            ),
         }
     }
 
@@ -867,8 +878,8 @@ mod tests {
         let quota = ResourceQuota {
             max_agents: 100,
             max_nodes: 100,
-            cpu_limit: 8.0,            // 8 cores total
-            memory_limit_mb: 4096,     // 4 GB total
+            cpu_limit: 8.0,        // 8 cores total
+            memory_limit_mb: 4096, // 4 GB total
         };
         let ctx = TenantContext::new("accounting-test").with_quota(quota);
 
@@ -878,19 +889,31 @@ mod tests {
 
         // Schedule agents with specific resource requests
         let a1 = make_tenant_agent_with_resources("a1", "accounting-test", 2.0, 512);
-        scheduler.schedule_agent_with_tenant(&a1, &nodes, Some(&ctx)).await.unwrap();
+        scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await
+            .unwrap();
 
         let a2 = make_tenant_agent_with_resources("a2", "accounting-test", 3.0, 1024);
-        scheduler.schedule_agent_with_tenant(&a2, &nodes, Some(&ctx)).await.unwrap();
+        scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx))
+            .await
+            .unwrap();
 
         let stats = scheduler.get_tenant_stats("accounting-test").await.unwrap();
         assert_eq!(stats.active_agents, 2);
-        assert!((stats.total_cpu - 5.0).abs() < f64::EPSILON, "CPU should be 5.0, got {}", stats.total_cpu);
+        assert!(
+            (stats.total_cpu - 5.0).abs() < f64::EPSILON,
+            "CPU should be 5.0, got {}",
+            stats.total_cpu
+        );
         assert_eq!(stats.total_memory_bytes, (512 + 1024) * 1024 * 1024);
 
         // Now schedule one more that would exceed CPU limit
         let a3 = make_tenant_agent_with_resources("a3", "accounting-test", 4.0, 512);
-        let result = scheduler.schedule_agent_with_tenant(&a3, &nodes, Some(&ctx)).await;
+        let result = scheduler
+            .schedule_agent_with_tenant(&a3, &nodes, Some(&ctx))
+            .await;
         assert!(result.is_err(), "Should fail: 5.0 + 4.0 > 8.0 CPU limit");
 
         match result {
@@ -908,12 +931,18 @@ mod tests {
         // Memory limit test — schedule one that would exceed memory
         // Currently: 512 + 1024 = 1536 MB used, limit is 4096 MB
         let a4 = make_tenant_agent_with_resources("a4", "accounting-test", 1.0, 3000);
-        let result = scheduler.schedule_agent_with_tenant(&a4, &nodes, Some(&ctx)).await;
+        let result = scheduler
+            .schedule_agent_with_tenant(&a4, &nodes, Some(&ctx))
+            .await;
         assert!(result.is_err(), "Should fail: 1536 + 3000 > 4096 MB limit");
 
         match result {
             Err(KiasError::TenantQuotaExceeded(msg)) => {
-                assert!(msg.contains("memory"), "Error should mention memory: {}", msg);
+                assert!(
+                    msg.contains("memory"),
+                    "Error should mention memory: {}",
+                    msg
+                );
             }
             other => panic!("Expected TenantQuotaExceeded for memory, got {:?}", other),
         }
@@ -997,21 +1026,33 @@ mod tests {
 
         // Schedule two agents
         let a1 = make_tenant_agent_with_resources("a1", "release-test", 1.0, 512);
-        scheduler.schedule_agent_with_tenant(&a1, &nodes, Some(&ctx)).await.unwrap();
+        scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await
+            .unwrap();
 
         let a2 = make_tenant_agent_with_resources("a2", "release-test", 1.0, 512);
-        scheduler.schedule_agent_with_tenant(&a2, &nodes, Some(&ctx)).await.unwrap();
+        scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx))
+            .await
+            .unwrap();
 
         // Third should fail
         let a3 = make_tenant_agent_with_resources("a3", "release-test", 1.0, 512);
-        let result = scheduler.schedule_agent_with_tenant(&a3, &nodes, Some(&ctx)).await;
+        let result = scheduler
+            .schedule_agent_with_tenant(&a3, &nodes, Some(&ctx))
+            .await;
         assert!(result.is_err(), "Should fail: quota exceeded");
 
         // Release a1's resources
-        scheduler.release_tenant_agent("release-test", 1.0, 512 * 1024 * 1024).await;
+        scheduler
+            .release_tenant_agent("release-test", 1.0, 512 * 1024 * 1024)
+            .await;
 
         // Now a3 should succeed
-        let result = scheduler.schedule_agent_with_tenant(&a3, &nodes, Some(&ctx)).await;
+        let result = scheduler
+            .schedule_agent_with_tenant(&a3, &nodes, Some(&ctx))
+            .await;
         assert!(result.is_ok(), "Should succeed after release");
 
         let stats = scheduler.get_tenant_stats("release-test").await.unwrap();
@@ -1028,7 +1069,10 @@ mod tests {
 
         let agent = make_tenant_agent("a1", "some-tenant", Priority::Medium);
         let result = scheduler.schedule_agent(&agent, &nodes).await;
-        assert!(result.is_ok(), "Agent with tenant_id should succeed without context");
+        assert!(
+            result.is_ok(),
+            "Agent with tenant_id should succeed without context"
+        );
     }
 
     #[tokio::test]
@@ -1041,7 +1085,9 @@ mod tests {
 
         for i in 0..20 {
             let agent = make_tenant_agent(&format!("a{}", i), "unlimited", Priority::Medium);
-            let result = scheduler.schedule_agent_with_tenant(&agent, &nodes, Some(&ctx)).await;
+            let result = scheduler
+                .schedule_agent_with_tenant(&agent, &nodes, Some(&ctx))
+                .await;
             assert!(result.is_ok(), "Agent {} should succeed with no limits", i);
         }
 

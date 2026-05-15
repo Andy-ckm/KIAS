@@ -403,10 +403,8 @@ mod tests {
 
     #[test]
     fn test_filter_pipeline_custom() {
-        let pipeline = FilterPipeline::with_filters(vec![
-            Box::new(HealthCheckFilter),
-            Box::new(CostFilter),
-        ]);
+        let pipeline =
+            FilterPipeline::with_filters(vec![Box::new(HealthCheckFilter), Box::new(CostFilter)]);
         assert_eq!(pipeline.filters.len(), 2);
         assert_eq!(pipeline.filters[0].name(), "health-check");
         assert_eq!(pipeline.filters[1].name(), "cost");

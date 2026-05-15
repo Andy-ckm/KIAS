@@ -209,7 +209,10 @@ impl SubAgentRegistry {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            if !matches!(path.extension().and_then(|e| e.to_str()), Some("yaml" | "yml")) {
+            if !matches!(
+                path.extension().and_then(|e| e.to_str()),
+                Some("yaml" | "yml")
+            ) {
                 continue;
             }
             let content = std::fs::read_to_string(&path)?;
@@ -396,7 +399,10 @@ impl SubAgentRunner {
         };
 
         // Insert into tasks map
-        self.tasks.lock().await.insert(task_id.clone(), handle.clone());
+        self.tasks
+            .lock()
+            .await
+            .insert(task_id.clone(), handle.clone());
 
         // Spawn the task
         let executor = Arc::clone(&self.executor);
@@ -577,10 +583,7 @@ You are a senior code reviewer. Be thorough."#;
         let mut reg = SubAgentRegistry::new();
         reg.register(make_spec("reviewer"));
 
-        let runner = SubAgentRunner::new(
-            Arc::new(reg),
-            Arc::new(EchoExecutor),
-        );
+        let runner = SubAgentRunner::new(Arc::new(reg), Arc::new(EchoExecutor));
 
         let outcome = runner
             .delegate_sync("reviewer", "Review this code", &serde_json::json!({}))
@@ -627,10 +630,7 @@ You are a senior code reviewer. Be thorough."#;
         let mut reg = SubAgentRegistry::new();
         reg.register(make_spec("async-reviewer"));
 
-        let runner = SubAgentRunner::new(
-            Arc::new(reg),
-            Arc::new(EchoExecutor),
-        );
+        let runner = SubAgentRunner::new(Arc::new(reg), Arc::new(EchoExecutor));
 
         let handle = runner
             .delegate_async("async-reviewer", "Review PR", &serde_json::json!({}))
@@ -657,7 +657,10 @@ You are a senior code reviewer. Be thorough."#;
 
         let result = runner.poll_result("nonexistent-id").await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SubAgentError::TaskNotFound(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            SubAgentError::TaskNotFound(_)
+        ));
     }
 
     #[tokio::test]
@@ -667,17 +670,17 @@ You are a senior code reviewer. Be thorough."#;
         spec.max_depth = 0; // no nesting allowed
         reg.register(spec);
 
-        let runner = SubAgentRunner::new(
-            Arc::new(reg),
-            Arc::new(EchoExecutor),
-        );
+        let runner = SubAgentRunner::new(Arc::new(reg), Arc::new(EchoExecutor));
 
         let result = runner
             .delegate_sync("shallow", "nested task", &serde_json::json!({}))
             .await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SubAgentError::DepthExceeded { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            SubAgentError::DepthExceeded { .. }
+        ));
     }
 
     #[tokio::test]
@@ -685,10 +688,7 @@ You are a senior code reviewer. Be thorough."#;
         let mut reg = SubAgentRegistry::new();
         reg.register(make_spec("agent-x"));
 
-        let runner = SubAgentRunner::new(
-            Arc::new(reg),
-            Arc::new(EchoExecutor),
-        );
+        let runner = SubAgentRunner::new(Arc::new(reg), Arc::new(EchoExecutor));
 
         let handle = runner
             .delegate_async("agent-x", "some task", &serde_json::json!({}))

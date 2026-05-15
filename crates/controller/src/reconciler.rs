@@ -53,7 +53,9 @@ impl<S: AgentSpawner> Reconciler for DefaultReconciler<S> {
         tracing::info!("Reconciling controller state");
 
         // Count how many agents we actually have tracked
-        let actual_tracked = state.agents.values()
+        let actual_tracked = state
+            .agents
+            .values()
             .filter(|a| matches!(a.status, AgentStatus::Running))
             .count() as u32;
 

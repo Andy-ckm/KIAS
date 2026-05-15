@@ -241,16 +241,20 @@ pub async fn invoke_agent(
 
             let output_text = task_result
                 .output
-                .and_then(|v| v.get("stdout").and_then(|s| s.as_str().map(|ss| ss.to_string())))
+                .and_then(|v| {
+                    v.get("stdout")
+                        .and_then(|s| s.as_str().map(|ss| ss.to_string()))
+                })
                 .unwrap_or_default();
 
             let error_text = task_result.error.unwrap_or_default();
 
-            let final_output = if task_result.status == ExecutorTaskStatus::Failed && !error_text.is_empty() {
-                format!("{}: {}", status, error_text)
-            } else {
-                output_text
-            };
+            let final_output =
+                if task_result.status == ExecutorTaskStatus::Failed && !error_text.is_empty() {
+                    format!("{}: {}", status, error_text)
+                } else {
+                    output_text
+                };
 
             tracing::info!(
                 run_id = %run_id,

@@ -165,18 +165,20 @@ pub async fn scheduler_status(State(state): State<AppState>) -> Json<SchedulerSt
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::extract::State;
     use crate::models::agent::AgentStatus;
     use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+    use axum::extract::State;
     use std::collections::HashMap;
 
     async fn test_state() -> AppState {
         let config = kias_common::config::KiasConfig::default();
         let graph = kias_knowledge::graph::KnowledgeGraph::new();
-        let embedding_engine = Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
-        let knowledge_retriever = kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
-            .await
-            .expect("Failed to create knowledge retriever");
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
 
         // Seed 2 default nodes matching AppState::new()
         let mut nodes = std::collections::HashMap::new();
@@ -294,7 +296,9 @@ mod tests {
                 kias_knowledge::vector::VectorRetriever::new(
                     kias_knowledge::graph::KnowledgeGraph::new(),
                     Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim()),
-                ).await.unwrap()
+                )
+                .await
+                .unwrap(),
             ),
         };
 

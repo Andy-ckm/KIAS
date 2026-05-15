@@ -206,7 +206,9 @@ impl DeadLetterQueue {
                 .bind(id)
                 .execute(&self.pool)
                 .await
-                .map_err(|e| kias_common::KiasError::Config(format!("dlq retry update failed: {e}")))?;
+                .map_err(|e| {
+                    kias_common::KiasError::Config(format!("dlq retry update failed: {e}"))
+                })?;
             debug!(dlq_id = %id, task_id = %e.task_id, "DLQ entry marked for retry");
         }
         Ok(entry)
@@ -245,7 +247,7 @@ impl DeadLetterQueue {
     /// Purge entries older than the given number of days.
     pub async fn purge_older_than(&self, days: i64) -> KiasResult<u64> {
         let result = sqlx::query(
-            "DELETE FROM dead_letter_queue WHERE failed_at < datetime('now', ? || ' days')"
+            "DELETE FROM dead_letter_queue WHERE failed_at < datetime('now', ? || ' days')",
         )
         .bind(format!("-{days}"))
         .execute(&self.pool)
@@ -337,7 +339,7 @@ mod tests {
                 dead_letter_reason TEXT NOT NULL DEFAULT 'max_retries_exceeded',
                 can_retry INTEGER NOT NULL DEFAULT 1,
                 metadata TEXT NOT NULL DEFAULT '{}'
-            )"
+            )",
         )
         .execute(&pool)
         .await
@@ -352,8 +354,15 @@ mod tests {
 
         let id = dlq
             .enqueue(
-                "task-1", "agent-1", Some("wf-1"), "process_data", "compute",
-                Some("{\"input\": 42}"), "connection timeout", 3, 3,
+                "task-1",
+                "agent-1",
+                Some("wf-1"),
+                "process_data",
+                "compute",
+                Some("{\"input\": 42}"),
+                "connection timeout",
+                3,
+                3,
                 DeadLetterReason::MaxRetriesExceeded,
             )
             .await
@@ -375,7 +384,18 @@ mod tests {
         let dlq = DeadLetterQueue::new(pool);
 
         let id = dlq
-            .enqueue("t1", "a1", None, "task", "type", None, "err", 1, 3, DeadLetterReason::Timeout)
+            .enqueue(
+                "t1",
+                "a1",
+                None,
+                "task",
+                "type",
+                None,
+                "err",
+                1,
+                3,
+                DeadLetterReason::Timeout,
+            )
             .await
             .unwrap();
 
@@ -389,9 +409,20 @@ mod tests {
         let pool = setup_db().await;
         let dlq = DeadLetterQueue::new(pool);
 
-        dlq.enqueue("task-42", "a1", None, "n", "t", None, "e", 1, 3, DeadLetterReason::Unknown)
-            .await
-            .unwrap();
+        dlq.enqueue(
+            "task-42",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Unknown,
+        )
+        .await
+        .unwrap();
 
         let entry = dlq.get_by_task("task-42").await.unwrap();
         assert!(entry.is_some());
@@ -404,7 +435,18 @@ mod tests {
         let dlq = DeadLetterQueue::new(pool);
 
         let id = dlq
-            .enqueue("t1", "a1", None, "n", "t", None, "e", 3, 3, DeadLetterReason::MaxRetriesExceeded)
+            .enqueue(
+                "t1",
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                3,
+                3,
+                DeadLetterReason::MaxRetriesExceeded,
+            )
             .await
             .unwrap();
 
@@ -427,7 +469,18 @@ mod tests {
         let dlq = DeadLetterQueue::new(pool);
 
         let id = dlq
-            .enqueue("t1", "a1", None, "n", "t", None, "e", 1, 3, DeadLetterReason::Cancelled)
+            .enqueue(
+                "t1",
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                1,
+                3,
+                DeadLetterReason::Cancelled,
+            )
             .await
             .unwrap();
 
@@ -440,12 +493,34 @@ mod tests {
         let pool = setup_db().await;
         let dlq = DeadLetterQueue::new(pool);
 
-        dlq.enqueue("t1", "a1", None, "n", "t", None, "e", 3, 3, DeadLetterReason::MaxRetriesExceeded)
-            .await
-            .unwrap();
-        dlq.enqueue("t2", "a1", None, "n", "t", None, "e", 3, 3, DeadLetterReason::Timeout)
-            .await
-            .unwrap();
+        dlq.enqueue(
+            "t1",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            3,
+            3,
+            DeadLetterReason::MaxRetriesExceeded,
+        )
+        .await
+        .unwrap();
+        dlq.enqueue(
+            "t2",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            3,
+            3,
+            DeadLetterReason::Timeout,
+        )
+        .await
+        .unwrap();
 
         let stats = dlq.stats().await.unwrap();
         assert_eq!(stats.total, 2);
@@ -458,15 +533,48 @@ mod tests {
         let pool = setup_db().await;
         let dlq = DeadLetterQueue::new(pool);
 
-        dlq.enqueue("t1", "agent-A", None, "n", "t", None, "e", 1, 3, DeadLetterReason::Unknown)
-            .await
-            .unwrap();
-        dlq.enqueue("t2", "agent-B", None, "n", "t", None, "e", 1, 3, DeadLetterReason::Unknown)
-            .await
-            .unwrap();
-        dlq.enqueue("t3", "agent-A", None, "n", "t", None, "e", 1, 3, DeadLetterReason::Unknown)
-            .await
-            .unwrap();
+        dlq.enqueue(
+            "t1",
+            "agent-A",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Unknown,
+        )
+        .await
+        .unwrap();
+        dlq.enqueue(
+            "t2",
+            "agent-B",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Unknown,
+        )
+        .await
+        .unwrap();
+        dlq.enqueue(
+            "t3",
+            "agent-A",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Unknown,
+        )
+        .await
+        .unwrap();
 
         let a_entries = dlq.list(Some("agent-A"), false, 100).await.unwrap();
         assert_eq!(a_entries.len(), 2);

@@ -239,9 +239,8 @@ pub async fn wait_for_signal() {
 
     #[cfg(unix)]
     {
-        let mut sigterm =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("failed to register SIGTERM handler");
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to register SIGTERM handler");
 
         tokio::select! {
             _ = ctrl_c => {
@@ -307,12 +306,9 @@ mod tests {
         let mut rx = shutdown.subscribe();
 
         // Initiate shutdown
-        let result = tokio::time::timeout(
-            Duration::from_secs(2),
-            shutdown.shutdown(),
-        )
-        .await
-        .expect("shutdown should complete within timeout");
+        let result = tokio::time::timeout(Duration::from_secs(2), shutdown.shutdown())
+            .await
+            .expect("shutdown should complete within timeout");
 
         assert_eq!(result.phase, ShutdownPhase::Complete);
         assert!(shutdown.is_shutting_down());
@@ -345,19 +341,18 @@ mod tests {
         let shutdown = GracefulShutdown::new(test_config());
 
         // First shutdown - wait for it to complete
-        let result1 = tokio::time::timeout(
-            Duration::from_secs(5),
-            shutdown.shutdown(),
-        )
-        .await
-        .expect("first shutdown should complete");
+        let result1 = tokio::time::timeout(Duration::from_secs(5), shutdown.shutdown())
+            .await
+            .expect("first shutdown should complete");
         assert_eq!(result1.phase, ShutdownPhase::Complete);
         assert!(shutdown.is_shutting_down());
 
         // Second shutdown should be immediate (already initiated)
         // Note: phase might still be Running if first shutdown completed very fast
         let result2 = shutdown.shutdown().await;
-        assert!(result2.phase == ShutdownPhase::Complete || result2.phase == ShutdownPhase::Running);
+        assert!(
+            result2.phase == ShutdownPhase::Complete || result2.phase == ShutdownPhase::Running
+        );
         assert!(shutdown.is_shutting_down());
     }
 
@@ -399,7 +394,10 @@ mod tests {
     async fn test_health_status() {
         assert_eq!(health_status(ShutdownPhase::Running), "healthy");
         assert_eq!(health_status(ShutdownPhase::Draining), "degraded");
-        assert_eq!(health_status(ShutdownPhase::WaitingForCompletion), "degraded");
+        assert_eq!(
+            health_status(ShutdownPhase::WaitingForCompletion),
+            "degraded"
+        );
         assert_eq!(health_status(ShutdownPhase::ForceShutdown), "unhealthy");
         assert_eq!(health_status(ShutdownPhase::Complete), "unhealthy");
     }

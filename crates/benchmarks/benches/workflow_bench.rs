@@ -76,10 +76,14 @@ fn branching_dag(depth: usize) -> WorkflowGraph {
     graph.add_node(Node::new("start", "start", NodeType::Fork));
 
     for i in 0..depth {
-        let cond = Node::new(&format!("c{}", i), &format!("cond-{}", i), NodeType::Condition)
-            .with_config(serde_json::json!({
-                "condition_key": format!("branch_{}", i),
-            }));
+        let cond = Node::new(
+            &format!("c{}", i),
+            &format!("cond-{}", i),
+            NodeType::Condition,
+        )
+        .with_config(serde_json::json!({
+            "condition_key": format!("branch_{}", i),
+        }));
         graph.add_node(cond);
 
         if i == 0 {

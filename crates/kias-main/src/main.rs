@@ -1,11 +1,62 @@
 mod services;
 
 use services::KiasServiceManager;
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "kias", version, about = "KIAS - Kubernetes-inspired Intelligent Agent System")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Start the KIAS server
+    Server {
+        #[arg(short, long, default_value = "0.0.0.0")]
+        host: String,
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+    },
+    /// Show system status
+    Status,
+    /// Run health check
+    Health,
+    /// Show version
+    Version,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::Server { host, port }) => {
+            start_server(host, port).await?;
+        }
+        Some(Commands::Status) => {
+            println!("KIAS Status: Running");
+            println!("Version: {}", env!("CARGO_PKG_VERSION"));
+        }
+        Some(Commands::Health) => {
+            println!("Health: OK");
+        }
+        Some(Commands::Version) => {
+            println!("kias {}", env!("CARGO_PKG_VERSION"));
+        }
+        None => {
+            // Default: start server
+            start_server("0.0.0.0".to_string(), 8080).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
     tracing::info!("Starting KIAS System");
 
     // Load configuration (uses defaults if no config file found).
@@ -32,8 +83,6 @@ async fn main() -> anyhow::Result<()> {
     // Start the API server.
     let api_config = config.clone();
     let api_handle = tokio::spawn(async move {
-        let host = api_config.api_server.host.clone();
-        let port = api_config.api_server.port;
         let addr = format!("{}:{}", host, port);
 
         tracing::info!(addr = %addr, "Starting API server");

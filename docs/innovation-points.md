@@ -629,3 +629,17 @@
 - **KIAS 差距**: New Rust project (March 2026), interesting .awf format for declarative workflow definitions
 - **优先级**: 🟡 Low — Very new, only 2 stars, but the .awf declarative format concept could complement KIAS's YAML-based agent definitions
 
+
+### 39. Rivet Durable AI Agent Runtime (rivet-dev/rivet) ⭐5537 🆕
+- **来源**: rivet-dev/rivet (Rust)
+- **核心**: Durable AI agent runtime with reactive actors as primitive for stateful workloads
+- **特点**: Crash recovery, stateful actors, built for collaborative apps and AI agents
+- **KIAS 差距**: Rivet's actor model is a different execution paradigm than KIAS's DAG workflow. KIAS could adopt durable execution semantics (checkpoint + resume) for workflow-engine's long-running tasks
+- **优先级**: 🟡 Medium — Actor model is interesting but KIAS's DAG + checkpoint already covers durable execution. Watch for architectural ideas.
+
+### 40. Durable Agent Execution (benelser/durable) ⭐0 🆕
+- **来源**: benelser/durable
+- **核心**: "The SQLite of durable agent execution" — crash-recoverable AI agents with exactly-once semantics
+- **特点**: SQLite-backed, exactly-once delivery, crash recovery
+- **KIAS 差距**: KIAS data-store already has SQLite persistence + checkpoint system. Exactly-once semantics is a gap — KIAS workflows use at-least-once with retry. Could add idempotency keys to workflow engine.
+- **优先级**: 🟡 Low — Concept is right but project is brand new (0 stars). KIAS already has SQLite + checkpoint. The exactly-once pattern is worth noting for future workflow improvements.

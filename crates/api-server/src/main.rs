@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let host = config.api_server.host.clone();
 
     // Build application state
-    let state = AppState::new(config);
+    let state = AppState::new(config).await;
 
     // Build router with middleware
     let app = create_router(state);

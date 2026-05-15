@@ -154,7 +154,7 @@
 
 **Sprint 14 — Data Layer Architecture + LangGraph State Graph Engine + Innovations**
 
-当前状态：1309 tests, 65,046 行(Rust) + 10,106 行(Dashboard), 0 errors, 0 warnings, 18 crates + 1 前端项目
+当前状态：1309 tests, 65,682 行(Rust) + 10,106 行(Dashboard), 0 errors, 0 warnings, 21 crates + 1 前端项目
 
 已完成：
 - ✅ kias-data-store crate 完整实现（L1 架构层）

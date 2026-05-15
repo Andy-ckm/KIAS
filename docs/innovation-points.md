@@ -607,3 +607,25 @@
   - **图工作流**: 基于图的多 Agent 工作流 → KIAS langgraph-engine 可参考其交互模式
   - **高性能**: Rust 原生性能 → 对标 KIAS workflow-engine 的性能目标
 - **优先级**: P2（workflow-engine 参考）
+
+### 48. Hatchet Durable Workflow Engine ⭐7151 🆕
+- **来源**: hatchet-dev/hatchet (Go)
+- **核心**: DAG-based orchestration engine for background tasks, AI agents, and durable workflows
+- **特点**: Durable execution (tasks survive crashes), event-driven, queue-based, supports Go/Python/TypeScript
+- **KIAS 差距**: KIAS has workflow-engine but lacks durable execution (crash recovery mid-workflow). Hatchet's queue-based task distribution + event sourcing pattern could strengthen KIAS workflow resilience.
+- **优先级**: 🟡 Medium — KIAS already has checkpoint persistence in workflow-engine, but Hatchet's approach to durable execution is more battle-tested
+
+### 49. pctx Agentic Tool Execution Layer ⭐252 🆕
+- **来源**: portofcontext/pctx (Rust)
+- **核心**: Auto-converts agent tools and MCP servers into code that runs in secure sandboxes
+- **特点**: Token-efficient workflows, sandbox execution, MCP server integration
+- **KIAS 差距**: KIAS has MCP protocol + sandbox execution, but pctx's auto-conversion from MCP server definition to sandboxed code is interesting for reducing boilerplate
+- **优先级**: 🟡 Low — KIAS sandbox + MCP integration already covers this, but the auto-conversion pattern is worth studying
+
+### 50. Agentic Workflow Universal Engine ⭐2 🆕
+- **来源**: agentralabs/agentic-workflow (Rust)
+- **核心**: Universal orchestration engine for AI agents — workflows, pipelines, state machines, batch processing
+- **特点**: 24 inventions, 124 MCP tools, .awf format. Rust core + MCP server
+- **KIAS 差距**: New Rust project (March 2026), interesting .awf format for declarative workflow definitions
+- **优先级**: 🟡 Low — Very new, only 2 stars, but the .awf declarative format concept could complement KIAS's YAML-based agent definitions
+

@@ -9,6 +9,7 @@ pub mod sandbox;
 pub mod skill;
 pub mod tool;
 pub mod workflow;
+pub mod process;
 
 use clap::{Parser, Subcommand};
 

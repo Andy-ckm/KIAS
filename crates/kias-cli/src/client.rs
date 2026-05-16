@@ -284,7 +284,8 @@ impl ApiClient {
         &self,
         body: serde_json::Value,
     ) -> Result<WorkflowInfo, Box<dyn std::error::Error>> {
-        let resp = self.request(reqwest::Method::POST, "/api/v1/workflows")
+        let resp = self
+            .request(reqwest::Method::POST, "/api/v1/workflows")
             .json(&body)
             .send()
             .await?;

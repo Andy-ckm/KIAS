@@ -1,0 +1,31 @@
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: code-reviewer
+  namespace: default
+  labels:
+    role: reviewer
+    project: kias
+spec:
+  prompt: "You are KIAS code reviewer. Analyze code for quality, security, and performance."
+  model:
+    name: gpt-4o
+  tools:
+    - file_read
+    - search
+  skills:
+    - code_review
+  resources:
+    memory: "512Mi"
+    cpu: 0.5
+  permissions:
+    read:
+      - "src/**"
+      - "crates/**"
+    write: []
+  cost:
+    max_tokens_per_run: 50000
+    max_cost_per_day: 5.0
+  audit:
+    log_level: info
+    retention: "30d"

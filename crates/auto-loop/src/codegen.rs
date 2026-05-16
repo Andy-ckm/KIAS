@@ -7,7 +7,6 @@
 //! - 文档生成
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::planner::GeneratedPlan;
 
@@ -60,7 +59,7 @@ impl PersistenceCodeGenerator {
 }
 
 impl CodeGenerator for PersistenceCodeGenerator {
-    fn generate(&self, plan: &GeneratedPlan) -> Vec<CodePatch> {
+    fn generate(&self, _plan: &GeneratedPlan) -> Vec<CodePatch> {
         let mut patches = Vec::new();
         
         // 生成AppState修改补丁
@@ -138,7 +137,7 @@ impl ConfigFixCodeGenerator {
 }
 
 impl CodeGenerator for ConfigFixCodeGenerator {
-    fn generate(&self, plan: &GeneratedPlan) -> Vec<CodePatch> {
+    fn generate(&self, _plan: &GeneratedPlan) -> Vec<CodePatch> {
         let mut patches = Vec::new();
         
         // 生成配置文件修改补丁

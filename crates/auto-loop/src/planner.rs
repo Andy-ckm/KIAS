@@ -7,7 +7,6 @@
 //! - 测试添加方案
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// 方案类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +97,7 @@ impl PersistencePlanGenerator {
 }
 
 impl PlanGenerator for PersistencePlanGenerator {
-    fn generate(&self, problem_description: &str, root_cause: &str) -> Option<GeneratedPlan> {
+    fn generate(&self, problem_description: &str, _root_cause: &str) -> Option<GeneratedPlan> {
         if !problem_description.contains("持久化") && !problem_description.contains("丢失") {
             return None;
         }
@@ -156,7 +155,7 @@ impl ConfigFixPlanGenerator {
 }
 
 impl PlanGenerator for ConfigFixPlanGenerator {
-    fn generate(&self, problem_description: &str, root_cause: &str) -> Option<GeneratedPlan> {
+    fn generate(&self, problem_description: &str, _root_cause: &str) -> Option<GeneratedPlan> {
         if !problem_description.contains("配置") && !problem_description.contains("placeholder") {
             return None;
         }

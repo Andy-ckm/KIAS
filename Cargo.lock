@@ -253,6 +253,8 @@ name = "auto-loop"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "kias-autonomy-controller",
+ "kias-controller",
  "serde",
  "serde_json",
  "tokio-test",

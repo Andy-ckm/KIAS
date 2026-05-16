@@ -7,6 +7,7 @@ pub mod analyzer;
 pub mod codegen;
 pub mod detector;
 pub mod planner;
+pub mod verifier;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

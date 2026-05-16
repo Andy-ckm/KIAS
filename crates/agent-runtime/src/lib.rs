@@ -6,10 +6,10 @@
 //! 3. Execute Tools → Observations
 //! 4. Loop until done
 
-pub mod executor;
 pub mod context;
+pub mod executor;
 pub mod types;
 
-pub use executor::AgentExecutor;
 pub use context::AgentContext;
+pub use executor::AgentExecutor;
 pub use types::*;

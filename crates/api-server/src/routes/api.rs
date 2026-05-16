@@ -182,9 +182,15 @@ pub fn create_router(state: AppState) -> Router {
     let im_routes = Router::new()
         .route("/api/v1/im/webhook", axum::routing::post(im::im_webhook))
         .route("/api/v1/im/wechat", axum::routing::post(im::wechat_webhook))
-        .route("/api/v1/im/telegram", axum::routing::post(im::telegram_webhook))
+        .route(
+            "/api/v1/im/telegram",
+            axum::routing::post(im::telegram_webhook),
+        )
         .route("/api/v1/im/feishu", axum::routing::post(im::feishu_webhook))
-        .route("/api/v1/im/platforms", axum::routing::get(im::list_platforms));
+        .route(
+            "/api/v1/im/platforms",
+            axum::routing::get(im::list_platforms),
+        );
 
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes

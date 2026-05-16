@@ -14,5 +14,5 @@ pub mod builtin;
 pub mod registry;
 pub mod sandbox;
 
-pub use registry::ToolRegistry;
 pub use builtin::*;
+pub use registry::ToolRegistry;

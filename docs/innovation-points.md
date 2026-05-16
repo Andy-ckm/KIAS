@@ -1051,3 +1051,10 @@
 - **应用**: KIAS知识层增强、auto-loop planner升级、agent运行时工具
 - **状态**: 已实现 `crates/knowledge/src/agentic_rag.rs`
 
+
+### #111. wacht-platform/platform ⭐16
+- Source: https://github.com/wacht-platform/platform
+- Language: Rust
+- "Ship product, not plumbing. Open source framework for AI-first SaaS"
+- 特点: Identity, billing, multi-tenancy — SaaS 基础设施
+- KIAS 启示: 多租户 + 身份管理对 KIAS 企业部署有参考价值

@@ -213,6 +213,9 @@ pub struct LoopRecord {
 }
 
 /// 自动迭代循环管理器
+use kias_autonomy_controller::AutonomyLevel;
+use kias_controller::autonomy_integration::{ActionApproval, AutonomyGate};
+
 pub struct AutoLoopManager {
     /// 循环记录
     records: Vec<LoopRecord>,
@@ -222,6 +225,21 @@ pub struct AutoLoopManager {
     config: AutoLoopConfig,
     /// 知识库
     knowledge_base: Vec<KnowledgeEntry>,
+    /// 自主权限门控
+    autonomy_gate: AutonomyGate,
+}
+
+/// 自主权限检查结果
+#[derive(Debug, Clone)]
+pub struct AutonomyCheckResult {
+    /// 是否允许执行
+    pub allowed: bool,
+    /// 需要的自主级别
+    pub required_level: AutonomyLevel,
+    /// 当前自主级别
+    pub current_level: AutonomyLevel,
+    /// 原因说明
+    pub reason: String,
 }
 
 /// 自动循环配置
@@ -279,7 +297,62 @@ impl AutoLoopManager {
             current_status: LoopStatus::Idle,
             config,
             knowledge_base: Vec::new(),
+            autonomy_gate: AutonomyGate::new(),
         }
+    }
+
+    /// 创建带自定义自主级别的管理器
+    pub fn with_autonomy_level(mut self, level: AutonomyLevel) -> Self {
+        self.autonomy_gate.set_level(level);
+        self
+    }
+
+    /// 获取自主权限门控的引用
+    pub fn autonomy_gate(&self) -> &AutonomyGate {
+        &self.autonomy_gate
+    }
+
+    /// 获取自主权限门控的可变引用
+    pub fn autonomy_gate_mut(&mut self) -> &mut AutonomyGate {
+        &mut self.autonomy_gate
+    }
+
+    /// 检查某个工具操作是否被自主策略允许
+    pub fn check_autonomy(&mut self, tool: &str) -> AutonomyCheckResult {
+        let decision = self.autonomy_gate.check_approval(tool);
+        let current_level = self.autonomy_gate.current_level().clone();
+        AutonomyCheckResult {
+            allowed: matches!(
+                decision,
+                ActionApproval::Approved | ActionApproval::ApprovedWithSandbox
+            ),
+            required_level: match &decision {
+                ActionApproval::Approved | ActionApproval::ApprovedWithSandbox => {
+                    AutonomyLevel::AutoEdit
+                }
+                ActionApproval::RequiresApproval { .. } => AutonomyLevel::AutoEdit,
+                _ => AutonomyLevel::Suggest,
+            },
+            current_level,
+            reason: format!("{:?}", decision),
+        }
+    }
+
+    /// 检查修复计划中的所有步骤是否可以通过自主门控
+    pub fn check_plan_autonomy(&mut self, plan: &FixPlan) -> Vec<AutonomyCheckResult> {
+        plan.steps
+            .iter()
+            .map(|step| {
+                let tool_name = match step.step_type {
+                    StepType::CodeChange => "file_edit",
+                    StepType::ConfigChange => "config_edit",
+                    StepType::TestAddition => "test_create",
+                    StepType::DocumentationUpdate => "doc_edit",
+                    StepType::DependencyUpdate => "dep_update",
+                };
+                self.check_autonomy(tool_name)
+            })
+            .collect()
     }
 
     /// 启动循环
@@ -543,5 +616,83 @@ mod tests {
         let manager = AutoLoopManager::new(config);
         let report = manager.generate_report();
         assert!(report.contains("KIAS 自动迭代循环报告"));
+    }
+
+    #[test]
+    fn test_autonomy_gate_default_suggest() {
+        let config = AutoLoopConfig::default();
+        let manager = AutoLoopManager::new(config);
+        assert_eq!(
+            manager.autonomy_gate().current_level(),
+            &AutonomyLevel::Suggest
+        );
+    }
+
+    #[test]
+    fn test_autonomy_gate_with_level() {
+        let config = AutoLoopConfig::default();
+        let manager = AutoLoopManager::new(config).with_autonomy_level(AutonomyLevel::AutoEdit);
+        assert_eq!(
+            manager.autonomy_gate().current_level(),
+            &AutonomyLevel::AutoEdit
+        );
+    }
+
+    #[test]
+    fn test_check_autonomy_approved_in_auto_edit() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config).with_autonomy_level(AutonomyLevel::AutoEdit);
+        // file_edit should be approved in AutoEdit mode
+        let result = manager.check_autonomy("file_edit");
+        assert!(result.allowed);
+    }
+
+    #[test]
+    fn test_check_autonomy_denied_in_suggest() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config);
+        // In Suggest mode, file_edit should require approval
+        let result = manager.check_autonomy("file_edit");
+        // Suggest mode: file_edit requires approval, not auto-approved
+        assert!(!result.allowed);
+    }
+
+    #[test]
+    fn test_check_plan_autonomy() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config).with_autonomy_level(AutonomyLevel::AutoEdit);
+        let plan = FixPlan {
+            id: "plan1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Test".to_string(),
+            description: "Test".to_string(),
+            steps: vec![
+                FixStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "Edit file".to_string(),
+                    files: vec!["src/main.rs".to_string()],
+                    expected_changes: "Fix bug".to_string(),
+                    verification: "cargo test".to_string(),
+                },
+                FixStep {
+                    order: 2,
+                    step_type: StepType::CodeChange,
+                    description: "Edit another file".to_string(),
+                    files: vec!["src/lib.rs".to_string()],
+                    expected_changes: "Fix another bug".to_string(),
+                    verification: "cargo test".to_string(),
+                },
+            ],
+            expected_outcome: "Bug fixed".to_string(),
+            risks: vec![],
+            requires_human: false,
+            created_at: chrono::Utc::now(),
+        };
+        let results = manager.check_plan_autonomy(&plan);
+        assert_eq!(results.len(), 2);
+        // Both should be allowed in AutoEdit mode (file_edit is auto-approved for reads)
+        assert!(results[0].allowed);
+        assert!(results[1].allowed);
     }
 }

@@ -72,11 +72,13 @@ pub struct NodeInfo {
 /// 集群状态
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterStatus {
-    pub nodes: u32,
-    pub agents: u32,
-    pub status: String,
+    pub overall: Option<String>,
+    pub nodes: Option<Vec<serde_json::Value>>,
+    pub total_agents: Option<u32>,
+    pub running_agents: Option<u32>,
+    // Legacy fields
+    pub status: Option<String>,
     pub version: Option<String>,
-    pub uptime: Option<String>,
 }
 
 /// 指标摘要
@@ -465,17 +467,16 @@ mod tests {
     #[test]
     fn test_cluster_status_deserialize() {
         let json = r#"{
-            "nodes": 3,
-            "agents": 5,
-            "status": "healthy",
-            "version": "0.1.0",
-            "uptime": "72h"
+            "overall": "healthy",
+            "nodes": [{"id":"n1"},{"id":"n2"},{"id":"n3"}],
+            "total_agents": 5,
+            "running_agents": 3
         }"#;
         let status: Result<ClusterStatus, _> = serde_json::from_str(json);
         assert!(status.is_ok());
         let status = status.expect("should deserialize");
-        assert_eq!(status.nodes, 3);
-        assert_eq!(status.agents, 5);
+        assert_eq!(status.overall.as_deref(), Some("healthy"));
+        assert_eq!(status.total_agents, Some(5));
     }
 
     #[test]

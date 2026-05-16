@@ -404,14 +404,16 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 
 ### Operating Systems
 
-| Platform | Architecture | Status |
-|----------|-------------|--------|
-| **Ubuntu 22.04+** | x86_64 / aarch64 | ✅ Primary |
-| **Debian 12+** | x86_64 / aarch64 | ✅ Supported |
-| **CentOS 9 / RHEL 9** | x86_64 / aarch64 | ✅ Supported |
-| **macOS 13+** | Apple Silicon (M1-M4) / x86_64 | ✅ Supported |
-| **Windows 11** | x86_64 (WSL2) | ⚠️ Via WSL2 only |
-| **Docker** | x86_64 / aarch64 | ✅ Official image available |
+| Platform | Architecture | Status | Package |
+|----------|-------------|--------|---------|
+| **Ubuntu 22.04+** | x86_64 / aarch64 | ✅ Primary | `.deb` |
+| **Debian 12+** | x86_64 / aarch64 | ✅ Supported | `.deb` |
+| **CentOS 9 / RHEL 9** | x86_64 / aarch64 | ✅ Supported | `.rpm` |
+| **Fedora 40+** | x86_64 / aarch64 | ✅ Supported | `.rpm` |
+| **Alpine 3.18+** | x86_64 / aarch64 | ✅ Supported | Static binary |
+| **macOS 13+** | Apple Silicon (M1-M4) / x86_64 | ✅ Supported | Homebrew |
+| **Windows 11** | x86_64 | ⚠️ Via WSL2 only | `.msi` (WSL2) |
+| **Docker** | x86_64 / aarch64 | ✅ Official image | `ghcr.io/andy-ckm/kias` |
 
 ### Hardware
 
@@ -435,16 +437,108 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 
 ### Deployment Modes
 
+#### Ubuntu / Debian (`.deb`)
+
 ```bash
-# Standalone (single binary, embedded SQLite)
+# Download and install
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.deb
+sudo dpkg -i kias-amd64.deb
+
+# Start as systemd service
+sudo systemctl enable --now kias
+sudo systemctl status kias
+
+# Logs
+journalctl -u kias -f
+```
+
+#### CentOS / RHEL / Fedora (`.rpm`)
+
+```bash
+# Download and install
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-x86_64.rpm
+sudo rpm -i kias-x86_64.rpm
+
+# Start as systemd service
+sudo systemctl enable --now kias
+sudo systemctl status kias
+```
+
+#### macOS (Homebrew)
+
+```bash
+# Install via Homebrew
+brew tap andy-ckm/kias
+brew install kias
+
+# Start as launchd service (auto-start on login)
+brew services start kias
+
+# Or run manually
+kias server start
+```
+
+#### Alpine / Static Binary
+
+```bash
+# Download static binary (no glibc dependency)
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-linux-amd64-static
+chmod +x kias-linux-amd64-static
+sudo mv kias-linux-amd64-static /usr/local/bin/kias
+
+# Run with OpenRC
+sudo rc-service kias start
+```
+
+#### Docker
+
+```bash
+# Quick start
+docker run -d \
+  --name kias \
+  -p 8080:8080 \
+  -v kias-data:/data \
+  -e KIAS_MODEL_PROVIDER=openai \
+  -e KIAS_MODEL_API_KEY=sk-your-key \
+  ghcr.io/andy-ckm/kias:latest
+
+# Docker Compose
+curl -LO https://raw.githubusercontent.com/Andy-ckm/KIAS/main/docker-compose.yml
+docker compose up -d
+```
+
+#### Windows (WSL2)
+
+```powershell
+# 1. Enable WSL2
+wsl --install -d Ubuntu-22.04
+
+# 2. Inside WSL2, follow Ubuntu instructions above
+wsl -d Ubuntu-22.04
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.deb
+sudo dpkg -i kias-amd64.deb
 kias server start
 
-# Docker
-docker run -p 8080:8080 -v kias-data:/data ghcr.io/andy-ckm/kias:latest
+# Access from Windows browser: http://localhost:8080
+```
 
-# Systemd service
-sudo kias install systemd
-sudo systemctl enable --now kias
+#### Kubernetes (Helm)
+
+```bash
+helm repo add kias https://charts.kias.dev
+helm install kias kias/kias-operator \
+  --namespace kias-system --create-namespace \
+  --set model.provider=openai \
+  --set model.apiKey=sk-your-key
+```
+
+#### Build from Source
+
+```bash
+git clone https://github.com/Andy-ckm/KIAS.git
+cd KIAS
+cargo build --release
+./target/release/kias server start
 ```
 
 ---

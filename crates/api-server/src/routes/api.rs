@@ -4,7 +4,7 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
-    a2a, agents, config, health, knowledge, metrics, nl_command, nodes, scheduler, tokens,
+    a2a, agents, config, health, im, knowledge, metrics, nl_command, nodes, scheduler, tokens,
     workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
@@ -178,6 +178,14 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::post(nl_command::nl_stream),
         );
 
+    // --- IM integration routes ---
+    let im_routes = Router::new()
+        .route("/api/v1/im/webhook", axum::routing::post(im::im_webhook))
+        .route("/api/v1/im/wechat", axum::routing::post(im::wechat_webhook))
+        .route("/api/v1/im/telegram", axum::routing::post(im::telegram_webhook))
+        .route("/api/v1/im/feishu", axum::routing::post(im::feishu_webhook))
+        .route("/api/v1/im/platforms", axum::routing::get(im::list_platforms));
+
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes
         .merge(node_routes)
@@ -189,6 +197,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(scheduler_routes)
         .merge(a2a_routes)
         .merge(nl_routes)
+        .merge(im_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(
             rate_limiter,

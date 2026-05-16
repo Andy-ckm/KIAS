@@ -2,6 +2,7 @@ pub mod compaction;
 pub mod crew;
 pub mod delegation;
 pub mod engine;
+pub mod inspiration;
 pub mod memory;
 pub mod owner;
 pub mod session;

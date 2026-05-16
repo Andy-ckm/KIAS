@@ -2,8 +2,7 @@
 //!
 //! 封装与 KIAS API Server 的 HTTP 通信。
 
-#[allow(unused_imports)]
-use futures_util::StreamExt; // TODO: WebSocket streaming 待实现
+use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -135,6 +134,41 @@ pub struct AgentRunResult {
     pub tokens_used: Option<u64>,
     pub cost: Option<f64>,
     pub duration_ms: u64,
+}
+
+/// WebSocket event type (mirrors API server EventType)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WsEventType {
+    AgentStatusChanged,
+    AgentCreated,
+    AgentDeleted,
+    NodeHealthChanged,
+    TaskCompleted,
+    TaskFailed,
+    WorkflowUpdate,
+    SchedulerDecision,
+    SystemAlert,
+    A2aTaskSubmitted,
+    A2aTaskWorking,
+    A2aTaskCompleted,
+    A2aTaskCancelled,
+    A2aTaskDeleted,
+}
+
+/// WebSocket event received from the server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WsEvent {
+    #[serde(rename = "type")]
+    pub event_type: WsEventType,
+    pub data: serde_json::Value,
+    pub timestamp: String,
+}
+
+/// Subscription filter sent to the WebSocket server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WsSubscription {
+    pub subscribe: Vec<WsEventType>,
 }
 
 impl ApiClient {
@@ -437,6 +471,49 @@ impl ApiClient {
             .json()
             .await
     }
+
+    // ─── WebSocket 实时事件流 ─────────────────────────────────────
+
+    /// 连接 WebSocket 事件流
+    ///
+    /// 建立到 `/ws` 的 WebSocket 连接，可选发送事件类型订阅过滤。
+    /// 返回一个 `SplitStream`，调用方通过 `.next().await` 逐条接收事件。
+    pub async fn stream_events(
+        &self,
+        event_types: Vec<WsEventType>,
+    ) -> Result<
+        futures_util::stream::SplitStream<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+        >,
+        Box<dyn std::error::Error>,
+    > {
+        // 将 http://host:port 转换为 ws://host:port
+        let ws_url = self
+            .base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
+        let url = format!("{}/ws", ws_url);
+
+        let (ws_stream, _response) = tokio_tungstenite::connect_async(&url).await?;
+
+        let (mut write, read) = ws_stream.split();
+
+        // 发送订阅过滤
+        if !event_types.is_empty() {
+            let sub = WsSubscription {
+                subscribe: event_types,
+            };
+            let msg = serde_json::to_string(&sub)?;
+            use futures_util::SinkExt;
+            write
+                .send(tokio_tungstenite::tungstenite::Message::Text(msg))
+                .await?;
+        }
+
+        Ok(read)
+    }
 }
 
 /// URL 编码辅助
@@ -555,5 +632,41 @@ mod tests {
         assert_eq!(result.tokens_used, Some(150));
         assert_eq!(result.cost, Some(0.003));
         assert_eq!(result.duration_ms, 1200);
+    }
+
+    #[test]
+    fn test_ws_event_deserialize() {
+        let json = r#"{"type":"agent_status_changed","data":{"agent_id":"a-001","old_status":"pending","new_status":"running"},"timestamp":"2025-01-01T00:00:00Z"}"#;
+        let event: WsEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.event_type, WsEventType::AgentStatusChanged);
+        assert_eq!(event.data["agent_id"], "a-001");
+        assert_eq!(event.timestamp, "2025-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn test_ws_subscription_serialize() {
+        let sub = WsSubscription {
+            subscribe: vec![WsEventType::AgentCreated, WsEventType::TaskCompleted],
+        };
+        let json = serde_json::to_string(&sub).unwrap();
+        assert!(json.contains("agent_created"));
+        assert!(json.contains("task_completed"));
+    }
+
+    #[test]
+    fn test_ws_event_type_roundtrip() {
+        let types = vec![
+            WsEventType::AgentStatusChanged,
+            WsEventType::AgentCreated,
+            WsEventType::AgentDeleted,
+            WsEventType::TaskCompleted,
+            WsEventType::TaskFailed,
+            WsEventType::SystemAlert,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            let back: WsEventType = serde_json::from_str(&json).unwrap();
+            assert_eq!(t, back);
+        }
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "auto-loop"
+version = "0.1.0"
+edition = "2021"
+description = "KIAS Auto Loop - 自动迭代循环，运行时闭环，自动发现问题→分析→方案→实施→验证→积累经验"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

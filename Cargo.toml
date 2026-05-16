@@ -28,6 +28,7 @@ members = [
     "crates/innovation-agent",
     "crates/im-integration",
     "crates/self-improvement",
+    "crates/auto-loop",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

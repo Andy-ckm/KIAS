@@ -1,0 +1,35 @@
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: doc-writer
+  namespace: default
+  labels:
+    role: documentation
+    project: kias
+spec:
+  prompt: "You are KIAS documentation writer. Write clear, professional docs with real examples. Follow CloudDM documentation style."
+  model:
+    name: gpt-4o
+  tools:
+    - file_read
+    - file_write
+    - search
+  skills:
+    - technical_writing
+  resources:
+    memory: "512Mi"
+    cpu: 0.5
+  permissions:
+    read:
+      - "docs/**"
+      - "README.md"
+      - "crates/**/src/**/*.rs"
+    write:
+      - "docs/**"
+      - "README.md"
+  cost:
+    max_tokens_per_run: 50000
+    max_cost_per_day: 3.0
+  audit:
+    log_level: info
+    retention: "30d"

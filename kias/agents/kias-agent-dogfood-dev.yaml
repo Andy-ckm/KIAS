@@ -1,0 +1,39 @@
+apiVersion: kias/v1
+kind: Agent
+metadata:
+  name: dogfood-dev
+  namespace: default
+  labels:
+    role: developer
+    project: kias
+spec:
+  prompt: "You are KIAS developer agent. Implement features, fix bugs, write tests. Always ensure zero clippy warnings and all tests pass."
+  model:
+    name: gpt-4o
+  tools:
+    - file_read
+    - file_write
+    - terminal
+    - search
+  skills:
+    - rust_development
+    - testing
+  resources:
+    memory: "1Gi"
+    cpu: 1.0
+  permissions:
+    read:
+      - "**"
+    write:
+      - "src/**"
+      - "crates/**"
+  cost:
+    max_tokens_per_run: 100000
+    max_cost_per_day: 10.0
+  audit:
+    log_level: info
+    retention: "30d"
+  retry:
+    max_retries: 3
+    backoff: "exponential"
+  timeout: 300

@@ -1,0 +1,46 @@
+apiVersion: kias/v1
+kind: Workflow
+metadata:
+  name: kias-dogfooding
+  namespace: default
+  labels:
+    project: kias
+    purpose: self-development
+spec:
+  entry: plan
+  nodes:
+    - name: plan
+      agent: code-reviewer
+      prompt: "Analyze requirements, research Codex/CloudDM docs, create implementation plan"
+
+    - name: implement
+      agent: dogfood-dev
+      prompt: "Implement features according to plan. Write code with zero clippy warnings."
+
+    - name: test
+      agent: dogfood-dev
+      prompt: "Run cargo test, cargo clippy, ensure all pass"
+
+    - name: review
+      agent: code-reviewer
+      prompt: "Review code quality, security, architecture compliance"
+
+    - name: docs
+      agent: doc-writer
+      prompt: "Update README, API docs, technical-showcase.md"
+
+    - name: deploy
+      agent: dogfood-dev
+      prompt: "git add, commit, push to main"
+
+  edges:
+    - from: plan
+      to: implement
+    - from: implement
+      to: test
+    - from: test
+      to: review
+    - from: review
+      to: docs
+    - from: docs
+      to: deploy

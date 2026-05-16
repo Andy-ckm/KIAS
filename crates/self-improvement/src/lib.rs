@@ -244,7 +244,15 @@ impl SelfImprovementManager {
             knowledge_base: Vec::new(),
         }
     }
+}
 
+impl Default for SelfImprovementManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SelfImprovementManager {
     /// 注册问题
     pub fn register_problem(&mut self, problem: Problem) {
         self.problems.insert(problem.id.clone(), problem);
@@ -275,7 +283,9 @@ impl SelfImprovementManager {
     pub fn pending_problems(&self) -> Vec<&Problem> {
         self.problems
             .values()
-            .filter(|p| p.severity == ProblemSeverity::High || p.severity == ProblemSeverity::Critical)
+            .filter(|p| {
+                p.severity == ProblemSeverity::High || p.severity == ProblemSeverity::Critical
+            })
             .collect()
     }
 
@@ -320,10 +330,7 @@ impl SelfImprovementManager {
 
         // 知识库
         report.push_str("\n## 知识库\n\n");
-        report.push_str(&format!(
-            "- 经验教训条目: {}\n",
-            self.knowledge_base.len()
-        ));
+        report.push_str(&format!("- 经验教训条目: {}\n", self.knowledge_base.len()));
 
         report
     }

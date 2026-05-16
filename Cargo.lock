@@ -1894,6 +1894,7 @@ dependencies = [
  "kias-common",
  "kias-controller",
  "kias-executor",
+ "kias-langgraph-engine",
  "kias-model-router",
  "kias-scheduler",
  "kias-team-engine",

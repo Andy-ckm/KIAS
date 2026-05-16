@@ -1,15 +1,18 @@
 <p align="center">
   <a href="https://github.com/Andy-ckm/KIAS/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS/actions">
-    <img src="https://img.shields.io/badge/tests-1419%20passed-brightgreen.svg" alt="Tests">
+    <img src="https://img.shields.io/badge/tests-1464%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/badge/crates-21-purple.svg" alt="Crates">
+  </a>
+  <a href="https://github.com/Andy-ckm/KIAS">
+    <img src="https://img.shields.io/badge/LOC-75K%2B-blue.svg" alt="Lines of Code">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
@@ -21,97 +24,183 @@
 </p>
 
 <h1 align="center">KIAS</h1>
-<p align="center"><strong>生产级 AI Agent 集群调度框架</strong></p>
-<p align="center"><em>用 Rust 写的，真正能在生产环境跑起来的 Agent 框架——不是 Demo</em></p>
+<p align="center"><strong>Kubernetes-like Intelligent Agent Scheduling</strong></p>
+<p align="center">用 Rust 构建的生产级 AI Agent 集群调度框架</p>
 
 ---
 
-## 什么是 KIAS
+## 为什么需要 KIAS
 
-KIAS（Kubernetes-like Intelligent Agent Scheduling）是一个**生产级 AI Agent 框架**，用 Rust 从零构建。它解决的核心问题很简单：**你写的 Agent Demo 在笔记本上跑得很好，但推到生产环境就炸了**。
+你的 Agent 在笔记本上跑得很顺畅，推到生产环境就出问题：
 
-KIAS 为你的 Agent 提供生产环境必需的基础设施——状态持久化、错误自动恢复、多租户隔离、实时监控、多模型路由——让你专注于 Agent 逻辑本身，而不是处理生产环境的各种烂摊子。
+```
+                        开发环境                          生产环境
+                   ┌──────────────┐              ┌──────────────────────┐
+                   │   Agent      │              │  Agent               │
+                   │   运行正常 ✅  │   ──────▶   │  状态丢失 ❌           │
+                   │   响应很快    │              │  崩溃无恢复 ❌         │
+                   │   一切正常    │              │  租户互相干扰 ❌       │
+                   └──────────────┘              │  绑定单一模型 ❌       │
+                                                 │  无法观测运行状态 ❌    │
+                                                 └──────────────────────┘
+```
+
+**KIAS 解决的就是这个落差。** 它为 Agent 提供生产环境必需的基础设施，让你专注于 Agent 逻辑本身。
 
 ---
 
-## 问题：AI Agent 在生产环境活不下来
-
-| 问题 | 后果 |
-|------|------|
-| 💥 **进程崩溃** | Agent 状态全丢，几小时的推理结果归零 |
-| 🔄 **一次错误拖垮全局** | 没有重试、没有恢复，只能人工重启 |
-| 👻 **黑盒运行** | 看不到 Agent 在干什么，出了问题只能猜 |
-| 🚫 **租户互相干扰** | 一个 Agent 搞崩，所有用户受影响 |
-| 🐍 **Python 太慢** | 延迟高、内存大，扛不住真实负载 |
-| 🔒 **绑定单一 LLM** | 换个模型供应商就要改代码 |
-
-## 解决方案：KIAS 框架
+## 核心架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  你的 Agent 逻辑（你只需要写这部分）                           │
-│  ┌───────────────┐                                          │
-│  │   Agent Code   │                                         │
-│  └───────────────┘                                          │
-├─────────────────────────────────────────────────────────────┤
-│  KIAS 框架（我们提供）                                        │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐    │
-│  │状态持久化│ │错误恢复 │ │监控告警 │ │多租户   │ │高性能   │    │
-│  │ SQLite │ │DLQ+熔断 │ │Prometheus│ │资源隔离│ │Rust+Tokio│  │
-│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘    │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          KIAS 平台架构                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  你的业务逻辑（你只需关注这一层）                                    │    │
+│  │  Agent Code · Tools · Prompts                                    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                    ▼                                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
+│  │ LangGraph│ │ Workflow  │ │  Team    │ │  MCP     │ │ Sandbox  │      │
+│  │ 状态图引擎│ │ DAG工作流 │ │ 多Agent  │ │ 工具协议 │ │ 沙箱隔离 │      │
+│  │          │ │          │ │ 协作编排 │ │          │ │          │      │
+│  │ ·条件分支│ │ ·并行执行│ │ ·委托    │ │ ·标准MCP│ │ ·5种后端│      │
+│  │ ·循环   │ │ ·子图    │ │ ·验证    │ │ ·热加载 │ │ ·资源限制│      │
+│  │ ·检查点  │ │ ·Saga回滚│ │ ·记忆共享│ │ ·鉴权   │ │ ·审计日志│      │
+│  │ ·并行扇出│ │ ·重试策略│ │ ·技能匹配│ │          │ │          │      │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
+│                                    ▼                                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
+│  │Scheduler │ │Controller│ │Model     │ │  Data    │ │ Monitor  │      │
+│  │ 调度引擎 │ │ 生命周期 │ │ Router   │ │  Store   │ │ 可观测   │      │
+│  │          │ │          │ │ 模型路由 │ │ 数据存储 │ │          │      │
+│  │ ·4种算法 │ │ ·心跳    │ │ ·10+供应商│ │ ·SQLite │ │ ·Prometheus│    │
+│  │ ·亲和性  │ │ ·故障恢复│ │ ·负载均衡│ │ ·HNSW向量│ │ ·WebSocket│    │
+│  │ ·抢占    │ │ ·熔断器  │ │ ·Fallback│ │ ·缓存层 │ │ ·健康检查│      │
+│  │ ·GPU感知 │ │ ·死信队列│ │ ·成本控制│ │ ·审计日志│ │ ·链路追踪│      │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 核心特性
+## 解决的 6 个核心问题
 
-### 1. 状态持久化 —— 崩溃不丢数据
+### 1. 状态持久化 — 崩溃不丢数据
 
-Agent 崩了？没关系。KIAS 用 **SQLite 持久化**所有 Agent 状态，重启后自动恢复到崩溃前的位置。零数据丢失。
+**问题：** 进程一崩，Agent 运行了几小时的推理结果全部归零。
 
-### 2. 错误自动恢复 —— 自愈能力
+**方案：** KIAS 采用 **SQLite + WAL 模式** 持久化所有 Agent 状态。参考 K8s 的 etcd 设计理念，但用 SQLite 替代——单文件部署、零运维、ACID 事务保证。每个 Agent 的完整状态（上下文、工具调用历史、中间推理结果）都会写入磁盘。进程重启后自动恢复到崩溃前的位置。
+
+```rust
+// Agent 状态自动持久化，无需手动管理
+let agent = AgentBuilder::new("my-agent")
+    .with_checkpoint_store(SqliteCheckpointStore::new("agent.db"))
+    .build();
+// 进程崩溃？重启后 agent 自动从上次 checkpoint 恢复
+```
+
+### 2. 错误自动恢复 — 自愈而非自毁
+
+**问题：** 一次 API 调用失败，整个 Agent 任务链中断，只能人工重启。
+
+**方案：** **死信队列（DLQ）+ 熔断器 + 指数退避重试**。失败的任务不会丢失，自动进入重试队列。连续失败触发熔断，防止雪崩。恢复后自动解除熔断。
 
 ```
-传统方式:  请求 → Agent → ❌ 报错 → 系统挂了
-KIAS:     请求 → Agent → ❌ 报错 → 死信队列 → 自动重试 → ✅ 成功
+传统方式:  请求 → Agent → 报错 → 系统挂掉 → 人工重启
+KIAS:     请求 → Agent → 报错 → DLQ → 指数退避重试 → 熔断保护 → 自动恢复
 ```
 
-**死信队列（DLQ）+ 熔断器 + 指数退避重试**，失败的任务不会丢失，系统自动消化。
+### 3. 多 Agent 协作 — 不是单打独斗
 
-### 3. 实时监控 —— 一切尽在掌握
+**问题：** 复杂任务需要多个 Agent 协作，但现有框架只支持单 Agent 运行。
 
-Prometheus 指标 + WebSocket 实时事件推送 + 健康检查。你能看到每一个 Agent 的运行状态、Token 消耗、延迟分布。
+**方案：** KIAS 提供三种协作模式：
 
-### 4. 多租户隔离 —— 安全共享
+| 模式 | 机制 | 适用场景 |
+|------|------|---------|
+| **LangGraph 状态图** | 条件分支、循环、并行扇出、检查点恢复 | 复杂决策流程 |
+| **Workflow DAG** | 并行执行、子图组合、Saga 补偿回滚 | 业务流程自动化 |
+| **Team 协作** | Owner-Worker-Verifier 对抗式质量门禁 | 多角色协作任务 |
 
-资源配额 + 命名空间隔离。每个租户独立资源，互不干扰。适合 SaaS 场景。
+### 4. 多模型路由 — 不被任何供应商锁定
 
-### 5. 极致性能 —— 10 倍于 Python
+**问题：** 换个 LLM 供应商就要改代码，迁移成本高。
 
-| 指标 | Python 框架 | KIAS (Rust) |
-|------|------------|-------------|
-| 请求延迟 | 100ms+ | **<10ms** |
-| 内存占用 | 500MB+ | **50MB** |
-| 并发能力 | 百级 | **万级** |
+**方案：** 统一的模型路由层，支持 OpenAI / Anthropic / Google / DeepSeek / Ollama / vLLM / llama.cpp 等 10+ 供应商。配置文件切换，不改代码。支持 Fallback、负载均衡、成本控制。
 
-Rust + Tokio 异步运行时，不开玩笑。
+```toml
+# 切换模型只需改配置
+[model]
+provider = "openai"        # 或 "anthropic", "ollama", "deepseek"
+model = "gpt-5.5"          # 或 "claude-opus-4.7", "deepseek-v4-pro"
+```
 
-### 6. 多模型支持 —— 不绑定任何供应商
+### 5. 安全隔离 — 租户互不干扰
 
-OpenAI、Anthropic、Google、Azure、AWS Bedrock、Ollama、vLLM、llama.cpp…… 改配置文件切换，不改代码。
+**问题：** 多个 Agent 共享进程，一个搞崩全部受影响。
+
+**方案：** 5 种沙箱后端（Docker / Firejail / gVisor / Wasm / Process），资源配额限制，命名空间隔离。每个 Agent 运行在独立沙箱中。
+
+### 6. 全面可观测 — 不再黑盒运行
+
+**问题：** 看不到 Agent 在干什么，出了问题只能猜。
+
+**方案：** Prometheus 指标 + WebSocket 实时事件推送 + 健康检查 + 全链路追踪。你能看到每一个 Agent 的运行状态、Token 消耗、延迟分布、错误详情。
 
 ---
 
-## 快速开始（5 分钟）
+## 支持的模型
 
-### 1. 安装
+### 云端 API
+
+| 供应商 | 最新模型 | 上下文 | 输入价格 ($/1M tokens) | 输出价格 ($/1M tokens) |
+|--------|---------|--------|----------------------|----------------------|
+| **OpenAI** | GPT-5.5 | 1,050K | $5.00 | $30.00 |
+| **OpenAI** | GPT-5 | 400K | $1.25 | $10.00 |
+| **OpenAI** | GPT-5-mini | 400K | $0.25 | $2.00 |
+| **OpenAI** | o4-mini | 200K | $1.10 | $4.40 |
+| **Anthropic** | Claude Opus 4.7 | 1,000K | $5.00 | $25.00 |
+| **Anthropic** | Claude Sonnet 4.6 | 1,000K | $3.00 | $15.00 |
+| **Anthropic** | Claude 3.5 Haiku | 200K | $0.80 | $4.00 |
+| **Google** | Gemini 3.1 Pro | 1,048K | $2.00 | $12.00 |
+| **Google** | Gemini 2.5 Pro | 1,048K | $1.25 | $10.00 |
+| **Google** | Gemini 2.5 Flash | 1,048K | $0.30 | $2.50 |
+| **DeepSeek** | DeepSeek-V4 Pro | 1,048K | $0.43 | $0.87 |
+| **DeepSeek** | DeepSeek-V4 Flash | 1,048K | $0.11 | $0.22 |
+| **DeepSeek** | DeepSeek-R1 | 163K | $0.70 | $2.50 |
+| **Qwen** | Qwen3-Coder | 1,048K | $0.22 | $1.80 |
+| **Qwen** | Qwen3-235B | 262K | $0.07 | $0.10 |
+| **Mistral** | Mistral Large (2512) | 262K | $0.50 | $1.50 |
+| **Mistral** | Codestral (2508) | 256K | $0.30 | $0.90 |
+| **Meta** | Llama 4 Scout | 10,000K | $0.08 | $0.30 |
+| **Meta** | Llama 4 Maverick | 1,048K | $0.15 | $0.60 |
+
+> 价格数据来源：OpenRouter API（2026年5月实时查询）
+
+### 本地模型
+
+详见 [本地模型对比指南](docs/local-model-comparison.md)，涵盖 16 个主流开源模型的规格、基准测试成绩、GPU 需求及部署建议。
+
+| 服务 | 安装 | 适用场景 |
+|------|------|---------|
+| **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | 开发测试 |
+| **vLLM** | `pip install vllm` | 生产环境高吞吐 |
+| **llama.cpp** | GitHub 下载 | 边缘设备、CPU 推理 |
+
+---
+
+## 快速开始
+
+### 安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
 ```
 
-### 2. 配置 LLM
+### 配置
 
 ```bash
 kias config init
@@ -121,88 +210,37 @@ kias config init
 
 ```toml
 [model]
-provider = "openai"          # 或 "anthropic", "ollama", "vllm"
+provider = "openai"
 api_key = "sk-your-key"
-model = "gpt-4o"
+model = "gpt-5"
 
-# 本地模型（免费，无需 API Key）
+# 本地模型
 # provider = "ollama"
 # endpoint = "http://localhost:11434"
-# model = "llama3.1:8b"
+# model = "qwen3:32b"
 ```
 
-### 3. 启动
+### 启动
 
 ```bash
 kias server start
-# 打开 http://localhost:8080 查看 Dashboard
+# Dashboard: http://localhost:8080
 ```
 
-### 4. 创建你的第一个 Agent
+### 创建 Agent
 
 ```yaml
 # my-agent.yaml
 name: my-agent
-description: 一个有用的助手
-model: gpt-4o
-system_prompt: 你是一个有帮助的助手。
+description: 代码审查助手
+model: gpt-5
+system_prompt: 你是一个专业的代码审查工程师。
 ```
 
 ```bash
 kias agent create --file my-agent.yaml
-kias agent invoke --name my-agent --text "你好！"
+kias agent invoke --name my-agent --text "审查这段代码"
 ```
-
-完成。你已经在运行一个生产级 Agent 了。
-
----
-
-## 系统架构
-
-<p align="center">
-  <img src="docs/architecture/kias-architecture.svg" alt="KIAS 架构图" width="100%">
-</p>
-
-| 层级 | 组件 | 职责 |
-|------|------|------|
-| **客户端层** | CLI / Dashboard / SDK | 用户入口 |
-| **网关层** | 认证 / 限流 / 负载均衡 | 安全、公平、可扩展 |
-| **核心层** | Controller / Scheduler / Workflow | Agent 编排与调度 |
-| **运行时层** | Agent / Sandbox / MCP | 安全的 Agent 执行环境 |
-| **模型层** | Router / 多供应商适配 | 自由切换 LLM |
-| **数据层** | SQLite / 向量库 / 缓存 | 快速可靠存储 |
-| **可观测层** | 指标 / 链路追踪 / 健康检查 | 全面监控 |
-
-**核心子系统：**
-- **Controller** —— Agent 生命周期管理、心跳监控、故障自动恢复
-- **Scheduler** —— 4 种调度算法 + 亲和性策略 + 缓存优化
-- **WorkflowEngine** —— DAG 工作流，支持 Shell/HTTP/LLM 执行器
-- **TeamEngine** —— Owner-Worker-Verifier 对抗式质量门禁
-- **LangGraphEngine** —— 状态图引擎，支持并行扇出、检查点持久化
-- **MCP Protocol** —— Model Context Protocol 标准实现
-
----
-
-## 模型支持
-
-### 云端 API（生产就绪）
-
-| 供应商 | 模型 | 配置 |
-|--------|------|------|
-| **OpenAI** | GPT-4o, GPT-4, GPT-3.5 | `OPENAI_API_KEY` |
-| **Anthropic** | Claude 3.5 Sonnet, Claude 3 Opus | `ANTHROPIC_API_KEY` |
-| **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | `GOOGLE_API_KEY` |
-| **Azure OpenAI** | 全系 OpenAI 模型 | `AZURE_OPENAI_ENDPOINT` |
-| **AWS Bedrock** | Claude, Llama, Mistral | `AWS_ACCESS_KEY_ID` |
-| **OpenRouter** | 100+ 模型 | `OPENROUTER_API_KEY` |
-
-### 本地模型（免费，无需 API Key）
-
-| 服务 | 安装 | 启动 | 适用场景 |
-|------|------|------|----------|
-| **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | `ollama serve` | 开发测试 |
-| **vLLM** | `pip install vllm` | `vllm serve` | 生产环境 |
-| **llama.cpp** | GitHub 下载 | `llama-server` | 边缘设备 |
 
 ---
 
@@ -219,15 +257,10 @@ kias agent status --name my                # 查看状态
 kias server start                          # 启动服务
 kias server start --daemon                 # 后台启动
 kias server stop                           # 停止服务
-kias server status                         # 查看状态
-
-# 配置管理
-kias config init                           # 初始化配置
-kias config show                           # 查看当前配置
 
 # 开发调试
-make build                                 # 构建所有组件
-make test                                  # 运行测试
+make build                                 # 构建
+make test                                  # 测试
 make lint                                  # 代码检查
 make bench                                 # 性能基准测试
 ```
@@ -236,40 +269,64 @@ make bench                                 # 性能基准测试
 
 ## 硬件要求
 
-### 最低配置（开发）
+### KIAS 框架本身
 
-- CPU: 2 核
-- 内存: 4 GB
-- 磁盘: 10 GB
+| 配置 | CPU | 内存 | 磁盘 |
+|------|-----|------|------|
+| 最低（开发） | 2 核 | 4 GB | 10 GB |
+| 推荐（生产） | 4+ 核 | 8+ GB | 50+ GB SSD |
 
-### 推荐配置（生产）
+### 本地模型 GPU 需求
 
-- CPU: 4+ 核
-- 内存: 8+ GB
-- 磁盘: 50+ GB SSD
-
-### 本地模型 GPU 要求
-
-| 模型规模 | GPU 显存 | 系统内存 |
-|----------|----------|----------|
-| 7B | 8 GB | 16 GB |
-| 13B | 16 GB | 32 GB |
-| 70B | 48+ GB | 64+ GB |
+| 模型规模 | GPU 显存 | 典型模型 |
+|----------|----------|---------|
+| 1B–3B | 3–6 GB | Phi-3-mini, Qwen3-8B |
+| 7B–14B | 8–16 GB | Qwen3-14B, Llama 3.1-8B |
+| 30B–40B | 24–40 GB | Qwen3-32B |
+| 70B+ | 48–80 GB | Qwen3-235B (INT4) |
 
 ---
 
-## 为什么选 KIAS
+## 与同类项目对比
 
-| 特性 | KIAS | LangChain | AutoGen |
-|------|------|-----------|---------|
-| **语言** | Rust | Python | Python |
-| **性能** | 10x 快 | 慢 | 慢 |
-| **生产就绪** | ✅ 是 | ❌ 仅 Demo | ❌ 仅 Demo |
-| **状态持久化** | ✅ SQLite | ❌ 无 | ❌ 无 |
-| **错误恢复** | ✅ DLQ + 熔断器 | ❌ 无 | ❌ 无 |
-| **多租户** | ✅ 支持 | ❌ 无 | ❌ 无 |
-| **监控** | ✅ Prometheus | ❌ 无 | ❌ 无 |
-| **多模型** | ✅ 10+ 供应商 | ✅ 是 | ✅ 是 |
+| 特性 | KIAS | LangGraph (Python) | CrewAI | AutoGen |
+|------|------|--------------------|--------|---------|
+| **语言** | Rust | Python | Python | Python |
+| **状态持久化** | SQLite + Checkpoint | 内存（需外部存储） | 无 | 无 |
+| **错误恢复** | DLQ + 熔断器 + Saga 回滚 | 有限 | 无 | 无 |
+| **多租户** | 资源配额 + 沙箱隔离 | 无 | 无 | 无 |
+| **监控** | Prometheus + WebSocket | 无内置 | 无 | 无 |
+| **模型路由** | 10+ 供应商 + Fallback | LangChain 集成 | 有限 | 有限 |
+| **并发模型** | Tokio 异步（万级并发） | 单线程 | 单线程 | 单线程 |
+| **沙箱** | 5 种后端 | 无 | 无 | 无 |
+
+---
+
+## 项目结构
+
+```
+kias/
+├── crates/
+│   ├── common/           # 共享类型与错误定义
+│   ├── controller/       # Agent 生命周期管理
+│   ├── scheduler/        # 调度引擎（4种算法）
+│   ├── workflow-engine/  # DAG 工作流引擎
+│   ├── langgraph-engine/ # 状态图引擎
+│   ├── team-engine/      # 多 Agent 协作编排
+│   ├── model-router/     # 多模型路由
+│   ├── executor/         # 任务执行器
+│   ├── mcp-protocol/     # MCP 协议实现
+│   ├── data-store/       # 数据持久化层
+│   ├── knowledge/        # 知识管理
+│   ├── cache/            # 缓存层
+│   ├── monitor/          # 监控与指标
+│   ├── api-server/       # HTTP API 服务
+│   ├── kias-cli/         # 命令行工具
+│   └── benchmarks/       # 性能基准测试
+├── dashboard/            # Web 控制台
+├── config/               # 配置文件
+└── docs/                 # 文档
+```
 
 ---
 
@@ -290,7 +347,7 @@ make bench                                 # 性能基准测试
 
 Copyright © 2024 KIAS Contributors
 
-本项目使用 **Apache License 2.0** 许可证，详见 [LICENSE](LICENSE)。
+本项目使用 **MIT License**，详见 [LICENSE](LICENSE)。
 
 ---
 

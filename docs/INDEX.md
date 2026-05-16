@@ -18,6 +18,7 @@
 - [innovation-points.md](innovation-points.md) - 创新点记录
 - [test-report.md](test-report.md) - 测试报告
 - [performance-benchmarks.md](performance-benchmarks.md) - 性能基准
+- [local-model-comparison.md](local-model-comparison.md) - 本地大语言模型对比指南
 
 ## 🏗️ 架构决策记录（ADR）
 

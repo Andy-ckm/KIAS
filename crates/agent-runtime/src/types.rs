@@ -66,13 +66,23 @@ pub enum AgentEvent {
     Started { agent_id: String, prompt: String },
 
     /// LLM 响应
-    LlmResponse { content: String, tool_calls: Vec<ToolCallRequest> },
+    LlmResponse {
+        content: String,
+        tool_calls: Vec<ToolCallRequest>,
+    },
 
     /// 工具调用开始
-    ToolCallStart { name: String, arguments: serde_json::Value },
+    ToolCallStart {
+        name: String,
+        arguments: serde_json::Value,
+    },
 
     /// 工具调用完成
-    ToolCallEnd { name: String, result: String, success: bool },
+    ToolCallEnd {
+        name: String,
+        result: String,
+        success: bool,
+    },
 
     /// 迭代完成
     IterationComplete { iteration: u32, tokens_used: u64 },
@@ -100,4 +110,109 @@ pub enum AgentStatus {
     Completed,
     Failed,
     Cancelled,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sandbox_config_default() {
+        let config = SandboxConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.allowed_paths, vec!["."]);
+        assert!(!config.allow_network);
+        assert_eq!(config.timeout_secs, 60);
+    }
+
+    #[test]
+    fn test_agent_config_serialization() {
+        let config = AgentConfig {
+            name: "test-agent".to_string(),
+            model: "gpt-4o".to_string(),
+            system_prompt: "You are helpful".to_string(),
+            max_iterations: 10,
+            max_tokens: 4096,
+            temperature: 0.7,
+            tools: vec!["shell".to_string()],
+            sandbox: SandboxConfig::default(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("test-agent"));
+        assert!(json.contains("gpt-4o"));
+    }
+
+    #[test]
+    fn test_agent_config_deserialization() {
+        let json = r#"{
+            "name": "agent1",
+            "model": "claude-sonnet-4-20250514",
+            "system_prompt": "test",
+            "max_iterations": 5,
+            "max_tokens": 2048,
+            "temperature": 0.5,
+            "tools": [],
+            "sandbox": {"enabled": false, "allowed_paths": [], "allow_network": true, "timeout_secs": 30}
+        }"#;
+        let config: AgentConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.name, "agent1");
+        assert!(!config.sandbox.enabled);
+        assert!(config.sandbox.allow_network);
+    }
+
+    #[test]
+    fn test_agent_status_variants() {
+        let statuses = vec![
+            AgentStatus::Pending,
+            AgentStatus::Running,
+            AgentStatus::Completed,
+            AgentStatus::Failed,
+            AgentStatus::Cancelled,
+        ];
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: AgentStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(status, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_tool_call_request_serialization() {
+        let req = ToolCallRequest {
+            id: "call_1".to_string(),
+            name: "shell".to_string(),
+            arguments: serde_json::json!({"command": "ls"}),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("shell"));
+        assert!(json.contains("ls"));
+    }
+
+    #[test]
+    fn test_agent_event_tagged() {
+        let event = AgentEvent::Started {
+            agent_id: "a1".to_string(),
+            prompt: "hello".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"type\":\"Started\""));
+        assert!(json.contains("a1"));
+    }
+
+    #[test]
+    fn test_agent_result_serialization() {
+        let result = AgentResult {
+            success: true,
+            output: "done".to_string(),
+            iterations: 3,
+            tokens_used: 1500,
+            cost: 0.05,
+            duration_ms: 2000,
+            tool_calls: vec![],
+            error: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("1500"));
+    }
 }

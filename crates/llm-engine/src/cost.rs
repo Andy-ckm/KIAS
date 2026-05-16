@@ -141,3 +141,111 @@ impl CostTracker {
         costs.values().map(|d| d.total_cost).sum()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::TokenUsage;
+
+    #[tokio::test]
+    async fn test_cost_tracker_new() {
+        let tracker = CostTracker::new();
+        assert_eq!(tracker.get_total_cost().await, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_calculate_cost_known_model() {
+        let tracker = CostTracker::new();
+        let usage = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 500_000,
+            total_tokens: 1_500_000,
+        };
+        let cost = tracker.calculate_cost("gpt-4o", &usage);
+        // Input: 1M * $2.50/1M = $2.50, Output: 0.5M * $10.00/1M = $5.00
+        assert!((cost - 7.50).abs() < 0.001);
+    }
+
+    #[tokio::test]
+    async fn test_calculate_cost_unknown_model() {
+        let tracker = CostTracker::new();
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        let cost = tracker.calculate_cost("unknown-model", &usage);
+        assert_eq!(cost, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_usage() {
+        let tracker = CostTracker::new();
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        let cost = tracker.record_usage("gpt-4o", &usage).await;
+        assert!(cost > 0.0);
+
+        let total = tracker.get_total_cost().await;
+        assert!((total - cost).abs() < 0.001);
+    }
+
+    #[tokio::test]
+    async fn test_daily_cost_tracking() {
+        let tracker = CostTracker::new();
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        tracker.record_usage("gpt-4o", &usage).await;
+
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let daily = tracker.get_daily_cost(&date).await;
+        assert!(daily.is_some());
+        let daily = daily.unwrap();
+        assert_eq!(daily.requests, 1);
+        assert_eq!(daily.total_tokens, 1500);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_records_same_model() {
+        let tracker = CostTracker::new();
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        tracker.record_usage("gpt-4o", &usage).await;
+        tracker.record_usage("gpt-4o", &usage).await;
+
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let daily = tracker.get_daily_cost(&date).await.unwrap();
+        assert_eq!(daily.requests, 2);
+        assert_eq!(daily.total_tokens, 3000);
+        assert_eq!(daily.by_model["gpt-4o"].requests, 2);
+    }
+
+    #[test]
+    fn test_model_pricing_serialization() {
+        let pricing = ModelPricing {
+            input_cost_per_1m: 2.50,
+            output_cost_per_1m: 10.00,
+        };
+        let json = serde_json::to_string(&pricing).unwrap();
+        assert!(json.contains("2.5"));
+        assert!(json.contains("10.0"));
+    }
+
+    #[test]
+    fn test_daily_cost_default() {
+        let dc = DailyCost::default();
+        assert_eq!(dc.total_tokens, 0);
+        assert_eq!(dc.total_cost, 0.0);
+        assert_eq!(dc.requests, 0);
+        assert!(dc.by_model.is_empty());
+    }
+}

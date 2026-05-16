@@ -34,9 +34,13 @@ pub struct FileReadTool;
 
 #[async_trait]
 impl Tool for FileReadTool {
-    fn name(&self) -> &str { "file_read" }
+    fn name(&self) -> &str {
+        "file_read"
+    }
 
-    fn description(&self) -> &str { "读取文件内容" }
+    fn description(&self) -> &str {
+        "读取文件内容"
+    }
 
     fn parameters(&self) -> serde_json::Value {
         serde_json::json!({
@@ -60,7 +64,8 @@ impl Tool for FileReadTool {
                 let lines: Vec<&str> = content.lines().collect();
                 let start = (offset - 1).min(lines.len());
                 let end = (start + limit).min(lines.len());
-                let selected: Vec<String> = lines[start..end].iter()
+                let selected: Vec<String> = lines[start..end]
+                    .iter()
                     .enumerate()
                     .map(|(i, line)| format!("{}|{}", start + i + 1, line))
                     .collect();
@@ -90,9 +95,13 @@ pub struct FileWriteTool;
 
 #[async_trait]
 impl Tool for FileWriteTool {
-    fn name(&self) -> &str { "file_write" }
+    fn name(&self) -> &str {
+        "file_write"
+    }
 
-    fn description(&self) -> &str { "写入文件内容" }
+    fn description(&self) -> &str {
+        "写入文件内容"
+    }
 
     fn parameters(&self) -> serde_json::Value {
         serde_json::json!({
@@ -138,9 +147,13 @@ pub struct ShellTool;
 
 #[async_trait]
 impl Tool for ShellTool {
-    fn name(&self) -> &str { "shell" }
+    fn name(&self) -> &str {
+        "shell"
+    }
 
-    fn description(&self) -> &str { "执行 shell 命令" }
+    fn description(&self) -> &str {
+        "执行 shell 命令"
+    }
 
     fn parameters(&self) -> serde_json::Value {
         serde_json::json!({
@@ -166,10 +179,7 @@ impl Tool for ShellTool {
             cmd.current_dir(dir);
         }
 
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(timeout),
-            cmd.output()
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(timeout), cmd.output()).await {
             Ok(Ok(output)) => {
                 let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                 let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -177,8 +187,16 @@ impl Tool for ShellTool {
 
                 ToolResult {
                     success: output.status.success(),
-                    output: if stdout.is_empty() { stderr.clone() } else { stdout },
-                    error: if output.status.success() { None } else { Some(stderr) },
+                    output: if stdout.is_empty() {
+                        stderr.clone()
+                    } else {
+                        stdout
+                    },
+                    error: if output.status.success() {
+                        None
+                    } else {
+                        Some(stderr)
+                    },
                     metadata: Some(serde_json::json!({
                         "exit_code": exit_code,
                     })),
@@ -205,9 +223,13 @@ pub struct SearchTool;
 
 #[async_trait]
 impl Tool for SearchTool {
-    fn name(&self) -> &str { "search" }
+    fn name(&self) -> &str {
+        "search"
+    }
 
-    fn description(&self) -> &str { "搜索文件内容" }
+    fn description(&self) -> &str {
+        "搜索文件内容"
+    }
 
     fn parameters(&self) -> serde_json::Value {
         serde_json::json!({
@@ -230,7 +252,8 @@ impl Tool for SearchTool {
         // 使用 rg (ripgrep) 进行搜索
         let mut cmd = tokio::process::Command::new("rg");
         cmd.arg("--json")
-            .arg("--max-count").arg(limit.to_string())
+            .arg("--max-count")
+            .arg(limit.to_string())
             .arg(pattern)
             .arg(path);
 
@@ -266,4 +289,101 @@ pub fn get_builtin_tools() -> Vec<Box<dyn Tool>> {
         Box::new(ShellTool),
         Box::new(SearchTool),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_read_tool_metadata() {
+        let tool = FileReadTool;
+        assert_eq!(tool.name(), "file_read");
+        assert!(!tool.description().is_empty());
+        let params = tool.parameters();
+        assert!(params["properties"]["path"].is_object());
+    }
+
+    #[test]
+    fn test_file_write_tool_metadata() {
+        let tool = FileWriteTool;
+        assert_eq!(tool.name(), "file_write");
+        let params = tool.parameters();
+        assert!(params["properties"]["content"].is_object());
+    }
+
+    #[test]
+    fn test_shell_tool_metadata() {
+        let tool = ShellTool;
+        assert_eq!(tool.name(), "shell");
+        let params = tool.parameters();
+        assert!(params["properties"]["command"].is_object());
+    }
+
+    #[test]
+    fn test_search_tool_metadata() {
+        let tool = SearchTool;
+        assert_eq!(tool.name(), "search");
+        let params = tool.parameters();
+        assert!(params["properties"]["pattern"].is_object());
+    }
+
+    #[tokio::test]
+    async fn test_shell_tool_echo() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "echo hello"}))
+            .await;
+        assert!(result.success);
+        assert!(result.output.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_tool_failure() {
+        let tool = ShellTool;
+        let result = tool.execute(serde_json::json!({"command": "false"})).await;
+        assert!(!result.success);
+    }
+
+    #[tokio::test]
+    async fn test_file_write_and_read() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp.path().to_str().unwrap().to_string();
+
+        let writer = FileWriteTool;
+        let write_result = writer
+            .execute(serde_json::json!({"path": &path, "content": "line1\nline2\nline3"}))
+            .await;
+        assert!(write_result.success);
+
+        let reader = FileReadTool;
+        let read_result = reader.execute(serde_json::json!({"path": &path})).await;
+        assert!(read_result.success);
+        assert!(read_result.output.contains("line1"));
+        assert!(read_result.output.contains("line2"));
+    }
+
+    #[test]
+    fn test_get_builtin_tools() {
+        let tools = get_builtin_tools();
+        assert_eq!(tools.len(), 4);
+        let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
+        assert!(names.contains(&"file_read"));
+        assert!(names.contains(&"file_write"));
+        assert!(names.contains(&"shell"));
+        assert!(names.contains(&"search"));
+    }
+
+    #[test]
+    fn test_tool_result_serialization() {
+        let result = ToolResult {
+            success: true,
+            output: "test output".to_string(),
+            error: None,
+            metadata: Some(serde_json::json!({"key": "value"})),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("test output"));
+        assert!(json.contains("\"success\":true"));
+    }
 }

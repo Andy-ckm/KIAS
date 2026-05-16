@@ -1195,3 +1195,33 @@ Source: GitHub API search 2026-05-16 21:34
 - **KIAS 关联**: model-router (multi-provider routing), llm-engine (unified API), agent-runtime (workflow chaining)
 - **借鉴点**: Single extensible API across 10+ providers, built-in voice pipeline (STT→LLM→TTS), chain/evaluate/serve pattern for multi-step workflows
 - **优先级**: 🟡 Medium — model-router already handles multi-provider; voice pipeline is future KIAS feature
+
+### 117. GammaLabTechnologies/harmonist ⭐1717 (Python)
+- **URL**: https://github.com/GammaLabTechnologies/harmonist
+- **描述**: Portable AI agent orchestration with mechanical protocol enforcement. 186 agents, zero runtime dependencies.
+- **KIAS 相关**: 机械式协议强制执行模式 — 可借鉴到 KIAS 的 autonomy-controller 中，实现更严格的工具策略执行
+- **创新点**: 零运行时依赖 + 186 agent 编排能力，值得关注其无依赖架构设计
+
+### 118. matevip/mateclaw ⭐465 (Java)
+- **URL**: https://github.com/matevip/mateclaw
+- **描述**: MateClaw — Multi-Agent Orchestration, MCP Protocol, Skills and Memory, Dream mode
+- **KIAS 相关**: MCP 协议集成 + Dream mode（离线推理模式），可借鉴到 KIAS goal-engine
+- **创新点**: Dream mode = agent 在空闲时自主反思和优化，类似 KIAS 的 InspirationStream
+
+### 119. ChanningLua/prax-agent ⭐294 (Python)
+- **URL**: https://github.com/ChanningLua/prax-agent
+- **描述**: Self-improving agent runtime that learns from experience — test-verify-fix loops, correction detection
+- **KIAS 相关**: 与 auto-loop crate 的自我改进循环高度重合，可对比架构差异
+- **创新点**: 纠正检测（correction detection）— agent 能识别自己的错误并自动修正
+
+### 120. onevcat/argue ⭐236 (TypeScript)
+- **URL**: https://github.com/onevcat/argue
+- **描述**: Harness-agnostic orchestration package for multi-agent consensus workflows
+- **KIAS 相关**: 多 agent 共识工作流 — 可借鉴到 team-engine 的 Owner-Worker-Verifier 模式
+- **创新点**: 跨框架编排能力，agent 共识机制
+
+### 121. salesforce/agentscript ⭐225 (TypeScript)
+- **URL**: https://github.com/salesforce/agentscript
+- **描述**: An open, schema-driven language for configuring agent orchestration systems
+- **KIAS 相关**: 声明式 agent 配置语言 — KIAS 的 YAML agent 定义可借鉴其 schema 驱动设计
+- **创新点**: Salesforce 出品，企业级 agent 配置标准化

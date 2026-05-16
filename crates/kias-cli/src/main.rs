@@ -177,13 +177,16 @@ async fn handle_agent_apply(file: String, cli: &Cli) -> i32 {
         Err(code) => return code,
     };
 
-    let body = match serde_json::to_value(&def) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("{}: 序列化失败: {}", "错误".red().bold(), e);
-            return ExitCode::ServerError as i32;
-        }
-    };
+    // Convert AgentDefinition to API-compatible AgentSpec format
+    let body = serde_json::json!({
+        "name": def.metadata.name,
+        "image": "python:3.11",
+        "command": ["python", "app.py"],
+        "priority": "medium",
+        "labels": {},
+        "env": {},
+        "resource_request": null
+    });
 
     match client.create_agent(body).await {
         Ok(agent) => {

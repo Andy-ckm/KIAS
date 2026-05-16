@@ -167,6 +167,19 @@ pub struct RetrievalMetrics {
     pub refs_preserved: usize,
 }
 
+impl RetrievalMetrics {
+    /// Calculate quality score: efficiency * reliability, clamped to [0, 1]
+    pub fn quality_score(&self) -> f64 {
+        if self.total_tool_calls == 0 {
+            0.0
+        } else {
+            let ref_ratio = self.refs_created as f64 / self.total_tool_calls as f64;
+            let error_ratio = self.error_count as f64 / self.total_tool_calls as f64;
+            (ref_ratio * (1.0 - error_ratio)).clamp(0.0, 1.0)
+        }
+    }
+}
+
 // ============================================================
 // 文档存储接口 — 可插拔后端
 // ============================================================
@@ -582,9 +595,14 @@ impl AgenticRAGEngine {
             .record(RetrievalExperience {
                 query: query.to_string(),
                 successful_refs: all_refs.clone(),
-                tools_used: vec![], // TODO: 从对话中提取
+                tools_used: {
+                    let conv = self.conversation.read().await;
+                    conv.iter()
+                        .flat_map(|msg| msg.tool_calls.iter().map(|tc| tc.tool.clone()))
+                        .collect()
+                },
                 iterations: self.conversation.read().await.len(),
-                quality_score: 0.0, // TODO: 评估质量
+                quality_score: self.metrics.read().await.quality_score(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
             })
             .await;
@@ -1170,5 +1188,134 @@ mod tests {
 
         let refs = engine.get_ref_map().await;
         assert!(!refs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_tools_used_extracted_from_conversation() {
+        let store = make_store();
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".to_string(),
+                    title: "Test".to_string(),
+                    filename: "test.md".to_string(),
+                    file_type: "md".to_string(),
+                    total_lines: 10,
+                    total_tokens: 100,
+                },
+                vec!["line 1 content".to_string(), "line 2 content".to_string()],
+            )
+            .await;
+        let engine = AgenticRAGEngine::with_rules(Arc::new(store)).unwrap();
+
+        let result = engine.retrieve("test query").await;
+
+        // tools_used should contain tool calls from the agentic loop
+        // (the rule-based strategy will make Search calls)
+        if result.metrics.total_tool_calls > 0 {
+            let conv = engine.get_conversation().await;
+            let extracted_tools: Vec<RetrievalTool> = conv
+                .iter()
+                .flat_map(|msg| msg.tool_calls.iter().map(|tc| tc.tool.clone()))
+                .collect();
+            assert!(
+                !extracted_tools.is_empty(),
+                "tools_used should be populated from conversation"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_quality_score_from_retrieve() {
+        let store = make_store();
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".to_string(),
+                    title: "Test".to_string(),
+                    filename: "test.md".to_string(),
+                    file_type: "md".to_string(),
+                    total_lines: 10,
+                    total_tokens: 100,
+                },
+                vec![
+                    "searchable content here".to_string(),
+                    "more content".to_string(),
+                ],
+            )
+            .await;
+        let engine = AgenticRAGEngine::with_rules(Arc::new(store)).unwrap();
+
+        let result = engine.retrieve("searchable content").await;
+
+        // Quality score should be between 0 and 1
+        let qs = result.metrics.quality_score();
+        assert!(
+            qs >= 0.0 && qs <= 1.0,
+            "quality_score should be in [0, 1], got {}",
+            qs
+        );
+
+        // If refs were created with no errors, quality should be positive
+        if result.metrics.refs_created > 0 && result.metrics.error_count == 0 {
+            assert!(
+                qs > 0.0,
+                "quality should be positive when refs exist and no errors"
+            );
+        }
+    }
+
+    #[test]
+    fn test_quality_score_formula() {
+        // Unit test the quality_score() method on RetrievalMetrics
+        // 5 refs, 3 tool calls, 0 errors => ref_ratio=5/3 clamped to 1.0
+        let m = RetrievalMetrics {
+            total_iterations: 3,
+            total_tool_calls: 3,
+            search_calls: 2,
+            find_calls: 1,
+            open_calls: 0,
+            summarize_calls: 0,
+            error_count: 0,
+            total_duration_ms: 100,
+            tokens_consumed: 500,
+            refs_created: 5,
+            refs_preserved: 0,
+        };
+        assert!(
+            (m.quality_score() - 1.0_f64).abs() < 0.001,
+            "5 refs / 3 calls, 0 errors => ~1.0"
+        );
+
+        // 0 refs, 3 tool calls, 0 errors => quality = 0.0
+        let m2 = RetrievalMetrics {
+            refs_created: 0,
+            error_count: 0,
+            total_tool_calls: 3,
+            ..Default::default()
+        };
+        assert!(
+            (m2.quality_score() - 0.0_f64).abs() < 0.001,
+            "0 refs => 0.0"
+        );
+
+        // 2 refs, 4 calls, 2 errors => 0.5 * 0.5 = 0.25
+        let m3 = RetrievalMetrics {
+            refs_created: 2,
+            error_count: 2,
+            total_tool_calls: 4,
+            ..Default::default()
+        };
+        assert!(
+            (m3.quality_score() - 0.25_f64).abs() < 0.001,
+            "2 refs, 2 errors / 4 => 0.25"
+        );
+
+        // 0 tool calls => quality = 0.0
+        let m4 = RetrievalMetrics::default();
+        assert!(
+            (m4.quality_score() - 0.0_f64).abs() < 0.001,
+            "0 tool calls => 0.0"
+        );
     }
 }

@@ -72,7 +72,10 @@ impl AgentContext {
         let mut prompt = base_prompt.to_string();
 
         // 添加项目上下文
-        prompt.push_str(&format!("\n\n## 项目信息\n- 项目: {}\n- 工作目录: {}", self.project, self.working_dir));
+        prompt.push_str(&format!(
+            "\n\n## 项目信息\n- 项目: {}\n- 工作目录: {}",
+            self.project, self.working_dir
+        ));
 
         if let Some(branch) = &self.branch {
             prompt.push_str(&format!("\n- Git 分支: {}", branch));
@@ -87,7 +90,11 @@ impl AgentContext {
         if !self.conversation_history.is_empty() {
             prompt.push_str("\n\n## 对话历史\n");
             for turn in self.conversation_history.iter().rev().take(5) {
-                prompt.push_str(&format!("{}: {}\n", turn.role, &turn.content[..turn.content.len().min(200)]));
+                prompt.push_str(&format!(
+                    "{}: {}\n",
+                    turn.role,
+                    &turn.content[..turn.content.len().min(200)]
+                ));
             }
         }
 

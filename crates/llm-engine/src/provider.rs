@@ -2,8 +2,8 @@
 //!
 //! 参考 LiteLLM 的统一接口设计
 
-use async_trait::async_trait;
 use crate::types::*;
+use async_trait::async_trait;
 
 /// LLM Provider trait — 统一接口
 #[async_trait]
@@ -18,7 +18,10 @@ pub trait LlmProvider: Send + Sync {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmError>;
 
     /// 流式聊天补全
-    async fn chat_stream(&self, mut request: ChatRequest) -> Result<Vec<crate::types::StreamChunk>, LlmError>;
+    async fn chat_stream(
+        &self,
+        mut request: ChatRequest,
+    ) -> Result<Vec<crate::types::StreamChunk>, LlmError>;
 
     /// 检查是否支持工具调用
     fn supports_tools(&self) -> bool;
@@ -94,16 +97,26 @@ impl OpenAiProvider {
     }
 
     fn base_url(&self) -> &str {
-        self.config.base_url.as_deref().unwrap_or("https://api.openai.com/v1")
+        self.config
+            .base_url
+            .as_deref()
+            .unwrap_or("https://api.openai.com/v1")
     }
 }
 
 #[async_trait]
 impl LlmProvider for OpenAiProvider {
-    fn name(&self) -> &str { "openai" }
+    fn name(&self) -> &str {
+        "openai"
+    }
 
     fn models(&self) -> Vec<String> {
-        vec!["gpt-4o".into(), "gpt-4o-mini".into(), "gpt-4-turbo".into(), "o3-mini".into()]
+        vec![
+            "gpt-4o".into(),
+            "gpt-4o-mini".into(),
+            "gpt-4-turbo".into(),
+            "o3-mini".into(),
+        ]
     }
 
     async fn chat(&self, mut request: ChatRequest) -> Result<ChatResponse, LlmError> {
@@ -111,7 +124,8 @@ impl LlmProvider for OpenAiProvider {
         let url = format!("{}/chat/completions", self.base_url());
         let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .bearer_auth(api_key)
             .json(&request)
@@ -127,12 +141,16 @@ impl LlmProvider for OpenAiProvider {
         Ok(resp.json().await?)
     }
 
-    async fn chat_stream(&self, mut request: ChatRequest) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
+    async fn chat_stream(
+        &self,
+        mut request: ChatRequest,
+    ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
         request.stream = Some(true);
         let url = format!("{}/chat/completions", self.base_url());
         let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .bearer_auth(api_key)
             .json(&request)
@@ -140,7 +158,10 @@ impl LlmProvider for OpenAiProvider {
             .await?;
 
         if !resp.status().is_success() {
-            return Err(LlmError::Provider(format!("Stream error: {}", resp.status())));
+            return Err(LlmError::Provider(format!(
+                "Stream error: {}",
+                resp.status()
+            )));
         }
 
         let mut chunks = Vec::new();
@@ -156,8 +177,12 @@ impl LlmProvider for OpenAiProvider {
         Ok(chunks)
     }
 
-    fn supports_tools(&self) -> bool { true }
-    fn supports_streaming(&self) -> bool { true }
+    fn supports_tools(&self) -> bool {
+        true
+    }
+    fn supports_streaming(&self) -> bool {
+        true
+    }
 }
 
 /// Anthropic Provider
@@ -177,10 +202,15 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl LlmProvider for AnthropicProvider {
-    fn name(&self) -> &str { "anthropic" }
+    fn name(&self) -> &str {
+        "anthropic"
+    }
 
     fn models(&self) -> Vec<String> {
-        vec!["claude-sonnet-4-20250514".into(), "claude-3-5-haiku-20241022".into()]
+        vec![
+            "claude-sonnet-4-20250514".into(),
+            "claude-3-5-haiku-20241022".into(),
+        ]
     }
 
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmError> {
@@ -188,16 +218,22 @@ impl LlmProvider for AnthropicProvider {
         let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
         // 转换为 Anthropic 格式
-        let system_msg = request.messages.iter()
+        let system_msg = request
+            .messages
+            .iter()
             .find(|m| m.role == MessageRole::System)
             .map(|m| m.content.clone());
 
-        let messages: Vec<serde_json::Value> = request.messages.iter()
+        let messages: Vec<serde_json::Value> = request
+            .messages
+            .iter()
             .filter(|m| m.role != MessageRole::System)
-            .map(|m| serde_json::json!({
-                "role": if m.role == MessageRole::Assistant { "assistant" } else { "user" },
-                "content": m.content,
-            }))
+            .map(|m| {
+                serde_json::json!({
+                    "role": if m.role == MessageRole::Assistant { "assistant" } else { "user" },
+                    "content": m.content,
+                })
+            })
             .collect();
 
         let mut body = serde_json::json!({
@@ -210,7 +246,8 @@ impl LlmProvider for AnthropicProvider {
             body["system"] = serde_json::json!(system);
         }
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(url)
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
@@ -246,18 +283,28 @@ impl LlmProvider for AnthropicProvider {
             usage: usage.map(|u| TokenUsage {
                 prompt_tokens: u["input_tokens"].as_u64().unwrap_or(0),
                 completion_tokens: u["output_tokens"].as_u64().unwrap_or(0),
-                total_tokens: u["input_tokens"].as_u64().unwrap_or(0) + u["output_tokens"].as_u64().unwrap_or(0),
+                total_tokens: u["input_tokens"].as_u64().unwrap_or(0)
+                    + u["output_tokens"].as_u64().unwrap_or(0),
             }),
         })
     }
 
-    async fn chat_stream(&self, _request: ChatRequest) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
+    async fn chat_stream(
+        &self,
+        _request: ChatRequest,
+    ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
         // Anthropic 流式实现类似，这里简化
-        Err(LlmError::Provider("Anthropic streaming not yet implemented".into()))
+        Err(LlmError::Provider(
+            "Anthropic streaming not yet implemented".into(),
+        ))
     }
 
-    fn supports_tools(&self) -> bool { true }
-    fn supports_streaming(&self) -> bool { true }
+    fn supports_tools(&self) -> bool {
+        true
+    }
+    fn supports_streaming(&self) -> bool {
+        true
+    }
 }
 
 /// 本地模型 Provider (兼容 OpenAI API)
@@ -275,16 +322,25 @@ impl LocalProvider {
     }
 
     fn base_url(&self) -> &str {
-        self.config.base_url.as_deref().unwrap_or("http://localhost:11434/v1")
+        self.config
+            .base_url
+            .as_deref()
+            .unwrap_or("http://localhost:11434/v1")
     }
 }
 
 #[async_trait]
 impl LlmProvider for LocalProvider {
-    fn name(&self) -> &str { "local" }
+    fn name(&self) -> &str {
+        "local"
+    }
 
     fn models(&self) -> Vec<String> {
-        vec!["qwen3-235b".into(), "deepseek-v4".into(), "llama-4-maverick".into()]
+        vec![
+            "qwen3-235b".into(),
+            "deepseek-v4".into(),
+            "llama-4-maverick".into(),
+        ]
     }
 
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmError> {
@@ -292,11 +348,7 @@ impl LlmProvider for LocalProvider {
         req.stream = Some(false);
         let url = format!("{}/chat/completions", self.base_url());
 
-        let resp = self.client
-            .post(&url)
-            .json(&req)
-            .send()
-            .await?;
+        let resp = self.client.post(&url).json(&req).send().await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -307,11 +359,20 @@ impl LlmProvider for LocalProvider {
         Ok(resp.json().await?)
     }
 
-    async fn chat_stream(&self, mut request: ChatRequest) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
+    async fn chat_stream(
+        &self,
+        _request: ChatRequest,
+    ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
         // 本地模型流式实现
-        Err(LlmError::Provider("Local streaming not yet implemented".into()))
+        Err(LlmError::Provider(
+            "Local streaming not yet implemented".into(),
+        ))
     }
 
-    fn supports_tools(&self) -> bool { true }
-    fn supports_streaming(&self) -> bool { true }
+    fn supports_tools(&self) -> bool {
+        true
+    }
+    fn supports_streaming(&self) -> bool {
+        true
+    }
 }

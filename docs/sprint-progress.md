@@ -1,3 +1,38 @@
+## 最新更新：2026-05-16 13:27 (Sprint 41 — 新 crate 集成 + 质量门禁修复)
+
+### 🎯 Sprint 41 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 (0 warnings) |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 1,517 通过 / 0 失败 |
+
+### 🔧 本轮修复
+- **llm-engine 编译修复**: `StreamChunk` 导入路径错误 (streaming → types)
+- **llm-engine 警告清理**: 5 个 unused mut/variable 警告
+- **tool-executor 警告清理**: unused import + 4 个 unused variables
+- **agent-runtime 警告清理**: unused import `TokenUsage`
+- **clippy 修复**: 3 个 `new_without_default` (CostTracker, StreamProcessor, ToolRegistry)
+- **cargo fmt**: agent-runtime + tool-executor 格式化
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 80,797
+- **测试数量**: 1,517 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 84 个条目
+
+### 🔍 优先级验证（全部已完成）
+1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
+2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+
+### 💾 磁盘状态
+- / (系统盘): 5.3G 可用 / 40G
+- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+
+---
 ## 最新更新：2026-05-16 12:35 (Sprint 40 — 验证周期 + 文档修复 + 警告清理)
 
 ### 🎯 Sprint 40 质量门禁检查

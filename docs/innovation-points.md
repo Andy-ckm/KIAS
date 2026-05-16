@@ -950,3 +950,27 @@
 - **Language**: Rust
 - **Description**: MCP client types, transports, and connection management for Tokimo
 - **KIAS relevance**: MCP client implementation — study transport abstraction for our client-side protocol
+
+## 131. OxyGent (jd-opensource) ⭐1847
+- **URL**: https://github.com/jd-opensource/OxyGent
+- **Language**: Python
+- **Description**: [ACL 2026] Making Multi-Agent Systems Modular, Observable, and Evolvable
+- **KIAS relevance**: Modular multi-agent architecture — our team-engine could adopt their observability patterns for agent state tracking
+
+## 132. LatentMAS (Gen-Verse) ⭐949
+- **URL**: https://github.com/Gen-Verse/LatentMAS
+- **Language**: Python
+- **Description**: [ICML 2026 Spotlight] Latent Collaboration in Multi-Agent Systems
+- **KIAS relevance**: Latent collaboration patterns — potential for improving our scheduler's agent-to-agent communication optimization
+
+## 133. mobfish-agent (mobfish-ai) ⭐164
+- **URL**: https://github.com/mobfish-ai/mobfish-agent
+- **Language**: Python
+- **Description**: Production-ready framework for building intelligent AI agents with tool calling
+- **KIAS relevance**: Production-ready patterns — compare their tool calling abstraction with our executor/tool-executor design
+
+## 134. cursor-agent (civai-technologies) ⭐121
+- **URL**: https://github.com/civai-technologies/cursor-agent
+- **Language**: Python
+- **Description**: Cursor Agent Tools - AI agent that replicates Cursor's coding assistant
+- **KIAS relevance**: Code assistant patterns — our agent-runtime could adopt Cursor's context management for code generation tasks

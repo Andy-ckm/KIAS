@@ -100,10 +100,7 @@ impl SandboxExecutor {
 
         let timeout = self.config.timeout_secs.unwrap_or(60);
 
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(timeout),
-            cmd.output()
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(timeout), cmd.output()).await {
             Ok(Ok(output)) => SandboxResult {
                 success: output.status.success(),
                 stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -143,10 +140,7 @@ impl SandboxExecutor {
 
         let timeout = self.config.timeout_secs.unwrap_or(60);
 
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(timeout),
-            cmd.output()
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(timeout), cmd.output()).await {
             Ok(Ok(output)) => SandboxResult {
                 success: output.status.success(),
                 stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -172,7 +166,7 @@ impl SandboxExecutor {
     }
 
     /// Docker 沙箱执行
-    async fn execute_in_docker(&self, command: &str, workdir: Option<&str>) -> SandboxResult {
+    async fn execute_in_docker(&self, _command: &str, _workdir: Option<&str>) -> SandboxResult {
         // Docker 沙箱实现
         SandboxResult {
             success: false,
@@ -184,7 +178,7 @@ impl SandboxExecutor {
     }
 
     /// Namespace 沙箱执行
-    async fn execute_in_namespace(&self, command: &str, workdir: Option<&str>) -> SandboxResult {
+    async fn execute_in_namespace(&self, _command: &str, _workdir: Option<&str>) -> SandboxResult {
         // Linux Namespace 沙箱实现
         SandboxResult {
             success: false,

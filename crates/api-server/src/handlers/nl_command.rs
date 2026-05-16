@@ -65,7 +65,7 @@ pub struct NlAction {
 
 /// 支持的意图类型
 #[derive(Debug, Clone)]
-enum Intent {
+pub enum Intent {
     AgentCreate {
         name: Option<String>,
         model: Option<String>,
@@ -750,4 +750,19 @@ mod tests {
         let query = extract_query("搜索 rust async");
         assert_eq!(query, "rust async");
     }
+}
+
+// ─── 公共接口（供 IM 模块调用）──────────────────────────
+
+/// 公共意图解析接口
+pub fn parse_intent_for_im(command: &str) -> (Intent, f64) {
+    parse_intent(command)
+}
+
+/// 公共意图执行接口
+pub async fn execute_intent_for_im(
+    intent: &Intent,
+    state: &AppState,
+) -> (Vec<NlAction>, String, Vec<String>) {
+    execute_intent(intent, state).await
 }

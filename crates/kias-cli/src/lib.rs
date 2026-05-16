@@ -5,11 +5,11 @@ pub mod agent;
 pub mod client;
 pub mod config;
 pub mod output;
+pub mod process;
 pub mod sandbox;
 pub mod skill;
 pub mod tool;
 pub mod workflow;
-pub mod process;
 
 use clap::{Parser, Subcommand};
 

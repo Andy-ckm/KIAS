@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 // ============================================================
 // L1: 工具结果存储 — 大结果写磁盘，上下文只放预览
@@ -345,6 +345,7 @@ pub struct DreamConsolidator {
     memories: Arc<RwLock<Vec<MemoryEntry>>>,
     session_log: Arc<RwLock<Vec<SessionMemoryEntry>>>,
     /// 锁文件路径（互斥）
+    #[allow(dead_code)]
     lock_path: PathBuf,
 }
 

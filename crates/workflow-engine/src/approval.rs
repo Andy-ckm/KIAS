@@ -306,7 +306,6 @@ pub fn evaluate_policy(policy: &ApprovalPolicy, ctx: &ApprovalContext) -> Approv
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     fn make_ctx(node_id: &str, risk_score: f64) -> ApprovalContext {
         ApprovalContext {

@@ -293,7 +293,6 @@ impl ErrorHandlerConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::ExecutionResult;
     use crate::state::WorkflowState;
 
     fn make_ctx<'a>(

@@ -92,6 +92,13 @@ pub enum Intent {
     KnowledgeSearch {
         query: String,
     },
+    /// 问题报告
+    ProblemReport {
+        title: String,
+        description: String,
+    },
+    /// 查看问题列表
+    ProblemList,
     ConfigGet,
     Help,
     Unknown,
@@ -213,6 +220,33 @@ fn parse_intent(command: &str) -> (Intent, f64) {
             0.9,
         );
     }
+    if (cmd.contains("列出") || cmd.contains("list") || cmd.contains("查看"))
+        && (cmd.contains("workflow") || cmd.contains("工作流"))
+    {
+        return (Intent::WorkflowList, 0.95);
+    }
+
+    // 问题报告（在WorkflowRun之前）
+    if cmd.contains("问题") || cmd.contains("bug") || cmd.contains("缺陷") {
+        if cmd.contains("发现") || cmd.contains("报告") || cmd.contains("report") {
+            let title = extract_problem_title(&cmd);
+            let description = cmd.clone();
+            return (Intent::ProblemReport { title, description }, 0.85);
+        }
+        if cmd.contains("列表") || cmd.contains("list") {
+            return (Intent::ProblemList, 0.9);
+        }
+    }
+
+    // 报告bug（独立处理）
+    if cmd.starts_with("报告") || cmd.starts_with("report") {
+        if cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷") {
+            let title = extract_problem_title(&cmd);
+            let description = cmd.clone();
+            return (Intent::ProblemReport { title, description }, 0.85);
+        }
+    }
+
     if (cmd.contains("运行") || cmd.contains("run") || cmd.contains("执行"))
         && (cmd.contains("workflow") || cmd.contains("工作流"))
     {
@@ -223,11 +257,6 @@ fn parse_intent(command: &str) -> (Intent, f64) {
             },
             0.85,
         );
-    }
-    if (cmd.contains("列出") || cmd.contains("list") || cmd.contains("查看"))
-        && (cmd.contains("workflow") || cmd.contains("工作流"))
-    {
-        return (Intent::WorkflowList, 0.95);
     }
 
     // 集群/服务
@@ -253,6 +282,27 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     }
     if cmd.contains("帮助") || cmd.contains("help") || cmd == "?" {
         return (Intent::Help, 0.95);
+    }
+
+    // 问题报告
+    if cmd.contains("问题") || cmd.contains("bug") || cmd.contains("缺陷") {
+        if cmd.contains("发现") || cmd.contains("报告") || cmd.contains("report") {
+            let title = extract_problem_title(&cmd);
+            let description = cmd.clone();
+            return (Intent::ProblemReport { title, description }, 0.85);
+        }
+        if cmd.contains("列表") || cmd.contains("list") {
+            return (Intent::ProblemList, 0.9);
+        }
+    }
+
+    // 报告bug（独立处理）
+    if cmd.starts_with("报告") || cmd.starts_with("report") {
+        if cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷") {
+            let title = extract_problem_title(&cmd);
+            let description = cmd.clone();
+            return (Intent::ProblemReport { title, description }, 0.85);
+        }
     }
 
     // English
@@ -323,6 +373,28 @@ fn extract_query(cmd: &str) -> String {
         .filter(|w| !["搜索", "search", "查找"].contains(&w.to_lowercase().as_str()))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// 从命令中提取问题标题
+fn extract_problem_title(cmd: &str) -> String {
+    // 尝试提取引号内的内容
+    if let Some(start) = cmd.find('"').or_else(|| cmd.find('\u{201c}')) {
+        if let Some(end) = cmd[start + 1..]
+            .find('"')
+            .or_else(|| cmd[start + 1..].find('\u{201d}'))
+        {
+            return cmd[start + 1..start + 1 + end].to_string();
+        }
+    }
+    // 去掉关键词，保留主要描述
+    let keywords = [
+        "发现", "报告", "report", "问题", "bug", "缺陷", "了", "：", ":",
+    ];
+    let mut title = cmd.to_string();
+    for keyword in &keywords {
+        title = title.replace(keyword, "");
+    }
+    title.trim().to_string()
 }
 
 /// 执行解析后的意图
@@ -658,6 +730,40 @@ async fn execute_intent(intent: &Intent, state: &AppState) -> (Vec<NlAction>, St
                 vec![action],
                 "✗ 无法识别该命令，输入 '帮助' 查看支持的操作".to_string(),
                 vec!["帮助".to_string(), "查看 Agent 列表".to_string()],
+            )
+        }
+
+        Intent::ProblemReport { title, description } => {
+            let action = NlAction {
+                action_type: "problem.report".to_string(),
+                params: serde_json::json!({
+                    "title": title,
+                    "description": description,
+                }),
+                status: "completed".to_string(),
+                summary: Some(format!("问题已记录: {}", title)),
+            };
+            (
+                vec![action],
+                format!(
+                    "✓ 问题已记录: {}\n\n问题将被纳入自改进循环，系统会自动生成解决方案。",
+                    title
+                ),
+                vec!["查看问题列表".to_string(), "创建解决方案".to_string()],
+            )
+        }
+
+        Intent::ProblemList => {
+            let action = NlAction {
+                action_type: "problem.list".to_string(),
+                params: serde_json::json!({}),
+                status: "completed".to_string(),
+                summary: Some("问题列表".to_string()),
+            };
+            (
+                vec![action],
+                "问题列表功能已记录，将通过自改进循环处理。".to_string(),
+                vec!["报告新问题".to_string(), "查看改进记录".to_string()],
             )
         }
     }

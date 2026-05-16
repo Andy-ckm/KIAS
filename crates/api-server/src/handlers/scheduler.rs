@@ -227,6 +227,7 @@ mod tests {
 
         AppState {
             config: Arc::new(config),
+            agent_repository: None,
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -282,6 +283,7 @@ mod tests {
 
         let state = AppState {
             config: Arc::new(config),
+            agent_repository: None,
             agents: Arc::new(RwLock::new(agents)),
             nodes: Arc::new(RwLock::new(HashMap::new())),
             workflows: Arc::new(RwLock::new(HashMap::new())),

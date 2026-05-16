@@ -22,6 +22,9 @@ members = [
     "crates/benchmarks",
     "crates/data-store",
     "crates/model-router",
+    "crates/llm-engine",
+    "crates/tool-executor",
+    "crates/agent-runtime",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

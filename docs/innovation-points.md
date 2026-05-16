@@ -974,3 +974,21 @@
 - **Language**: Python
 - **Description**: Cursor Agent Tools - AI agent that replicates Cursor's coding assistant
 - **KIAS relevance**: Code assistant patterns — our agent-runtime could adopt Cursor's context management for code generation tasks
+
+## 135. astragraph (yagna-1) ⭐26
+- **URL**: https://github.com/yagna-1/astragraph
+- **Language**: Rust
+- **Description**: Policy-enforced observability and fail-closed guardrails for MCP/A2A multi-agent systems
+- **KIAS relevance**: MCP/A2A guardrails pattern — our mcp-protocol could adopt fail-closed guardrails for security; observability hooks for agent state tracking
+
+## 136. 12-factor-agents (humanlayer) ⭐19822
+- **URL**: https://github.com/humanlayer/12-factor-agents
+- **Language**: TypeScript
+- **Description**: Principles for building production-grade LLM-powered software
+- **KIAS relevance**: 12-factor methodology for agents — apply principles (statelessness, disposability, concurrency) to our agent-runtime and team-engine design
+
+## 137. dify (langgenius) ⭐141533
+- **URL**: https://github.com/langgenius/dify
+- **Language**: TypeScript
+- **Description**: Production-ready platform for agentic workflow development
+- **KIAS relevance**: Mature agentic workflow platform — study their workflow DSL, node types, and execution model for improving workflow-engine

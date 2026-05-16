@@ -21,4 +21,5 @@ uuid.workspace = true
 chrono.workspace = true
 dashmap.workspace = true
 reqwest.workspace = true
+serde_yaml.workspace = true
 rusqlite.workspace = true

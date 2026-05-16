@@ -1058,3 +1058,25 @@
 - "Ship product, not plumbing. Open source framework for AI-first SaaS"
 - 特点: Identity, billing, multi-tenancy — SaaS 基础设施
 - KIAS 启示: 多租户 + 身份管理对 KIAS 企业部署有参考价值
+
+
+## 99. Splitrail (⭐183, Rust) — Token Usage & Cost Tracking
+- **Repo**: Piebald-AI/splitrail
+- **What**: Real-time token usage tracker and cost monitor for Gemini CLI, Claude Code, Codex CLI, Qwen Code, and more
+- **Why it matters**: KIAS has agentsight for token analytics but lacks real-time cost monitoring across multi-agent sessions. Splitrail's approach of intercepting API calls for cost tracking could integrate with KIAS's cost attribution system.
+- **KIAS relevance**: Could enhance `crates/agentsight` with real-time cost dashboards and per-agent budget alerts
+- **Date added**: 2026-05-16 20:23
+
+## 100. Zapcode (⭐78, Rust) — Sandboxed TS Interpreter for Agents
+- **Repo**: TheUncharted/zapcode
+- **What**: TypeScript interpreter for AI agents with 2µs cold start, sandboxed execution. Alternative to MCP tool calling.
+- **Why it matters**: Demonstrates ultra-fast sandboxed code execution as an alternative to tool calling. KIAS's sandbox (crates/mcp-protocol) could adopt similar patterns for sub-millisecond tool execution.
+- **KIAS relevance**: Evaluate for tool-executor crate — WASM-based sandboxed execution with deterministic output
+- **Date added**: 2026-05-16 20:23
+
+## 101. Mithril (⭐14, Rust) — Trustless MCP Server
+- **Repo**: radimsem/mithril
+- **What**: Trustless MCP server replacing generic shell tool with validated, sandboxed, purpose-built execution tools
+- **Why it matters**: Addresses the trust problem in MCP tool execution — agents shouldn't have unrestricted shell access. KIAS's sandbox already has resource limits, but Mithril's approach of purpose-built validated tools is more secure.
+- **KIAS relevance**: Consider adding tool validation layer to mcp-protocol sandbox — pre-validate commands before execution
+- **Date added**: 2026-05-16 20:23

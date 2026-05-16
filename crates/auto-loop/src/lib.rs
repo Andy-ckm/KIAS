@@ -5,12 +5,12 @@
 
 pub mod analyzer;
 pub mod codegen;
+pub mod deployer;
 pub mod detector;
 pub mod planner;
 pub mod verifier;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 /// 循环状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LoopStatus {

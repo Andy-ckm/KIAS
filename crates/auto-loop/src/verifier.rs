@@ -7,7 +7,6 @@
 //! - 性能验证
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// 验证类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -525,11 +525,26 @@ async fn handle_workflow(action: kias_cli::WorkflowAction, cli: &Cli) -> i32 {
                 Err(code) => return code,
             };
 
+            // Convert CLI WorkflowDefinition to API CreateWorkflowRequest format
+            // API expects nodes with: id, name, node_type, config, dependencies
+            let api_nodes: Vec<serde_json::Value> = def.spec.nodes.iter().enumerate().map(|(i, n)| {
+                serde_json::json!({
+                    "id": format!("node-{}", i),
+                    "name": n.name,
+                    "node_type": "llm",
+                    "config": {
+                        "agent": n.agent,
+                        "prompt": n.prompt.as_deref().unwrap_or(""),
+                        "condition": n.condition,
+                    },
+                    "dependencies": if i > 0 { vec![format!("node-{}", i-1)] } else { vec![] },
+                })
+            }).collect();
+
             let body = serde_json::json!({
                 "name": def.metadata.name,
-                "entry": def.spec.entry,
-                "nodes": def.spec.nodes,
-                "edges": def.spec.edges,
+                "description": format!("KIAS workflow: {}", def.metadata.name),
+                "nodes": api_nodes,
             });
 
             match client.create_workflow(body).await {

@@ -25,139 +25,342 @@
 
 <h1 align="center">KIAS</h1>
 <p align="center"><strong>Kubernetes-like Intelligent Agent Scheduling</strong></p>
-<p align="center">用 Rust 构建的生产级 AI Agent 集群调度框架</p>
+<p align="center">Production-grade AI Agent cluster orchestration built in Rust</p>
+
+<p align="center">
+  <a href="docs/technical-showcase.md">Technical Deep Dive</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#supported-models">Supported Models</a>
+</p>
 
 ---
 
-## 为什么需要 KIAS
+## Overview
 
-你的 Agent 在笔记本上跑得很顺畅，推到生产环境就出问题：
+KIAS is a Rust-based AI Agent cluster scheduling system that applies Kubernetes control-plane architecture to LLM agent orchestration. It addresses the gap between prototype agent scripts and production-ready agent infrastructure: state persistence, crash recovery, multi-agent coordination, cache-aware scheduling, sandboxed execution, and observability.
 
-```
-                        开发环境                          生产环境
-                   ┌──────────────┐              ┌──────────────────────┐
-                   │   Agent      │              │  Agent               │
-                   │   运行正常 ✅  │   ──────▶   │  状态丢失 ❌           │
-                   │   响应很快    │              │  崩溃无恢复 ❌         │
-                   │   一切正常    │              │  租户互相干扰 ❌       │
-                   └──────────────┘              │  绑定单一模型 ❌       │
-                                                 │  无法观测运行状态 ❌    │
-                                                 └──────────────────────┘
-```
+**Key numbers:**
 
-**KIAS 解决的就是这个落差。** 它为 Agent 提供生产环境必需的基础设施，让你专注于 Agent 逻辑本身。
+| Metric | Value |
+|--------|-------|
+| Rust Crates | 21 |
+| Lines of Code | 75,716 |
+| Scheduling Algorithms | 7 (including GPU-Aware, Edge) |
+| MCP Sandbox Backends | 5 (Docker / Firecracker / gVisor / Wasm / Process) |
+| Test Coverage | `#[cfg(test)]` module in every crate |
 
 ---
 
-## 核心架构
+## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                          KIAS 平台架构                                    │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │  你的业务逻辑（你只需关注这一层）                                    │    │
-│  │  Agent Code · Tools · Prompts                                    │    │
-│  └─────────────────────────────────────────────────────────────────┘    │
-│                                    ▼                                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │ LangGraph│ │ Workflow  │ │  Team    │ │  MCP     │ │ Sandbox  │      │
-│  │ 状态图引擎│ │ DAG工作流 │ │ 多Agent  │ │ 工具协议 │ │ 沙箱隔离 │      │
-│  │          │ │          │ │ 协作编排 │ │          │ │          │      │
-│  │ ·条件分支│ │ ·并行执行│ │ ·委托    │ │ ·标准MCP│ │ ·5种后端│      │
-│  │ ·循环   │ │ ·子图    │ │ ·验证    │ │ ·热加载 │ │ ·资源限制│      │
-│  │ ·检查点  │ │ ·Saga回滚│ │ ·记忆共享│ │ ·鉴权   │ │ ·审计日志│      │
-│  │ ·并行扇出│ │ ·重试策略│ │ ·技能匹配│ │          │ │          │      │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
-│                                    ▼                                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │Scheduler │ │Controller│ │Model     │ │  Data    │ │ Monitor  │      │
-│  │ 调度引擎 │ │ 生命周期 │ │ Router   │ │  Store   │ │ 可观测   │      │
-│  │          │ │          │ │ 模型路由 │ │ 数据存储 │ │          │      │
-│  │ ·4种算法 │ │ ·心跳    │ │ ·10+供应商│ │ ·SQLite │ │ ·Prometheus│    │
-│  │ ·亲和性  │ │ ·故障恢复│ │ ·负载均衡│ │ ·HNSW向量│ │ ·WebSocket│    │
-│  │ ·抢占    │ │ ·熔断器  │ │ ·Fallback│ │ ·缓存层 │ │ ·健康检查│      │
-│  │ ·GPU感知 │ │ ·死信队列│ │ ·成本控制│ │ ·审计日志│ │ ·链路追踪│      │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         API Server (axum)                        │
+│                   REST + gRPC + WebSocket + mTLS                 │
+├─────────┬──────────┬──────────┬──────────┬───────────────────────┤
+│Scheduler│Controller│Workflow  │  Team    │  Goal    │ Autonomy   │
+│  Engine │          │  Engine  │  Engine  │  Engine  │ Controller │
+│ 7 algos │Heartbeat │ DAG exec │ OVW      │ Goal loop│ 3-level    │
+├─────────┴──────────┴──────────┴──────────┴──────────┴───────────┤
+│  LangGraph Engine    │   MCP Protocol    │   Data Store (SQLite) │
+│  State graph+FanOut  │   JSON-RPC+Sandbox│   Vector+Prefix Cache │
+├──────────────────────┴───────────────────┴───────────────────────┤
+│                    Common (L0): Error / Config / A2A / Masking    │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+**Layered dependency model** (enforced by `make lint-arch`):
+
+```
+L0: common                    ← Base types, errors, config
+L1: data-store                ← SQLite persistence layer
+L2: scheduler, controller, workflow-engine, team-engine, ...
+L3: api-server, kias-main
+```
+
+Strict unidirectional dependencies. No cross-layer imports.
 
 ---
 
-## 解决的 6 个核心问题
+## Core Innovations
 
-### 1. 状态持久化 — 崩溃不丢数据
+### 1. Cache-Aware Scheduling
 
-**问题：** 进程一崩，Agent 运行了几小时的推理结果全部归零。
+**File:** [`crates/scheduler/src/algorithms/cache_aware.rs`](crates/scheduler/src/algorithms/cache_aware.rs)
 
-**方案：** KIAS 采用 **SQLite + WAL 模式** 持久化所有 Agent 状态。参考 K8s 的 etcd 设计理念，但用 SQLite 替代——单文件部署、零运维、ACID 事务保证。每个 Agent 的完整状态（上下文、工具调用历史、中间推理结果）都会写入磁盘。进程重启后自动恢复到崩溃前的位置。
+Traditional schedulers (Round Robin, Least Loaded) are blind to LLM inference characteristics — they don't know whether a node has already cached a specific system prompt's KV Cache. A cache miss means recomputing the entire prefix, wasting ~90% of GPU compute.
+
+KIAS introduces **DeepSeek-style Prefix Caching** into the scheduling decision layer:
 
 ```rust
-// Agent 状态自动持久化，无需手动管理
-let agent = AgentBuilder::new("my-agent")
-    .with_checkpoint_store(SqliteCheckpointStore::new("agent.db"))
-    .build();
-// 进程崩溃？重启后 agent 自动从上次 checkpoint 恢复
+// crates/scheduler/src/algorithms/cache_aware.rs
+fn cache_aware_score(
+    node: &Node, agent: &Agent,
+    cache_info: Option<&NodeCacheInfo>, cache_weight: f64,
+) -> f64 {
+    let cache_score = if let (Some(info), Some(prefix_hash)) = (cache_info, agent.system_prompt_hash) {
+        if info.cached_prefixes.contains(&prefix_hash) { 1.0 } else { 0.0 }
+    } else { 0.0 };
+    let load_score = 1.0 - node.load_factor();
+    cache_weight * cache_score + (1.0 - cache_weight) * load_score
+}
 ```
 
-### 2. 错误自动恢复 — 自愈而非自毁
+- **Fast path:** If a node has a matching cached prefix, route directly (score = 1.0)
+- **Weighted scoring:** `cache_weight` parameter (0.0 = pure load balancing, 1.0 = pure cache priority)
+- **Concurrent-safe:** `Arc<DashMap>` for lock-free concurrent cache map access
 
-**问题：** 一次 API 调用失败，整个 Agent 任务链中断，只能人工重启。
-
-**方案：** **死信队列（DLQ）+ 熔断器 + 指数退避重试**。失败的任务不会丢失，自动进入重试队列。连续失败触发熔断，防止雪崩。恢复后自动解除熔断。
-
-```
-传统方式:  请求 → Agent → 报错 → 系统挂掉 → 人工重启
-KIAS:     请求 → Agent → 报错 → DLQ → 指数退避重试 → 熔断保护 → 自动恢复
-```
-
-### 3. 多 Agent 协作 — 不是单打独斗
-
-**问题：** 复杂任务需要多个 Agent 协作，但现有框架只支持单 Agent 运行。
-
-**方案：** KIAS 提供三种协作模式：
-
-| 模式 | 机制 | 适用场景 |
-|------|------|---------|
-| **LangGraph 状态图** | 条件分支、循环、并行扇出、检查点恢复 | 复杂决策流程 |
-| **Workflow DAG** | 并行执行、子图组合、Saga 补偿回滚 | 业务流程自动化 |
-| **Team 协作** | Owner-Worker-Verifier 对抗式质量门禁 | 多角色协作任务 |
-
-### 4. 多模型路由 — 不被任何供应商锁定
-
-**问题：** 换个 LLM 供应商就要改代码，迁移成本高。
-
-**方案：** 统一的模型路由层，支持 OpenAI / Anthropic / Google / DeepSeek / Ollama / vLLM / llama.cpp 等 10+ 供应商。配置文件切换，不改代码。支持 Fallback、负载均衡、成本控制。
-
-```toml
-# 切换模型只需改配置
-[model]
-provider = "openai"        # 或 "anthropic", "ollama", "deepseek"
-model = "gpt-5.5"          # 或 "claude-opus-4.7", "deepseek-v4-pro"
-```
-
-### 5. 安全隔离 — 租户互不干扰
-
-**问题：** 多个 Agent 共享进程，一个搞崩全部受影响。
-
-**方案：** 5 种沙箱后端（Docker / Firejail / gVisor / Wasm / Process），资源配额限制，命名空间隔离。每个 Agent 运行在独立沙箱中。
-
-### 6. 全面可观测 — 不再黑盒运行
-
-**问题：** 看不到 Agent 在干什么，出了问题只能猜。
-
-**方案：** Prometheus 指标 + WebSocket 实时事件推送 + 健康检查 + 全链路追踪。你能看到每一个 Agent 的运行状态、Token 消耗、延迟分布、错误详情。
+This is the only scheduling solution that incorporates LLM inference characteristics into scheduling decisions at the scheduler level.
 
 ---
 
-## 支持的模型
+### 2. LangGraph State Graph Engine
 
-### 云端 API
+**File:** [`crates/langgraph-engine/src/graph.rs`](crates/langgraph-engine/src/graph.rs)
 
-| 供应商 | 最新模型 | 上下文 | 输入价格 ($/1M tokens) | 输出价格 ($/1M tokens) |
-|--------|---------|--------|----------------------|----------------------|
+LLM workflows are not linear — they require conditional branching, loops, parallel subtasks, and interrupt-resume semantics. Existing DAG engines (Airflow, Temporal) are either too heavy or lack LLM-specific interrupt-resume support.
+
+KIAS implements a complete LangGraph-style state graph engine with four edge types:
+
+```rust
+// crates/langgraph-engine/src/graph.rs
+pub enum EdgeType {
+    Direct { from: String, to: String },
+    Conditional { from: String, to: String, condition: EdgeCondition },
+    Router { from: String, router: RouterFn },
+    FanOut { from: String, targets: Vec<String>, join_node: String },
+}
+```
+
+**Parallel FanOut execution** spawns each branch in an independent `tokio::spawn` task, with state changes merged via last-write-wins strategy. **Checkpoint persistence** enables interrupt-resume semantics — `resume_from_checkpoint()` restores from the checkpoint node, not from the entry point.
+
+Build-time validation via `build()` detects unreachable nodes and missing entry points before runtime. `max_steps` guard prevents infinite loops in LLM-driven conditional cycles.
+
+---
+
+### 3. TypedState — Compile-Time Safe Reducer Mechanism
+
+**File:** [`crates/workflow-engine/src/typed_state.rs`](crates/workflow-engine/src/typed_state.rs)
+
+LangGraph's core abstraction is the TypedDict + Reducer pattern. In Python, this relies on type hints (runtime checks). KIAS leverages Rust's type system to guarantee state merge correctness at compile time.
+
+```rust
+// crates/workflow-engine/src/typed_state.rs
+pub trait ChannelReducer<T>: Send + Sync + 'static {
+    fn reduce(&self, current: T, incoming: T) -> T;
+    fn name(&self) -> &str;
+}
+```
+
+Five built-in reducers: `Replace`, `Append`, `Merge` (shallow HashMap merge), `KeepFirst`, `Sum`. Each channel erases its type to `Box<dyn Any>` but captures the original type's reducer via closure. On `update()`, type safety is restored through `downcast`.
+
+- **Compile-time safety:** Mismatched `T` and Reducer are rejected by the compiler
+- **Runtime flexibility:** Channel names are strings, supporting dynamic registration
+- **Concurrent branch safety:** FanOut branches merge state deterministically through reducers
+
+---
+
+### 4. Three-Layer Memory System
+
+**File:** [`crates/team-engine/src/memory.rs`](crates/team-engine/src/memory.rs)
+
+The core bottleneck in multi-agent collaboration is not communication — it's memory. Agents lose context after task completion, forcing redundant re-computation.
+
+KIAS implements a three-layer memory architecture:
+
+| Layer | Eviction Strategy | Purpose |
+|-------|-------------------|---------|
+| **ShortTerm** | TTL + LRU | Current task context |
+| **LongTerm** | access_count + recency | Cross-task knowledge accumulation |
+| **Entity** | confidence + recency | Entity attribute memory with confidence scores |
+
+```rust
+// crates/team-engine/src/memory.rs
+pub struct MemoryManager {
+    pub short_term: Arc<RwLock<ShortTermMemory>>,
+    pub long_term: Arc<RwLock<LongTermMemory>>,
+    pub entity: Arc<RwLock<EntityMemory>>,
+}
+```
+
+`ContextBuilder` assembles context within a token budget (~4 chars/token heuristic), solving LLM context window overflow. All layers are thread-safe via `Arc<RwLock<>>` for concurrent multi-agent read/write. Entity Memory records confidence levels, allowing agents to distinguish between "known" and "inferred" facts.
+
+---
+
+### 5. Worker-Verifier Adversarial Quality Gate
+
+**File:** [`crates/team-engine/src/verifier.rs`](crates/team-engine/src/verifier.rs)
+
+Single-agent output quality is uncontrollable. Even with Chain of Thought, LLMs generate incorrect code, miss edge cases, and produce hallucinations.
+
+KIAS implements an adversarial Worker-Verifier mechanism:
+
+```rust
+// crates/team-engine/src/verifier.rs
+pub enum VerificationRule {
+    Contains(String),
+    NotContains(String),
+    MinLength(usize),
+    MaxLength(usize),
+    ValidJson,
+    Pattern(String),
+    ShellCheck(String),  // Execute shell commands for verification
+}
+```
+
+The `ShellCheck` rule runs actual test commands (e.g., `cargo test`, `python -m pytest`) during verification, elevating quality assurance from "looks correct" to "runs correctly." Verifier issues feed directly into the Worker's next iteration, forming a closed-loop improvement cycle.
+
+---
+
+### 6. Autonomy Gradient Controller
+
+**File:** [`crates/autonomy-controller/src/autonomy.rs`](crates/autonomy-controller/src/autonomy.rs), [`crates/autonomy-controller/src/ladder.rs`](crates/autonomy-controller/src/ladder.rs)
+
+Full autonomy is dangerous; full confirmation is inefficient. KIAS implements Codex CLI-style three-mode autonomy control with a complete decision pipeline:
+
+```
+Tool Policy Check → Rate Limit Check → Budget Check → Autonomy Level Judgment → Audit Log
+```
+
+```rust
+// crates/autonomy-controller/src/ladder.rs
+pub enum AutonomyLevel {
+    Suggest,    // Suggest only, no execution
+    AutoEdit,   // Write operations auto-execute, others require confirmation
+    FullAuto,   // Fully automatic, constrained by tool policies
+}
+```
+
+**Auto-promotion:** When an agent achieves consecutive successes above a threshold, it automatically promotes from `Suggest` to `AutoEdit`, reducing human intervention. `Forbidden` policy remains enforced even in `FullAuto` mode.
+
+---
+
+### 7. Goal-Driven Loop Engine
+
+**File:** [`crates/goal-engine/src/loop_runner.rs`](crates/goal-engine/src/loop_runner.rs)
+
+The "execute → evaluate → feedback → re-execute" pattern is ubiquitous in LLM applications. Most frameworks implement this as ad-hoc while loops in application code, lacking standardization, checkpoints, cancellation, and observability.
+
+KIAS abstracts this as `GoalLoopRunner` with separated executor-evaluator roles:
+
+```rust
+// crates/goal-engine/src/loop_runner.rs
+#[async_trait::async_trait]
+pub trait RoundExecutor: Send + Sync {
+    async fn execute_round(
+        &self, goal: &Goal, round: u32,
+        previous_feedback: Option<&EvaluationResult>,
+    ) -> KiasResult<String>;
+}
+```
+
+`GoalCancelToken` (based on `AtomicBool`) enables graceful external termination. `evaluation_history` tracks per-round evaluation results for convergence analysis. Checkpoint callbacks allow external systems to persist state after each round.
+
+---
+
+### 8. Descheduler — Cluster Rebalancing with PDB Constraints
+
+**File:** [`crates/scheduler/src/descheduler/engine.rs`](crates/scheduler/src/descheduler/engine.rs)
+
+Schedulers decide where to place work; they don't decide when to move it. Over time, clusters develop: underutilized nodes wasting resources, anti-affinity constraints violated, agent replicas concentrated on few nodes.
+
+KIAS implements a K8s Descheduler-style engine with three built-in strategies:
+
+| Strategy | File | Purpose |
+|----------|------|---------|
+| `LowNodeUtilization` | `strategies/low_utilization.rs` | Detect underutilized nodes, migrate agents |
+| `DuplicateAgent` | `strategies/duplicates.rs` | Detect over-concentration of agent replicas |
+| `AntiAffinityViolation` | `strategies/anti_affinity.rs` | Detect and repair anti-affinity violations |
+
+**Pod Disruption Budget (PDB) constraints** ensure evictions don't cause service interruptions. Dry Run mode supports previewing eviction plans without execution.
+
+---
+
+### 9. A2A Protocol + MCP Sandbox
+
+**Files:** [`crates/common/src/a2a.rs`](crates/common/src/a2a.rs), [`crates/mcp-protocol/src/sandbox.rs`](crates/mcp-protocol/src/sandbox.rs)
+
+Agent interconnection requires standardized protocols; agent execution of external tools requires security isolation.
+
+**A2A (Agent-to-Agent)** implements Google's A2A protocol with complete data models:
+
+```rust
+// crates/common/src/a2a.rs
+pub struct AgentCard {
+    pub id: String,
+    pub capabilities: AgentCapabilities,
+    pub skills: Vec<AgentSkill>,
+    pub authentication: Option<AuthInfo>,
+}
+```
+
+Task lifecycle follows A2A spec: `Submitted → Working → InputRequired → Completed/Failed/Cancelled/Rejected`. Agent handoff supports 6 reasons: `CapabilityGap`, `LoadBalancing`, `Specialization`, `ErrorRecovery`, `HumanDirected`, `CostOptimization`.
+
+**MCP Sandbox** provides 5 isolation backends:
+
+```rust
+// crates/mcp-protocol/src/lib.rs
+pub use sandbox::{
+    FirecrackerSandboxBackend,  // Lightweight VM
+    GVisorSandboxBackend,       // User-space kernel
+    ProcessSandboxBackend,      // Process-level isolation
+    WasmSandboxBackend,         // WebAssembly
+    DockerSandboxBackend,       // Docker container
+};
+```
+
+Sandbox snapshots support state restore with `IsolationLevel` (Session / User / Global). Full MCP implementation includes OAuth 2.0, RBAC, circuit breaker, rate limiter, credential management, and hot-reload.
+
+---
+
+### 10. Data Masking Framework
+
+**File:** [`crates/common/src/data_mask.rs`](crates/common/src/data_mask.rs)
+
+LLM system logs frequently leak sensitive data: IP addresses, email addresses, JWT tokens. Traditional post-hoc masking or logging framework plugins are error-prone.
+
+KIAS implements **zero-trust masking** at the infrastructure layer:
+
+```rust
+// crates/common/src/data_mask.rs
+pub fn redact_log_message(msg: &str) -> String {
+    let mut result = msg.to_string();
+    result = redact_emails(&result);
+    result = redact_ips(&result);
+    result = redact_tokens(&result);  // Tokens ≥ 32 chars
+    result
+}
+```
+
+`SensitiveData` wrapper automatically masks on `Display` and `Serialize` — original values are never leaked. IPv4 detection uses a hand-written deterministic state machine (not regex), eliminating ReDoS risk. Since masking lives in the L0 `common` crate, all upstream components inherit it automatically.
+
+---
+
+## Node-Level Error Handling
+
+KIAS provides fault tolerance at every layer of the stack:
+
+```
+Request → Agent → Failure → DLQ → Exponential Backoff Retry → Circuit Breaker → Auto Recovery
+```
+
+| Mechanism | Implementation | File |
+|-----------|---------------|------|
+| Dead Letter Queue | Failed tasks queued for retry | `crates/controller/src/recovery.rs` |
+| Circuit Breaker | Consecutive failures trigger open state | `crates/controller/src/health.rs` |
+| Exponential Backoff | Configurable retry with jitter | `crates/controller/src/recovery.rs` |
+| Health Check Loop | Continuous node liveness probing | `crates/controller/src/heartbeat.rs` |
+| Saga Compensation | Workflow rollback on partial failure | `crates/workflow-engine/src/engine.rs` |
+
+---
+
+## Supported Models
+
+### Cloud APIs
+
+| Provider | Latest Model | Context | Input ($/1M tokens) | Output ($/1M tokens) |
+|----------|-------------|---------|---------------------|---------------------|
 | **OpenAI** | GPT-5.5 | 1,050K | $5.00 | $30.00 |
 | **OpenAI** | GPT-5 | 400K | $1.25 | $10.00 |
 | **OpenAI** | GPT-5-mini | 400K | $0.25 | $2.00 |
@@ -178,168 +381,190 @@ model = "gpt-5.5"          # 或 "claude-opus-4.7", "deepseek-v4-pro"
 | **Meta** | Llama 4 Scout | 10,000K | $0.08 | $0.30 |
 | **Meta** | Llama 4 Maverick | 1,048K | $0.15 | $0.60 |
 
-> 价格数据来源：OpenRouter API（2026年5月实时查询）
+> Pricing sourced from OpenRouter API (May 2026).
 
-### 本地模型
+### Local Models
 
-详见 [本地模型对比指南](docs/local-model-comparison.md)，涵盖 16 个主流开源模型的规格、基准测试成绩、GPU 需求及部署建议。
+See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifications, benchmarks, GPU requirements, and deployment recommendations across 16 open-source models.
 
-| 服务 | 安装 | 适用场景 |
-|------|------|---------|
-| **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | 开发测试 |
-| **vLLM** | `pip install vllm` | 生产环境高吞吐 |
-| **llama.cpp** | GitHub 下载 | 边缘设备、CPU 推理 |
+| Runtime | Install | Use Case |
+|---------|---------|----------|
+| **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | Development & testing |
+| **vLLM** | `pip install vllm` | Production high-throughput |
+| **llama.cpp** | GitHub release | Edge devices, CPU inference |
 
 ---
 
-## 快速开始
+## Quickstart
 
-### 安装
+### Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
 ```
 
-### 配置
+### Configure
 
 ```bash
 kias config init
 ```
 
-编辑 `~/.kias/config.toml`：
+Edit `~/.kias/config.toml`:
 
 ```toml
 [model]
 provider = "openai"
 api_key = "sk-your-key"
-model = "gpt-5"
+model = "gpt-5.5"
 
-# 本地模型
+# Local model
 # provider = "ollama"
 # endpoint = "http://localhost:11434"
 # model = "qwen3:32b"
 ```
 
-### 启动
+### Start
 
 ```bash
 kias server start
 # Dashboard: http://localhost:8080
 ```
 
-### 创建 Agent
+### Create an Agent
 
 ```yaml
 # my-agent.yaml
 name: my-agent
-description: 代码审查助手
-model: gpt-5
-system_prompt: 你是一个专业的代码审查工程师。
+description: Code review assistant
+model: gpt-5.5
+system_prompt: You are a professional code review engineer.
 ```
 
 ```bash
 kias agent create --file my-agent.yaml
-kias agent invoke --name my-agent --text "审查这段代码"
+kias agent invoke --name my-agent --text "Review this code"
 ```
 
 ---
 
-## CLI 命令
+## CLI Reference
 
 ```bash
-# Agent 管理
-kias agent list                            # 列出所有 Agent
-kias agent create --file agent.yaml        # 创建 Agent
-kias agent invoke --name my --text "你好"   # 调用 Agent
-kias agent status --name my                # 查看状态
+# Agent management
+kias agent list                            # List all agents
+kias agent create --file agent.yaml        # Create agent
+kias agent invoke --name my --text "hello" # Invoke agent
+kias agent status --name my                # Check status
 
-# 服务管理
-kias server start                          # 启动服务
-kias server start --daemon                 # 后台启动
-kias server stop                           # 停止服务
+# Service management
+kias server start                          # Start server
+kias server start --daemon                 # Start in background
+kias server stop                           # Stop server
 
-# 开发调试
-make build                                 # 构建
-make test                                  # 测试
-make lint                                  # 代码检查
-make bench                                 # 性能基准测试
+# Development
+make build                                 # Build all crates
+make test                                  # Run tests
+make lint                                  # Clippy checks
+make lint-arch                             # Layer dependency check
+make bench                                 # Criterion benchmarks
 ```
 
 ---
 
-## 硬件要求
+## Hardware Requirements
 
-### KIAS 框架本身
+### KIAS Framework
 
-| 配置 | CPU | 内存 | 磁盘 |
-|------|-----|------|------|
-| 最低（开发） | 2 核 | 4 GB | 10 GB |
-| 推荐（生产） | 4+ 核 | 8+ GB | 50+ GB SSD |
+| Profile | CPU | Memory | Disk |
+|---------|-----|--------|------|
+| Minimum (dev) | 2 cores | 4 GB | 10 GB |
+| Recommended (prod) | 4+ cores | 8+ GB | 50+ GB SSD |
 
-### 本地模型 GPU 需求
+### Local Model GPU Requirements
 
-| 模型规模 | GPU 显存 | 典型模型 |
-|----------|----------|---------|
+| Model Size | VRAM | Example Models |
+|-----------|------|---------------|
 | 1B–3B | 3–6 GB | Phi-3-mini, Qwen3-8B |
-| 7B–14B | 8–16 GB | Qwen3-14B, Llama 3.1-8B |
+| 7B–14B | 8–16 GB | Qwen3-14B, Llama 4 Scout (quantized) |
 | 30B–40B | 24–40 GB | Qwen3-32B |
 | 70B+ | 48–80 GB | Qwen3-235B (INT4) |
 
 ---
 
-## 与同类项目对比
-
-| 特性 | KIAS | LangGraph (Python) | CrewAI | AutoGen |
-|------|------|--------------------|--------|---------|
-| **语言** | Rust | Python | Python | Python |
-| **状态持久化** | SQLite + Checkpoint | 内存（需外部存储） | 无 | 无 |
-| **错误恢复** | DLQ + 熔断器 + Saga 回滚 | 有限 | 无 | 无 |
-| **多租户** | 资源配额 + 沙箱隔离 | 无 | 无 | 无 |
-| **监控** | Prometheus + WebSocket | 无内置 | 无 | 无 |
-| **模型路由** | 10+ 供应商 + Fallback | LangChain 集成 | 有限 | 有限 |
-| **并发模型** | Tokio 异步（万级并发） | 单线程 | 单线程 | 单线程 |
-| **沙箱** | 5 种后端 | 无 | 无 | 无 |
-
----
-
-## 项目结构
+## Project Structure
 
 ```
 kias/
 ├── crates/
-│   ├── common/           # 共享类型与错误定义
-│   ├── controller/       # Agent 生命周期管理
-│   ├── scheduler/        # 调度引擎（4种算法）
-│   ├── workflow-engine/  # DAG 工作流引擎
-│   ├── langgraph-engine/ # 状态图引擎
-│   ├── team-engine/      # 多 Agent 协作编排
-│   ├── model-router/     # 多模型路由
-│   ├── executor/         # 任务执行器
-│   ├── mcp-protocol/     # MCP 协议实现
-│   ├── data-store/       # 数据持久化层
-│   ├── knowledge/        # 知识管理
-│   ├── cache/            # 缓存层
-│   ├── monitor/          # 监控与指标
-│   ├── api-server/       # HTTP API 服务
-│   ├── kias-cli/         # 命令行工具
-│   └── benchmarks/       # 性能基准测试
-├── dashboard/            # Web 控制台
-├── config/               # 配置文件
-└── docs/                 # 文档
+│   ├── common/              # Shared types, errors, A2A protocol, data masking
+│   ├── scheduler/           # 7 scheduling algorithms + descheduler
+│   ├── controller/          # Agent lifecycle, heartbeat, recovery
+│   ├── langgraph-engine/    # State graph engine (FanOut, checkpoints, interrupt-resume)
+│   ├── workflow-engine/     # DAG workflow engine, TypedState reducers
+│   ├── team-engine/         # Multi-agent orchestration, Worker-Verifier, memory
+│   ├── goal-engine/         # Goal-driven loop runner
+│   ├── autonomy-controller/ # 3-level autonomy control with auto-promotion
+│   ├── mcp-protocol/        # MCP protocol + 5 sandbox backends
+│   ├── model-router/        # Multi-provider model routing
+│   ├── data-store/          # SQLite persistence, vector store, prefix cache
+│   ├── api-server/          # REST + gRPC + WebSocket API
+│   ├── executor/            # Task execution framework
+│   ├── cache/               # LRU + prefix caching
+│   ├── monitor/             # Telemetry + metrics collection
+│   ├── knowledge/           # Knowledge graph
+│   ├── skills/              # Skill registry
+│   ├── kias-cli/            # Command-line tool
+│   ├── kias-main/           # Main service orchestration
+│   └── benchmarks/          # Criterion performance benchmarks
+├── dashboard/               # React web console
+├── config/                  # Configuration files
+├── docs/                    # Documentation
+└── scripts/                 # Build, startup, and check scripts
 ```
 
 ---
 
-## 贡献
+## Tech Stack
 
-欢迎贡献！参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+| Layer | Technology | Rationale |
+|-------|-----------|-----------|
+| Async Runtime | tokio | Rust async ecosystem standard |
+| Web Framework | axum | Type-safe middleware system |
+| Concurrent Map | DashMap | Lock-free, suited for high-frequency R/W |
+| Serialization | serde | Zero-cost abstractions |
+| Configuration | config crate | TOML/YAML/JSON + env var override |
+| Logging | tracing | Structured logging with span support |
+| Error Handling | thiserror + anyhow | Business errors via thiserror, internal via anyhow |
 
-1. Fork 本仓库
-2. 创建特性分支（`git checkout -b feature/amazing`）
-3. 运行测试（`cargo test --workspace`）
-4. 提交更改（`git commit -m 'Add amazing feature'`）
-5. 推送分支（`git push origin feature/amazing`）
-6. 发起 Pull Request
+---
+
+## Comparison
+
+| Feature | KIAS | LangGraph (Python) | CrewAI | AutoGen |
+|---------|------|--------------------|--------|---------|
+| **Language** | Rust | Python | Python | Python |
+| **State Persistence** | SQLite + Checkpoint | In-memory (needs external store) | None | None |
+| **Error Recovery** | DLQ + Circuit Breaker + Saga | Limited | None | None |
+| **Multi-tenancy** | Resource quotas + Sandbox | None | None | None |
+| **Observability** | Prometheus + WebSocket | None built-in | None | None |
+| **Cache-Aware Scheduling** | KV Cache hit-rate aware | None | None | None |
+| **Autonomy Control** | 3-level gradient with auto-promotion | None | None | None |
+| **Concurrency Model** | Tokio async (10K+ concurrent) | Single-threaded | Single-threaded | Single-threaded |
+| **Sandbox** | 5 backends | None | None | None |
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Run tests (`cargo test --workspace`)
+4. Run architecture lint (`make lint-arch`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push branch (`git push origin feature/amazing`)
+7. Open a Pull Request
 
 ---
 
@@ -347,10 +572,4 @@ kias/
 
 Copyright © 2024 KIAS Contributors
 
-本项目使用 **MIT License**，详见 [LICENSE](LICENSE)。
-
----
-
-<p align="center">
-  <sub>Made with ❤️ by the KIAS Team</sub>
-</p>
+Licensed under the **MIT License**. See [LICENSE](LICENSE) for details.

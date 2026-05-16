@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+use crate::approval::ApprovalPolicy;
+use crate::error_handler::ErrorHandlerConfig;
+
 /// Workflow node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
@@ -16,6 +19,16 @@ pub struct Node {
     /// When set, the engine executes this action in reverse order if a
     /// downstream node fails (saga pattern).
     pub compensating_action: Option<CompensatingAction>,
+    /// Optional node-level error handler configuration.
+    /// When set, the engine uses this handler to decide recovery action
+    /// (retry, skip, fallback, abort) instead of the engine default.
+    #[serde(default)]
+    pub error_handler: Option<ErrorHandlerConfig>,
+    /// Optional approval policy for HITL (Human-in-the-Loop) gates.
+    /// When set, the engine evaluates this policy after node execution
+    /// and either auto-approves or pauses for human review.
+    #[serde(default)]
+    pub approval_policy: Option<ApprovalPolicy>,
 }
 
 /// A compensating action for saga-pattern rollback.
@@ -185,6 +198,8 @@ impl Node {
             config: serde_json::json!({}),
             executor: None,
             compensating_action: None,
+            error_handler: None,
+            approval_policy: None,
         }
     }
 
@@ -200,6 +215,18 @@ impl Node {
 
     pub fn with_compensating_action(mut self, action: CompensatingAction) -> Self {
         self.compensating_action = Some(action);
+        self
+    }
+
+    /// Attach a serialisable error handler configuration.
+    pub fn with_error_handler(mut self, handler: ErrorHandlerConfig) -> Self {
+        self.error_handler = Some(handler);
+        self
+    }
+
+    /// Attach an approval policy for HITL review.
+    pub fn with_approval_policy(mut self, policy: ApprovalPolicy) -> Self {
+        self.approval_policy = Some(policy);
         self
     }
 }

@@ -1,6 +1,8 @@
+pub mod approval;
 pub mod checkpoint;
 pub mod edge;
 pub mod engine;
+pub mod error_handler;
 pub mod executor;
 pub mod graph;
 pub mod node;
@@ -9,11 +11,19 @@ pub mod state;
 pub mod subgraph;
 pub mod typed_state;
 
+pub use approval::{
+    evaluate_policy, ApprovalCondition, ApprovalContext, ApprovalDecision, ApprovalEvaluation,
+    ApprovalPolicy, ApprovalRecord, ApprovalStore, InMemoryApprovalStore, TimeoutAction,
+};
 pub use checkpoint::{
     Checkpoint, CheckpointInfo, CheckpointStore, InMemoryCheckpointStore, SqliteCheckpointStore,
 };
 pub use edge::{Condition, Edge};
 pub use engine::WorkflowEngine;
+pub use error_handler::{
+    AbortOnError, ConditionalErrorHandler, ErrorAction, ErrorHandler, ErrorHandlerConfig,
+    FallbackOnError, NodeErrorContext, RetryOnError, SkipOnError,
+};
 pub use executor::{
     ExecutorRegistry, HttpExecutor, LlmExecutor, NodeExecutor, ShellExecutor, SubWorkflowExecutor,
 };

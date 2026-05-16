@@ -283,13 +283,14 @@ impl ApiClient {
     pub async fn create_workflow(
         &self,
         body: serde_json::Value,
-    ) -> Result<WorkflowInfo, reqwest::Error> {
-        self.request(reqwest::Method::POST, "/api/v1/workflows")
+    ) -> Result<WorkflowInfo, Box<dyn std::error::Error>> {
+        let resp = self.request(reqwest::Method::POST, "/api/v1/workflows")
             .json(&body)
             .send()
-            .await?
-            .json()
-            .await
+            .await?;
+        let raw: serde_json::Value = resp.json().await?;
+        let data = raw.get("data").cloned().unwrap_or(raw);
+        Ok(serde_json::from_value(data)?)
     }
 
     /// 获取工作流详情

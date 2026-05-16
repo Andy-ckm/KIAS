@@ -239,6 +239,7 @@ mod tests {
             connection_registry: crate::websocket::ConnectionRegistry::default(),
             event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            context_manager: None,
         }
     }
 
@@ -294,14 +295,10 @@ mod tests {
             a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
             connection_registry: crate::websocket::ConnectionRegistry::default(),
             event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
-            knowledge_retriever: Arc::new(
-                kias_knowledge::vector::VectorRetriever::new(
-                    kias_knowledge::graph::KnowledgeGraph::new(),
-                    Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim()),
-                )
-                .await
-                .unwrap(),
-            ),
+            knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
+                kias_knowledge::graph::KnowledgeGraph::new(),
+            )),
+            context_manager: None,
         };
 
         let result = scheduler_status(State(state)).await;

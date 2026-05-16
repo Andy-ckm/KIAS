@@ -85,7 +85,7 @@ pub enum EventType {
 }
 
 /// 消息类型
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MessageType {
     /// 私聊消息
     Private,
@@ -615,31 +615,499 @@ impl ImIntegrationManager {
 mod tests {
     use super::*;
 
+    fn wechat_text_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "MsgId": "12345",
+                "MsgType": "text",
+                "Content": "Hello KIAS",
+                "FromUserName": "user_001",
+                "ToUserName": "kias_bot",
+                "CreateTime": 1700000000
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn wechat_image_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "MsgId": "12346",
+                "MsgType": "image",
+                "PicUrl": "https://example.com/img.jpg",
+                "FromUserName": "user_001",
+                "ToUserName": "kias_bot",
+                "CreateTime": 1700000001
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn telegram_text_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 99,
+                    "text": "Hello from TG",
+                    "from": {"id": 42, "first_name": "Alice"},
+                    "chat": {"id": 42, "type": "private"},
+                    "date": 1700000000
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn telegram_group_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 100,
+                    "text": "Group msg",
+                    "from": {"id": 43, "first_name": "Bob"},
+                    "chat": {"id": -100123, "type": "supergroup"},
+                    "date": 1700000002
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn slack_text_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "message",
+                    "text": "Hello Slack",
+                    "user": "U123",
+                    "channel": "C456",
+                    "ts": "1700000000.000001",
+                    "channel_type": "im"
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    // ===== WechatAdapter tests =====
+
     #[test]
-    fn test_wechat_adapter() {
-        let adapter = WechatAdapter::new("test_token".to_string(), None);
+    fn test_wechat_adapter_platform_type() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
         assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
     }
 
     #[test]
-    fn test_telegram_adapter() {
-        let adapter = TelegramAdapter::new("test_token".to_string());
+    fn test_wechat_parse_text_message() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&wechat_text_request()).unwrap();
+        assert_eq!(msg.id, "12345");
+        assert_eq!(msg.platform, ImPlatform::Wechat);
+        assert_eq!(msg.sender_id, "user_001");
+        assert_eq!(msg.receiver_id, Some("kias_bot".to_string()));
+        assert_eq!(msg.timestamp, 1700000000);
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Hello KIAS"),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_wechat_parse_image_message() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&wechat_image_request()).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, caption } => {
+                assert_eq!(url, "https://example.com/img.jpg");
+                assert!(caption.is_none());
+            }
+            _ => panic!("Expected Image content"),
+        }
+    }
+
+    #[test]
+    fn test_wechat_build_reply() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&wechat_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Text("Reply text".to_string()),
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert!(resp.should_reply);
+        assert_eq!(resp.body["Content"], "Reply text");
+        assert_eq!(resp.body["ToUserName"], "user_001");
+    }
+
+    #[test]
+    fn test_wechat_verify_signature_always_true() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        assert!(adapter.verify_signature(&HashMap::new(), b"body"));
+    }
+
+    // ===== TelegramAdapter tests =====
+
+    #[test]
+    fn test_telegram_platform_type() {
+        let adapter = TelegramAdapter::new("bot_token".to_string());
         assert_eq!(adapter.platform_type(), ImPlatform::Telegram);
     }
 
     #[test]
-    fn test_adapter_factory() {
+    fn test_telegram_parse_private_message() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let msg = adapter.parse_webhook(&telegram_text_request()).unwrap();
+        assert_eq!(msg.id, "99");
+        assert_eq!(msg.platform, ImPlatform::Telegram);
+        assert_eq!(msg.sender_id, "42");
+        assert_eq!(msg.sender_name, Some("Alice".to_string()));
+        assert_eq!(msg.message_type, MessageType::Private);
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Hello from TG"),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_telegram_parse_group_message() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let msg = adapter.parse_webhook(&telegram_group_request()).unwrap();
+        assert_eq!(msg.message_type, MessageType::Group);
+        assert_eq!(msg.receiver_id, Some("-100123".to_string()));
+    }
+
+    #[test]
+    fn test_telegram_build_reply() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let msg = adapter.parse_webhook(&telegram_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Text("TG reply".to_string()),
+            reply_to: Some("99".to_string()),
+            silent: true,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["text"], "TG reply");
+        assert_eq!(resp.body["reply_to_message_id"], "99");
+    }
+
+    // ===== SlackAdapter tests =====
+
+    #[test]
+    fn test_slack_platform_type() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        assert_eq!(adapter.platform_type(), ImPlatform::Slack);
+    }
+
+    #[test]
+    fn test_slack_parse_text_message() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&slack_text_request()).unwrap();
+        assert_eq!(msg.id, "1700000000.000001");
+        assert_eq!(msg.platform, ImPlatform::Slack);
+        assert_eq!(msg.sender_id, "U123");
+        assert_eq!(msg.receiver_id, Some("C456".to_string()));
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Hello Slack"),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_slack_url_verification_challenge() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({"type": "url_verification", "challenge": "abc"}),
+            query_params: HashMap::new(),
+        };
+        let result = adapter.parse_webhook(&request);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "url_verification");
+    }
+
+    #[test]
+    fn test_slack_build_reply() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&slack_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Text("Slack reply".to_string()),
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
+
+    // ===== FeishuAdapter tests =====
+
+    #[test]
+    fn test_feishu_platform_type() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        assert_eq!(adapter.platform_type(), ImPlatform::Feishu);
+    }
+
+    // ===== AdapterFactory tests =====
+
+    #[test]
+    fn test_factory_creates_all_platforms() {
         let config = HashMap::new();
-        let adapter = AdapterFactory::create(&ImPlatform::Wechat, &config);
+        for platform in &[
+            ImPlatform::Wechat,
+            ImPlatform::Telegram,
+            ImPlatform::Slack,
+            ImPlatform::Feishu,
+        ] {
+            let adapter = AdapterFactory::create(platform, &config);
+            assert_eq!(adapter.platform_type(), *platform);
+        }
+    }
+
+    #[test]
+    fn test_factory_custom_falls_back_to_wechat() {
+        let config = HashMap::new();
+        let adapter = AdapterFactory::create(&ImPlatform::Custom, &config);
         assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
     }
 
     #[test]
-    fn test_im_integration_manager() {
-        let mut manager = ImIntegrationManager::new();
-        let adapter = Box::new(WechatAdapter::new("test".to_string(), None));
-        manager.register_adapter(ImPlatform::Wechat, adapter);
+    fn test_factory_passes_config_to_wechat() {
+        let mut config = HashMap::new();
+        config.insert("token".to_string(), "my_token".to_string());
+        config.insert("encoding_aes_key".to_string(), "my_key".to_string());
+        let adapter = AdapterFactory::create(&ImPlatform::Wechat, &config);
+        assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
+    }
 
+    // ===== ImIntegrationManager tests =====
+
+    #[test]
+    fn test_manager_register_adapter() {
+        let mut manager = ImIntegrationManager::new();
+        let adapter = Box::new(WechatAdapter::new("t".to_string(), None));
+        manager.register_adapter(ImPlatform::Wechat, adapter);
         assert!(manager.adapters.contains_key(&ImPlatform::Wechat));
+    }
+
+    #[test]
+    fn test_manager_default_trait() {
+        let manager = ImIntegrationManager::default();
+        assert!(manager.adapters.is_empty());
+    }
+
+    #[test]
+    fn test_manager_handle_webhook_no_adapter() {
+        let manager = ImIntegrationManager::new();
+        let request = wechat_text_request();
+        let result = manager.handle_webhook(&request);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No adapter registered"));
+    }
+
+    #[test]
+    fn test_manager_handle_webhook_success() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
+        let request = wechat_text_request();
+        let resp = manager.handle_webhook(&request).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert!(resp.should_reply);
+    }
+
+    #[test]
+    fn test_manager_multiple_platforms() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Telegram,
+            Box::new(TelegramAdapter::new("t".to_string())),
+        );
+        manager.register_adapter(
+            ImPlatform::Slack,
+            Box::new(SlackAdapter::new("t".to_string(), None)),
+        );
+        assert_eq!(manager.adapters.len(), 3);
+
+        // Handle Wechat
+        let resp = manager.handle_webhook(&wechat_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+
+        // Handle Telegram
+        let resp = manager.handle_webhook(&telegram_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+
+        // Handle Slack
+        let resp = manager.handle_webhook(&slack_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
+
+    // ===== Serialization tests =====
+
+    #[test]
+    fn test_unified_message_serialization() {
+        let msg = UnifiedMessage {
+            id: "1".to_string(),
+            platform: ImPlatform::Wechat,
+            sender_id: "u1".to_string(),
+            sender_name: Some("Alice".to_string()),
+            receiver_id: None,
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: UnifiedMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "1");
+        assert_eq!(deserialized.platform, ImPlatform::Wechat);
+    }
+
+    #[test]
+    fn test_message_content_variants_serialization() {
+        let variants = vec![
+            MessageContent::Text("hello".to_string()),
+            MessageContent::Image {
+                url: "http://img.jpg".to_string(),
+                caption: Some("cap".to_string()),
+            },
+            MessageContent::File {
+                url: "http://f.txt".to_string(),
+                filename: "f.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+            },
+            MessageContent::Location {
+                latitude: 39.9,
+                longitude: 116.4,
+                address: Some("Beijing".to_string()),
+            },
+            MessageContent::Event(EventType::Subscribe),
+            MessageContent::Event(EventType::Custom("test".to_string())),
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant).unwrap();
+            let deserialized: MessageContent = serde_json::from_str(&json).unwrap();
+            // Just verify round-trip works
+            let json2 = serde_json::to_string(&deserialized).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    #[test]
+    fn test_im_platform_hash() {
+        let mut map = HashMap::new();
+        map.insert(ImPlatform::Wechat, 1);
+        map.insert(ImPlatform::Telegram, 2);
+        map.insert(ImPlatform::Slack, 3);
+        map.insert(ImPlatform::Feishu, 4);
+        map.insert(ImPlatform::Custom, 5);
+        assert_eq!(map.len(), 5);
+    }
+
+    // ===== Edge cases =====
+
+    #[test]
+    fn test_wechat_parse_missing_fields() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({}),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "unknown");
+        assert_eq!(msg.sender_id, "unknown");
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, ""),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_telegram_parse_photo_message() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 200,
+                    "photo": [
+                        {"file_id": "small_001"},
+                        {"file_id": "large_002"}
+                    ],
+                    "caption": "A photo",
+                    "from": {"id": 50, "first_name": "Charlie"},
+                    "chat": {"id": 50, "type": "private"},
+                    "date": 1700000100
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, caption } => {
+                assert_eq!(url, "large_002"); // last photo
+                assert_eq!(caption.as_deref(), Some("A photo"));
+            }
+            _ => panic!("Expected Image content"),
+        }
+    }
+
+    #[test]
+    fn test_slack_parse_file_shared() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "file_shared",
+                    "file": {
+                        "url_private": "https://slack.com/file/123",
+                        "name": "doc.pdf",
+                        "mimetype": "application/pdf"
+                    },
+                    "user": "U789",
+                    "channel": "C012",
+                    "ts": "1700000200.000001",
+                    "channel_type": "group"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.message_type, MessageType::Group);
+        match &msg.content {
+            MessageContent::File {
+                url,
+                filename,
+                mime_type,
+            } => {
+                assert_eq!(url, "https://slack.com/file/123");
+                assert_eq!(filename, "doc.pdf");
+                assert_eq!(mime_type.as_deref(), Some("application/pdf"));
+            }
+            _ => panic!("Expected File content"),
+        }
     }
 }

@@ -35,4 +35,3 @@ embedding_model = "text-embedding-ada-002"
 [storage]
 etcd_endpoints = "http://localhost:2379"
 sqlite_url = "sqlite://kias.db"
-redis_url = "redis://localhost:6379"

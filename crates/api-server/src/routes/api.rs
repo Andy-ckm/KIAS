@@ -4,8 +4,8 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
-    a2a, agents, config, health, im, knowledge, metrics, nl_command, nodes, scheduler, tokens,
-    workflows,
+    a2a, agents, config, context, health, im, knowledge, metrics, nl_command, nodes, scheduler,
+    tokens, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -93,6 +93,21 @@ pub fn create_router(state: AppState) -> Router {
         "/api/v1/knowledge/search",
         axum::routing::get(knowledge::search_knowledge),
     );
+
+    // --- Context Manager routes ---
+    let context_routes = Router::new()
+        .route(
+            "/api/v1/context/:session_id/messages",
+            axum::routing::post(context::add_message),
+        )
+        .route(
+            "/api/v1/context/:session_id/compress",
+            axum::routing::post(context::compress_session),
+        )
+        .route(
+            "/api/v1/context/:session_id/stats",
+            axum::routing::get(context::get_context_stats),
+        );
 
     // --- Metrics routes ---
     let metrics_routes = Router::new()
@@ -196,6 +211,7 @@ pub fn create_router(state: AppState) -> Router {
     let api_routes = agent_routes
         .merge(node_routes)
         .merge(knowledge_routes)
+        .merge(context_routes)
         .merge(metrics_routes)
         .merge(config_routes)
         .merge(token_routes)

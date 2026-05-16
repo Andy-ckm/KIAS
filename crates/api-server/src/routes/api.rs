@@ -4,7 +4,8 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
-    a2a, agents, config, health, knowledge, metrics, nodes, scheduler, tokens, workflows,
+    a2a, agents, config, health, knowledge, metrics, nl_command, nodes, scheduler, tokens,
+    workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -166,6 +167,17 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::get(a2a::stream_task),
         );
 
+    // --- Natural Language command routes ---
+    let nl_routes = Router::new()
+        .route(
+            "/api/v1/nl/command",
+            axum::routing::post(nl_command::nl_command),
+        )
+        .route(
+            "/api/v1/nl/stream",
+            axum::routing::post(nl_command::nl_stream),
+        );
+
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes
         .merge(node_routes)
@@ -176,6 +188,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(workflow_routes)
         .merge(scheduler_routes)
         .merge(a2a_routes)
+        .merge(nl_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(
             rate_limiter,

@@ -527,19 +527,25 @@ async fn handle_workflow(action: kias_cli::WorkflowAction, cli: &Cli) -> i32 {
 
             // Convert CLI WorkflowDefinition to API CreateWorkflowRequest format
             // API expects nodes with: id, name, node_type, config, dependencies
-            let api_nodes: Vec<serde_json::Value> = def.spec.nodes.iter().enumerate().map(|(i, n)| {
-                serde_json::json!({
-                    "id": format!("node-{}", i),
-                    "name": n.name,
-                    "node_type": "llm",
-                    "config": {
-                        "agent": n.agent,
-                        "prompt": n.prompt.as_deref().unwrap_or(""),
-                        "condition": n.condition,
-                    },
-                    "dependencies": if i > 0 { vec![format!("node-{}", i-1)] } else { vec![] },
+            let api_nodes: Vec<serde_json::Value> = def
+                .spec
+                .nodes
+                .iter()
+                .enumerate()
+                .map(|(i, n)| {
+                    serde_json::json!({
+                        "id": format!("node-{}", i),
+                        "name": n.name,
+                        "node_type": "llm",
+                        "config": {
+                            "agent": n.agent,
+                            "prompt": n.prompt.as_deref().unwrap_or(""),
+                            "condition": n.condition,
+                        },
+                        "dependencies": if i > 0 { vec![format!("node-{}", i-1)] } else { vec![] },
+                    })
                 })
-            }).collect();
+                .collect();
 
             let body = serde_json::json!({
                 "name": def.metadata.name,
@@ -1004,6 +1010,9 @@ async fn handle_cluster(action: kias_cli::ClusterAction, cli: &Cli) -> i32 {
 // ─── Server 操作 ───────────────────────────────────────────────────
 
 async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
+    use kias_cli::process::{ProcessManager, StopResult};
+    let pm = ProcessManager::new();
+
     match action {
         kias_cli::ServerAction::Start { config, daemon } => {
             println!("{}: 启动 KIAS 服务...", "→".blue().bold());
@@ -1020,26 +1029,67 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
                 return ExitCode::ConfigError as i32;
             }
 
+            // 检查是否已有实例在运行
+            if let Ok(pid) = pm.read_pid() {
+                if ProcessManager::is_process_running(pid) {
+                    eprintln!(
+                        "{}: KIAS 服务已在运行 (PID {})",
+                        "错误".red().bold(),
+                        pid
+                    );
+                    eprintln!("  使用 `kias server restart` 重启");
+                    return ExitCode::ServerError as i32;
+                }
+                // Stale PID file — clean up
+                pm.remove_pid_file();
+            }
+
             if daemon {
-                // 后台运行
+                // 后台运行 — 重新启动当前进程，脱离终端
                 println!("  以守护进程模式启动...");
-                // TODO: 实现真正的守护进程模式
-                println!(
-                    "{}: 后台模式暂未实现，请直接运行 kias-main",
-                    "警告".yellow()
-                );
-                ExitCode::Success as i32
+                let log_path = std::path::PathBuf::from("/tmp/kias-server.log");
+                let args: Vec<String> = std::env::args().collect();
+                let binary = &args[0];
+
+                match pm.start_daemon(binary, &args, Some(&log_path)) {
+                    Ok(()) => {
+                        // 给子进程一点时间启动
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                        if let Ok(pid) = pm.read_pid() {
+                            println!(
+                                "{}: KIAS 服务已在后台启动 (PID {})",
+                                "✓".green().bold(),
+                                pid
+                            );
+                            println!("  日志文件: {}", log_path.display());
+                            println!("  PID 文件: {}", pm.pid_file().display());
+                            ExitCode::Success as i32
+                        } else {
+                            eprintln!("{}: 无法确认服务启动", "错误".red().bold());
+                            ExitCode::ServerError as i32
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("{}: 守护进程启动失败: {}", "错误".red().bold(), e);
+                        ExitCode::ServerError as i32
+                    }
+                }
             } else {
                 // 前台运行 - 直接调用 kias-main
                 println!("  配置文件: {}", config_path);
                 println!("  按 Ctrl+C 停止服务");
                 println!();
 
+                // 写入 PID (前台模式下写当前进程 PID，便于外部管理)
+                let _ = pm.write_pid();
+
                 // 调用 kias-main 二进制
                 let status = std::process::Command::new("kias-main")
                     .arg("--config")
                     .arg(&config_path)
                     .status();
+
+                pm.remove_pid_file();
 
                 match status {
                     Ok(s) => {
@@ -1059,37 +1109,94 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
         }
         kias_cli::ServerAction::Stop => {
             println!("{}: 停止 KIAS 服务...", "→".blue().bold());
-            // 发送 SIGTERM 到 kias-main 进程
-            // TODO: 实现进程管理
-            println!("{}: 请使用 Ctrl+C 或 kill 命令停止服务", "提示".yellow());
-            ExitCode::Success as i32
-        }
-        kias_cli::ServerAction::Status => {
-            println!("{}: KIAS 服务状态", "→".blue().bold());
-            // 检查健康端点
-            let client = reqwest::Client::new();
-            match client.get("http://localhost:8080/health").send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        println!("{}: 服务运行中", "✓".green().bold());
-                        println!("  端点: http://localhost:8080");
-                        ExitCode::Success as i32
-                    } else {
-                        println!("{}: 服务异常 (HTTP {})", "✗".red().bold(), resp.status());
-                        ExitCode::ServerError as i32
-                    }
+
+            match pm.stop() {
+                Ok(StopResult::Stopped) => {
+                    println!("{}: 服务已停止 (SIGTERM)", "✓".green().bold());
+                    ExitCode::Success as i32
                 }
-                Err(_) => {
-                    println!("{}: 服务未运行", "✗".red().bold());
+                Ok(StopResult::ForceKilled) => {
+                    println!(
+                        "{}: 服务已强制终止 (SIGKILL，优雅关闭超时)",
+                        "⚠".yellow().bold()
+                    );
+                    ExitCode::Success as i32
+                }
+                Ok(StopResult::AlreadyStopped) => {
+                    println!("{}: 服务未运行", "提示".yellow());
+                    ExitCode::Success as i32
+                }
+                Err(e) => {
+                    eprintln!("{}: 停止服务失败: {}", "错误".red().bold(), e);
                     ExitCode::ServerError as i32
                 }
             }
         }
+        kias_cli::ServerAction::Status => {
+            println!("{}: KIAS 服务状态", "→".blue().bold());
+
+            let server_url = resolve_server(_cli);
+            let mut status = pm.status(&server_url);
+            status.check_health().await;
+
+            println!("{}", status.display());
+
+            if status.pid.is_some() && status.health == Some(true) {
+                ExitCode::Success as i32
+            } else if status.pid.is_some() {
+                ExitCode::ServerError as i32
+            } else {
+                println!("\n  使用 `kias server start` 启动服务");
+                ExitCode::ServerError as i32
+            }
+        }
         kias_cli::ServerAction::Restart => {
             println!("{}: 重启 KIAS 服务...", "→".blue().bold());
-            // TODO: 实现重启逻辑
-            println!("{}: 请先停止再启动服务", "提示".yellow());
-            ExitCode::Success as i32
+
+            // Step 1: Stop
+            match pm.stop() {
+                Ok(StopResult::Stopped) => {
+                    println!("  旧实例已停止");
+                }
+                Ok(StopResult::ForceKilled) => {
+                    println!("  旧实例已强制终止");
+                }
+                Ok(StopResult::AlreadyStopped) => {
+                    println!("  没有运行中的实例");
+                }
+                Err(e) => {
+                    eprintln!("{}: 停止旧实例失败: {}", "警告".yellow(), e);
+                }
+            }
+
+            // Step 2: Start (foreground)
+            println!("  正在重新启动...");
+            let config_path = std::env::var("KIAS_CONFIG")
+                .unwrap_or_else(|_| "config/kias.toml".to_string());
+
+            let _ = pm.write_pid();
+            let status = std::process::Command::new("kias-main")
+                .arg("--config")
+                .arg(&config_path)
+                .status();
+
+            pm.remove_pid_file();
+
+            match status {
+                Ok(s) => {
+                    if s.success() {
+                        println!("{}: 服务重启成功", "✓".green().bold());
+                        ExitCode::Success as i32
+                    } else {
+                        eprintln!("{}: 服务重启失败", "错误".red().bold());
+                        s.code().unwrap_or(1)
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}: 启动失败: {}", "错误".red().bold(), e);
+                    ExitCode::ServerError as i32
+                }
+            }
         }
     }
 }

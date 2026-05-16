@@ -1146,3 +1146,43 @@ Source: GitHub API search 2026-05-16 21:34
 - **Description**: CloudLLM is a batteries-inclusive Rust toolkit for building intelligent agents with LLM integration. Provides agent abstractions, tool registration, and provider integration.
 - **KIAS Relevance**: Similar LLM integration patterns. Compare tool registration APIs and provider abstraction layers with KIAS mcp-protocol and executor crates.
 
+### 112. mofa-org/mofa (⭐288) — Modular Framework for Agents
+- **日期**: 2026-05-16
+- **来源**: GitHub API search
+- **链接**: https://github.com/mofa-org/mofa
+- **描述**: MoFA - Modular Framework for Agents. 模块化、可组合、可编程的 agent 框架
+- **创新点**: 
+  - 模块化设计，agent 组件可独立组合
+  - 支持 programmable agent 编排
+  - Rust 实现，性能优异
+- **对 KIAS 的启发**: 模块化 agent 编排模式可借鉴到 KIAS team-engine 的 crew 编排中
+- **评分**: 创新性 7/10, 相关性 8/10, 可行性 9/10
+
+### 113. wiseaidotdev/autogpt (⭐112) — Pure Rust AGI Framework
+- **日期**: 2026-05-16
+- **来源**: GitHub API search
+- **链接**: https://github.com/wiseaidotdev/autogpt
+- **描述**: 🦀 A Pure Rust Framework For Building AGI
+- **创新点**:
+  - 支持 Jupyter Notebook / evcxr 交互式 Rust 开发
+  - 集成多个 AI 提供商 (OpenAI, Anthropic, Gemini)
+  - 支持图像生成 (getimg, Stable Diffusion)
+  - Nylas API 集成 (邮件/日历)
+- **对 KIAS 的启发**: 交互式 agent 开发模式 (Jupyter + Rust) 是差异化方向
+- **评分**: 创新性 8/10, 相关性 7/10, 可行性 6/10
+
+### 114. ThirdKeyAI/Symbiont (⭐45) — Rust-native Agent Runtime with Policy Controls
+- **日期**: 2026-05-16
+- **来源**: GitHub API search
+- **链接**: https://github.com/ThirdKeyAI/Symbiont
+- **描述**: Rust-native runtime for executing AI agents and tools under explicit policy, identity, and audit controls
+- **创新点**:
+  - 三层安全控制: Policy → Identity → Audit
+  - Sandbox 隔离执行
+  - 显式权限声明
+  - 审计追踪
+- **对 KIAS 的启发**: 
+  - KIAS 已有 RBAC + audit，但缺少 policy 层
+  - 可参考 Symbiont 的 policy engine 设计增强 kias-mcp-protocol 的沙箱安全
+  - "显式权限声明" 模式比隐式 ACL 更安全
+- **评分**: 创新性 8/10, 相关性 9/10, 可行性 8/10

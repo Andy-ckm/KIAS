@@ -1,0 +1,18 @@
+[package]
+name = "innovation-agent"
+version = "0.1.0"
+edition = "2021"
+description = "KIAS Innovation Agent - Multi-source data collection with configurable sources and toggle control"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1.0", features = ["full"] }
+uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

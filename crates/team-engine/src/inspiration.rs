@@ -766,7 +766,7 @@ mod tests {
         stream.submit(insp).await;
 
         // 手动取出
-        let _inspirations = stream.drain_inspirations().await;
+        let inspirations = stream.drain_inspirations().await;
         assert_eq!(inspirations.len(), 1);
 
         // 采纳

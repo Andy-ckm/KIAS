@@ -876,3 +876,16 @@
 - **Language**: Rust
 - **Description**: Elemental Rust framework for production-grade AI agents
 - **KIAS relevance**: Production-grade focus aligns with our quality standards
+
+
+## 119. opentools (LatentEvals) ⭐3
+- **URL**: https://github.com/LatentEvals/opentools
+- **Language**: Rust
+- **Description**: The tool surface every agentic AI framework reimplements — standardized tool interface
+- **KIAS relevance**: Tool abstraction layer — our MCP protocol and executor registry serve similar purpose
+
+## 120. lmm (wiseaidotdev) ⭐1
+- **URL**: https://github.com/wiseaidotdev/lmm
+- **Language**: Rust
+- **Description**: A pure Rust framework for building real autonomous super agents (WIP)
+- **KIAS relevance**: Autonomous agent framework — compare architecture with our goal-engine + autonomy-controller

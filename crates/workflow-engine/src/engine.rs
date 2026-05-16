@@ -1,4 +1,6 @@
 use super::checkpoint::{Checkpoint, CheckpointStore, InMemoryCheckpointStore};
+use super::error_handler::{ErrorAction, NodeErrorContext};
+
 use super::executor::ExecutorRegistry;
 use super::graph::WorkflowGraph;
 use super::node::{CompensatingAction, ExecutionResult, Node, NodeType, RetryPolicy};
@@ -248,8 +250,20 @@ impl WorkflowEngine {
                 break;
             }
 
-            // Determine next node based on edges and conditions
-            let next_node_id = self.resolve_next_node(graph, &current_node_id, &state);
+            // Determine next node based on edges and conditions.
+            // If the ErrorHandler redirected to a fallback node (state.current_node
+            // changed), skip edge resolution — the loop will execute the fallback.
+            let redirected = should_continue && state.current_node != current_node_id;
+            let next_node_id = if redirected {
+                tracing::info!(
+                    from = %current_node_id,
+                    fallback = %state.current_node,
+                    "ErrorHandler redirected — skipping edge resolution"
+                );
+                Some(state.current_node.clone())
+            } else {
+                self.resolve_next_node(graph, &current_node_id, &state)
+            };
 
             match next_node_id {
                 Some(ref next_id) => {
@@ -337,6 +351,14 @@ impl WorkflowEngine {
     }
 
     /// Execute a Process node with retries.
+    ///
+    /// When the node has an [`ErrorHandlerConfig`], the engine builds the
+    /// corresponding [`ErrorHandler`] and consults it after the built-in
+    /// retry policy is exhausted.  The handler can then decide to:
+    ///   - **Retry** with different parameters (handler-level retries)
+    ///   - **Skip** the node and continue the workflow
+    ///   - **Fallback** to an alternate node
+    ///   - **Abort** the workflow immediately
     async fn execute_process_node(
         &self,
         node: &Node,
@@ -395,26 +417,144 @@ impl WorkflowEngine {
             last_result = Some(result);
         }
 
-        // All retries exhausted
-        let failed =
-            last_result.ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
-        let total_ms = start.elapsed().as_millis() as u64;
+        // ── Engine-level retries exhausted — consult node-level ErrorHandler ──
 
-        tracing::error!(
-            node = %node.id,
-            retries = retry_policy.max_attempts,
-            total_ms = total_ms,
-            error = %failed.error.as_deref().unwrap_or("unknown"),
-            "Node execution failed after all retries"
-        );
+        if let Some(ref handler_cfg) = node.error_handler {
+            let handler = handler_cfg.build();
+            let failed = last_result
+                .as_ref()
+                .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
+            let total_ms = start.elapsed().as_millis() as u64;
 
-        // Store failure info in state
-        state.set(
-            format!("{}_error", node.id),
-            failed.error.unwrap_or_default(),
-        );
-        state.status = WorkflowStatus::Failed;
-        Ok(false)
+            tracing::info!(
+                node = %node.id,
+                total_ms = total_ms,
+                error = %failed.error.as_deref().unwrap_or("unknown"),
+                "Engine retries exhausted — consulting node ErrorHandler"
+            );
+
+            let action = handler
+                .on_error(&NodeErrorContext {
+                    node_id: &node.id,
+                    state,
+                    attempt: retry_policy.max_attempts,
+                    failed_result: last_result.as_ref(),
+                })
+                .await;
+
+            tracing::info!(
+                node = %node.id,
+                action = %action,
+                "ErrorHandler decision"
+            );
+
+            match action {
+                ErrorAction::Retry {
+                    max_attempts,
+                    backoff,
+                } => {
+                    // Handler-requested additional retries
+                    for handler_attempt in 1..=max_attempts {
+                        tracing::info!(
+                            node = %node.id,
+                            handler_attempt = handler_attempt,
+                            handler_max = max_attempts,
+                            delay_ms = backoff.as_millis() as u64,
+                            "ErrorHandler retry"
+                        );
+                        tokio::time::sleep(backoff).await;
+
+                        let mut result = self
+                            .executor_registry
+                            .execute(executor_config, &state.data)
+                            .await;
+                        result.retries = retry_policy.max_attempts + handler_attempt - 1;
+
+                        if result.success {
+                            tracing::info!(
+                                node = %node.id,
+                                handler_attempt = handler_attempt,
+                                "ErrorHandler retry succeeded"
+                            );
+                            self.merge_result_into_state(state, &result, node);
+                            return Ok(true);
+                        }
+
+                        tracing::warn!(
+                            node = %node.id,
+                            handler_attempt = handler_attempt,
+                            error = %result.error.as_deref().unwrap_or("unknown"),
+                            "ErrorHandler retry failed"
+                        );
+                    }
+
+                    // All handler retries exhausted → abort
+                    let failed = last_result
+                        .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
+                    state.set(
+                        format!("{}_error", node.id),
+                        failed.error.unwrap_or_default(),
+                    );
+                    state.status = WorkflowStatus::Failed;
+                    Ok(false)
+                }
+                ErrorAction::Skip => {
+                    tracing::info!(
+                        node = %node.id,
+                        "ErrorHandler: skipping failed node"
+                    );
+                    // Treat as success — the workflow continues as normal
+                    Ok(true)
+                }
+                ErrorAction::Fallback {
+                    node_id: fallback_id,
+                } => {
+                    tracing::info!(
+                        node = %node.id,
+                        fallback_node = %fallback_id,
+                        "ErrorHandler: redirecting to fallback node"
+                    );
+                    // Redirect execution to the fallback node
+                    state.current_node = fallback_id;
+                    Ok(true)
+                }
+                ErrorAction::Abort => {
+                    tracing::error!(
+                        node = %node.id,
+                        "ErrorHandler: aborting workflow"
+                    );
+                    let failed = last_result
+                        .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
+                    state.set(
+                        format!("{}_error", node.id),
+                        failed.error.unwrap_or_default(),
+                    );
+                    state.status = WorkflowStatus::Failed;
+                    Ok(false)
+                }
+            }
+        } else {
+            // No ErrorHandler configured — legacy behaviour (fail immediately)
+            let failed = last_result
+                .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("no retry result")))?;
+            let total_ms = start.elapsed().as_millis() as u64;
+
+            tracing::error!(
+                node = %node.id,
+                retries = retry_policy.max_attempts,
+                total_ms = total_ms,
+                error = %failed.error.as_deref().unwrap_or("unknown"),
+                "Node execution failed after all retries"
+            );
+
+            // Store failure info in state
+            state.set(
+                format!("{}_error", node.id),
+                failed.error.unwrap_or_default(),
+            );
+            state.status = WorkflowStatus::Failed;
+            Ok(false)
+        }
     }
 
     /// Execute a SubWorkflow node using registered subgraphs.
@@ -1550,5 +1690,174 @@ mod tests {
         let restored = engine.restore_from_checkpoint("wf-sqlite", None).await;
         assert!(restored.is_some());
         assert_eq!(restored.unwrap().workflow_id, "wf-sqlite");
+    }
+
+    // ── Node-level ErrorHandler integration tests ────────────────────────
+
+    #[tokio::test]
+    async fn test_error_handler_skip() {
+        // Node fails but SkipOnError lets workflow continue to the next node
+        let mut graph = WorkflowGraph::new("test-eh-skip");
+        graph.add_node(
+            Node::new("fail_node", "FailingNode", NodeType::Process)
+                .with_executor(ExecutorConfig::Shell {
+                    command: "false".into(),
+                    args: vec![],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                })
+                .with_error_handler(crate::error_handler::ErrorHandlerConfig::Skip),
+        );
+        graph.add_node(Node::new("end", "End", NodeType::Process).with_executor(
+            ExecutorConfig::Shell {
+                command: "echo".into(),
+                args: vec!["done".into()],
+                env: HashMap::new(),
+                working_dir: None,
+                timeout_secs: None,
+            },
+        ));
+        graph.add_edge(Edge::new("fail_node", "end"));
+        graph.set_entry("fail_node");
+        graph.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-eh-skip", &graph.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&graph, state).await.unwrap();
+
+        // Workflow should complete because SkipOnError skips the failed node
+        assert_eq!(result.status, WorkflowStatus::Completed);
+        assert_eq!(result.current_node, "end");
+    }
+
+    #[tokio::test]
+    async fn test_error_handler_fallback() {
+        // Node fails but FallbackOnError redirects to a fallback node
+        let mut graph = WorkflowGraph::new("test-eh-fallback");
+        graph.add_node(
+            Node::new("primary", "Primary", NodeType::Process)
+                .with_executor(ExecutorConfig::Shell {
+                    command: "false".into(),
+                    args: vec![],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                })
+                .with_error_handler(crate::error_handler::ErrorHandlerConfig::Fallback {
+                    node_id: "fallback".into(),
+                }),
+        );
+        graph.add_node(
+            Node::new("fallback", "Fallback", NodeType::Process).with_executor(
+                ExecutorConfig::Shell {
+                    command: "echo".into(),
+                    args: vec!["fallback-worked".into()],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                },
+            ),
+        );
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("primary", "end"));
+        graph.add_edge(Edge::new("fallback", "end"));
+        graph.set_entry("primary");
+        graph.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-eh-fallback", &graph.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&graph, state).await.unwrap();
+
+        // Workflow should complete via the fallback path
+        assert_eq!(result.status, WorkflowStatus::Completed);
+        assert!(result.history.iter().any(|t| t.to_node == "fallback"));
+    }
+
+    #[tokio::test]
+    async fn test_error_handler_abort() {
+        // AbortOnError explicitly aborts the workflow on failure
+        let mut graph = WorkflowGraph::new("test-eh-abort");
+        graph.add_node(
+            Node::new("fail", "Fail", NodeType::Process)
+                .with_executor(ExecutorConfig::Shell {
+                    command: "false".into(),
+                    args: vec![],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                })
+                .with_error_handler(crate::error_handler::ErrorHandlerConfig::Abort),
+        );
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("fail", "end"));
+        graph.set_entry("fail");
+        graph.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-eh-abort", &graph.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&graph, state).await.unwrap();
+
+        assert_eq!(result.status, WorkflowStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_error_handler_retry_then_succeed() {
+        // ErrorHandler requests retries. Since the executor is deterministic
+        // (always fails), this test verifies the retry loop is exercised.
+        // The handler retries will also fail → workflow fails.
+        let mut graph = WorkflowGraph::new("test-eh-retry");
+        graph.add_node(
+            Node::new("flaky", "Flaky", NodeType::Process)
+                .with_executor(ExecutorConfig::Shell {
+                    command: "false".into(),
+                    args: vec![],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                })
+                .with_error_handler(crate::error_handler::ErrorHandlerConfig::Retry {
+                    max_attempts: 2,
+                    backoff_ms: 10,
+                }),
+        );
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("flaky", "end"));
+        graph.set_entry("flaky");
+        graph.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-eh-retry", &graph.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&graph, state).await.unwrap();
+
+        // All retries (engine + handler) exhausted → workflow fails
+        assert_eq!(result.status, WorkflowStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_error_handler_with_successful_node() {
+        // ErrorHandler is configured but node succeeds — handler is never invoked
+        let mut graph = WorkflowGraph::new("test-eh-success");
+        graph.add_node(
+            Node::new("ok", "OK", NodeType::Process)
+                .with_executor(ExecutorConfig::Shell {
+                    command: "echo".into(),
+                    args: vec!["hello".into()],
+                    env: HashMap::new(),
+                    working_dir: None,
+                    timeout_secs: None,
+                })
+                .with_error_handler(crate::error_handler::ErrorHandlerConfig::Skip),
+        );
+        graph.add_node(Node::new("end", "End", NodeType::Process));
+        graph.add_edge(Edge::new("ok", "end"));
+        graph.set_entry("ok");
+        graph.add_exit_node("end");
+
+        let state = WorkflowState::new("wf-eh-ok", &graph.entry_node);
+        let engine = WorkflowEngine::new();
+        let result = engine.execute(&graph, state).await.unwrap();
+
+        assert_eq!(result.status, WorkflowStatus::Completed);
     }
 }

@@ -67,4 +67,4 @@ target/
 # Node.js
 node_modules/
 dashboard/node_modules/
-dashboard/dist/
+dashboard/dist/config/kias.toml

@@ -239,12 +239,12 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     }
 
     // 报告bug（独立处理）
-    if cmd.starts_with("报告") || cmd.starts_with("report") {
-        if cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷") {
-            let title = extract_problem_title(&cmd);
-            let description = cmd.clone();
-            return (Intent::ProblemReport { title, description }, 0.85);
-        }
+    if (cmd.starts_with("报告") || cmd.starts_with("report"))
+        && (cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷"))
+    {
+        let title = extract_problem_title(&cmd);
+        let description = cmd.clone();
+        return (Intent::ProblemReport { title, description }, 0.85);
     }
 
     if (cmd.contains("运行") || cmd.contains("run") || cmd.contains("执行"))
@@ -297,12 +297,12 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     }
 
     // 报告bug（独立处理）
-    if cmd.starts_with("报告") || cmd.starts_with("report") {
-        if cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷") {
-            let title = extract_problem_title(&cmd);
-            let description = cmd.clone();
-            return (Intent::ProblemReport { title, description }, 0.85);
-        }
+    if (cmd.starts_with("报告") || cmd.starts_with("report"))
+        && (cmd.contains("bug") || cmd.contains("问题") || cmd.contains("缺陷"))
+    {
+        let title = extract_problem_title(&cmd);
+        let description = cmd.clone();
+        return (Intent::ProblemReport { title, description }, 0.85);
     }
 
     // English

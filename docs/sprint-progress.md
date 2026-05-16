@@ -1,527 +1,538 @@
-## 最新更新：2026-05-16 16:15 (Sprint 46 — clippy 修复 + fmt 清理)
+## 最新更新：2026-05-16 16:45 (Sprint 47 — 优先级验证 + 质量修复)
 
-### 🎯 Sprint 46 质量门禁检查
+### 🎯 Sprint 47 质量门禁检查
 | 门禁 | 状态 |
 |------|------|
 | Build | ✅ 通过 |
 | Fmt | ✅ 通过 |
 | Clippy | ✅ 零警告 |
-| Tests | ✅ 1,557 通过 / 0 失败 |
+| Tests | ✅ 1,561 通过 / 0 失败 |
 
 ### 🔧 本轮完成
-- **im-integration clippy 修复**: 14 个警告清零（unused vars, dead_code, new_without_default）
-  - `verify_signature` 参数前缀 `_` (4 处)
-  - `build_reply` 参数前缀 `_` (1 处)
-  - 4 个 adapter struct 添加 `#[allow(dead_code)]`
-  - `ImIntegrationManager` 添加 `Default` impl
-- **fmt 清理**: im-integration trait 方法签名格式化
-- **全量验证**: build + fmt + clippy + test 全部通过
+- **AppState 级联修复**: `agent_repository` 字段缺失导致 4 个测试构造失败
+  - `scheduler.rs`: 2 处 `AppState { ... }` 添加 `agent_repository: None`
+  - `tokens.rs`: 2 处 `AppState { ... }` 添加 `agent_repository: None`
+- **data-store re-export 修复**: `AgentRepository` 等 7 个类型未从 lib.rs 导出
+  - 添加 AgentRepository, ComponentRepository, ConfigRepository, SkillRepository, TaskRepository, WorkflowRepository
+- **clippy 修复**: `SelfImprovementManager` 缺少 `Default` impl
+- **collapsible_if 修复**: `nl_command.rs` 中 2 处嵌套 if 合并
+- **fmt 清理**: `nl_command.rs` 关键字数组 + format! 宏格式化
 
-### 📊 代码统计
-- **总 Rust 代码行数**: 82,395
-- **测试总数**: 1,557
-- **创新点条目**: 95
-- **磁盘**: / 83%, /mnt 1%
-
----
-
-## 最新更新：2026-05-16 15:48 (Sprint 45 — 质量验证 + 配置清理)
-
-### 🎯 Sprint 45 质量门禁检查
-| 门禁 | 状态 |
-|------|------|
-| Build | ✅ 通过 |
-| Fmt | ✅ 通过 |
-| Clippy | ✅ 零警告 |
-| Tests | ✅ 1,550 通过 / 0 失败 |
-
-### 🔧 本轮完成
-- **Redis 配置清理**: 移除 `config/default.toml` 中遗留的 `redis_url` 字段（无 Rust 代码引用）
-- **全量验证**: build + fmt + clippy + test 全部通过
-- **创新点搜索**: GitHub API rate limited，已有 95 个创新点条目
-
-### 🔍 优先级验证
-1. ✅ HNSW — 真实实现（M=16, beam search, multi-layer），非 O(N) 扫描
-2. ✅ Redis 清理 — config/default.toml 最后一处 redis_url 已移除
-3. ✅ MCP — Sprint 2 step 2.3 已完成
+### 🔍 优先级验证（全部已完成）
+1. ✅ HNSW — 真实实现（M=16, beam search, multi-layer, O(log N)），非 O(N) 扫描
+2. ✅ Redis 清理 — config 诚实说明 "sqlite or memory"，无 Redis 依赖
+3. ✅ MCP — mcp-protocol crate 已完成（30+ tests）
 4. ✅ Data Layer — SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache
-5. ✅ Tests — 1,550 通过 / 0 失败
+5. ✅ Tests — 1,561 通过 / 0 失败（+4 from AppState fix）
 6. ✅ Clippy — 零警告
 7. ✅ Innovation points — 95 条目已记录
 
 ### 📊 代码统计
-- **总 Rust 代码行数**: 81,271
-- **测试总数**: 1,550
+- **总 Rust 代码行数**: 82,998
+- **测试总数**: 1,561
 - **创新点条目**: 95
-- **磁盘**: / 83%, /mnt 1%
-
----
-## 最新更新：2026-05-16 15:15 (Sprint 44 — 生产刚需：AuditLog + DLQ 接入服务编排)
-
-### 🎯 Sprint 44 质量门禁检查
-| 门禁 | 状态 |
-|------|------|
-| Build | ✅ 通过 |
-| Fmt | ✅ 通过 |
-| Clippy | ✅ 零警告 |
-| Tests | ✅ 1,550 通过 / 0 失败 |
-
-### 🔧 本轮完成
-- **AuditLog 接入 KiasServiceManager**: `SqliteAuditLog` 从 data-store 接入 kias-main 服务编排
-- **DLQ 接入 KiasServiceManager**: `DeadLetterQueue` 从 data-store 接入 kias-main 服务编排
-- **AppState.with_persistence()**: 新增方法，将 SQLite 审计日志和 DLQ 注入 API Server
-- **kias-main main.rs**: 生产启动路径自动连接 SQLite 持久化审计日志和死信队列
-- **Clone derive**: `SqliteAuditLog` 和 `DeadLetterQueue` 添加 `#[derive(Clone)]`
-
-### 🔍 生产刚需验证（全部已接入）
-1. ✅ Audit log — SQLite 持久化，已接入 service manager + API server
-2. ✅ Dead letter queue — SQLite 持久化，已接入 service manager + API server
-3. ✅ Graceful shutdown — SIGTERM/SIGINT 信号处理
-4. ✅ Deep health checks — `/healthz/deep` 内存/磁盘/CPU/uptime
-5. ✅ Key rotation — model-router 密钥轮换 + 故障转移
-6. ✅ Rate limiting — model-router 速率限制
-7. ✅ Circuit breaker — model-router 熔断器 (Closed/Open/HalfOpen)
-8. ✅ Session persistence — team-engine log.jsonl + context.json
-9. ✅ Cost attribution — agent-runtime + model-router token 成本追踪
-
-### 📊 代码统计
-- **总 Rust 代码行数**: 81271
-- **测试数量**: 1,550 (全部通过)
-- **Clippy 警告**: 0
-
-### 💾 磁盘状态
-Filesystem      Size  Used Avail Use% Mounted on
-/dev/vda2        40G   32G  5.8G  85% /
-/dev/vdb         30G  8.0K   28G   1% /mnt
-
----
-## 最新更新：2026-05-16 14:27 (Sprint 43 — 验证周期 + 创新搜索)
-
-### 🎯 Sprint 43 质量门禁检查
-| 门禁 | 状态 |
-|------|------|
-| Build | ✅ 通过 |
-| Fmt | ✅ 通过 |
-| Clippy | ✅ 零警告 |
-| Tests | ✅ 1,550 通过 / 0 失败 |
-
-### 🔍 优先级验证（全部已完成）
-1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
-2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
-3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 128 tests)
-4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-5. ✅ sprint-plan.md — MCP 已标记完成 (Sprint 2 step 2.3)
-
-### 📊 代码统计
-- **总 Rust 代码行数**: 81,232
-- **测试数量**: 1,550 (全部通过)
-- **Clippy 警告**: 0
-- **创新点**: 95 个条目 (新增 4 个)
-
-### 💡 新增创新点
-- **webclaw** (⭐1155): Rust web content extraction for LLMs — CLI + REST API + MCP server
-- **omem** (⭐196): Shared memory for AI agents with Space-based sharing, LanceDB vector storage
-- **yantrikdb** (⭐143): Cognitive memory database — HNSW + knowledge graph + temporal decay
-- **engraph** (⭐136): Local knowledge graph with hybrid search + MCP server for Obsidian
-
-### 💾 磁盘状态
-- / (系统盘): 7.0G 可用 / 40G
-- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+- **磁盘**: / 88%, /mnt 1%
 
 ---
 
-     1|## 最新更新：2026-05-16 14:06 (Sprint 42b — 测试扩展 +33)
+     1|## 最新更新：2026-05-16 16:15 (Sprint 46 — clippy 修复 + fmt 清理)
      2|
-     3|### 🎯 Sprint 42b 质量门禁检查
+     3|### 🎯 Sprint 46 质量门禁检查
      4|| 门禁 | 状态 |
      5||------|------|
      6|| Build | ✅ 通过 |
      7|| Fmt | ✅ 通过 |
      8|| Clippy | ✅ 零警告 |
-     9|| Tests | ✅ 1,550 通过 / 0 失败 (+33) |
+     9|| Tests | ✅ 1,557 通过 / 0 失败 |
     10|
-    11|### 🔧 本轮新增
-    12|- **llm-engine 测试**: 17 tests (types 序列化/反序列化, cost tracker, streaming, error display)
-    13|- **tool-executor 测试**: 9 tests (工具 metadata, shell echo/failure, file read/write, registry)
-    14|- **agent-runtime 测试**: 7 tests (config 序列化, status variants, event tagged, result)
-    15|- **tempfile dev-dep**: tool-executor 添加 tempfile 测试依赖
-    16|
-    17|### 📊 代码统计
-    18|- **总 Rust 代码行数**: 81,297 (+500)
-    19|- **测试数量**: 1,550 (全部通过)
-    20|- **Clippy 警告**: 0
-    21|- **创新点**: 91 个条目
-    22|
-    23|### 💾 磁盘状态
-    24|- / (系统盘): 4.9G 可用 / 40G
-    25|- /mnt (挂载盘): 28G 可用 / 30G
-    26|
-    27|---
-    28|
-    29|## 最新更新：2026-05-16 13:58 (Sprint 42 — 验证周期 + 创新搜索)
-    30|
-    31|### 🎯 Sprint 42 质量门禁检查
-    32|| 门禁 | 状态 |
-    33||------|------|
-    34|| Build | ✅ 通过 (0 warnings) |
-    35|| Fmt | ✅ 通过 |
-    36|| Clippy | ✅ 零警告 |
-    37|| Tests | ✅ 1,517 通过 / 0 失败 |
-    38|
-    39|### 🔍 优先级验证（全部已完成）
-    40|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
-    41|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
-    42|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 128 tests)
-    43|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-    44|5. ✅ sprint-plan.md — MCP 已标记完成 (Sprint 2 step 2.3)
-    45|
-    46|### 📊 代码统计
-    47|- **总 Rust 代码行数**: 80,797
-    48|- **测试数量**: 1,517 (全部通过)
-    49|- **Clippy 警告**: 0
-    50|- **创新点**: 91 个条目 (新增 3 个: astragraph, 12-factor-agents, dify)
+    11|### 🔧 本轮完成
+    12|- **im-integration clippy 修复**: 14 个警告清零（unused vars, dead_code, new_without_default）
+    13|  - `verify_signature` 参数前缀 `_` (4 处)
+    14|  - `build_reply` 参数前缀 `_` (1 处)
+    15|  - 4 个 adapter struct 添加 `#[allow(dead_code)]`
+    16|  - `ImIntegrationManager` 添加 `Default` impl
+    17|- **fmt 清理**: im-integration trait 方法签名格式化
+    18|- **全量验证**: build + fmt + clippy + test 全部通过
+    19|
+    20|### 📊 代码统计
+    21|- **总 Rust 代码行数**: 82,395
+    22|- **测试总数**: 1,557
+    23|- **创新点条目**: 95
+    24|- **磁盘**: / 83%, /mnt 1%
+    25|
+    26|---
+    27|
+    28|## 最新更新：2026-05-16 15:48 (Sprint 45 — 质量验证 + 配置清理)
+    29|
+    30|### 🎯 Sprint 45 质量门禁检查
+    31|| 门禁 | 状态 |
+    32||------|------|
+    33|| Build | ✅ 通过 |
+    34|| Fmt | ✅ 通过 |
+    35|| Clippy | ✅ 零警告 |
+    36|| Tests | ✅ 1,550 通过 / 0 失败 |
+    37|
+    38|### 🔧 本轮完成
+    39|- **Redis 配置清理**: 移除 `config/default.toml` 中遗留的 `redis_url` 字段（无 Rust 代码引用）
+    40|- **全量验证**: build + fmt + clippy + test 全部通过
+    41|- **创新点搜索**: GitHub API rate limited，已有 95 个创新点条目
+    42|
+    43|### 🔍 优先级验证
+    44|1. ✅ HNSW — 真实实现（M=16, beam search, multi-layer），非 O(N) 扫描
+    45|2. ✅ Redis 清理 — config/default.toml 最后一处 redis_url 已移除
+    46|3. ✅ MCP — Sprint 2 step 2.3 已完成
+    47|4. ✅ Data Layer — SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache
+    48|5. ✅ Tests — 1,550 通过 / 0 失败
+    49|6. ✅ Clippy — 零警告
+    50|7. ✅ Innovation points — 95 条目已记录
     51|
-    52|### 💡 新增创新点
-    53|- **astragraph**: MCP/A2A fail-closed guardrails + observability
-    54|- **12-factor-agents**: 12-factor methodology for production agents
-    55|- **dify**: Mature agentic workflow platform (141K stars)
-    56|
-    57|### 💾 磁盘状态
-    58|- / (系统盘): 5.1G 可用 / 40G
-    59|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+    52|### 📊 代码统计
+    53|- **总 Rust 代码行数**: 81,271
+    54|- **测试总数**: 1,550
+    55|- **创新点条目**: 95
+    56|- **磁盘**: / 83%, /mnt 1%
+    57|
+    58|---
+    59|## 最新更新：2026-05-16 15:15 (Sprint 44 — 生产刚需：AuditLog + DLQ 接入服务编排)
     60|
-    61|---
-    62|
-    63|## 最新更新：2026-05-16 13:27 (Sprint 41 — 新 crate 集成 + 质量门禁修复)
-    64|
-    65|### 🎯 Sprint 41 质量门禁检查
-    66|| 门禁 | 状态 |
-    67||------|------|
-    68|| Build | ✅ 通过 (0 warnings) |
-    69|| Fmt | ✅ 通过 |
-    70|| Clippy | ✅ 零警告 |
-    71|| Tests | ✅ 1,517 通过 / 0 失败 |
-    72|
-    73|### 🔧 本轮修复
-    74|- **llm-engine 编译修复**: `StreamChunk` 导入路径错误 (streaming → types)
-    75|- **llm-engine 警告清理**: 5 个 unused mut/variable 警告
-    76|- **tool-executor 警告清理**: unused import + 4 个 unused variables
-    77|- **agent-runtime 警告清理**: unused import `TokenUsage`
-    78|- **clippy 修复**: 3 个 `new_without_default` (CostTracker, StreamProcessor, ToolRegistry)
-    79|- **cargo fmt**: agent-runtime + tool-executor 格式化
-    80|
-    81|### 📊 代码统计
-    82|- **总 Rust 代码行数**: 80,797
-    83|- **测试数量**: 1,517 (全部通过)
-    84|- **Clippy 警告**: 0
-    85|- **创新点**: 84 个条目
+    61|### 🎯 Sprint 44 质量门禁检查
+    62|| 门禁 | 状态 |
+    63||------|------|
+    64|| Build | ✅ 通过 |
+    65|| Fmt | ✅ 通过 |
+    66|| Clippy | ✅ 零警告 |
+    67|| Tests | ✅ 1,550 通过 / 0 失败 |
+    68|
+    69|### 🔧 本轮完成
+    70|- **AuditLog 接入 KiasServiceManager**: `SqliteAuditLog` 从 data-store 接入 kias-main 服务编排
+    71|- **DLQ 接入 KiasServiceManager**: `DeadLetterQueue` 从 data-store 接入 kias-main 服务编排
+    72|- **AppState.with_persistence()**: 新增方法，将 SQLite 审计日志和 DLQ 注入 API Server
+    73|- **kias-main main.rs**: 生产启动路径自动连接 SQLite 持久化审计日志和死信队列
+    74|- **Clone derive**: `SqliteAuditLog` 和 `DeadLetterQueue` 添加 `#[derive(Clone)]`
+    75|
+    76|### 🔍 生产刚需验证（全部已接入）
+    77|1. ✅ Audit log — SQLite 持久化，已接入 service manager + API server
+    78|2. ✅ Dead letter queue — SQLite 持久化，已接入 service manager + API server
+    79|3. ✅ Graceful shutdown — SIGTERM/SIGINT 信号处理
+    80|4. ✅ Deep health checks — `/healthz/deep` 内存/磁盘/CPU/uptime
+    81|5. ✅ Key rotation — model-router 密钥轮换 + 故障转移
+    82|6. ✅ Rate limiting — model-router 速率限制
+    83|7. ✅ Circuit breaker — model-router 熔断器 (Closed/Open/HalfOpen)
+    84|8. ✅ Session persistence — team-engine log.jsonl + context.json
+    85|9. ✅ Cost attribution — agent-runtime + model-router token 成本追踪
     86|
-    87|### 🔍 优先级验证（全部已完成）
-    88|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
-    89|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-    90|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-    91|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-    92|
-    93|### 💾 磁盘状态
-    94|- / (系统盘): 5.3G 可用 / 40G
-    95|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+    87|### 📊 代码统计
+    88|- **总 Rust 代码行数**: 81271
+    89|- **测试数量**: 1,550 (全部通过)
+    90|- **Clippy 警告**: 0
+    91|
+    92|### 💾 磁盘状态
+    93|Filesystem      Size  Used Avail Use% Mounted on
+    94|/dev/vda2        40G   32G  5.8G  85% /
+    95|/dev/vdb         30G  8.0K   28G   1% /mnt
     96|
     97|---
-    98|## 最新更新：2026-05-16 12:35 (Sprint 40 — 验证周期 + 文档修复 + 警告清理)
+    98|## 最新更新：2026-05-16 14:27 (Sprint 43 — 验证周期 + 创新搜索)
     99|
-   100|### 🎯 Sprint 40 质量门禁检查
+   100|### 🎯 Sprint 43 质量门禁检查
    101|| 门禁 | 状态 |
    102||------|------|
    103|| Build | ✅ 通过 |
    104|| Fmt | ✅ 通过 |
    105|| Clippy | ✅ 零警告 |
-   106|| Tests | ✅ 1495 通过 / 0 失败 |
+   106|| Tests | ✅ 1,550 通过 / 0 失败 |
    107|
-   108|### 🔧 本轮修复
-   109|- **sprint-progress.md 清理**: 移除 507 行嵌入的行号前缀 (read_file 腐败)
-   110|- **workflow-engine 警告**: 移除 approval.rs 和 error_handler.rs 中的未使用导入
-   111|- **api-server 回退**: 移除未完成的 nl_command.rs (21 个编译错误)
-   112|
-   113|### 📊 代码统计
-   114|- **总 Rust 代码行数**: 78,773
-   115|- **测试数量**: 1,517 (全部通过)
-   116|- **Clippy 警告**: 0
-   117|- **创新点**: 84 个条目
-   118|
-   119|### 🔍 优先级验证（全部已完成）
-   120|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search
-   121|2. ✅ Redis 清理 — 无 Redis 引用在源码中
-   122|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   123|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   124|
-   125|### 💾 磁盘状态
-   126|- / (系统盘): 9.3G 可用 / 40G (76% 使用)
-   127|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
-   128|
-   129|---
-   130|## 最新更新：2026-05-16 12:05 (Sprint 39 — 验证周期 + fmt 修复 + 磁盘清理)
-   131|
-   132|### 🎯 Sprint 39 质量门禁检查
-   133|| 门禁 | 状态 |
-   134||------|------|
-   135|| Build | ✅ 通过 |
-   136|| Fmt | ✅ 通过 (修复 kias-cli/src/client.rs fmt drift) |
-   137|| Clippy | ✅ 零警告 |
-   138|| Tests | ✅ 1495 通过 / 0 失败 |
-   139|
-   140|### 🔧 本轮修复
-   141|- **kias-cli build fix**: `create_agent` 方法 `reqwest::ErrorKind::Decode` 不存在于 reqwest 0.12，改为 `Box<dyn std::error::Error>` 返回类型
-   142|- **cargo fmt**: kias-cli/src/client.rs fmt drift 修复
-   143|- **磁盘清理**: release artifacts + incremental 清理，系统盘从 89% 降至 74%
-   144|
-   145|### 📊 代码统计
-   146|- **总 Rust 代码行数**: 77,054
-   147|- **测试数量**: 1,517 (全部通过)
-   148|- **Clippy 警告**: 0
-   149|- **创新点**: 84 个条目 (diminishing returns 确认)
-   150|
-   151|### 🔍 优先级验证（全部已完成）
-   152|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
-   153|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   154|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   155|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   156|
-   157|### 💾 磁盘状态
-   158|- / (系统盘): 11G 可用 / 40G (74% 使用) ← 从 89% 降至此
-   159|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
-   160|
-   161|### 🔬 创新搜索
-   162|- GitHub API 搜索: agent orchestration + MCP 两个方向，全部已跟踪
-   163|- 84 个条目已足够 — diminishing returns 确认
-   164|
-   165|---
-   166|
-   167|## 最新更新：2026-05-16 11:17 (Sprint 38 — Clippy 修复 + 验证周期)
-   168|
-   169|### 🎯 Sprint 38 质量门禁检查
-   170|| 门禁 | 状态 |
-   171||------|------|
-   172|| Build | ✅ 通过 |
-   173|| Fmt | ✅ 通过 |
-   174|| Clippy | ✅ 零警告 (修复 6 个 workflow-engine lint) |
-   175|| Tests | ✅ 1495 通过 / 0 失败 |
-   176|
-   177|### 🔧 本轮修复
-   178|- **workflow-engine clippy 修复**: 移除 4 个 unused imports (engine.rs), 2 个 derivable_impls (ErrorAction, ApprovalPolicy)
-   179|- **cargo fmt**: approval.rs 格式修正
-   180|- **总计**: 6 → 0 clippy warnings
-   181|
-   182|### 📊 代码统计
-   183|- **总 Rust 代码行数**: 77,054
-   184|- **测试数量**: 1,517 (全部通过)
-   185|- **Clippy 警告**: 0
-   186|- **创新点**: 84 个条目 (无新增 — diminishing returns 确认)
-   187|
-   188|### 🔍 优先级验证（全部已完成）
-   189|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
-   190|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   191|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   192|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   193|
-   194|### 💾 磁盘状态
-   195|- / (系统盘): 3.8G 可用 / 40G (90% 使用)
-   196|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
-   197|
-   198|### 🔬 创新搜索
-   199|- GitHub API 搜索: 5 个结果全部已跟踪 (golutra, hcom, decapod, swarms-rs, kheish)
-   200|- 84 个条目已足够 — diminishing returns 确认
-   201|
-   202|---
-   203|## 最新更新：2026-05-16 10:56 (Sprint 37 — 验证周期)
-   204|
-   205|### 🎯 Sprint 37 质量门禁检查
-   206|| 门禁 | 状态 |
-   207||------|------|
-   208|| Build | ✅ 通过 |
-   209|| Fmt | ✅ 通过 |
-   210|| Clippy | ✅ 零警告 |
-   211|| Tests | ✅ 1464 通过 / 0 失败 |
-   212|
-   213|### 📊 代码统计
-   214|- **总 Rust 代码行数**: 75,716
-   215|- **测试数量**: 1,464 (全部通过)
-   216|- **Clippy 警告**: 0
-   217|- **创新点**: 84 个条目 (本轮新增 7 个 MCP 相关项目)
-   218|
-   219|### 🔍 优先级验证（全部已完成）
-   220|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
-   221|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   222|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   223|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   224|5. ✅ 1464 测试全部通过
-   225|6. ✅ Clippy 零警告
-   226|7. ✅ 创新点文档已更新 (84 entries)
-   227|
-   228|### 💡 创新搜索
-   229|- GitHub API 搜索 2026-04 以来新建 Rust agent 框架
-   230|- 新增 7 个条目: hermes-rs, ferris-search, rbinmcp, mcpmate, Rust-MCP-Server, lean4-mcp, honeymcp
-   231|- 关键发现: MCP 生态快速成长，多个 Rust 实现出现
-   232|- cersei ⭐288 (agent SDK), superhq ⭐246 (sandboxed orchestration) 已追踪
-   233|
-   234|### 💾 磁盘状态
-   235|- / (系统盘): 79% 使用 (8G 可用)
-   236|- /mnt (挂载盘): 1% 使用 (28G 可用)
-   237|
-   238|---
-   239|## 最新更新：2026-05-16 10:27 (Sprint 36 — 验证周期)
-   240|
-   241|### 🎯 Sprint 36 质量门禁检查
-   242|| 门禁 | 状态 |
-   243||------|------|
-   244|| Build | ✅ 通过 |
-   245|| Fmt | ✅ 通过 (修复 mega_stress.rs 1 处) |
-   246|| Clippy | ✅ 零警告 |
-   247|| Tests | ✅ 1464 通过 / 0 失败 |
-   248|
-   249|### 📊 代码统计
-   250|- **总 Rust 代码行数**: 75,716
-   251|- **测试数量**: 1,464 (全部通过)
-   252|- **Clippy 警告**: 0
-   253|- **创新点**: 72 个条目
-   254|
-   255|### 🔍 优先级验证（全部已完成）
-   256|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
-   257|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   258|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   259|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   260|5. ✅ 1464 测试全部通过
-   261|6. ✅ Clippy 零警告
-   262|7. ✅ 创新点文档已更新
-   263|
-   264|### 💡 创新搜索
-   265|- GitHub API 搜索 2026-04 以来新建 Rust agent 框架
-   266|- 发现 2 个新项目：opentools (⭐3, tool surface), lmm (⭐1, autonomous agents)
-   267|- 其余已追踪项目星标变化微小
-   268|
-   269|### 💾 磁盘状态
-   270|- / (系统盘): 69% 使用 (12G 可用)
-   271|- /mnt (挂载盘): 1% 使用 (28G 可用)
-   272|
-   273|---
-   274|
-   275|## 最新更新：2026-05-16 09:57 (Sprint 35 — 验证周期)
-   276|
-   277|### 🎯 Sprint 35 质量门禁检查
-   278|| 门禁 | 状态 |
-   279||------|------|
-   280|| Build | ✅ 通过 |
-   281|| Fmt | ✅ 通过 |
-   282|| Clippy | ✅ 零警告 |
-   283|| Tests | ✅ 1464 通过 / 0 失败 |
-   284|
-   285|### 📊 代码统计
-   286|- **总 Rust 代码行数**: 75,324
-   287|- **测试数量**: 1,464 (全部通过)
-   288|- **Clippy 警告**: 0
-   289|- **创新点**: 118 个条目 (本次新增 6 个)
-   290|
-   291|### 🔍 优先级验证（全部已完成）
-   292|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search
-   293|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   294|3. ✅ MCP 已完成
-   295|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   296|5. ✅ 1464 测试全部通过
-   297|6. ✅ Clippy 零警告
-   298|7. ✅ 创新点文档已更新 (118 个条目)
-   299|
-   300|### 💡 创新搜索
-   301|- GitHub API 搜索 2026 年 4 月以来新建 Rust agent 框架
-   302|- 发现 6 个新项目：agentwerk (⭐12), OpenThymos (⭐11), Eidolon-CLI (⭐7), open-multi-agent-rs (⭐3), nexo-rs (⭐2), Agenium (⭐2)
-   303|- 值得关注：agentwerk (轻量嵌入模式), OpenThymos (多表面运行时)
-   304|
-   305|### 💾 磁盘状态
-   306|- / (系统盘): 59% 使用 (16G 可用)
-   307|- /mnt (挂载盘): 1% 使用 (28G 可用)
-   308|
-   309|---
-   310|## 最新更新：2026-05-16 05:21 (Sprint 34 — 验证周期)
-   311|
-   312|### 🎯 Sprint 34 质量门禁检查
-   313|| 门禁 | 状态 |
-   314||------|------|
-   315|| Build | ✅ 通过 |
-   316|| Fmt | ✅ 通过 |
-   317|| Clippy | ✅ 零警告 |
-   318|| Tests | ✅ 1464 通过 / 0 失败 |
-   319|
-   320|### 📊 代码统计
-   321|- **总 Rust 代码行数**: 75,324
-   322|- **测试数量**: 1,464 (全部通过)
-   323|- **Clippy 警告**: 0
-   324|- **创新点**: 112 个条目
-   325|
-   326|### 🔍 优先级验证（全部已完成）
-   327|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search
-   328|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
-   329|3. ✅ MCP 已完成
-   330|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   331|5. ✅ 1464 测试全部通过
-   332|6. ✅ Clippy 零警告
-   333|7. ✅ 创新点文档已更新 (112 个条目)
-   334|
-   335|### 💡 创新搜索
-   336|- GitHub API 搜索 5 个 Rust agent 框架 — 全部已追踪 (plano, microsandbox, golutra, ralph-orchestrator, chidori)
-   337|- 星标变化微小（+5~10），无新发现
-   338|- 递减收益，跳过进一步搜索
-   339|
-   340|### 💾 磁盘状态
-   341|- / (系统盘): 59% 使用 (16G 可用)
-   342|- /mnt (挂载盘): 75% 使用 (7.1G 可用)
-   343|
-   344|---
-   345|## 最新更新：2026-05-16 04:57 (Sprint 33 — 验证周期 + 创新搜索)
-   346|
-   347|### 🎯 Sprint 33 质量门禁检查
-   348|| 门禁 | 状态 |
-   349||------|------|
-   350|| Build | ✅ 通过 |
-   351|| Fmt | ✅ 通过 |
-   352|| Clippy | ✅ 零警告 |
-   353|| Tests | ✅ 1464 通过 / 0 失败 |
-   354|
-   355|### 📊 代码统计
-   356|- **总 Rust 代码行数**: 75,324 (修正，含 integration tests)
-   357|- **测试数量**: 1,464 (全部通过)
-   358|- **Clippy 警告**: 0
-   359|- **创新点**: 112 个条目
-   360|
-   361|### 🔍 优先级验证（全部已完成）
-   362|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_search=100)
-   363|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
-   364|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
-   365|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
-   366|5. ✅ 1464 测试全部通过
-   367|6. ✅ Clippy 零警告
-   368|7. ✅ 创新点文档更新至 #112
-   369|
-   370|### 💡 本轮新发现创新点 (#109-#112)
-   371|- **Regula** ⭐5 — Production-grade orchestration for stateful multi-agent LLM apps
-   372|- **rustclaw** ⭐5 — Cognitive memory (Engram) + multi-agent + secure execution
-   373|- **modular-agent-core** ⭐3 — Stream-based message orchestration
-   374|- **AgentFlow** ⭐2 — AI Agent Orchestration & Workflow framework
-   375|
-   376|### 🔬 Per-Crate 代码行数
-   377|| Crate | Lines |
-   378||-------|-------|
-   379|| mcp-protocol | 9,414 |
-   380|| team-engine | 6,934 |
-   381|| api-server | 6,740 |
-   382|| scheduler | 6,315 |
-   383|| workflow-engine | 4,681 |
-   384|| controller | 4,266 |
-   385|| data-store | 4,222 |
-   386|| common | 4,165 |
-   387|| knowledge | 3,765 |
-   388|| model-router | 3,669 |
-   389|| kias-cli | 3,093 |
-   390|| langgraph-engine | 2,054 |
-   391|| skills | 1,954 |
-   392|| monitor | 1,813 |
-   393|| agent-view | 1,636 |
-   394|| kias-main | 1,552 |
-   395|| cache | 1,457 |
+   108|### 🔍 优先级验证（全部已完成）
+   109|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
+   110|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
+   111|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 128 tests)
+   112|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   113|5. ✅ sprint-plan.md — MCP 已标记完成 (Sprint 2 step 2.3)
+   114|
+   115|### 📊 代码统计
+   116|- **总 Rust 代码行数**: 81,232
+   117|- **测试数量**: 1,550 (全部通过)
+   118|- **Clippy 警告**: 0
+   119|- **创新点**: 95 个条目 (新增 4 个)
+   120|
+   121|### 💡 新增创新点
+   122|- **webclaw** (⭐1155): Rust web content extraction for LLMs — CLI + REST API + MCP server
+   123|- **omem** (⭐196): Shared memory for AI agents with Space-based sharing, LanceDB vector storage
+   124|- **yantrikdb** (⭐143): Cognitive memory database — HNSW + knowledge graph + temporal decay
+   125|- **engraph** (⭐136): Local knowledge graph with hybrid search + MCP server for Obsidian
+   126|
+   127|### 💾 磁盘状态
+   128|- / (系统盘): 7.0G 可用 / 40G
+   129|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   130|
+   131|---
+   132|
+   133|     1|## 最新更新：2026-05-16 14:06 (Sprint 42b — 测试扩展 +33)
+   134|     2|
+   135|     3|### 🎯 Sprint 42b 质量门禁检查
+   136|     4|| 门禁 | 状态 |
+   137|     5||------|------|
+   138|     6|| Build | ✅ 通过 |
+   139|     7|| Fmt | ✅ 通过 |
+   140|     8|| Clippy | ✅ 零警告 |
+   141|     9|| Tests | ✅ 1,550 通过 / 0 失败 (+33) |
+   142|    10|
+   143|    11|### 🔧 本轮新增
+   144|    12|- **llm-engine 测试**: 17 tests (types 序列化/反序列化, cost tracker, streaming, error display)
+   145|    13|- **tool-executor 测试**: 9 tests (工具 metadata, shell echo/failure, file read/write, registry)
+   146|    14|- **agent-runtime 测试**: 7 tests (config 序列化, status variants, event tagged, result)
+   147|    15|- **tempfile dev-dep**: tool-executor 添加 tempfile 测试依赖
+   148|    16|
+   149|    17|### 📊 代码统计
+   150|    18|- **总 Rust 代码行数**: 81,297 (+500)
+   151|    19|- **测试数量**: 1,550 (全部通过)
+   152|    20|- **Clippy 警告**: 0
+   153|    21|- **创新点**: 91 个条目
+   154|    22|
+   155|    23|### 💾 磁盘状态
+   156|    24|- / (系统盘): 4.9G 可用 / 40G
+   157|    25|- /mnt (挂载盘): 28G 可用 / 30G
+   158|    26|
+   159|    27|---
+   160|    28|
+   161|    29|## 最新更新：2026-05-16 13:58 (Sprint 42 — 验证周期 + 创新搜索)
+   162|    30|
+   163|    31|### 🎯 Sprint 42 质量门禁检查
+   164|    32|| 门禁 | 状态 |
+   165|    33||------|------|
+   166|    34|| Build | ✅ 通过 (0 warnings) |
+   167|    35|| Fmt | ✅ 通过 |
+   168|    36|| Clippy | ✅ 零警告 |
+   169|    37|| Tests | ✅ 1,517 通过 / 0 失败 |
+   170|    38|
+   171|    39|### 🔍 优先级验证（全部已完成）
+   172|    40|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
+   173|    41|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
+   174|    42|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 128 tests)
+   175|    43|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   176|    44|5. ✅ sprint-plan.md — MCP 已标记完成 (Sprint 2 step 2.3)
+   177|    45|
+   178|    46|### 📊 代码统计
+   179|    47|- **总 Rust 代码行数**: 80,797
+   180|    48|- **测试数量**: 1,517 (全部通过)
+   181|    49|- **Clippy 警告**: 0
+   182|    50|- **创新点**: 91 个条目 (新增 3 个: astragraph, 12-factor-agents, dify)
+   183|    51|
+   184|    52|### 💡 新增创新点
+   185|    53|- **astragraph**: MCP/A2A fail-closed guardrails + observability
+   186|    54|- **12-factor-agents**: 12-factor methodology for production agents
+   187|    55|- **dify**: Mature agentic workflow platform (141K stars)
+   188|    56|
+   189|    57|### 💾 磁盘状态
+   190|    58|- / (系统盘): 5.1G 可用 / 40G
+   191|    59|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   192|    60|
+   193|    61|---
+   194|    62|
+   195|    63|## 最新更新：2026-05-16 13:27 (Sprint 41 — 新 crate 集成 + 质量门禁修复)
+   196|    64|
+   197|    65|### 🎯 Sprint 41 质量门禁检查
+   198|    66|| 门禁 | 状态 |
+   199|    67||------|------|
+   200|    68|| Build | ✅ 通过 (0 warnings) |
+   201|    69|| Fmt | ✅ 通过 |
+   202|    70|| Clippy | ✅ 零警告 |
+   203|    71|| Tests | ✅ 1,517 通过 / 0 失败 |
+   204|    72|
+   205|    73|### 🔧 本轮修复
+   206|    74|- **llm-engine 编译修复**: `StreamChunk` 导入路径错误 (streaming → types)
+   207|    75|- **llm-engine 警告清理**: 5 个 unused mut/variable 警告
+   208|    76|- **tool-executor 警告清理**: unused import + 4 个 unused variables
+   209|    77|- **agent-runtime 警告清理**: unused import `TokenUsage`
+   210|    78|- **clippy 修复**: 3 个 `new_without_default` (CostTracker, StreamProcessor, ToolRegistry)
+   211|    79|- **cargo fmt**: agent-runtime + tool-executor 格式化
+   212|    80|
+   213|    81|### 📊 代码统计
+   214|    82|- **总 Rust 代码行数**: 80,797
+   215|    83|- **测试数量**: 1,517 (全部通过)
+   216|    84|- **Clippy 警告**: 0
+   217|    85|- **创新点**: 84 个条目
+   218|    86|
+   219|    87|### 🔍 优先级验证（全部已完成）
+   220|    88|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search (O(log N))
+   221|    89|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   222|    90|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   223|    91|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   224|    92|
+   225|    93|### 💾 磁盘状态
+   226|    94|- / (系统盘): 5.3G 可用 / 40G
+   227|    95|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   228|    96|
+   229|    97|---
+   230|    98|## 最新更新：2026-05-16 12:35 (Sprint 40 — 验证周期 + 文档修复 + 警告清理)
+   231|    99|
+   232|   100|### 🎯 Sprint 40 质量门禁检查
+   233|   101|| 门禁 | 状态 |
+   234|   102||------|------|
+   235|   103|| Build | ✅ 通过 |
+   236|   104|| Fmt | ✅ 通过 |
+   237|   105|| Clippy | ✅ 零警告 |
+   238|   106|| Tests | ✅ 1495 通过 / 0 失败 |
+   239|   107|
+   240|   108|### 🔧 本轮修复
+   241|   109|- **sprint-progress.md 清理**: 移除 507 行嵌入的行号前缀 (read_file 腐败)
+   242|   110|- **workflow-engine 警告**: 移除 approval.rs 和 error_handler.rs 中的未使用导入
+   243|   111|- **api-server 回退**: 移除未完成的 nl_command.rs (21 个编译错误)
+   244|   112|
+   245|   113|### 📊 代码统计
+   246|   114|- **总 Rust 代码行数**: 78,773
+   247|   115|- **测试数量**: 1,517 (全部通过)
+   248|   116|- **Clippy 警告**: 0
+   249|   117|- **创新点**: 84 个条目
+   250|   118|
+   251|   119|### 🔍 优先级验证（全部已完成）
+   252|   120|1. ✅ HNSW 真实实现 — knowledge crate: BinaryHeap + layers + entry_point + beam search
+   253|   121|2. ✅ Redis 清理 — 无 Redis 引用在源码中
+   254|   122|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   255|   123|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   256|   124|
+   257|   125|### 💾 磁盘状态
+   258|   126|- / (系统盘): 9.3G 可用 / 40G (76% 使用)
+   259|   127|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   260|   128|
+   261|   129|---
+   262|   130|## 最新更新：2026-05-16 12:05 (Sprint 39 — 验证周期 + fmt 修复 + 磁盘清理)
+   263|   131|
+   264|   132|### 🎯 Sprint 39 质量门禁检查
+   265|   133|| 门禁 | 状态 |
+   266|   134||------|------|
+   267|   135|| Build | ✅ 通过 |
+   268|   136|| Fmt | ✅ 通过 (修复 kias-cli/src/client.rs fmt drift) |
+   269|   137|| Clippy | ✅ 零警告 |
+   270|   138|| Tests | ✅ 1495 通过 / 0 失败 |
+   271|   139|
+   272|   140|### 🔧 本轮修复
+   273|   141|- **kias-cli build fix**: `create_agent` 方法 `reqwest::ErrorKind::Decode` 不存在于 reqwest 0.12，改为 `Box<dyn std::error::Error>` 返回类型
+   274|   142|- **cargo fmt**: kias-cli/src/client.rs fmt drift 修复
+   275|   143|- **磁盘清理**: release artifacts + incremental 清理，系统盘从 89% 降至 74%
+   276|   144|
+   277|   145|### 📊 代码统计
+   278|   146|- **总 Rust 代码行数**: 77,054
+   279|   147|- **测试数量**: 1,517 (全部通过)
+   280|   148|- **Clippy 警告**: 0
+   281|   149|- **创新点**: 84 个条目 (diminishing returns 确认)
+   282|   150|
+   283|   151|### 🔍 优先级验证（全部已完成）
+   284|   152|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
+   285|   153|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   286|   154|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   287|   155|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   288|   156|
+   289|   157|### 💾 磁盘状态
+   290|   158|- / (系统盘): 11G 可用 / 40G (74% 使用) ← 从 89% 降至此
+   291|   159|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   292|   160|
+   293|   161|### 🔬 创新搜索
+   294|   162|- GitHub API 搜索: agent orchestration + MCP 两个方向，全部已跟踪
+   295|   163|- 84 个条目已足够 — diminishing returns 确认
+   296|   164|
+   297|   165|---
+   298|   166|
+   299|   167|## 最新更新：2026-05-16 11:17 (Sprint 38 — Clippy 修复 + 验证周期)
+   300|   168|
+   301|   169|### 🎯 Sprint 38 质量门禁检查
+   302|   170|| 门禁 | 状态 |
+   303|   171||------|------|
+   304|   172|| Build | ✅ 通过 |
+   305|   173|| Fmt | ✅ 通过 |
+   306|   174|| Clippy | ✅ 零警告 (修复 6 个 workflow-engine lint) |
+   307|   175|| Tests | ✅ 1495 通过 / 0 失败 |
+   308|   176|
+   309|   177|### 🔧 本轮修复
+   310|   178|- **workflow-engine clippy 修复**: 移除 4 个 unused imports (engine.rs), 2 个 derivable_impls (ErrorAction, ApprovalPolicy)
+   311|   179|- **cargo fmt**: approval.rs 格式修正
+   312|   180|- **总计**: 6 → 0 clippy warnings
+   313|   181|
+   314|   182|### 📊 代码统计
+   315|   183|- **总 Rust 代码行数**: 77,054
+   316|   184|- **测试数量**: 1,517 (全部通过)
+   317|   185|- **Clippy 警告**: 0
+   318|   186|- **创新点**: 84 个条目 (无新增 — diminishing returns 确认)
+   319|   187|
+   320|   188|### 🔍 优先级验证（全部已完成）
+   321|   189|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
+   322|   190|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   323|   191|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   324|   192|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   325|   193|
+   326|   194|### 💾 磁盘状态
+   327|   195|- / (系统盘): 3.8G 可用 / 40G (90% 使用)
+   328|   196|- /mnt (挂载盘): 28G 可用 / 30G (1% 使用)
+   329|   197|
+   330|   198|### 🔬 创新搜索
+   331|   199|- GitHub API 搜索: 5 个结果全部已跟踪 (golutra, hcom, decapod, swarms-rs, kheish)
+   332|   200|- 84 个条目已足够 — diminishing returns 确认
+   333|   201|
+   334|   202|---
+   335|   203|## 最新更新：2026-05-16 10:56 (Sprint 37 — 验证周期)
+   336|   204|
+   337|   205|### 🎯 Sprint 37 质量门禁检查
+   338|   206|| 门禁 | 状态 |
+   339|   207||------|------|
+   340|   208|| Build | ✅ 通过 |
+   341|   209|| Fmt | ✅ 通过 |
+   342|   210|| Clippy | ✅ 零警告 |
+   343|   211|| Tests | ✅ 1464 通过 / 0 失败 |
+   344|   212|
+   345|   213|### 📊 代码统计
+   346|   214|- **总 Rust 代码行数**: 75,716
+   347|   215|- **测试数量**: 1,464 (全部通过)
+   348|   216|- **Clippy 警告**: 0
+   349|   217|- **创新点**: 84 个条目 (本轮新增 7 个 MCP 相关项目)
+   350|   218|
+   351|   219|### 🔍 优先级验证（全部已完成）
+   352|   220|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
+   353|   221|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   354|   222|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   355|   223|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   356|   224|5. ✅ 1464 测试全部通过
+   357|   225|6. ✅ Clippy 零警告
+   358|   226|7. ✅ 创新点文档已更新 (84 entries)
+   359|   227|
+   360|   228|### 💡 创新搜索
+   361|   229|- GitHub API 搜索 2026-04 以来新建 Rust agent 框架
+   362|   230|- 新增 7 个条目: hermes-rs, ferris-search, rbinmcp, mcpmate, Rust-MCP-Server, lean4-mcp, honeymcp
+   363|   231|- 关键发现: MCP 生态快速成长，多个 Rust 实现出现
+   364|   232|- cersei ⭐288 (agent SDK), superhq ⭐246 (sandboxed orchestration) 已追踪
+   365|   233|
+   366|   234|### 💾 磁盘状态
+   367|   235|- / (系统盘): 79% 使用 (8G 可用)
+   368|   236|- /mnt (挂载盘): 1% 使用 (28G 可用)
+   369|   237|
+   370|   238|---
+   371|   239|## 最新更新：2026-05-16 10:27 (Sprint 36 — 验证周期)
+   372|   240|
+   373|   241|### 🎯 Sprint 36 质量门禁检查
+   374|   242|| 门禁 | 状态 |
+   375|   243||------|------|
+   376|   244|| Build | ✅ 通过 |
+   377|   245|| Fmt | ✅ 通过 (修复 mega_stress.rs 1 处) |
+   378|   246|| Clippy | ✅ 零警告 |
+   379|   247|| Tests | ✅ 1464 通过 / 0 失败 |
+   380|   248|
+   381|   249|### 📊 代码统计
+   382|   250|- **总 Rust 代码行数**: 75,716
+   383|   251|- **测试数量**: 1,464 (全部通过)
+   384|   252|- **Clippy 警告**: 0
+   385|   253|- **创新点**: 72 个条目
+   386|   254|
+   387|   255|### 🔍 优先级验证（全部已完成）
+   388|   256|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_construction=200)
+   389|   257|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   390|   258|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   391|   259|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   392|   260|5. ✅ 1464 测试全部通过
+   393|   261|6. ✅ Clippy 零警告
+   394|   262|7. ✅ 创新点文档已更新
+   395|   263|
+   396|   264|### 💡 创新搜索
+   397|   265|- GitHub API 搜索 2026-04 以来新建 Rust agent 框架
+   398|   266|- 发现 2 个新项目：opentools (⭐3, tool surface), lmm (⭐1, autonomous agents)
+   399|   267|- 其余已追踪项目星标变化微小
+   400|   268|
+   401|   269|### 💾 磁盘状态
+   402|   270|- / (系统盘): 69% 使用 (12G 可用)
+   403|   271|- /mnt (挂载盘): 1% 使用 (28G 可用)
+   404|   272|
+   405|   273|---
+   406|   274|
+   407|   275|## 最新更新：2026-05-16 09:57 (Sprint 35 — 验证周期)
+   408|   276|
+   409|   277|### 🎯 Sprint 35 质量门禁检查
+   410|   278|| 门禁 | 状态 |
+   411|   279||------|------|
+   412|   280|| Build | ✅ 通过 |
+   413|   281|| Fmt | ✅ 通过 |
+   414|   282|| Clippy | ✅ 零警告 |
+   415|   283|| Tests | ✅ 1464 通过 / 0 失败 |
+   416|   284|
+   417|   285|### 📊 代码统计
+   418|   286|- **总 Rust 代码行数**: 75,324
+   419|   287|- **测试数量**: 1,464 (全部通过)
+   420|   288|- **Clippy 警告**: 0
+   421|   289|- **创新点**: 118 个条目 (本次新增 6 个)
+   422|   290|
+   423|   291|### 🔍 优先级验证（全部已完成）
+   424|   292|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search
+   425|   293|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   426|   294|3. ✅ MCP 已完成
+   427|   295|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   428|   296|5. ✅ 1464 测试全部通过
+   429|   297|6. ✅ Clippy 零警告
+   430|   298|7. ✅ 创新点文档已更新 (118 个条目)
+   431|   299|
+   432|   300|### 💡 创新搜索
+   433|   301|- GitHub API 搜索 2026 年 4 月以来新建 Rust agent 框架
+   434|   302|- 发现 6 个新项目：agentwerk (⭐12), OpenThymos (⭐11), Eidolon-CLI (⭐7), open-multi-agent-rs (⭐3), nexo-rs (⭐2), Agenium (⭐2)
+   435|   303|- 值得关注：agentwerk (轻量嵌入模式), OpenThymos (多表面运行时)
+   436|   304|
+   437|   305|### 💾 磁盘状态
+   438|   306|- / (系统盘): 59% 使用 (16G 可用)
+   439|   307|- /mnt (挂载盘): 1% 使用 (28G 可用)
+   440|   308|
+   441|   309|---
+   442|   310|## 最新更新：2026-05-16 05:21 (Sprint 34 — 验证周期)
+   443|   311|
+   444|   312|### 🎯 Sprint 34 质量门禁检查
+   445|   313|| 门禁 | 状态 |
+   446|   314||------|------|
+   447|   315|| Build | ✅ 通过 |
+   448|   316|| Fmt | ✅ 通过 |
+   449|   317|| Clippy | ✅ 零警告 |
+   450|   318|| Tests | ✅ 1464 通过 / 0 失败 |
+   451|   319|
+   452|   320|### 📊 代码统计
+   453|   321|- **总 Rust 代码行数**: 75,324
+   454|   322|- **测试数量**: 1,464 (全部通过)
+   455|   323|- **Clippy 警告**: 0
+   456|   324|- **创新点**: 112 个条目
+   457|   325|
+   458|   326|### 🔍 优先级验证（全部已完成）
+   459|   327|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search
+   460|   328|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"
+   461|   329|3. ✅ MCP 已完成
+   462|   330|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   463|   331|5. ✅ 1464 测试全部通过
+   464|   332|6. ✅ Clippy 零警告
+   465|   333|7. ✅ 创新点文档已更新 (112 个条目)
+   466|   334|
+   467|   335|### 💡 创新搜索
+   468|   336|- GitHub API 搜索 5 个 Rust agent 框架 — 全部已追踪 (plano, microsandbox, golutra, ralph-orchestrator, chidori)
+   469|   337|- 星标变化微小（+5~10），无新发现
+   470|   338|- 递减收益，跳过进一步搜索
+   471|   339|
+   472|   340|### 💾 磁盘状态
+   473|   341|- / (系统盘): 59% 使用 (16G 可用)
+   474|   342|- /mnt (挂载盘): 75% 使用 (7.1G 可用)
+   475|   343|
+   476|   344|---
+   477|   345|## 最新更新：2026-05-16 04:57 (Sprint 33 — 验证周期 + 创新搜索)
+   478|   346|
+   479|   347|### 🎯 Sprint 33 质量门禁检查
+   480|   348|| 门禁 | 状态 |
+   481|   349||------|------|
+   482|   350|| Build | ✅ 通过 |
+   483|   351|| Fmt | ✅ 通过 |
+   484|   352|| Clippy | ✅ 零警告 |
+   485|   353|| Tests | ✅ 1464 通过 / 0 失败 |
+   486|   354|
+   487|   355|### 📊 代码统计
+   488|   356|- **总 Rust 代码行数**: 75,324 (修正，含 integration tests)
+   489|   357|- **测试数量**: 1,464 (全部通过)
+   490|   358|- **Clippy 警告**: 0
+   491|   359|- **创新点**: 112 个条目
+   492|   360|
+   493|   361|### 🔍 优先级验证（全部已完成）
+   494|   362|1. ✅ HNSW 真实实现 — knowledge crate 已有 BinaryHeap + entry_point + beam search (M=16, ef_search=100)
+   495|   363|2. ✅ Redis 清理 — config.rs 诚实说明"无 Redis 依赖"，无 stub 代码
+   496|   364|3. ✅ MCP 已完成 (mcp-protocol crate, sandbox, tool hot-reload, 30+ tests)
+   497|   365|4. ✅ Data Layer (SQLite Repository, HNSW, Cache, Experience Replay, PrefixCache)
+   498|   366|5. ✅ 1464 测试全部通过
+   499|   367|6. ✅ Clippy 零警告
+   500|   368|7. ✅ 创新点文档更新至 #112
+   501|

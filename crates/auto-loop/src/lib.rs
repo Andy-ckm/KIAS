@@ -3,9 +3,11 @@
 //! 自动发现问题 → 自动分析 → 自动提出方案 → 自动实施 → 自动验证 → 自动积累经验
 //! 人类适当时候介入，默认自动迭代
 
+pub mod analyzer;
+pub mod detector;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
 /// 循环状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LoopStatus {
@@ -344,10 +346,9 @@ impl AutoLoopManager {
 
             // 提取经验教训
             if success {
-                record.lessons.push(format!(
-                    "问题 '{}' 已成功修复",
-                    record.problem.title
-                ));
+                record
+                    .lessons
+                    .push(format!("问题 '{}' 已成功修复", record.problem.title));
             } else {
                 record.lessons.push(format!(
                     "问题 '{}' 修复失败，需要进一步分析",
@@ -395,8 +396,16 @@ impl AutoLoopManager {
 
         report.push_str("## 循环统计\n\n");
         report.push_str(&format!("- 总循环数: {}\n", self.records.len()));
-        let completed = self.records.iter().filter(|r| r.status == LoopStatus::Completed).count();
-        let failed = self.records.iter().filter(|r| r.status == LoopStatus::Failed).count();
+        let completed = self
+            .records
+            .iter()
+            .filter(|r| r.status == LoopStatus::Completed)
+            .count();
+        let failed = self
+            .records
+            .iter()
+            .filter(|r| r.status == LoopStatus::Failed)
+            .count();
         report.push_str(&format!("- 成功完成: {}\n", completed));
         report.push_str(&format!("- 失败: {}\n", failed));
         report.push_str(&format!("- 当前状态: {:?}\n", self.current_status));
@@ -412,7 +421,7 @@ impl AutoLoopManager {
             if let Some(analysis) = &record.analysis {
                 report.push_str(&format!("- 根因: {}\n", analysis.root_cause));
             }
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report

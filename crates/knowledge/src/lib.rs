@@ -1,3 +1,4 @@
+pub mod agentic_rag;
 pub mod graph;
 pub mod graphrag;
 pub mod memory;

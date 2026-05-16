@@ -1043,3 +1043,11 @@
 - **创新点**: Enterprise-grade multi-agent framework with Rust performance
 - **KIAS 相关**: Direct competitor — enterprise agent orchestration in Rust
 - **评估**: Monitor closely — highest-starred new Rust agent framework, may have architectural patterns worth studying
+
+### 99. AgenticRAG — 多轮迭代检索系统
+- **来源**: 微软AgenticRAG论文 (2605.05538)
+- **核心**: 不是一次检索就结束，给LLM配备search/find/open/summarize四工具，让模型自主决定搜什么、看哪部分
+- **数据**: 5.9×检索提升，2.6×token开销，生产部署验证
+- **应用**: KIAS知识层增强、auto-loop planner升级、agent运行时工具
+- **状态**: 已实现 `crates/knowledge/src/agentic_rag.rs`
+

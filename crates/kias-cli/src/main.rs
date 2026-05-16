@@ -433,7 +433,6 @@ async fn handle_agent_render(file: String) -> i32 {
 }
 
 async fn handle_agent_logs(name: String, follow: bool, tail: usize, cli: &Cli) -> i32 {
-    let _ = follow; // TODO: 支持 follow 模式（SSE/WebSocket）
     let _ = tail;
     let client = match create_client(cli) {
         Ok(c) => c,
@@ -441,27 +440,113 @@ async fn handle_agent_logs(name: String, follow: bool, tail: usize, cli: &Cli) -
     };
 
     // 获取 Agent 信息来验证存在
-    match client.get_agent(&name).await {
-        Ok(agent) => {
-            println!(
-                "{}: Agent '{}' 日志 (status: {})",
-                "→".blue(),
-                name,
-                agent.status
-            );
-            println!("[日志功能待实现 — 需要 API Server 端日志接口支持]");
-            ExitCode::Success as i32
-        }
+    let agent = match client.get_agent(&name).await {
+        Ok(a) => a,
         Err(e) => {
             if e.to_string().contains("404") {
                 eprintln!("{}: Agent '{}' 未找到", "✗".red().bold(), name);
-                ExitCode::NotFound as i32
+                return ExitCode::NotFound as i32;
             } else {
                 eprintln!("{}: 获取 Agent 日志失败: {}", "错误".red().bold(), e);
-                ExitCode::ServerError as i32
+                return ExitCode::ServerError as i32;
+            }
+        }
+    };
+
+    if !follow {
+        println!(
+            "{}: Agent '{}' 日志 (status: {})",
+            "→".blue(),
+            name,
+            agent.status
+        );
+        println!("[使用 --follow (-f) 实时跟踪 Agent 事件]");
+        return ExitCode::Success as i32;
+    }
+
+    // Follow 模式：通过 WebSocket 实时接收事件
+    use futures_util::StreamExt;
+    use kias_cli::client::WsEventType;
+
+    println!(
+        "{}: 正在跟踪 Agent '{}' 的实时事件 (Ctrl+C 退出)...",
+        "→".blue(),
+        name
+    );
+
+    let event_types = vec![
+        WsEventType::AgentStatusChanged,
+        WsEventType::TaskCompleted,
+        WsEventType::TaskFailed,
+        WsEventType::WorkflowUpdate,
+        WsEventType::SystemAlert,
+    ];
+
+    let read_stream = match client.stream_events(event_types).await {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}: WebSocket 连接失败: {}", "错误".red().bold(), e);
+            return ExitCode::ServerError as i32;
+        }
+    };
+
+    let mut read = read_stream;
+    let agent_name = name.clone();
+
+    loop {
+        match read.next().await {
+            Some(Ok(msg)) => {
+                use tokio_tungstenite::tungstenite::Message;
+                match msg {
+                    Message::Text(text) => {
+                        match serde_json::from_str::<kias_cli::client::WsEvent>(&text) {
+                            Ok(event) => {
+                                // 过滤与当前 Agent 相关的事件
+                                let data_str = event.data.to_string();
+                                if data_str.contains(&agent_name)
+                                    || event.event_type == WsEventType::SystemAlert
+                                {
+                                    let icon = match event.event_type {
+                                        WsEventType::AgentStatusChanged => "●",
+                                        WsEventType::TaskCompleted => "✓",
+                                        WsEventType::TaskFailed => "✗",
+                                        WsEventType::WorkflowUpdate => "↻",
+                                        WsEventType::SystemAlert => "⚠",
+                                        _ => "·",
+                                    };
+                                    println!(
+                                        "{} [{}] {} {}",
+                                        icon.cyan(),
+                                        event.timestamp.dimmed(),
+                                        format!("{:?}", event.event_type).yellow(),
+                                        data_str
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                tracing::debug!("解析事件失败: {}", e);
+                            }
+                        }
+                    }
+                    Message::Close(_) => {
+                        println!("{}", "连接已关闭".dimmed());
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            Some(Err(e)) => {
+                eprintln!("{}: WebSocket 错误: {}", "错误".red().bold(), e);
+                return ExitCode::ServerError as i32;
+            }
+            None => {
+                println!("{}", "事件流已结束".dimmed());
+                break;
             }
         }
     }
+
+    ExitCode::Success as i32
 }
 
 async fn handle_agent_events(name: String, event_type: Option<String>, cli: &Cli) -> i32 {

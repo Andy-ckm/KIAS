@@ -42,11 +42,28 @@ pub struct ListResponse<T> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
     pub id: String,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub status: String,
+    #[serde(default)]
     pub model: Option<String>,
+    #[serde(default)]
     pub created_at: Option<String>,
+    #[serde(default)]
     pub updated_at: Option<String>,
+    #[serde(default)]
+    pub spec: Option<AgentSpecInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentSpecInfo {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub image: Option<String>,
+    #[serde(default)]
+    pub priority: Option<String>,
 }
 
 /// 工作流信息
@@ -154,7 +171,8 @@ impl ApiClient {
 
     /// 列出所有 Agent
     pub async fn list_agents(&self) -> Result<Vec<AgentInfo>, reqwest::Error> {
-        let resp: ListResponse<AgentInfo> = self.request(reqwest::Method::GET, "/api/v1/agents")
+        let resp: ListResponse<AgentInfo> = self
+            .request(reqwest::Method::GET, "/api/v1/agents")
             .send()
             .await?
             .json()
@@ -163,13 +181,31 @@ impl ApiClient {
     }
 
     /// 创建 Agent
-    pub async fn create_agent(&self, body: serde_json::Value) -> Result<AgentInfo, reqwest::Error> {
-        self.request(reqwest::Method::POST, "/api/v1/agents")
+    pub async fn create_agent(
+        &self,
+        body: serde_json::Value,
+    ) -> Result<AgentInfo, Box<dyn std::error::Error>> {
+        let resp = self
+            .request(reqwest::Method::POST, "/api/v1/agents")
             .json(&body)
             .send()
-            .await?
-            .json()
-            .await
+            .await?;
+        let raw: serde_json::Value = resp.json().await?;
+        let data = raw.get("data").cloned().unwrap_or(raw);
+        let mut info: AgentInfo = serde_json::from_value(data.clone())?;
+        // API returns name inside spec.name
+        if info.name.is_empty() {
+            if let Some(spec) = &info.spec {
+                info.name = spec.name.clone();
+            } else if let Some(n) = data
+                .get("spec")
+                .and_then(|s| s.get("name"))
+                .and_then(|n| n.as_str())
+            {
+                info.name = n.to_string();
+            }
+        }
+        Ok(info)
     }
 
     /// 获取 Agent 详情
@@ -231,8 +267,11 @@ impl ApiClient {
     /// 列出所有工作流
     pub async fn list_workflows(&self) -> Result<Vec<WorkflowInfo>, reqwest::Error> {
         #[derive(serde::Deserialize)]
-        struct WorkflowSummary { workflows: Vec<WorkflowInfo> }
-        let resp: WorkflowSummary = self.request(reqwest::Method::GET, "/api/v1/workflows")
+        struct WorkflowSummary {
+            workflows: Vec<WorkflowInfo>,
+        }
+        let resp: WorkflowSummary = self
+            .request(reqwest::Method::GET, "/api/v1/workflows")
             .send()
             .await?
             .json()

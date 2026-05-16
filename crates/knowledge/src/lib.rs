@@ -1,10 +1,13 @@
 pub mod agentic_rag;
+pub mod context_manager;
 pub mod graph;
 pub mod graphrag;
 pub mod memory;
 pub mod memory_layers;
 pub mod retriever;
 pub mod vector;
+
+pub use context_manager::{CompressionLevel, CompressionResult, ContextManager, ContextManagerConfig, ContextMessage, ContextStats, MessageRole, MultiSessionContextManager};
 
 pub use graph::{Edge, KnowledgeGraph, KnowledgeNode, NodeType};
 pub use graphrag::{GraphRAGEngine, HybridQuery, RetrievalResult, RetrievalStrategy};

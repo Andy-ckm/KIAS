@@ -42,16 +42,22 @@ pub struct VerificationResult {
 pub trait Verifier: Send + Sync {
     /// 执行验证
     fn verify(&self, target: &str) -> VerificationResult;
-    
+
     /// 获取验证器名称
     fn name(&self) -> &str;
-    
+
     /// 获取验证器类型
     fn verification_type(&self) -> VerificationType;
 }
 
 /// 编译验证器
 pub struct CompilationVerifier;
+
+impl Default for CompilationVerifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CompilationVerifier {
     pub fn new() -> Self {
@@ -72,11 +78,11 @@ impl Verifier for CompilationVerifier {
             verified_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "CompilationVerifier"
     }
-    
+
     fn verification_type(&self) -> VerificationType {
         VerificationType::Compilation
     }
@@ -84,6 +90,12 @@ impl Verifier for CompilationVerifier {
 
 /// 测试验证器
 pub struct TestVerifier;
+
+impl Default for TestVerifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TestVerifier {
     pub fn new() -> Self {
@@ -104,11 +116,11 @@ impl Verifier for TestVerifier {
             verified_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "TestVerifier"
     }
-    
+
     fn verification_type(&self) -> VerificationType {
         VerificationType::Test
     }
@@ -122,6 +134,12 @@ pub struct VerifierManager {
     history: Vec<VerificationResult>,
 }
 
+impl Default for VerifierManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VerifierManager {
     pub fn new() -> Self {
         Self {
@@ -129,30 +147,30 @@ impl VerifierManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册验证器
     pub fn register_verifier(&mut self, verifier: Box<dyn Verifier>) {
         self.verifiers.push(verifier);
     }
-    
+
     /// 执行所有验证
     pub fn verify_all(&mut self, target: &str) -> Vec<VerificationResult> {
         let mut results = Vec::new();
-        
+
         for verifier in &self.verifiers {
             let result = verifier.verify(target);
             results.push(result.clone());
             self.history.push(result);
         }
-        
+
         results
     }
-    
+
     /// 获取验证历史
     pub fn history(&self) -> &[VerificationResult] {
         &self.history
     }
-    
+
     /// 检查是否所有验证都通过
     pub fn all_passed(&mut self, target: &str) -> bool {
         let results = self.verify_all(target);
@@ -168,7 +186,7 @@ mod tests {
     fn test_compilation_verifier() {
         let verifier = CompilationVerifier::new();
         let result = verifier.verify("kias-api-server");
-        
+
         assert!(result.passed);
         assert_eq!(result.verification_type, VerificationType::Compilation);
     }
@@ -177,7 +195,7 @@ mod tests {
     fn test_test_verifier() {
         let verifier = TestVerifier::new();
         let result = verifier.verify("kias-api-server");
-        
+
         assert!(result.passed);
         assert_eq!(result.verification_type, VerificationType::Test);
     }
@@ -185,10 +203,10 @@ mod tests {
     #[test]
     fn test_verifier_manager() {
         let mut manager = VerifierManager::new();
-        
+
         manager.register_verifier(Box::new(CompilationVerifier::new()));
         manager.register_verifier(Box::new(TestVerifier::new()));
-        
+
         let results = manager.verify_all("kias-api-server");
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.passed));

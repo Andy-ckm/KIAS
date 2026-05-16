@@ -82,13 +82,19 @@ pub enum StepType {
 pub trait PlanGenerator: Send + Sync {
     /// 生成方案
     fn generate(&self, problem_description: &str, root_cause: &str) -> Option<GeneratedPlan>;
-    
+
     /// 获取生成器名称
     fn name(&self) -> &str;
 }
 
 /// 数据持久化方案生成器
 pub struct PersistencePlanGenerator;
+
+impl Default for PersistencePlanGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PersistencePlanGenerator {
     pub fn new() -> Self {
@@ -101,7 +107,7 @@ impl PlanGenerator for PersistencePlanGenerator {
         if !problem_description.contains("持久化") && !problem_description.contains("丢失") {
             return None;
         }
-        
+
         Some(GeneratedPlan {
             id: uuid::Uuid::new_v4().to_string(),
             plan_type: PlanType::CodeChange,
@@ -113,7 +119,8 @@ impl PlanGenerator for PersistencePlanGenerator {
                     step_type: StepType::CodeChange,
                     description: "修改AppState，添加agent_repository字段".to_string(),
                     files: vec!["crates/api-server/src/lib.rs".to_string()],
-                    expected_changes: "添加AgentRepository字段，初始化时从SQLite加载数据".to_string(),
+                    expected_changes: "添加AgentRepository字段，初始化时从SQLite加载数据"
+                        .to_string(),
                     verification: "编译通过，测试通过".to_string(),
                 },
                 PlanStep {
@@ -139,7 +146,7 @@ impl PlanGenerator for PersistencePlanGenerator {
             generated_at: chrono::Utc::now(),
         })
     }
-    
+
     fn name(&self) -> &str {
         "PersistencePlanGenerator"
     }
@@ -147,6 +154,12 @@ impl PlanGenerator for PersistencePlanGenerator {
 
 /// 配置修复方案生成器
 pub struct ConfigFixPlanGenerator;
+
+impl Default for ConfigFixPlanGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ConfigFixPlanGenerator {
     pub fn new() -> Self {
@@ -159,29 +172,27 @@ impl PlanGenerator for ConfigFixPlanGenerator {
         if !problem_description.contains("配置") && !problem_description.contains("placeholder") {
             return None;
         }
-        
+
         Some(GeneratedPlan {
             id: uuid::Uuid::new_v4().to_string(),
             plan_type: PlanType::ConfigChange,
             title: "修复配置文件".to_string(),
             description: "将placeholder配置替换为真实配置".to_string(),
-            steps: vec![
-                PlanStep {
-                    order: 1,
-                    step_type: StepType::ConfigChange,
-                    description: "更新config/kias.toml，使用真实API key".to_string(),
-                    files: vec!["config/kias.toml".to_string()],
-                    expected_changes: "API key从placeholder替换为真实值".to_string(),
-                    verification: "配置文件格式正确".to_string(),
-                },
-            ],
+            steps: vec![PlanStep {
+                order: 1,
+                step_type: StepType::ConfigChange,
+                description: "更新config/kias.toml，使用真实API key".to_string(),
+                files: vec!["config/kias.toml".to_string()],
+                expected_changes: "API key从placeholder替换为真实值".to_string(),
+                verification: "配置文件格式正确".to_string(),
+            }],
             expected_outcome: "API调用正常工作".to_string(),
             risks: vec!["需要真实API key".to_string()],
             requires_human: true,
             generated_at: chrono::Utc::now(),
         })
     }
-    
+
     fn name(&self) -> &str {
         "ConfigFixPlanGenerator"
     }
@@ -195,6 +206,12 @@ pub struct PlanGeneratorManager {
     history: Vec<GeneratedPlan>,
 }
 
+impl Default for PlanGeneratorManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlanGeneratorManager {
     pub fn new() -> Self {
         Self {
@@ -202,26 +219,30 @@ impl PlanGeneratorManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册生成器
     pub fn register_generator(&mut self, generator: Box<dyn PlanGenerator>) {
         self.generators.push(generator);
     }
-    
+
     /// 生成方案
-    pub fn generate_plans(&mut self, problem_description: &str, root_cause: &str) -> Vec<GeneratedPlan> {
+    pub fn generate_plans(
+        &mut self,
+        problem_description: &str,
+        root_cause: &str,
+    ) -> Vec<GeneratedPlan> {
         let mut plans = Vec::new();
-        
+
         for generator in &self.generators {
             if let Some(plan) = generator.generate(problem_description, root_cause) {
                 plans.push(plan.clone());
                 self.history.push(plan);
             }
         }
-        
+
         plans
     }
-    
+
     /// 获取生成历史
     pub fn history(&self) -> &[GeneratedPlan] {
         &self.history
@@ -236,7 +257,7 @@ mod tests {
     fn test_persistence_plan_generator() {
         let generator = PersistencePlanGenerator::new();
         let plan = generator.generate("Agent数据持久化缺失", "HashMap存储");
-        
+
         assert!(plan.is_some());
         let plan = plan.unwrap();
         assert!(!plan.steps.is_empty());
@@ -245,8 +266,11 @@ mod tests {
     #[test]
     fn test_config_fix_plan_generator() {
         let generator = ConfigFixPlanGenerator::new();
-        let plan = generator.generate("Workflow执行需要LLM API但配置是placeholder", "placeholder配置");
-        
+        let plan = generator.generate(
+            "Workflow执行需要LLM API但配置是placeholder",
+            "placeholder配置",
+        );
+
         assert!(plan.is_some());
         let plan = plan.unwrap();
         assert!(!plan.steps.is_empty());
@@ -255,10 +279,10 @@ mod tests {
     #[test]
     fn test_plan_generator_manager() {
         let mut manager = PlanGeneratorManager::new();
-        
+
         manager.register_generator(Box::new(PersistencePlanGenerator::new()));
         manager.register_generator(Box::new(ConfigFixPlanGenerator::new()));
-        
+
         let plans = manager.generate_plans("Agent数据持久化缺失", "HashMap存储");
         assert!(!plans.is_empty());
     }

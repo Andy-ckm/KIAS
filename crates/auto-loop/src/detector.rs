@@ -47,10 +47,10 @@ pub struct DetectionResult {
 pub trait Detector: Send + Sync {
     /// 执行检测
     fn detect(&self) -> DetectionResult;
-    
+
     /// 获取检测器名称
     fn name(&self) -> &str;
-    
+
     /// 获取检测器类型
     fn detector_type(&self) -> DetectorType;
 }
@@ -73,7 +73,7 @@ impl DataLossDetector {
             data_name,
         }
     }
-    
+
     /// 更新当前数据量
     pub fn update_count(&mut self, count: usize) {
         self.last_count = Some(self.current_count);
@@ -89,14 +89,20 @@ impl Detector for DataLossDetector {
         } else {
             false
         };
-        
+
         DetectionResult {
             has_problem,
-            problem_type: if has_problem { Some("data_loss".to_string()) } else { None },
+            problem_type: if has_problem {
+                Some("data_loss".to_string())
+            } else {
+                None
+            },
             description: if has_problem {
                 Some(format!(
                     "{}数据量从{}减少到{}，可能存在数据丢失",
-                    self.data_name, self.last_count.unwrap_or(0), self.current_count
+                    self.data_name,
+                    self.last_count.unwrap_or(0),
+                    self.current_count
                 ))
             } else {
                 None
@@ -105,18 +111,21 @@ impl Detector for DataLossDetector {
             data: {
                 let mut map = HashMap::new();
                 map.insert("data_name".to_string(), self.data_name.clone());
-                map.insert("last_count".to_string(), self.last_count.unwrap_or(0).to_string());
+                map.insert(
+                    "last_count".to_string(),
+                    self.last_count.unwrap_or(0).to_string(),
+                );
                 map.insert("current_count".to_string(), self.current_count.to_string());
                 map
             },
             detected_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "DataLossDetector"
     }
-    
+
     fn detector_type(&self) -> DetectorType {
         DetectorType::DataLoss
     }
@@ -141,13 +150,19 @@ pub struct TestResult {
     pub duration_seconds: f64,
 }
 
+impl Default for TestFailureDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestFailureDetector {
     pub fn new() -> Self {
         Self {
             test_results: Vec::new(),
         }
     }
-    
+
     /// 添加测试结果
     pub fn add_result(&mut self, result: TestResult) {
         self.test_results.push(result);
@@ -156,19 +171,27 @@ impl TestFailureDetector {
 
 impl Detector for TestFailureDetector {
     fn detect(&self) -> DetectionResult {
-        let failed_tests: Vec<&TestResult> = self.test_results.iter()
-            .filter(|r| !r.passed)
-            .collect();
-        
+        let failed_tests: Vec<&TestResult> =
+            self.test_results.iter().filter(|r| !r.passed).collect();
+
         let has_problem = !failed_tests.is_empty();
-        
+
         DetectionResult {
             has_problem,
-            problem_type: if has_problem { Some("test_failure".to_string()) } else { None },
+            problem_type: if has_problem {
+                Some("test_failure".to_string())
+            } else {
+                None
+            },
             description: if has_problem {
-                Some(format!("{}个测试失败: {}", 
+                Some(format!(
+                    "{}个测试失败: {}",
                     failed_tests.len(),
-                    failed_tests.iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")
+                    failed_tests
+                        .iter()
+                        .map(|t| t.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ))
             } else {
                 None
@@ -176,18 +199,21 @@ impl Detector for TestFailureDetector {
             severity: if has_problem { Some(6) } else { None },
             data: {
                 let mut map = HashMap::new();
-                map.insert("total_tests".to_string(), self.test_results.len().to_string());
+                map.insert(
+                    "total_tests".to_string(),
+                    self.test_results.len().to_string(),
+                );
                 map.insert("failed_tests".to_string(), failed_tests.len().to_string());
                 map
             },
             detected_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "TestFailureDetector"
     }
-    
+
     fn detector_type(&self) -> DetectorType {
         DetectorType::TestFailure
     }
@@ -201,6 +227,12 @@ pub struct DetectorManager {
     history: Vec<DetectionResult>,
 }
 
+impl Default for DetectorManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DetectorManager {
     pub fn new() -> Self {
         Self {
@@ -208,16 +240,16 @@ impl DetectorManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册检测器
     pub fn register_detector(&mut self, detector: Box<dyn Detector>) {
         self.detectors.push(detector);
     }
-    
+
     /// 执行所有检测
     pub fn detect_all(&mut self) -> Vec<DetectionResult> {
         let mut results = Vec::new();
-        
+
         for detector in &self.detectors {
             let result = detector.detect();
             if result.has_problem {
@@ -225,20 +257,18 @@ impl DetectorManager {
             }
             self.history.push(result);
         }
-        
+
         results
     }
-    
+
     /// 获取检测历史
     pub fn history(&self) -> &[DetectionResult] {
         &self.history
     }
-    
+
     /// 获取最近的问题
     pub fn recent_problems(&self) -> Vec<&DetectionResult> {
-        self.history.iter()
-            .filter(|r| r.has_problem)
-            .collect()
+        self.history.iter().filter(|r| r.has_problem).collect()
     }
 }
 
@@ -250,11 +280,11 @@ mod tests {
     fn test_data_loss_detector() {
         let mut detector = DataLossDetector::new("agents".to_string());
         detector.update_count(10);
-        
+
         // 没有数据丢失
         let result = detector.detect();
         assert!(!result.has_problem);
-        
+
         // 模拟数据丢失
         detector.update_count(5);
         let result = detector.detect();
@@ -265,7 +295,7 @@ mod tests {
     #[test]
     fn test_test_failure_detector() {
         let mut detector = TestFailureDetector::new();
-        
+
         // 添加通过的测试
         detector.add_result(TestResult {
             name: "test1".to_string(),
@@ -273,7 +303,7 @@ mod tests {
             error: None,
             duration_seconds: 1.0,
         });
-        
+
         // 添加失败的测试
         detector.add_result(TestResult {
             name: "test2".to_string(),
@@ -281,7 +311,7 @@ mod tests {
             error: Some("assertion failed".to_string()),
             duration_seconds: 0.5,
         });
-        
+
         let result = detector.detect();
         assert!(result.has_problem);
         assert_eq!(result.problem_type, Some("test_failure".to_string()));
@@ -290,13 +320,13 @@ mod tests {
     #[test]
     fn test_detector_manager() {
         let mut manager = DetectorManager::new();
-        
+
         let mut detector = DataLossDetector::new("test".to_string());
         detector.update_count(10);
         detector.update_count(5);
-        
+
         manager.register_detector(Box::new(detector));
-        
+
         let problems = manager.detect_all();
         assert_eq!(problems.len(), 1);
         assert!(problems[0].has_problem);

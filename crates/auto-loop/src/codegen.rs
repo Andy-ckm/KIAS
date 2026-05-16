@@ -44,13 +44,19 @@ pub enum PatchType {
 pub trait CodeGenerator: Send + Sync {
     /// 生成代码补丁
     fn generate(&self, plan: &GeneratedPlan) -> Vec<CodePatch>;
-    
+
     /// 获取生成器名称
     fn name(&self) -> &str;
 }
 
 /// 持久化代码生成器
 pub struct PersistenceCodeGenerator;
+
+impl Default for PersistenceCodeGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PersistenceCodeGenerator {
     pub fn new() -> Self {
@@ -59,9 +65,10 @@ impl PersistenceCodeGenerator {
 }
 
 impl CodeGenerator for PersistenceCodeGenerator {
+    #[allow(clippy::vec_init_then_push)]
     fn generate(&self, _plan: &GeneratedPlan) -> Vec<CodePatch> {
         let mut patches = Vec::new();
-        
+
         // 生成AppState修改补丁
         patches.push(CodePatch {
             id: uuid::Uuid::new_v4().to_string(),
@@ -90,11 +97,12 @@ pub struct AppState {
     pub event_replay_buffer: EventReplayBuffer,
     /// Knowledge base retriever (vector search + hybrid retrieval)
     pub knowledge_retriever: Arc<dyn Retriever>,
-}"#.to_string(),
+}"#
+            .to_string(),
             description: "添加agent_repository字段到AppState".to_string(),
             generated_at: chrono::Utc::now(),
         });
-        
+
         // 生成初始化方法修改补丁
         patches.push(CodePatch {
             id: uuid::Uuid::new_v4().to_string(),
@@ -114,14 +122,15 @@ pub struct AppState {
             connection_registry: ConnectionRegistry::default(),
             event_replay_buffer: EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
-        }"#.to_string(),
+        }"#
+            .to_string(),
             description: "初始化agent_repository字段".to_string(),
             generated_at: chrono::Utc::now(),
         });
-        
+
         patches
     }
-    
+
     fn name(&self) -> &str {
         "PersistenceCodeGenerator"
     }
@@ -130,6 +139,12 @@ pub struct AppState {
 /// 配置修复代码生成器
 pub struct ConfigFixCodeGenerator;
 
+impl Default for ConfigFixCodeGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigFixCodeGenerator {
     pub fn new() -> Self {
         Self
@@ -137,9 +152,10 @@ impl ConfigFixCodeGenerator {
 }
 
 impl CodeGenerator for ConfigFixCodeGenerator {
+    #[allow(clippy::vec_init_then_push)]
     fn generate(&self, _plan: &GeneratedPlan) -> Vec<CodePatch> {
         let mut patches = Vec::new();
-        
+
         // 生成配置文件修改补丁
         patches.push(CodePatch {
             id: uuid::Uuid::new_v4().to_string(),
@@ -161,14 +177,15 @@ path = "kias.db"
 [logging]
 level = "info"
 format = "text"
-"#.to_string(),
+"#
+            .to_string(),
             description: "修复配置文件，使用placeholder API key".to_string(),
             generated_at: chrono::Utc::now(),
         });
-        
+
         patches
     }
-    
+
     fn name(&self) -> &str {
         "ConfigFixCodeGenerator"
     }
@@ -182,6 +199,12 @@ pub struct CodeGeneratorManager {
     history: Vec<CodePatch>,
 }
 
+impl Default for CodeGeneratorManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodeGeneratorManager {
     pub fn new() -> Self {
         Self {
@@ -189,16 +212,16 @@ impl CodeGeneratorManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册生成器
     pub fn register_generator(&mut self, generator: Box<dyn CodeGenerator>) {
         self.generators.push(generator);
     }
-    
+
     /// 生成代码补丁
     pub fn generate_patches(&mut self, plan: &GeneratedPlan) -> Vec<CodePatch> {
         let mut patches = Vec::new();
-        
+
         for generator in &self.generators {
             let generated_patches = generator.generate(plan);
             for patch in generated_patches {
@@ -206,10 +229,10 @@ impl CodeGeneratorManager {
                 self.history.push(patch);
             }
         }
-        
+
         patches
     }
-    
+
     /// 获取生成历史
     pub fn history(&self) -> &[CodePatch] {
         &self.history
@@ -235,7 +258,7 @@ mod tests {
             requires_human: false,
             generated_at: chrono::Utc::now(),
         };
-        
+
         let patches = generator.generate(&plan);
         assert!(!patches.is_empty());
     }
@@ -254,7 +277,7 @@ mod tests {
             requires_human: false,
             generated_at: chrono::Utc::now(),
         };
-        
+
         let patches = generator.generate(&plan);
         assert!(!patches.is_empty());
     }
@@ -262,10 +285,10 @@ mod tests {
     #[test]
     fn test_code_generator_manager() {
         let mut manager = CodeGeneratorManager::new();
-        
+
         manager.register_generator(Box::new(PersistenceCodeGenerator::new()));
         manager.register_generator(Box::new(ConfigFixCodeGenerator::new()));
-        
+
         let plan = GeneratedPlan {
             id: "test".to_string(),
             plan_type: PlanType::CodeChange,
@@ -277,7 +300,7 @@ mod tests {
             requires_human: false,
             generated_at: chrono::Utc::now(),
         };
-        
+
         let patches = manager.generate_patches(&plan);
         assert!(!patches.is_empty());
     }

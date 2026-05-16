@@ -33,6 +33,10 @@ harness = false
 name = "sandbox_bench"
 harness = false
 
+[[bench]]
+name = "mega_stress"
+harness = false
+
 [dependencies]
 kias-common = { path = "../common" }
 kias-scheduler = { path = "../scheduler" }
@@ -41,6 +45,7 @@ kias-workflow-engine = { path = "../workflow-engine" }
 kias-model-router = { path = "../model-router" }
 kias-executor = { path = "../executor" }
 kias-team-engine = { path = "../team-engine" }
+kias-langgraph-engine = { path = "../langgraph-engine" }
 tokio.workspace = true
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 serde.workspace = true

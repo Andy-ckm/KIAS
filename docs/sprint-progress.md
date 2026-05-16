@@ -1,3 +1,29 @@
+## 最新更新：2026-05-17 06:55 (Sprint 60 — Executor Test Coverage)
+
+### 🎯 Sprint 60 状态检查
+- ✅ fmt: clean
+- ✅ clippy: 0 warnings
+- ✅ tests: 1799 passing (+10 new)
+- ✅ 已提交: `d01a243` test(agent-runtime): add 10 executor tests
+- ✅ 已推送到 main
+
+### 📊 本次改动
+- `crates/agent-runtime/src/executor.rs`: +372 行测试代码
+  - 10 个新测试覆盖 Agent 执行器核心循环
+  - MockProvider (Text/ToolCallsThenText/Error/Empty)
+  - MockTool 实现 Tool trait
+  - 测试路径: 文本响应、工具调用、迭代上限、LLM 错误、空响应、多工具、token 追踪、工具过滤
+
+### 🔍 Defect Triage
+- Defect #1 (Redis未实现): ✅ 已在之前Sprint修复
+- Defect #2 (data-store→knowledge cross-layer): ✅ 已在 commit 28e346d 修复
+- 两个列出的缺陷均已修复，本轮转向测试覆盖扩展
+
+### 💾 磁盘状态
+- / (系统盘): 88% (34G/40G)
+- /mnt (挂载盘): 1% (28G/30G)
+
+---
 ## 最新更新：2026-05-17 05:00 (Sprint 59 — Agent Logs Follow Mode)
 
 ### 🎯 Sprint 59: Agent Logs --follow 实现

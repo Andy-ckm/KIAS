@@ -1,5 +1,7 @@
 mod services;
 
+use std::sync::Arc;
+
 use clap::{Parser, Subcommand};
 use services::KiasServiceManager;
 
@@ -86,12 +88,16 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
 
     // Start the API server.
     let api_config = config.clone();
+    let sqlite_audit_log = Arc::new(manager.audit_log().clone());
+    let dead_letter_queue = Arc::new(manager.dlq().clone());
     let api_handle = tokio::spawn(async move {
         let addr = format!("{}:{}", host, port);
 
         tracing::info!(addr = %addr, "Starting API server");
 
-        let state = kias_api_server::AppState::new(api_config).await;
+        let state = kias_api_server::AppState::new(api_config)
+            .await
+            .with_persistence(sqlite_audit_log, dead_letter_queue);
         let app = kias_api_server::routes::api::create_router(state);
 
         let listener = match tokio::net::TcpListener::bind(&addr).await {

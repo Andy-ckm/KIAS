@@ -14,7 +14,7 @@ use tracing::{debug, warn};
 ///
 /// Implements [`AuditLogger`] so it can be used as a drop-in replacement for
 /// [`MemoryAuditLog`](kias_common::audit::MemoryAuditLog).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SqliteAuditLog {
     pool: SqlitePool,
 }

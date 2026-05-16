@@ -148,6 +148,12 @@ pub struct KiasServiceManager {
     /// Persistent cache strategy.
     #[allow(dead_code)]
     cache_strategy: kias_data_store::SqliteCacheStrategy,
+    /// Persistent audit log (SQLite-backed).
+    #[allow(dead_code)]
+    audit_log: kias_data_store::SqliteAuditLog,
+    /// Dead letter queue for permanently failed tasks.
+    #[allow(dead_code)]
+    dlq: kias_data_store::DeadLetterQueue,
     /// Graceful shutdown coordinator with signal handling.
     shutdown: Arc<kias_common::graceful_shutdown::GracefulShutdown>,
     started_at: Instant,
@@ -255,7 +261,9 @@ impl KiasServiceManager {
 
         let vector_store = kias_data_store::PersistentVectorStore::new(data_store.pool.clone());
         let cache_strategy = kias_data_store::SqliteCacheStrategy::new(data_store.pool.clone());
-        tracing::info!("Vector store and cache strategy initialized");
+        let audit_log = kias_data_store::SqliteAuditLog::new(data_store.pool.clone());
+        let dlq = kias_data_store::DeadLetterQueue::new(data_store.pool.clone());
+        tracing::info!("Vector store, cache strategy, audit log, and DLQ initialized");
 
         tracing::info!("All KIAS subsystems initialized successfully");
 
@@ -277,6 +285,8 @@ impl KiasServiceManager {
             data_store,
             vector_store,
             cache_strategy,
+            audit_log,
+            dlq,
             shutdown,
             started_at,
         })
@@ -317,6 +327,16 @@ impl KiasServiceManager {
     /// Immutable reference to the vector store.
     pub fn vector_store(&self) -> &kias_data_store::PersistentVectorStore {
         &self.vector_store
+    }
+
+    /// Immutable reference to the audit log.
+    pub fn audit_log(&self) -> &kias_data_store::SqliteAuditLog {
+        &self.audit_log
+    }
+
+    /// Immutable reference to the dead letter queue.
+    pub fn dlq(&self) -> &kias_data_store::DeadLetterQueue {
+        &self.dlq
     }
 
     /// The graceful shutdown coordinator.

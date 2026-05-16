@@ -93,7 +93,10 @@ pub enum ToolResult {
     Open(OpenResult),
     Summarize(SummarizeResult),
     /// 工具执行失败 — 企业级：不能panic，降级处理
-    Error { tool: RetrievalTool, message: String },
+    Error {
+        tool: RetrievalTool,
+        message: String,
+    },
 }
 
 /// 工具调用
@@ -238,7 +241,7 @@ impl DecisionStrategy for RuleBasedStrategy {
         match iteration {
             0 => {
                 // 第一步：Search — 多查询改写
-                let queries = vec![
+                let queries = [
                     query.to_string(),
                     format!("{} overview", query),
                     format!("{} details", query),
@@ -246,41 +249,37 @@ impl DecisionStrategy for RuleBasedStrategy {
                 Some(ToolCall {
                     tool: RetrievalTool::Search,
                     args: ToolArgs {
-                        queries: Some(queries[..self.max_search_queries.min(queries.len())].to_vec()),
+                        queries: Some(
+                            queries[..self.max_search_queries.min(queries.len())].to_vec(),
+                        ),
                         ..Default::default()
                     },
                 })
             }
             1 => {
                 // 第二步：Find — 在最相关文档中搜索
-                if let Some(ref_id) = find_best_ref(conversation) {
+                find_best_ref(conversation).map(|ref_id| {
                     let keywords = extract_keywords(query);
-                    Some(ToolCall {
+                    ToolCall {
                         tool: RetrievalTool::Find,
                         args: ToolArgs {
                             ref_id: Some(ref_id),
                             patterns: Some(keywords),
                             ..Default::default()
                         },
-                    })
-                } else {
-                    None
-                }
+                    }
+                })
             }
             2 => {
                 // 第三步：Open — 查看详细内容
-                if let Some(ref_id) = find_best_ref(conversation) {
-                    Some(ToolCall {
-                        tool: RetrievalTool::Open,
-                        args: ToolArgs {
-                            ref_id: Some(ref_id),
-                            start_line: Some(0),
-                            ..Default::default()
-                        },
-                    })
-                } else {
-                    None
-                }
+                find_best_ref(conversation).map(|ref_id| ToolCall {
+                    tool: RetrievalTool::Open,
+                    args: ToolArgs {
+                        ref_id: Some(ref_id),
+                        start_line: Some(0),
+                        ..Default::default()
+                    },
+                })
             }
             _ => None,
         }
@@ -331,6 +330,12 @@ pub struct FlywheelLearner {
     success_patterns: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
+impl Default for FlywheelLearner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlywheelLearner {
     pub fn new() -> Self {
         Self {
@@ -346,7 +351,7 @@ impl FlywheelLearner {
         for keyword in keywords {
             patterns
                 .entry(keyword)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(experience.successful_refs.clone());
         }
         self.experiences.write().await.push(experience);
@@ -640,7 +645,8 @@ impl AgenticRAGEngine {
             RetrievalTool::Open => {
                 let ref_id = tool_call.args.ref_id.clone().unwrap_or_default();
                 let start = tool_call.args.start_line.unwrap_or(0);
-                let open = self.store
+                let open = self
+                    .store
                     .get_content(&ref_id, start, self.config.open_window_lines)
                     .await;
                 ToolResult::Open(open)
@@ -761,19 +767,20 @@ fn extract_keywords(text: &str) -> Vec<String> {
 }
 
 fn find_best_ref(conversation: &[ConversationMessage]) -> Option<String> {
-    conversation
-        .iter()
-        .rev()
-        .find_map(|m| {
-            if let Some(ToolResult::Search(results)) = &m.tool_result {
-                results
-                    .iter()
-                    .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
-                    .map(|r| r.ref_id.clone())
-            } else {
-                None
-            }
-        })
+    conversation.iter().rev().find_map(|m| {
+        if let Some(ToolResult::Search(results)) = &m.tool_result {
+            results
+                .iter()
+                .max_by(|a, b| {
+                    a.score
+                        .partial_cmp(&b.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|r| r.ref_id.clone())
+        } else {
+            None
+        }
+    })
 }
 
 fn summarize_args(args: &ToolArgs) -> String {
@@ -790,7 +797,9 @@ fn summarize_result(result: &ToolResult) -> String {
     match result {
         ToolResult::Search(r) => format!("{} results", r.len()),
         ToolResult::Find(r) => format!("{} matches", r.len()),
-        ToolResult::Open(r) => format!("lines {}-{} of {}", r.start_line, r.end_line, r.total_lines),
+        ToolResult::Open(r) => {
+            format!("lines {}-{} of {}", r.start_line, r.end_line, r.total_lines)
+        }
         ToolResult::Summarize(r) => format!("freed {} tokens", r.tokens_freed),
         ToolResult::Error { message, .. } => format!("error: {}", message),
     }
@@ -803,6 +812,12 @@ fn summarize_result(result: &ToolResult) -> String {
 pub struct InMemoryDocumentStore {
     documents: RwLock<HashMap<String, DocumentMetadata>>,
     contents: RwLock<HashMap<String, Vec<String>>>,
+}
+
+impl Default for InMemoryDocumentStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InMemoryDocumentStore {
@@ -1120,9 +1135,12 @@ mod tests {
             max_iterations: 2,
             ..Default::default()
         };
-        let engine =
-            AgenticRAGEngine::new(Arc::new(make_store()), Arc::new(RuleBasedStrategy::default()), config)
-                .unwrap();
+        let engine = AgenticRAGEngine::new(
+            Arc::new(make_store()),
+            Arc::new(RuleBasedStrategy::default()),
+            config,
+        )
+        .unwrap();
 
         let result = engine.retrieve("anything").await;
         assert!(result.iterations <= 2);

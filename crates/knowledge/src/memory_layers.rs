@@ -105,11 +105,7 @@ impl ToolResultStore {
 
     /// 获取预览
     pub async fn get_preview(&self, id: &str) -> Option<String> {
-        self.results
-            .read()
-            .await
-            .get(id)
-            .map(|e| e.preview.clone())
+        self.results.read().await.get(id).map(|e| e.preview.clone())
     }
 
     /// 清理旧结果

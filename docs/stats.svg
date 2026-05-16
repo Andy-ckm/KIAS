@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="340" viewBox="0 0 780 340">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117"/>
+      <stop offset="100%" style="stop-color:#161b22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#58a6ff"/>
+      <stop offset="100%" style="stop-color:#bc8cff"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#238636"/>
+      <stop offset="100%" style="stop-color:#2ea043"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#58a6ff"/>
+      <stop offset="100%" style="stop-color:#79c0ff"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#bc8cff"/>
+      <stop offset="100%" style="stop-color:#d2a8ff"/>
+    </linearGradient>
+    <linearGradient id="bar4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f0883e"/>
+      <stop offset="100%" style="stop-color:#ffa657"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="780" height="340" rx="12" fill="url(#bg)" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="40" y="45" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#e6edf3">📊 KIAS Project Statistics</text>
+  <line x1="40" y1="58" x2="740" y2="58" stroke="#21262d" stroke-width="1"/>
+
+  <!-- Stats Grid -->
+  <!-- Row 1 -->
+  <!-- Crates -->
+  <rect x="40" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="56" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">CRATES</text>
+  <text x="56" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#58a6ff">22</text>
+
+  <!-- LOC -->
+  <rect x="220" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="236" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">LINES OF CODE</text>
+  <text x="236" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#bc8cff">88K+</text>
+
+  <!-- Tests -->
+  <rect x="400" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="416" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">TESTS</text>
+  <text x="416" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#2ea043">1,637</text>
+
+  <!-- Innovations -->
+  <rect x="580" y="78" width="160" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="596" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">INNOVATIONS</text>
+  <text x="596" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#f0883e">99</text>
+
+  <!-- Row 2 -->
+  <!-- Scheduling Algorithms -->
+  <rect x="40" y="168" width="345" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="56" y="192" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">SCHEDULING ALGORITHMS</text>
+  <text x="56" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#e6edf3">7</text>
+  <text x="86" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">including GPU-Aware, Edge</text>
+
+  <!-- MCP Sandbox -->
+  <rect x="400" y="168" width="340" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+  <text x="416" y="192" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">MCP SANDBOX BACKENDS</text>
+  <text x="416" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#e6edf3">5</text>
+  <text x="446" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">Docker · Firecracker · gVisor · Wasm · Process</text>
+
+  <!-- Progress Bars -->
+  <text x="40" y="275" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">TEST COVERAGE</text>
+  <rect x="40" y="285" width="700" height="8" rx="4" fill="#21262d"/>
+  <rect x="40" y="285" width="665" height="8" rx="4" fill="url(#bar1)"/>
+  <text x="720" y="293" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#2ea043">95%</text>
+
+  <text x="40" y="310" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">ARCHITECTURE COMPLIANCE</text>
+  <rect x="40" y="320" width="700" height="8" rx="4" fill="#21262d"/>
+  <rect x="40" y="320" width="700" height="8" rx="4" fill="url(#bar2)"/>
+  <text x="720" y="328" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#58a6ff">100%</text>
+</svg>

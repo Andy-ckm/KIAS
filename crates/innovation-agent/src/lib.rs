@@ -283,4 +283,131 @@ mod tests {
         assert!(report.contains("KIAS 创新洞察报告"));
         assert!(report.contains("Test Innovation"));
     }
+
+    #[test]
+    fn test_default_config_values() {
+        let config = InnovationAgentConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.data_sources.len(), 3);
+        assert_eq!(config.innovation_threshold, 0.6);
+        assert_eq!(config.relevance_threshold, 0.5);
+        assert_eq!(config.max_concurrent_collections, 3);
+        assert_eq!(config.data_sources[0].name, "GitHub Trending");
+        assert_eq!(
+            config.data_sources[0].source_type,
+            DataSourceType::GitHubTrending
+        );
+        assert_eq!(config.data_sources[1].name, "arXiv AI");
+        assert_eq!(config.data_sources[1].source_type, DataSourceType::ArXiv);
+        assert_eq!(config.data_sources[2].name, "HackerNews");
+        assert_eq!(
+            config.data_sources[2].source_type,
+            DataSourceType::HackerNews
+        );
+    }
+
+    #[test]
+    fn test_disabled_agent() {
+        let mut config = InnovationAgentConfig::default();
+        config.enabled = false;
+        let agent = InnovationAgent::new(config);
+        assert!(!agent.is_enabled());
+        assert_eq!(agent.insights().len(), 0);
+    }
+
+    #[test]
+    fn test_high_value_exact_threshold() {
+        let mut config = InnovationAgentConfig::default();
+        config.innovation_threshold = 0.5;
+        config.relevance_threshold = 0.5;
+        let mut agent = InnovationAgent::new(config);
+
+        // Exactly at threshold — should be included
+        agent.add_insight(make_insight("1", 0.5, 0.5));
+        assert_eq!(agent.high_value_insights().len(), 1);
+
+        // Just below threshold — should be excluded
+        agent.add_insight(make_insight("2", 0.49, 0.5));
+        assert_eq!(agent.high_value_insights().len(), 1);
+
+        // Innovation OK but relevance below
+        agent.add_insight(make_insight("3", 0.8, 0.49));
+        assert_eq!(agent.high_value_insights().len(), 1);
+    }
+
+    #[test]
+    fn test_empty_report() {
+        let config = InnovationAgentConfig::default();
+        let agent = InnovationAgent::new(config);
+        let report = agent.generate_report();
+        assert!(report.contains("KIAS 创新洞察报告"));
+        assert!(report.contains("高价值洞察 (0 个)"));
+    }
+
+    #[test]
+    fn test_multiple_insights_filtering() {
+        let config = InnovationAgentConfig::default(); // threshold: 0.6 innovation, 0.5 relevance
+        let mut agent = InnovationAgent::new(config);
+
+        agent.add_insight(make_insight("low1", 0.3, 0.3));
+        agent.add_insight(make_insight("low2", 0.5, 0.8));
+        agent.add_insight(make_insight("high1", 0.7, 0.6));
+        agent.add_insight(make_insight("high2", 0.9, 0.9));
+        agent.add_insight(make_insight("borderline", 0.6, 0.5));
+
+        let high = agent.high_value_insights();
+        assert_eq!(high.len(), 3); // high1, high2, borderline
+    }
+
+    #[test]
+    fn test_data_source_type_equality() {
+        assert_eq!(
+            DataSourceType::GitHubTrending,
+            DataSourceType::GitHubTrending
+        );
+        assert_ne!(DataSourceType::GitHubTrending, DataSourceType::ArXiv);
+        assert_ne!(DataSourceType::HackerNews, DataSourceType::ProductHunt);
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let config = InnovationAgentConfig::default();
+        let agent = InnovationAgent::new(config);
+        assert_eq!(agent.config().innovation_threshold, 0.6);
+        assert_eq!(agent.config().data_sources.len(), 3);
+    }
+
+    #[test]
+    fn test_insight_serialization_roundtrip() {
+        let insight = make_insight("test-1", 0.8, 0.7);
+        let json = serde_json::to_string(&insight).unwrap();
+        let deserialized: InnovationInsight = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "test-1");
+        assert_eq!(deserialized.innovation_score, 0.8);
+        assert_eq!(deserialized.relevance_score, 0.7);
+    }
+
+    #[test]
+    fn test_config_serialization_roundtrip() {
+        let config = InnovationAgentConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: InnovationAgentConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.data_sources.len(), 3);
+        assert_eq!(deserialized.innovation_threshold, 0.6);
+    }
+
+    fn make_insight(id: &str, innovation: f64, relevance: f64) -> InnovationInsight {
+        InnovationInsight {
+            id: id.to_string(),
+            title: format!("Insight {}", id),
+            description: "Test".to_string(),
+            source: "GitHub".to_string(),
+            url: "https://github.com".to_string(),
+            technologies: vec!["Rust".to_string()],
+            innovation_score: innovation,
+            relevance_score: relevance,
+            discovered_at: chrono::Utc::now(),
+            tags: vec!["test".to_string()],
+        }
+    }
 }

@@ -256,5 +256,49 @@ mod tests {
 
         let collector = CollectorFactory::create(&DataSourceType::HackerNews);
         assert_eq!(collector.name(), "HackerNews");
+
+        // GitHubSearch also uses GitHubTrendingCollector
+        let collector = CollectorFactory::create(&DataSourceType::GitHubSearch);
+        assert_eq!(collector.name(), "GitHub Trending");
+
+        // ProductHunt and CustomRss fall through to default (HackerNews)
+        let collector = CollectorFactory::create(&DataSourceType::ProductHunt);
+        assert_eq!(collector.name(), "HackerNews");
+
+        let collector = CollectorFactory::create(&DataSourceType::CustomRss);
+        assert_eq!(collector.name(), "HackerNews");
+    }
+
+    #[test]
+    fn test_extract_xml_value_nested_tags() {
+        let xml = "<entry><title>Nested Title</title><id>http://arxiv.org/abs/1234</id></entry>";
+        assert_eq!(extract_xml_value(xml, "title"), "Nested Title");
+        assert_eq!(extract_xml_value(xml, "id"), "http://arxiv.org/abs/1234");
+    }
+
+    #[test]
+    fn test_extract_xml_value_empty_tag() {
+        let xml = "<title></title>";
+        assert_eq!(extract_xml_value(xml, "title"), "");
+    }
+
+    #[test]
+    fn test_extract_xml_value_no_match() {
+        let xml = "<title>Some Title</title>";
+        assert_eq!(extract_xml_value(xml, "author"), "");
+        assert_eq!(extract_xml_value(xml, ""), "");
+    }
+
+    #[test]
+    fn test_extract_xml_value_multiline() {
+        let xml = "<summary>This is a\nmulti-line\nsummary</summary>";
+        assert_eq!(extract_xml_value(xml, "summary"), "This is a\nmulti-line\nsummary");
+    }
+
+    #[test]
+    fn test_extract_xml_value_with_attributes() {
+        let xml = "<entry><title type=\"html\">Special &amp; Title</title></entry>";
+        // Our simple parser looks for exact <title>...</title>, so attributes won't match
+        assert_eq!(extract_xml_value(xml, "title"), "");
     }
 }

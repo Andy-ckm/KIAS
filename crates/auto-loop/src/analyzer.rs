@@ -49,10 +49,10 @@ pub struct AnalysisResult {
 pub trait Analyzer: Send + Sync {
     /// 执行分析
     fn analyze(&self, problem_description: &str) -> AnalysisResult;
-    
+
     /// 获取分析器名称
     fn name(&self) -> &str;
-    
+
     /// 获取分析器类型
     fn analyzer_type(&self) -> AnalyzerType;
 }
@@ -60,12 +60,12 @@ pub trait Analyzer: Send + Sync {
 /// 代码分析器
 pub struct CodeAnalyzer {
     /// 代码库路径
-    codebase_path: String,
+    _codebase_path: String,
 }
 
 impl CodeAnalyzer {
-    pub fn new(codebase_path: String) -> Self {
-        Self { codebase_path }
+    pub fn new(_codebase_path: String) -> Self {
+        Self { _codebase_path }
     }
 }
 
@@ -74,24 +74,33 @@ impl Analyzer for CodeAnalyzer {
         // 分析问题描述，查找相关代码
         let mut related_files = Vec::new();
         let mut details = HashMap::new();
-        
+
         // 检查是否是数据持久化问题
         if problem_description.contains("持久化") || problem_description.contains("丢失") {
             related_files.push("crates/api-server/src/lib.rs".to_string());
             related_files.push("crates/data-store/src/repository/mod.rs".to_string());
-            details.insert("analysis".to_string(), "检测到数据持久化问题，可能是HashMap存储导致".to_string());
+            details.insert(
+                "analysis".to_string(),
+                "检测到数据持久化问题，可能是HashMap存储导致".to_string(),
+            );
         }
-        
+
         // 检查是否是配置问题
         if problem_description.contains("配置") || problem_description.contains("placeholder") {
             related_files.push("config/kias.toml".to_string());
-            details.insert("analysis".to_string(), "检测到配置问题，可能是placeholder配置".to_string());
+            details.insert(
+                "analysis".to_string(),
+                "检测到配置问题，可能是placeholder配置".to_string(),
+            );
         }
-        
+
         AnalysisResult {
             found_root_cause: !related_files.is_empty(),
             root_cause: if !related_files.is_empty() {
-                Some(format!("问题可能在以下文件中: {}", related_files.join(", ")))
+                Some(format!(
+                    "问题可能在以下文件中: {}",
+                    related_files.join(", ")
+                ))
             } else {
                 None
             },
@@ -103,11 +112,11 @@ impl Analyzer for CodeAnalyzer {
             analyzed_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "CodeAnalyzer"
     }
-    
+
     fn analyzer_type(&self) -> AnalyzerType {
         AnalyzerType::Code
     }
@@ -129,15 +138,18 @@ impl Analyzer for ConfigAnalyzer {
     fn analyze(&self, problem_description: &str) -> AnalysisResult {
         let mut related_files = Vec::new();
         let mut details = HashMap::new();
-        
+
         // 检查配置文件
         related_files.push(self.config_path.clone());
-        
+
         // 分析配置问题
         if problem_description.contains("placeholder") || problem_description.contains("API") {
-            details.insert("analysis".to_string(), "检测到API配置问题，可能是placeholder配置".to_string());
+            details.insert(
+                "analysis".to_string(),
+                "检测到API配置问题，可能是placeholder配置".to_string(),
+            );
         }
-        
+
         AnalysisResult {
             found_root_cause: true,
             root_cause: Some("配置文件可能包含placeholder值".to_string()),
@@ -149,11 +161,11 @@ impl Analyzer for ConfigAnalyzer {
             analyzed_at: chrono::Utc::now(),
         }
     }
-    
+
     fn name(&self) -> &str {
         "ConfigAnalyzer"
     }
-    
+
     fn analyzer_type(&self) -> AnalyzerType {
         AnalyzerType::Config
     }
@@ -167,6 +179,12 @@ pub struct AnalyzerManager {
     history: Vec<AnalysisResult>,
 }
 
+impl Default for AnalyzerManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnalyzerManager {
     pub fn new() -> Self {
         Self {
@@ -174,16 +192,16 @@ impl AnalyzerManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册分析器
     pub fn register_analyzer(&mut self, analyzer: Box<dyn Analyzer>) {
         self.analyzers.push(analyzer);
     }
-    
+
     /// 执行分析
     pub fn analyze(&mut self, problem_description: &str) -> Vec<AnalysisResult> {
         let mut results = Vec::new();
-        
+
         for analyzer in &self.analyzers {
             let result = analyzer.analyze(problem_description);
             if result.found_root_cause {
@@ -191,10 +209,10 @@ impl AnalyzerManager {
             }
             self.history.push(result);
         }
-        
+
         results
     }
-    
+
     /// 获取分析历史
     pub fn history(&self) -> &[AnalysisResult] {
         &self.history
@@ -209,7 +227,7 @@ mod tests {
     fn test_code_analyzer() {
         let analyzer = CodeAnalyzer::new("/workspace/kias".to_string());
         let result = analyzer.analyze("Agent数据持久化缺失，服务器重启后数据丢失");
-        
+
         assert!(result.found_root_cause);
         assert!(!result.related_files.is_empty());
     }
@@ -218,7 +236,7 @@ mod tests {
     fn test_config_analyzer() {
         let analyzer = ConfigAnalyzer::new("config/kias.toml".to_string());
         let result = analyzer.analyze("Workflow执行需要LLM API但配置是placeholder");
-        
+
         assert!(result.found_root_cause);
         assert!(!result.related_files.is_empty());
     }
@@ -226,10 +244,12 @@ mod tests {
     #[test]
     fn test_analyzer_manager() {
         let mut manager = AnalyzerManager::new();
-        
+
         manager.register_analyzer(Box::new(CodeAnalyzer::new("/workspace/kias".to_string())));
-        manager.register_analyzer(Box::new(ConfigAnalyzer::new("config/kias.toml".to_string())));
-        
+        manager.register_analyzer(Box::new(ConfigAnalyzer::new(
+            "config/kias.toml".to_string(),
+        )));
+
         let results = manager.analyze("Agent数据持久化缺失");
         assert!(!results.is_empty());
     }

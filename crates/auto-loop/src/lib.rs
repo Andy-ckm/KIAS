@@ -7,6 +7,7 @@ pub mod analyzer;
 pub mod codegen;
 pub mod deployer;
 pub mod detector;
+pub mod learner;
 pub mod planner;
 pub mod verifier;
 

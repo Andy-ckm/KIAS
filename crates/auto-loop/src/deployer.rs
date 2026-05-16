@@ -7,7 +7,6 @@
 //! - 回滚机制
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::codegen::{CodePatch, PatchType};
 
@@ -47,16 +46,22 @@ pub struct DeployResult {
 pub trait Deployer: Send + Sync {
     /// 执行部署
     fn deploy(&self, target: &str, patches: &[CodePatch]) -> DeployResult;
-    
+
     /// 获取部署器名称
     fn name(&self) -> &str;
-    
+
     /// 回滚部署
     fn rollback(&self, deploy_id: &str) -> DeployResult;
 }
 
 /// 代码编译部署器
 pub struct CompilationDeployer;
+
+impl Default for CompilationDeployer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CompilationDeployer {
     pub fn new() -> Self {
@@ -77,11 +82,11 @@ impl Deployer for CompilationDeployer {
             errors: vec![],
         }
     }
-    
+
     fn name(&self) -> &str {
         "CompilationDeployer"
     }
-    
+
     fn rollback(&self, deploy_id: &str) -> DeployResult {
         DeployResult {
             id: deploy_id.to_string(),
@@ -96,6 +101,12 @@ impl Deployer for CompilationDeployer {
 
 /// 服务重启部署器
 pub struct ServiceRestartDeployer;
+
+impl Default for ServiceRestartDeployer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ServiceRestartDeployer {
     pub fn new() -> Self {
@@ -116,11 +127,11 @@ impl Deployer for ServiceRestartDeployer {
             errors: vec![],
         }
     }
-    
+
     fn name(&self) -> &str {
         "ServiceRestartDeployer"
     }
-    
+
     fn rollback(&self, deploy_id: &str) -> DeployResult {
         DeployResult {
             id: deploy_id.to_string(),
@@ -141,6 +152,12 @@ pub struct DeployerManager {
     history: Vec<DeployResult>,
 }
 
+impl Default for DeployerManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeployerManager {
     pub fn new() -> Self {
         Self {
@@ -148,38 +165,38 @@ impl DeployerManager {
             history: Vec::new(),
         }
     }
-    
+
     /// 注册部署器
     pub fn register_deployer(&mut self, deployer: Box<dyn Deployer>) {
         self.deployers.push(deployer);
     }
-    
+
     /// 执行部署
     pub fn deploy(&mut self, target: &str, patches: &[CodePatch]) -> Vec<DeployResult> {
         let mut results = Vec::new();
-        
+
         for deployer in &self.deployers {
             let result = deployer.deploy(target, patches);
             results.push(result.clone());
             self.history.push(result);
         }
-        
+
         results
     }
-    
+
     /// 回滚部署
     pub fn rollback(&mut self, deploy_id: &str) -> Vec<DeployResult> {
         let mut results = Vec::new();
-        
+
         for deployer in &self.deployers {
             let result = deployer.rollback(deploy_id);
             results.push(result.clone());
             self.history.push(result);
         }
-        
+
         results
     }
-    
+
     /// 获取部署历史
     pub fn history(&self) -> &[DeployResult] {
         &self.history
@@ -201,7 +218,7 @@ mod tests {
             description: "test".to_string(),
             generated_at: chrono::Utc::now(),
         }];
-        
+
         let result = deployer.deploy("kias-api-server", &patches);
         assert_eq!(result.status, DeployStatus::Success);
     }
@@ -217,7 +234,7 @@ mod tests {
             description: "test".to_string(),
             generated_at: chrono::Utc::now(),
         }];
-        
+
         let result = deployer.deploy("kias-api-server", &patches);
         assert_eq!(result.status, DeployStatus::Success);
     }
@@ -225,10 +242,10 @@ mod tests {
     #[test]
     fn test_deployer_manager() {
         let mut manager = DeployerManager::new();
-        
+
         manager.register_deployer(Box::new(CompilationDeployer::new()));
         manager.register_deployer(Box::new(ServiceRestartDeployer::new()));
-        
+
         let patches = vec![CodePatch {
             id: "test".to_string(),
             target_file: "test.rs".to_string(),
@@ -237,7 +254,7 @@ mod tests {
             description: "test".to_string(),
             generated_at: chrono::Utc::now(),
         }];
-        
+
         let results = manager.deploy("kias-api-server", &patches);
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.status == DeployStatus::Success));

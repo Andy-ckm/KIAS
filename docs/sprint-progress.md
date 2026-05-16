@@ -1,3 +1,28 @@
+## 最新更新：2026-05-17 04:25 (Sprint 58 — WebSocket Agent Event Streaming)
+
+### 🎯 Sprint 58: CLI WebSocket Event Streaming
+
+**本次完成**:
+- ✅ 实现 `WsEvent`, `WsEventType`, `WsSubscription` 类型 (mirrors API server)
+- ✅ 实现 `ApiClient::stream_events()` WebSocket 连接方法
+- ✅ 更新 `handle_agent_logs` — follow 模式通过 WebSocket 实时接收事件
+- ✅ 更新 `handle_agent_events` — 支持事件类型过滤 (status/task/all)
+- ✅ 新增 3 个测试: WsEvent 反序列化、WsSubscription 序列化、WsEventType 往返
+- ✅ 移除 `#[allow(unused_imports)]` (futures_util 现在真正使用)
+
+**质量门**:
+- ✅ cargo build: 通过
+- ✅ cargo fmt --check: 干净
+- ✅ cargo clippy -D warnings: 0 警告
+- ✅ cargo test: 1764 通过 (本次 +3), 0 失败
+
+**缺陷验证**:
+- Defect #1 (Redis未实现): ✅ 已修复 — config.rs 文档诚实，源码无 Redis 引用
+- Defect #2 (data-store→knowledge 跨层依赖): ✅ 已修复 — data-store 不依赖 knowledge
+
+**磁盘状态**: / 87%, /mnt 1%
+
+---
 ## 最新更新：2026-05-17 03:45 (Sprint 57 — Credential Rotation Notifications)
 
 ### 🎯 Quality Gates

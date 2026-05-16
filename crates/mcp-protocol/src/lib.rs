@@ -89,9 +89,10 @@ pub use metrics::{
 // Re-export credential types
 #[cfg(feature = "credentials")]
 pub use credentials::{
-    AuditAction, AuditEntry, Credential, CredentialFilter, CredentialManager,
-    CredentialManagerConfig, CredentialStatus, CredentialStore, CredentialType,
-    InMemoryCredentialStore, RotationPolicy,
+    AuditAction, AuditEntry, ConsoleRotationNotifier, Credential, CredentialFilter,
+    CredentialManager, CredentialManagerConfig, CredentialStatus, CredentialStore, CredentialType,
+    InMemoryCredentialStore, InMemoryRotationNotifier, RotationEvent, RotationNotifier,
+    RotationPolicy,
 };
 
 // Re-export hot-reload types

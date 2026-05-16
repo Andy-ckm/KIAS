@@ -27,6 +27,7 @@ members = [
     "crates/agent-runtime",
     "crates/innovation-agent",
     "crates/im-integration",
+    "crates/self-improvement",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

@@ -1,0 +1,15 @@
+[package]
+name = "self-improvement"
+version = "0.1.0"
+edition = "2021"
+description = "KIAS Self-Improvement Loop - 用KIAS开发KIAS，发现问题→注入KIAS→用KIAS修复→形成闭环"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

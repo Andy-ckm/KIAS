@@ -13,6 +13,9 @@ use crate::websocket::{ConnectionRegistry, EventBus, EventReplayBuffer};
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<KiasConfig>,
+    /// Agent持久化存储（SQLite）
+    pub agent_repository: Option<Arc<kias_data_store::AgentRepository>>,
+    /// Agent内存缓存（启动时从SQLite加载）
     pub agents: Arc<RwLock<std::collections::HashMap<String, models::agent::Agent>>>,
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
@@ -89,6 +92,7 @@ impl AppState {
 
         Self {
             config: Arc::new(config),
+            agent_repository: None, // Will be set up if SQLite is configured
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -173,6 +177,7 @@ impl AppState {
 
         Self {
             config: Arc::new(config),
+            agent_repository: None, // Will be set up if SQLite is configured
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),

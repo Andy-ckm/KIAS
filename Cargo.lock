@@ -3494,6 +3494,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "self-improvement"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "tokio-test",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"

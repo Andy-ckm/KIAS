@@ -199,7 +199,10 @@ impl InnovationAgent {
             report.push_str(&format!("**URL:** {}\n", insight.url));
             report.push_str(&format!("**创新分数:** {:.2}\n", insight.innovation_score));
             report.push_str(&format!("**相关性:** {:.2}\n", insight.relevance_score));
-            report.push_str(&format!("**技术栈:** {}\n", insight.technologies.join(", ")));
+            report.push_str(&format!(
+                "**技术栈:** {}\n",
+                insight.technologies.join(", ")
+            ));
             report.push_str(&format!("**标签:** {}\n\n", insight.tags.join(", ")));
             report.push_str(&format!("{}\n\n", insight.description));
         }

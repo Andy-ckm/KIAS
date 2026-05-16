@@ -291,12 +291,127 @@ impl LlmProvider for AnthropicProvider {
 
     async fn chat_stream(
         &self,
-        _request: ChatRequest,
+        request: ChatRequest,
     ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
-        // Anthropic 流式实现类似，这里简化
-        Err(LlmError::Provider(
-            "Anthropic streaming not yet implemented".into(),
-        ))
+        let url = "https://api.anthropic.com/v1/messages";
+        let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
+
+        // Convert to Anthropic format (same as chat(), but with stream: true)
+        let system_msg = request
+            .messages
+            .iter()
+            .find(|m| m.role == MessageRole::System)
+            .map(|m| m.content.clone());
+
+        let messages: Vec<serde_json::Value> = request
+            .messages
+            .iter()
+            .filter(|m| m.role != MessageRole::System)
+            .map(|m| {
+                serde_json::json!({
+                    "role": if m.role == MessageRole::Assistant { "assistant" } else { "user" },
+                    "content": m.content,
+                })
+            })
+            .collect();
+
+        let mut body = serde_json::json!({
+            "model": request.model,
+            "messages": messages,
+            "max_tokens": request.max_tokens.unwrap_or(4096),
+            "stream": true,
+        });
+
+        if let Some(system) = system_msg {
+            body["system"] = serde_json::json!(system);
+        }
+
+        let resp = self
+            .client
+            .post(url)
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body_text = resp.text().await.unwrap_or_default();
+            return Err(LlmError::Provider(format!("{}: {}", status, body_text)));
+        }
+
+        // Parse SSE stream — Anthropic uses event types: message_start, content_block_delta, message_stop
+        let body_text = resp.text().await?;
+        let mut chunks = Vec::new();
+        let mut current_id = String::new();
+        let mut current_model = String::new();
+
+        for line in body_text.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+
+            let parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            let event_type = parsed["type"].as_str().unwrap_or("");
+
+            match event_type {
+                "message_start" => {
+                    // Extract id and model from message_start event
+                    if let Some(msg) = parsed["message"].as_object() {
+                        current_id = msg["id"].as_str().unwrap_or("").to_string();
+                        current_model = msg["model"].as_str().unwrap_or("").to_string();
+                    }
+                }
+                "content_block_delta" => {
+                    // Extract text delta
+                    if let Some(delta) = parsed["delta"].as_object() {
+                        if let Some(text) = delta["text"].as_str() {
+                            chunks.push(crate::types::StreamChunk {
+                                id: current_id.clone(),
+                                model: current_model.clone(),
+                                choices: vec![crate::types::StreamChoice {
+                                    index: 0,
+                                    delta: crate::types::StreamDelta {
+                                        role: None,
+                                        content: Some(text.to_string()),
+                                        tool_calls: None,
+                                    },
+                                    finish_reason: None,
+                                }],
+                            });
+                        }
+                    }
+                }
+                "message_stop" => {
+                    // Final chunk with finish reason
+                    chunks.push(crate::types::StreamChunk {
+                        id: current_id.clone(),
+                        model: current_model.clone(),
+                        choices: vec![crate::types::StreamChoice {
+                            index: 0,
+                            delta: crate::types::StreamDelta {
+                                role: None,
+                                content: None,
+                                tool_calls: None,
+                            },
+                            finish_reason: Some("stop".to_string()),
+                        }],
+                    });
+                }
+                _ => {} // Ignore other event types (ping, etc.)
+            }
+        }
+
+        Ok(chunks)
     }
 
     fn supports_tools(&self) -> bool {
@@ -361,12 +476,31 @@ impl LlmProvider for LocalProvider {
 
     async fn chat_stream(
         &self,
-        _request: ChatRequest,
+        mut request: ChatRequest,
     ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
-        // 本地模型流式实现
-        Err(LlmError::Provider(
-            "Local streaming not yet implemented".into(),
-        ))
+        request.stream = Some(true);
+        let url = format!("{}/chat/completions", self.base_url());
+
+        let resp = self.client.post(&url).json(&request).send().await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(LlmError::Provider(format!("{}: {}", status, body)));
+        }
+
+        // Local models use OpenAI-compatible SSE format
+        let body = resp.text().await?;
+        let mut chunks = Vec::new();
+        for line in body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<crate::types::StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+
+        Ok(chunks)
     }
 
     fn supports_tools(&self) -> bool {
@@ -374,5 +508,264 @@ impl LlmProvider for LocalProvider {
     }
     fn supports_streaming(&self) -> bool {
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_anthropic_sse_parsing() {
+        let sse_data = concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\",\"model\":\"claude-sonnet-4-20250514\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello\"}}\n\n",
+            "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" world\"}}\n\n",
+            "data: {\"type\":\"message_stop\"}\n"
+        );
+
+        let mut chunks = Vec::new();
+        let mut current_id = String::new();
+        let mut current_model = String::new();
+
+        for line in sse_data.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+            let parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            let event_type = parsed["type"].as_str().unwrap_or("");
+            match event_type {
+                "message_start" => {
+                    if let Some(msg) = parsed["message"].as_object() {
+                        current_id = msg["id"].as_str().unwrap_or("").to_string();
+                        current_model = msg["model"].as_str().unwrap_or("").to_string();
+                    }
+                }
+                "content_block_delta" => {
+                    if let Some(delta) = parsed["delta"].as_object() {
+                        if let Some(text) = delta["text"].as_str() {
+                            chunks.push(StreamChunk {
+                                id: current_id.clone(),
+                                model: current_model.clone(),
+                                choices: vec![StreamChoice {
+                                    index: 0,
+                                    delta: StreamDelta {
+                                        role: None,
+                                        content: Some(text.to_string()),
+                                        tool_calls: None,
+                                    },
+                                    finish_reason: None,
+                                }],
+                            });
+                        }
+                    }
+                }
+                "message_stop" => {
+                    chunks.push(StreamChunk {
+                        id: current_id.clone(),
+                        model: current_model.clone(),
+                        choices: vec![StreamChoice {
+                            index: 0,
+                            delta: StreamDelta {
+                                role: None,
+                                content: None,
+                                tool_calls: None,
+                            },
+                            finish_reason: Some("stop".to_string()),
+                        }],
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].id, "msg_123");
+        assert_eq!(
+            chunks[0].choices[0].delta.content,
+            Some("Hello".to_string())
+        );
+        assert_eq!(
+            chunks[1].choices[0].delta.content,
+            Some(" world".to_string())
+        );
+        assert_eq!(chunks[2].choices[0].finish_reason, Some("stop".to_string()));
+    }
+
+    #[test]
+    fn test_openai_sse_parsing() {
+        let sse_body = concat!(
+            "data: {\"id\":\"chatcmpl-123\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"chatcmpl-123\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" there\"},\"finish_reason\":null}]}\n\n",
+            "data: {\"id\":\"chatcmpl-123\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+            "data: [DONE]\n"
+        );
+
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].choices[0].delta.content, Some("Hi".to_string()));
+        assert_eq!(
+            chunks[1].choices[0].delta.content,
+            Some(" there".to_string())
+        );
+        assert_eq!(chunks[2].choices[0].finish_reason, Some("stop".to_string()));
+    }
+
+    #[test]
+    fn test_provider_factory_openai() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: Some("sk-test".to_string()),
+            base_url: None,
+            temperature: Some(0.7),
+            max_tokens: Some(1000),
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "openai");
+        assert!(provider.supports_streaming());
+        assert!(provider.supports_tools());
+    }
+
+    #[test]
+    fn test_provider_factory_anthropic() {
+        let config = ModelConfig {
+            provider: "anthropic".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            api_key: Some("sk-ant-test".to_string()),
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "anthropic");
+        assert!(provider.supports_streaming());
+    }
+
+    #[test]
+    fn test_provider_factory_local() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: Some("http://localhost:11434/v1".to_string()),
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "local");
+        assert!(provider.supports_streaming());
+    }
+
+    #[test]
+    fn test_provider_factory_unknown_defaults_to_openai() {
+        let config = ModelConfig {
+            provider: "unknown-provider".to_string(),
+            model: "some-model".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "openai");
+    }
+
+    #[test]
+    fn test_supported_providers_list() {
+        let providers = ProviderFactory::supported_providers();
+        assert_eq!(providers.len(), 3);
+        assert_eq!(providers[0].name, "openai");
+        assert_eq!(providers[1].name, "anthropic");
+        assert_eq!(providers[2].name, "local");
+        assert!(providers.iter().all(|p| p.supports_streaming));
+        assert!(providers.iter().all(|p| p.supports_tools));
+    }
+
+    #[test]
+    fn test_openai_base_url_default() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = OpenAiProvider::new(config);
+        assert_eq!(provider.base_url(), "https://api.openai.com/v1");
+    }
+
+    #[test]
+    fn test_openai_base_url_custom() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: None,
+            base_url: Some("https://custom.api.com/v1".to_string()),
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = OpenAiProvider::new(config);
+        assert_eq!(provider.base_url(), "https://custom.api.com/v1");
+    }
+
+    #[test]
+    fn test_local_base_url_default() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = LocalProvider::new(config);
+        assert_eq!(provider.base_url(), "http://localhost:11434/v1");
+    }
+
+    #[test]
+    fn test_local_base_url_custom() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: Some("http://gpu-server:8080/v1".to_string()),
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = LocalProvider::new(config);
+        assert_eq!(provider.base_url(), "http://gpu-server:8080/v1");
+    }
+
+    #[test]
+    fn test_anthropic_models_list() {
+        let config = ModelConfig {
+            provider: "anthropic".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = AnthropicProvider::new(config);
+        let models = provider.models();
+        assert!(models.contains(&"claude-sonnet-4-20250514".to_string()));
+        assert!(models.contains(&"claude-3-5-haiku-20241022".to_string()));
     }
 }

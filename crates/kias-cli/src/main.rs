@@ -1050,7 +1050,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             println!("{}: KIAS 服务状态", "→".blue().bold());
             // 检查健康端点
             let client = reqwest::Client::new();
-            match client.get("http://localhost:8080/healthz").send().await {
+            match client.get("http://localhost:8080/health").send().await {
                 Ok(resp) => {
                     if resp.status().is_success() {
                         println!("{}: 服务运行中", "✓".green().bold());

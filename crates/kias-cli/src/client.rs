@@ -31,6 +31,13 @@ pub struct ApiResponse<T> {
     pub error: Option<String>,
 }
 
+/// 分页列表响应
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListResponse<T> {
+    pub items: Vec<T>,
+    pub total: usize,
+}
+
 /// Agent 信息（来自 API Server）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
@@ -145,11 +152,12 @@ impl ApiClient {
 
     /// 列出所有 Agent
     pub async fn list_agents(&self) -> Result<Vec<AgentInfo>, reqwest::Error> {
-        self.request(reqwest::Method::GET, "/api/v1/agents")
+        let resp: ListResponse<AgentInfo> = self.request(reqwest::Method::GET, "/api/v1/agents")
             .send()
             .await?
             .json()
-            .await
+            .await?;
+        Ok(resp.items)
     }
 
     /// 创建 Agent
@@ -220,11 +228,14 @@ impl ApiClient {
 
     /// 列出所有工作流
     pub async fn list_workflows(&self) -> Result<Vec<WorkflowInfo>, reqwest::Error> {
-        self.request(reqwest::Method::GET, "/api/v1/workflows")
+        #[derive(serde::Deserialize)]
+        struct WorkflowSummary { workflows: Vec<WorkflowInfo> }
+        let resp: WorkflowSummary = self.request(reqwest::Method::GET, "/api/v1/workflows")
             .send()
             .await?
             .json()
-            .await
+            .await?;
+        Ok(resp.workflows)
     }
 
     /// 创建工作流

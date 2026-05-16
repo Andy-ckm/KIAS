@@ -8,6 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
 use crate::codegen::{CodePatch, PatchType};
 
 /// 部署状态

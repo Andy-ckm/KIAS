@@ -188,8 +188,51 @@ impl Owner for DefaultOwner {
     }
 
     async fn merge_results(&self, results: &[String]) -> KiasResult<String> {
-        // TODO: 调用 LLM 合并结果
-        Ok(results.join("\n"))
+        // Filter out empty results
+        let non_empty: Vec<&String> = results.iter().filter(|r| !r.trim().is_empty()).collect();
+
+        if non_empty.is_empty() {
+            return Ok(String::new());
+        }
+
+        if non_empty.len() == 1 {
+            return Ok(non_empty[0].clone());
+        }
+
+        // Smart merge: deduplicate lines across results, preserve structure
+        let mut seen_lines: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut merged_sections: Vec<String> = Vec::new();
+
+        for (idx, result) in non_empty.iter().enumerate() {
+            let mut unique_lines: Vec<String> = Vec::new();
+            for line in result.lines() {
+                let normalized = line.trim().to_lowercase();
+                // Keep section headers and non-trivial unique content
+                if normalized.is_empty()
+                    || normalized.starts_with('#')
+                    || normalized.starts_with("==")
+                    || normalized.starts_with("--")
+                    || !seen_lines.contains(&normalized)
+                {
+                    seen_lines.insert(normalized);
+                    unique_lines.push(line.to_string());
+                }
+            }
+
+            if !unique_lines.is_empty() {
+                if non_empty.len() > 2 {
+                    merged_sections.push(format!(
+                        "--- Result {} ---\n{}",
+                        idx + 1,
+                        unique_lines.join("\n")
+                    ));
+                } else {
+                    merged_sections.push(unique_lines.join("\n"));
+                }
+            }
+        }
+
+        Ok(merged_sections.join("\n\n"))
     }
 
     fn should_stop(&self, state: &TeamState) -> bool {
@@ -198,5 +241,103 @@ impl Owner for DefaultOwner {
             .tasks
             .iter()
             .all(|t| t.status == super::state::TaskStatus::Verified)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_merge_empty_results() {
+        let owner = DefaultOwner::new();
+        let result = owner.merge_results(&[]).await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_merge_single_result() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&["single result".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(result, "single result");
+    }
+
+    #[tokio::test]
+    async fn test_merge_filters_empty_strings() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&[
+                "".to_string(),
+                "actual content".to_string(),
+                "  ".to_string(),
+            ])
+            .await
+            .unwrap();
+        assert_eq!(result, "actual content");
+    }
+
+    #[tokio::test]
+    async fn test_merge_two_results_deduplicates() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&[
+                "line 1\nline 2\nline 3".to_string(),
+                "line 2\nline 3\nline 4".to_string(),
+            ])
+            .await
+            .unwrap();
+        // Should contain all unique lines
+        assert!(result.contains("line 1"));
+        assert!(result.contains("line 4"));
+        // Duplicate lines should appear only once
+        let count_line2 = result.matches("line 2").count();
+        assert_eq!(count_line2, 1, "line 2 should appear only once");
+    }
+
+    #[tokio::test]
+    async fn test_merge_preserves_headers() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&[
+                "# Section A\ncontent a".to_string(),
+                "# Section B\ncontent b".to_string(),
+            ])
+            .await
+            .unwrap();
+        assert!(result.contains("# Section A"));
+        assert!(result.contains("# Section B"));
+        assert!(result.contains("content a"));
+        assert!(result.contains("content b"));
+    }
+
+    #[tokio::test]
+    async fn test_merge_three_results_adds_labels() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&[
+                "result one".to_string(),
+                "result two".to_string(),
+                "result three".to_string(),
+            ])
+            .await
+            .unwrap();
+        // With 3+ results, should add "--- Result N ---" labels
+        assert!(result.contains("--- Result 1 ---"));
+        assert!(result.contains("--- Result 2 ---"));
+        assert!(result.contains("--- Result 3 ---"));
+    }
+
+    #[tokio::test]
+    async fn test_merge_two_results_no_labels() {
+        let owner = DefaultOwner::new();
+        let result = owner
+            .merge_results(&["a".to_string(), "b".to_string()])
+            .await
+            .unwrap();
+        // With 2 results, should NOT add labels
+        assert!(!result.contains("--- Result"));
     }
 }

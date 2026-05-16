@@ -1127,3 +1127,22 @@ Source: GitHub API search 2026-05-16 21:34
 ### 111. jtshow/Medusa ⭐27 (Rust)
 Medusa Skill Framework for AI Agents. Skill registration and discovery system.
 Source: GitHub API search 2026-05-16 21:34
+
+## 111. animus-cli — Multi-Model AI Agent Orchestrator (⭐36)
+- **Source**: GitHub (launchapp-dev/animus-cli)
+- **Language**: Rust
+- **Link**: https://github.com/launchapp-dev/animus-cli
+- **Date**: 2026-05-16
+- **Tags**: agent-orchestrator, multi-model, yaml-workflows, cli
+- **Description**: Autonomous AI agent orchestrator — run multi-model dev teams (Claude, Gemini, GPT) with YAML workflows. CLI-first design with declarative team composition.
+- **KIAS Relevance**: Similar to KIAS workflow-engine + team-engine. YAML workflow definition pattern comparable to our yaml_loader.rs. Multi-model dispatch aligns with KIAS scheduler.
+
+## 112. cloudllm — Rust LLM Agent Toolkit (⭐28)
+- **Source**: GitHub (CloudLLM-ai/cloudllm)
+- **Language**: Rust
+- **Link**: https://github.com/CloudLLM-ai/cloudllm
+- **Date**: 2026-05-16
+- **Tags**: llm-toolkit, agent, rust, batteries-included
+- **Description**: CloudLLM is a batteries-inclusive Rust toolkit for building intelligent agents with LLM integration. Provides agent abstractions, tool registration, and provider integration.
+- **KIAS Relevance**: Similar LLM integration patterns. Compare tool registration APIs and provider abstraction layers with KIAS mcp-protocol and executor crates.
+

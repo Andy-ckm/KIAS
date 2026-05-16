@@ -68,11 +68,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::approval::ApprovalPolicy;
 use crate::edge::{Condition, Edge};
+use crate::error_handler::ErrorHandlerConfig;
 use crate::graph::WorkflowGraph;
 use crate::node::{CompensatingAction, ExecutorConfig, Node, NodeType};
-use crate::approval::ApprovalPolicy;
-use crate::error_handler::ErrorHandlerConfig;
 
 /// YAML 工作流定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,7 +190,11 @@ pub fn yaml_to_graph(def: &YamlWorkflowDef) -> Result<WorkflowGraph, YamlLoadErr
     // 添加节点
     for yaml_node in &def.nodes {
         let node_type = match yaml_node.node_type {
-            YamlNodeType::Process | YamlNodeType::Tool | YamlNodeType::Llm | YamlNodeType::Http | YamlNodeType::Script => NodeType::Process,
+            YamlNodeType::Process
+            | YamlNodeType::Tool
+            | YamlNodeType::Llm
+            | YamlNodeType::Http
+            | YamlNodeType::Script => NodeType::Process,
             YamlNodeType::Condition => NodeType::Condition,
             YamlNodeType::Fork => NodeType::Fork,
             YamlNodeType::Join => NodeType::Join,
@@ -226,9 +230,7 @@ pub fn yaml_to_graph(def: &YamlWorkflowDef) -> Result<WorkflowGraph, YamlLoadErr
     }
 
     // 验证
-    graph
-        .validate()
-        .map_err(YamlLoadError::ValidationError)?;
+    graph.validate().map_err(YamlLoadError::ValidationError)?;
 
     Ok(graph)
 }

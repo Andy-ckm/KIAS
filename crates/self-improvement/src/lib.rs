@@ -417,4 +417,329 @@ mod tests {
         let report = manager.generate_report();
         assert!(report.contains("KIAS 自改进循环报告"));
     }
+
+    #[test]
+    fn test_pending_problems_filters_by_severity() {
+        let mut manager = SelfImprovementManager::new();
+
+        // Add problems with different severities
+        for (id, severity) in [
+            ("p1", ProblemSeverity::Low),
+            ("p2", ProblemSeverity::Medium),
+            ("p3", ProblemSeverity::High),
+            ("p4", ProblemSeverity::Critical),
+        ] {
+            manager.register_problem(Problem {
+                id: id.to_string(),
+                title: format!("Problem {id}"),
+                description: "desc".to_string(),
+                source: ProblemSource::TestFailure,
+                severity,
+                impact: "some".to_string(),
+                reproduction_steps: vec![],
+                expected_behavior: "ok".to_string(),
+                actual_behavior: "fail".to_string(),
+                discovered_at: chrono::Utc::now(),
+                code_locations: vec![],
+                logs: vec![],
+            });
+        }
+
+        let pending = manager.pending_problems();
+        assert_eq!(pending.len(), 2);
+        let ids: Vec<&str> = pending.iter().map(|p| p.id.as_str()).collect();
+        assert!(ids.contains(&"p3"));
+        assert!(ids.contains(&"p4"));
+    }
+
+    #[test]
+    fn test_pending_solutions_filters_by_status() {
+        let mut manager = SelfImprovementManager::new();
+
+        for (id, status) in [
+            ("s1", SolutionStatus::Pending),
+            ("s2", SolutionStatus::Approved),
+            ("s3", SolutionStatus::InProgress),
+            ("s4", SolutionStatus::Completed),
+            ("s5", SolutionStatus::Approved),
+        ] {
+            manager.submit_solution(Solution {
+                id: id.to_string(),
+                problem_id: "p1".to_string(),
+                title: format!("Solution {id}"),
+                description: "desc".to_string(),
+                implementation_steps: vec![],
+                expected_outcome: "fix".to_string(),
+                risks: vec![],
+                effort_hours: 1.0,
+                priority: 1,
+                status,
+                created_at: chrono::Utc::now(),
+            });
+        }
+
+        let pending = manager.pending_solutions();
+        assert_eq!(pending.len(), 2);
+    }
+
+    #[test]
+    fn test_record_improvement_multiple_lessons() {
+        let mut manager = SelfImprovementManager::new();
+        manager.register_problem(Problem {
+            id: "p1".to_string(),
+            title: "P".to_string(),
+            description: "D".to_string(),
+            source: ProblemSource::CodeQuality,
+            severity: ProblemSeverity::Medium,
+            impact: "I".to_string(),
+            reproduction_steps: vec![],
+            expected_behavior: "E".to_string(),
+            actual_behavior: "A".to_string(),
+            discovered_at: chrono::Utc::now(),
+            code_locations: vec![],
+            logs: vec![],
+        });
+
+        manager.record_improvement(ImprovementRecord {
+            id: "r1".to_string(),
+            problem_id: "p1".to_string(),
+            solution_id: "s1".to_string(),
+            result: ImplementationResult {
+                success: true,
+                changed_files: vec!["file.rs".to_string()],
+                new_tests: vec!["test1".to_string()],
+                lines_changed: 50,
+                actual_hours: 2.0,
+                issues_encountered: vec![],
+            },
+            verification: VerificationResult {
+                tests_passed: true,
+                performance_improved: false,
+                problem_resolved: true,
+                new_issues_introduced: false,
+                details: "OK".to_string(),
+            },
+            lessons_learned: vec![
+                "Lesson A".to_string(),
+                "Lesson B".to_string(),
+                "Lesson C".to_string(),
+            ],
+            completed_at: chrono::Utc::now(),
+        });
+
+        assert_eq!(manager.records.len(), 1);
+        assert_eq!(manager.knowledge_base.len(), 3);
+        assert!(manager
+            .knowledge_base
+            .iter()
+            .all(|k| k.tags.contains(&"lesson".to_string())));
+    }
+
+    #[test]
+    fn test_generate_report_with_data() {
+        let mut manager = SelfImprovementManager::new();
+
+        // Add a high-severity problem
+        manager.register_problem(Problem {
+            id: "p1".to_string(),
+            title: "Critical Bug".to_string(),
+            description: "desc".to_string(),
+            source: ProblemSource::SystemMonitoring,
+            severity: ProblemSeverity::Critical,
+            impact: "major".to_string(),
+            reproduction_steps: vec!["step1".to_string()],
+            expected_behavior: "works".to_string(),
+            actual_behavior: "crashes".to_string(),
+            discovered_at: chrono::Utc::now(),
+            code_locations: vec![],
+            logs: vec![],
+        });
+
+        // Add approved solution
+        manager.submit_solution(Solution {
+            id: "s1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix it".to_string(),
+            implementation_steps: vec![],
+            expected_outcome: "works".to_string(),
+            risks: vec![],
+            effort_hours: 1.0,
+            priority: 1,
+            status: SolutionStatus::Approved,
+            created_at: chrono::Utc::now(),
+        });
+
+        // Add a completed improvement
+        manager.record_improvement(ImprovementRecord {
+            id: "r1".to_string(),
+            problem_id: "p1".to_string(),
+            solution_id: "s1".to_string(),
+            result: ImplementationResult {
+                success: true,
+                changed_files: vec![],
+                new_tests: vec![],
+                lines_changed: 0,
+                actual_hours: 1.0,
+                issues_encountered: vec![],
+            },
+            verification: VerificationResult {
+                tests_passed: true,
+                performance_improved: true,
+                problem_resolved: true,
+                new_issues_introduced: false,
+                details: "Fixed".to_string(),
+            },
+            lessons_learned: vec!["Always test first".to_string()],
+            completed_at: chrono::Utc::now(),
+        });
+
+        let report = manager.generate_report();
+        assert!(report.contains("总问题数: 1"));
+        assert!(report.contains("待处理高优问题: 1"));
+        assert!(report.contains("总方案数: 1"));
+        assert!(report.contains("待实施方案: 1"));
+        assert!(report.contains("已完成改进: 1"));
+        assert!(report.contains("成功改进: 1"));
+        assert!(report.contains("经验教训条目: 1"));
+    }
+
+    #[test]
+    fn test_problem_serialization_roundtrip() {
+        let problem = Problem {
+            id: "p1".to_string(),
+            title: "Test".to_string(),
+            description: "desc".to_string(),
+            source: ProblemSource::SecurityVulnerability,
+            severity: ProblemSeverity::Critical,
+            impact: "high".to_string(),
+            reproduction_steps: vec!["step1".to_string()],
+            expected_behavior: "secure".to_string(),
+            actual_behavior: "vulnerable".to_string(),
+            discovered_at: chrono::Utc::now(),
+            code_locations: vec![CodeLocation {
+                file: "auth.rs".to_string(),
+                line: Some(42),
+                function: Some("verify".to_string()),
+                snippet: Some("if token.is_empty()".to_string()),
+            }],
+            logs: vec!["error at auth".to_string()],
+        };
+
+        let json = serde_json::to_string(&problem).unwrap();
+        let deserialized: Problem = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "p1");
+        assert_eq!(deserialized.severity, ProblemSeverity::Critical);
+        assert_eq!(deserialized.code_locations.len(), 1);
+        assert_eq!(deserialized.code_locations[0].line, Some(42));
+    }
+
+    #[test]
+    fn test_solution_serialization_roundtrip() {
+        let solution = Solution {
+            id: "s1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix the bug".to_string(),
+            implementation_steps: vec![ImplementationStep {
+                order: 1,
+                description: "Add validation".to_string(),
+                files: vec!["auth.rs".to_string()],
+                expected_changes: "Add input check".to_string(),
+                verification: "Run tests".to_string(),
+            }],
+            expected_outcome: "Bug fixed".to_string(),
+            risks: vec![Risk {
+                description: "May break compat".to_string(),
+                likelihood: 0.1,
+                impact: "low".to_string(),
+                mitigation: "Add feature flag".to_string(),
+            }],
+            effort_hours: 2.5,
+            priority: 1,
+            status: SolutionStatus::InProgress,
+            created_at: chrono::Utc::now(),
+        };
+
+        let json = serde_json::to_string(&solution).unwrap();
+        let deserialized: Solution = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.implementation_steps.len(), 1);
+        assert_eq!(deserialized.risks[0].likelihood, 0.1);
+    }
+
+    #[test]
+    fn test_empty_manager_report() {
+        let manager = SelfImprovementManager::new();
+        let report = manager.generate_report();
+        assert!(report.contains("总问题数: 0"));
+        assert!(report.contains("待处理高优问题: 0"));
+        assert!(report.contains("总方案数: 0"));
+        assert!(report.contains("待实施方案: 0"));
+        assert!(report.contains("已完成改进: 0"));
+        assert!(report.contains("成功改进: 0"));
+        assert!(report.contains("经验教训条目: 0"));
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let manager = SelfImprovementManager::default();
+        assert!(manager.problems.is_empty());
+        assert!(manager.solutions.is_empty());
+        assert!(manager.records.is_empty());
+        assert!(manager.knowledge_base.is_empty());
+    }
+
+    #[test]
+    fn test_code_location_optional_fields() {
+        let loc = CodeLocation {
+            file: "test.rs".to_string(),
+            line: None,
+            function: None,
+            snippet: None,
+        };
+        let json = serde_json::to_string(&loc).unwrap();
+        let deserialized: CodeLocation = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.file, "test.rs");
+        assert!(deserialized.line.is_none());
+        assert!(deserialized.function.is_none());
+        assert!(deserialized.snippet.is_none());
+    }
+
+    #[test]
+    fn test_multiple_improvements_accumulate_knowledge() {
+        let mut manager = SelfImprovementManager::new();
+
+        for i in 0..5 {
+            manager.record_improvement(ImprovementRecord {
+                id: format!("r{i}"),
+                problem_id: format!("p{i}"),
+                solution_id: format!("s{i}"),
+                result: ImplementationResult {
+                    success: i % 2 == 0,
+                    changed_files: vec![],
+                    new_tests: vec![],
+                    lines_changed: i * 10,
+                    actual_hours: i as f64,
+                    issues_encountered: vec![],
+                },
+                verification: VerificationResult {
+                    tests_passed: true,
+                    performance_improved: false,
+                    problem_resolved: true,
+                    new_issues_introduced: false,
+                    details: "ok".to_string(),
+                },
+                lessons_learned: vec![format!("Lesson {i}a"), format!("Lesson {i}b")],
+                completed_at: chrono::Utc::now(),
+            });
+        }
+
+        assert_eq!(manager.records.len(), 5);
+        assert_eq!(manager.knowledge_base.len(), 10);
+
+        let report = manager.generate_report();
+        assert!(report.contains("已完成改进: 5"));
+        assert!(report.contains("成功改进: 3")); // 0, 2, 4
+        assert!(report.contains("经验教训条目: 10"));
+    }
 }

@@ -32,6 +32,8 @@ pub struct AppState {
     pub event_replay_buffer: EventReplayBuffer,
     /// Knowledge base retriever (vector search + hybrid retrieval)
     pub knowledge_retriever: Arc<dyn Retriever>,
+    /// Session context manager (7-layer memory architecture)
+    pub context_manager: Option<Arc<kias_knowledge::context_manager::MultiSessionContextManager>>,
 }
 
 impl AppState {
@@ -104,6 +106,7 @@ impl AppState {
             connection_registry: ConnectionRegistry::default(),
             event_replay_buffer: EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            context_manager: None,
         }
     }
 
@@ -189,6 +192,7 @@ impl AppState {
             connection_registry: ConnectionRegistry::default(),
             event_replay_buffer: EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            context_manager: None,
         }
     }
 }

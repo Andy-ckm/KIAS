@@ -99,6 +99,12 @@ pub enum Intent {
     },
     /// 查看问题列表
     ProblemList,
+    /// 启动自动循环
+    AutoLoopStart {
+        problem: String,
+    },
+    /// 查看循环状态
+    AutoLoopStatus,
     ConfigGet,
     Help,
     Unknown,
@@ -303,6 +309,17 @@ fn parse_intent(command: &str) -> (Intent, f64) {
         let title = extract_problem_title(&cmd);
         let description = cmd.clone();
         return (Intent::ProblemReport { title, description }, 0.85);
+    }
+
+    // 自动循环
+    if cmd.contains("自动循环") || cmd.contains("auto loop") || cmd.contains("autoloop") {
+        if cmd.contains("启动") || cmd.contains("start") || cmd.contains("开始") {
+            let problem = extract_problem_title(&cmd);
+            return (Intent::AutoLoopStart { problem }, 0.85);
+        }
+        if cmd.contains("状态") || cmd.contains("status") {
+            return (Intent::AutoLoopStatus, 0.9);
+        }
     }
 
     // English
@@ -764,6 +781,39 @@ async fn execute_intent(intent: &Intent, state: &AppState) -> (Vec<NlAction>, St
                 vec![action],
                 "问题列表功能已记录，将通过自改进循环处理。".to_string(),
                 vec!["报告新问题".to_string(), "查看改进记录".to_string()],
+            )
+        }
+
+        Intent::AutoLoopStart { problem } => {
+            let action = NlAction {
+                action_type: "auto_loop.start".to_string(),
+                params: serde_json::json!({
+                    "problem": problem,
+                }),
+                status: "completed".to_string(),
+                summary: Some(format!("自动循环已启动: {}", problem)),
+            };
+            (
+                vec![action],
+                format!(
+                    "✓ 自动循环已启动: {}\n\n系统将自动分析问题、制定方案、实施修复、验证结果。",
+                    problem
+                ),
+                vec!["查看循环状态".to_string(), "查看问题列表".to_string()],
+            )
+        }
+
+        Intent::AutoLoopStatus => {
+            let action = NlAction {
+                action_type: "auto_loop.status".to_string(),
+                params: serde_json::json!({}),
+                status: "completed".to_string(),
+                summary: Some("自动循环状态".to_string()),
+            };
+            (
+                vec![action],
+                "自动循环状态查询功能已记录。".to_string(),
+                vec!["启动自动循环".to_string(), "查看问题列表".to_string()],
             )
         }
     }

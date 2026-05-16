@@ -1028,3 +1028,18 @@
 - **Topics**: ai-agents, knowledge-graph, local-first, mcp, obsidian, rag, semantic-search
 - **Relevance to KIAS**: Hybrid search (keyword + semantic) for knowledge graphs. MCP server for Obsidian vaults is a novel integration pattern.
 - **Key Pattern**: Local-first knowledge graph with hybrid search (BM25 + embedding similarity). Could improve KIAS's knowledge crate retrieval.
+
+
+### 97. Argentor (fboiero/Argentor) ⭐1
+- **语言**: Rust
+- **描述**: Secure multi-agent AI framework — WASM sandbox, 50+ skills, 14 LLM providers, agent intelligence
+- **创新点**: WASM sandbox for tool isolation + 50+ built-in skills registry + multi-provider routing
+- **KIAS 相关**: Sandbox execution pattern (mcp-protocol), skill registry (skills crate), multi-provider (model-router)
+- **评估**: 值得关注 — WASM sandbox approach could enhance KIAS's ProcessSandboxBackend
+
+### 98. HeartBit (heartbit-ai/heartbit) ⭐5
+- **语言**: Rust
+- **描述**: Best in class Multi-agent enterprise framework in Rust
+- **创新点**: Enterprise-grade multi-agent framework with Rust performance
+- **KIAS 相关**: Direct competitor — enterprise agent orchestration in Rust
+- **评估**: Monitor closely — highest-starred new Rust agent framework, may have architectural patterns worth studying

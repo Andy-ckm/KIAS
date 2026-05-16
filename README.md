@@ -31,7 +31,8 @@
   <a href="docs/technical-showcase.md">Technical Deep Dive</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#architecture">Architecture</a> ·
-  <a href="#supported-models">Supported Models</a>
+  <a href="#supported-models">Supported Models</a> ·
+  <a href="#system-requirements">System Requirements</a>
 </p>
 
 ---
@@ -396,6 +397,55 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 | **Ollama** | `curl -fsSL https://ollama.com/install.sh \| sh` | Development & testing |
 | **vLLM** | `pip install vllm` | Production high-throughput |
 | **llama.cpp** | GitHub release | Edge devices, CPU inference |
+
+---
+
+## System Requirements
+
+### Operating Systems
+
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| **Ubuntu 22.04+** | x86_64 / aarch64 | ✅ Primary |
+| **Debian 12+** | x86_64 / aarch64 | ✅ Supported |
+| **CentOS 9 / RHEL 9** | x86_64 / aarch64 | ✅ Supported |
+| **macOS 13+** | Apple Silicon (M1-M4) / x86_64 | ✅ Supported |
+| **Windows 11** | x86_64 (WSL2) | ⚠️ Via WSL2 only |
+| **Docker** | x86_64 / aarch64 | ✅ Official image available |
+
+### Hardware
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **CPU** | 2 cores | 4+ cores |
+| **RAM** | 2 GB | 4+ GB |
+| **Disk** | 500 MB (binary) | 2+ GB (with SQLite data) |
+| **Network** | Outbound HTTPS | Required for LLM API calls |
+
+> KIAS is a single binary (~30 MB). No runtime dependencies (no JVM, no Node, no Python).
+> SQLite is embedded. No external database required for single-node deployment.
+
+### Dependencies
+
+| Dependency | Required | Notes |
+|-----------|----------|-------|
+| **Rust 1.85+** | Build only | Stable channel |
+| **SQLite 3.35+** | Runtime (embedded) | Auto-included via `rusqlite` bundled feature |
+| **OpenSSL / rustls** | Runtime | TLS for LLM API calls (rustls by default) |
+
+### Deployment Modes
+
+```bash
+# Standalone (single binary, embedded SQLite)
+kias server start
+
+# Docker
+docker run -p 8080:8080 -v kias-data:/data ghcr.io/andy-ckm/kias:latest
+
+# Systemd service
+sudo kias install systemd
+sudo systemctl enable --now kias
+```
 
 ---
 

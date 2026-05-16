@@ -3,7 +3,7 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS/actions">
-    <img src="https://img.shields.io/badge/tests-1637%20passed-brightgreen.svg" alt="Tests">
+    <img src="https://img.shields.io/badge/tests-1720%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
@@ -342,6 +342,49 @@ pub fn redact_log_message(msg: &str) -> String {
 
 ---
 
+### 11. InspirationStream — Builder-Thinker Dual-Flow Development
+
+**File:** [`crates/knowledge/src/inspiration_stream.rs`](crates/knowledge/src/inspiration_stream.rs)
+
+Traditional agent development follows a single-threaded execute → evaluate loop. The developer (or agent) builds, then checks if it works. This misses the opportunity for parallel insight discovery — while building, external knowledge sources may surface better approaches that could redirect effort before it's wasted.
+
+KIAS introduces a **Builder-Thinker dual-flow architecture** inspired by MiniMax Mavis's Worker-Verifier adversarial pattern, extended with a third **Thinker** role:
+
+```
+Builder (构建) ──→ 产出代码
+    ↕ 正向循环
+Thinker (发现) ──→ 从外部知识源抓取相关洞察，注入工作区
+    ↓
+Verifier (验证) ──→ 质量门禁
+```
+
+Three knowledge source types with **positive feedback weighting**:
+
+```rust
+// crates/knowledge/src/inspiration_stream.rs
+pub enum SourceType {
+    Paper,      // arXiv, conference proceedings
+    Trending,   // GitHub trending, HN, Reddit
+    Benchmark,  // Performance comparisons, competitor analysis
+}
+```
+
+**Positive feedback loop** — sources that produce adopted insights gain weight (up to 3.0×), sources that produce ignored insights lose weight (down to 0.3×). No manual tuning; the system learns which sources are valuable over time.
+
+```rust
+if adopted {
+    source.reliability = (source.reliability * 1.05).min(3.0);  // +5%
+} else {
+    source.reliability = (source.reliability * 0.99).max(0.3);  // -1%
+}
+```
+
+**Relevance scoring** uses keyword overlap between insight tags and the current task context. `max_per_cycle` prevents insight flooding. `min_relevance` filters noise. All insights are persisted with adopt/dismiss outcomes for the DreamConsolidator to learn from during sleep cycles.
+
+This is the mechanism that enabled KIAS to absorb ideas from AgenticRAG, Claude Code's memory architecture, AgentScope's Workspace concept, and MiniMax Mavis's Worker-Verifier pattern — all discovered and integrated during active development, not in a separate research phase.
+
+---
+
 ## Node-Level Error Handling
 
 KIAS provides fault tolerance at every layer of the stack:
@@ -659,7 +702,7 @@ kias/
 │   ├── executor/            # Task execution framework
 │   ├── cache/               # LRU + prefix caching
 │   ├── monitor/             # Telemetry + metrics collection
-│   ├── knowledge/           # Knowledge graph
+│   ├── knowledge/           # Knowledge graph, AgenticRAG, 7-layer memory, InspirationStream
 │   ├── skills/              # Skill registry
 │   ├── kias-cli/            # Command-line tool
 │   ├── kias-main/           # Main service orchestration
@@ -699,6 +742,7 @@ kias/
 | **Autonomy Control** | 3-level gradient with auto-promotion | None | None | None |
 | **Concurrency Model** | Tokio async (10K+ concurrent) | Single-threaded | Single-threaded | Single-threaded |
 | **Sandbox** | 5 backends | None | None | None |
+| **Inspiration Discovery** | Builder-Thinker dual-flow with feedback weighting | None | None | None |
 
 ---
 

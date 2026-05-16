@@ -282,7 +282,12 @@ impl ContextManager {
 
             info!(
                 "Compressed {:?}: {} msgs -> {} msgs, {} tokens -> {} tokens ({}ms)",
-                r.level, r.messages_before, r.messages_after, r.tokens_before, r.tokens_after, r.duration_ms
+                r.level,
+                r.messages_before,
+                r.messages_after,
+                r.tokens_before,
+                r.tokens_after,
+                r.duration_ms
             );
 
             self.compression_log.write().await.push(r.clone());
@@ -314,7 +319,9 @@ impl ContextManager {
         messages.push_front(summary);
 
         // 重新计算 token
-        let tokens_after = self.token_counter.count_messages(&messages.iter().cloned().collect::<Vec<_>>());
+        let tokens_after = self
+            .token_counter
+            .count_messages(&messages.iter().cloned().collect::<Vec<_>>());
         *self.total_tokens.write().await = tokens_after;
 
         debug!(
@@ -343,7 +350,8 @@ impl ContextManager {
         }
 
         // 保留最近 min_keep 条消息
-        let summary_content = self.summarize_messages(&messages.iter().cloned().collect::<Vec<_>>());
+        let summary_content =
+            self.summarize_messages(&messages.iter().cloned().collect::<Vec<_>>());
 
         drop(messages);
 
@@ -358,12 +366,17 @@ impl ContextManager {
             .collect();
 
         messages.clear();
-        messages.push_back(ContextMessage::summary(MessageRole::System, summary_content));
+        messages.push_back(ContextMessage::summary(
+            MessageRole::System,
+            summary_content,
+        ));
         for msg in recent {
             messages.push_back(msg);
         }
 
-        let tokens_after = self.token_counter.count_messages(&messages.iter().cloned().collect::<Vec<_>>());
+        let tokens_after = self
+            .token_counter
+            .count_messages(&messages.iter().cloned().collect::<Vec<_>>());
         *self.total_tokens.write().await = tokens_after;
 
         debug!("Full compressed: kept {} recent msgs + summary", min_keep);
@@ -387,9 +400,18 @@ impl ContextManager {
         parts.push(String::new());
 
         // 统计角色分布
-        let user_count = messages.iter().filter(|m| m.role == MessageRole::User).count();
-        let assistant_count = messages.iter().filter(|m| m.role == MessageRole::Assistant).count();
-        let tool_count = messages.iter().filter(|m| m.role == MessageRole::Tool).count();
+        let user_count = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::User)
+            .count();
+        let assistant_count = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::Assistant)
+            .count();
+        let tool_count = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::Tool)
+            .count();
         parts.push(format!(
             "角色分布: 用户={}, 助手={}, 工具={}",
             user_count, assistant_count, tool_count
@@ -454,9 +476,18 @@ impl ContextManager {
         let messages = self.messages.read().await;
         let total_tokens = self.total_tokens().await;
 
-        let user_msgs = messages.iter().filter(|m| m.role == MessageRole::User).count();
-        let assistant_msgs = messages.iter().filter(|m| m.role == MessageRole::Assistant).count();
-        let tool_msgs = messages.iter().filter(|m| m.role == MessageRole::Tool).count();
+        let user_msgs = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::User)
+            .count();
+        let assistant_msgs = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::Assistant)
+            .count();
+        let tool_msgs = messages
+            .iter()
+            .filter(|m| m.role == MessageRole::Tool)
+            .count();
         let summary_msgs = messages.iter().filter(|m| m.is_summary).count();
 
         ContextStats {
@@ -627,8 +658,10 @@ mod tests {
         };
         let ctx = ContextManager::new(config);
 
-        ctx.push(ContextMessage::new(MessageRole::User, "Hello")).await;
-        ctx.push(ContextMessage::new(MessageRole::Assistant, "Hi!")).await;
+        ctx.push(ContextMessage::new(MessageRole::User, "Hello"))
+            .await;
+        ctx.push(ContextMessage::new(MessageRole::Assistant, "Hi!"))
+            .await;
 
         assert_eq!(ctx.message_count().await, 2);
         assert!(ctx.total_tokens().await > 0);
@@ -642,7 +675,8 @@ mod tests {
         };
         let ctx = ContextManager::new(config);
 
-        ctx.push(ContextMessage::new(MessageRole::User, "Short message")).await;
+        ctx.push(ContextMessage::new(MessageRole::User, "Short message"))
+            .await;
 
         assert_eq!(ctx.needed_compression().await, CompressionLevel::None);
     }
@@ -687,7 +721,10 @@ mod tests {
         for i in 0..15 {
             ctx.push(ContextMessage::new(
                 MessageRole::User,
-                format!("Message {} with enough content to trigger compression when accumulated", i),
+                format!(
+                    "Message {} with enough content to trigger compression when accumulated",
+                    i
+                ),
             ))
             .await;
         }
@@ -731,7 +768,10 @@ mod tests {
         for i in 0..10 {
             ctx.push(ContextMessage::new(
                 MessageRole::Assistant,
-                format!("Response {} with detailed explanation that takes up tokens", i),
+                format!(
+                    "Response {} with detailed explanation that takes up tokens",
+                    i
+                ),
             ))
             .await;
         }
@@ -749,9 +789,12 @@ mod tests {
         };
         let ctx = ContextManager::new(config);
 
-        ctx.push(ContextMessage::new(MessageRole::User, "Hello")).await;
-        ctx.push(ContextMessage::new(MessageRole::Assistant, "Hi!")).await;
-        ctx.push(ContextMessage::new(MessageRole::Tool, "result")).await;
+        ctx.push(ContextMessage::new(MessageRole::User, "Hello"))
+            .await;
+        ctx.push(ContextMessage::new(MessageRole::Assistant, "Hi!"))
+            .await;
+        ctx.push(ContextMessage::new(MessageRole::Tool, "result"))
+            .await;
 
         let stats = ctx.stats().await;
         assert_eq!(stats.total_messages, 3);
@@ -766,7 +809,8 @@ mod tests {
         let config = ContextManagerConfig::default();
         let ctx = ContextManager::new(config);
 
-        ctx.push(ContextMessage::new(MessageRole::User, "Hello")).await;
+        ctx.push(ContextMessage::new(MessageRole::User, "Hello"))
+            .await;
         assert_eq!(ctx.message_count().await, 1);
 
         ctx.clear().await;
@@ -782,8 +826,18 @@ mod tests {
         };
         let multi = MultiSessionContextManager::new(config);
 
-        multi.push("session-1", ContextMessage::new(MessageRole::User, "Hello from session 1")).await;
-        multi.push("session-2", ContextMessage::new(MessageRole::User, "Hello from session 2")).await;
+        multi
+            .push(
+                "session-1",
+                ContextMessage::new(MessageRole::User, "Hello from session 1"),
+            )
+            .await;
+        multi
+            .push(
+                "session-2",
+                ContextMessage::new(MessageRole::User, "Hello from session 2"),
+            )
+            .await;
 
         assert_eq!(multi.session_count().await, 2);
 

@@ -1,3 +1,28 @@
+## 最新更新：2026-05-17 07:28 (Sprint 61 — LLM Engine Streaming Tests)
+
+### 🎯 Sprint 61 状态检查
+- ✅ fmt: clean
+- ✅ clippy: 0 warnings
+- ✅ tests: 1814 passing (+15 new)
+- ✅ 已提交: `ca66322` test(llm-engine): add 15 StreamProcessor tests
+- ✅ 已推送到 main
+
+### 📊 本次改动
+- `crates/llm-engine/src/streaming.rs`: +326 行测试代码
+  - 15 个新测试覆盖 StreamProcessor 核心逻辑
+  - 测试路径: 文本块处理、空内容过滤、Done 事件、工具调用开始/增量/累积、
+    多工具调用、无效 JSON 降级、多 choice、混合事件、缺失 ID 生成、事件序列化
+
+### 🔍 Defect Triage
+- Defect #1 (Redis未实现): ✅ 已在之前 Sprint 修复 — 无 Redis 引用
+- Defect #2 (data-store→knowledge cross-layer): ✅ 已在 commit 28e346d 修复
+- 两个列出的缺陷均已修复，本轮转向测试覆盖扩展
+
+### 💾 磁盘状态
+- / (系统盘): 88%
+- /mnt (挂载盘): 1%
+
+---
 ## 最新更新：2026-05-17 06:55 (Sprint 60 — Executor Test Coverage)
 
 ### 🎯 Sprint 60 状态检查

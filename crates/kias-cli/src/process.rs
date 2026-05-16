@@ -37,13 +37,8 @@ impl ProcessManager {
     /// Write the current process PID to the PID file
     pub fn write_pid(&self) -> Result<(), String> {
         let pid = std::process::id();
-        fs::write(&self.pid_file, pid.to_string()).map_err(|e| {
-            format!(
-                "无法写入 PID 文件 {}: {}",
-                self.pid_file.display(),
-                e
-            )
-        })
+        fs::write(&self.pid_file, pid.to_string())
+            .map_err(|e| format!("无法写入 PID 文件 {}: {}", self.pid_file.display(), e))
     }
 
     /// Read the PID from the PID file
@@ -212,10 +207,7 @@ impl ProcessManager {
             #[cfg(unix)]
             {
                 use std::process::Command;
-                let _ = Command::new("kill")
-                    .arg("-9")
-                    .arg(pid.to_string())
-                    .status();
+                let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
             }
             self.remove_pid_file();
             Ok(StopResult::ForceKilled)
@@ -281,7 +273,11 @@ impl ServerStatus {
             .timeout(std::time::Duration::from_secs(3))
             .build();
         if let Ok(client) = client {
-            if let Ok(resp) = client.get(format!("{}/health", self.server_url)).send().await {
+            if let Ok(resp) = client
+                .get(format!("{}/health", self.server_url))
+                .send()
+                .await
+            {
                 self.health = Some(resp.status().is_success());
             }
         }
@@ -297,11 +293,14 @@ impl ServerStatus {
             lines.push("进程: 未运行".to_string());
         }
 
-        lines.push(format!("PID 文件: {}", if self.pid_file_exists {
-            "存在"
-        } else {
-            "不存在"
-        }));
+        lines.push(format!(
+            "PID 文件: {}",
+            if self.pid_file_exists {
+                "存在"
+            } else {
+                "不存在"
+            }
+        ));
 
         match self.health {
             Some(true) => lines.push("健康检查: 正常".to_string()),

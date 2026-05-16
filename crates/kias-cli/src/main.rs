@@ -1032,11 +1032,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             // 检查是否已有实例在运行
             if let Ok(pid) = pm.read_pid() {
                 if ProcessManager::is_process_running(pid) {
-                    eprintln!(
-                        "{}: KIAS 服务已在运行 (PID {})",
-                        "错误".red().bold(),
-                        pid
-                    );
+                    eprintln!("{}: KIAS 服务已在运行 (PID {})", "错误".red().bold(), pid);
                     eprintln!("  使用 `kias server restart` 重启");
                     return ExitCode::ServerError as i32;
                 }
@@ -1171,8 +1167,8 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
 
             // Step 2: Start (foreground)
             println!("  正在重新启动...");
-            let config_path = std::env::var("KIAS_CONFIG")
-                .unwrap_or_else(|_| "config/kias.toml".to_string());
+            let config_path =
+                std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string());
 
             let _ = pm.write_pid();
             let status = std::process::Command::new("kias-main")

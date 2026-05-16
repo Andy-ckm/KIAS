@@ -5,15 +5,12 @@
 //!
 //! 提供 /api/v1/nl/command 端点，接受自然语言指令并转换为 KIAS 操作。
 
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ApiError;
-use crate::models::agent::{AgentSpec, AgentStatus};
-use crate::handlers::workflows::{WorkflowStatus};
+use crate::handlers::workflows::WorkflowStatus;
+use crate::models::agent::AgentSpec;
 use crate::AppState;
 
 /// 自然语言命令请求
@@ -69,17 +66,32 @@ pub struct NlAction {
 /// 支持的意图类型
 #[derive(Debug, Clone)]
 enum Intent {
-    AgentCreate { name: Option<String>, model: Option<String> },
+    AgentCreate {
+        name: Option<String>,
+        model: Option<String>,
+    },
     AgentList,
-    AgentDelete { name: String },
-    AgentRun { name: String, prompt: Option<String> },
-    WorkflowCreate { name: Option<String>, description: Option<String> },
-    WorkflowRun { name: String },
+    AgentDelete {
+        name: String,
+    },
+    AgentRun {
+        name: String,
+        prompt: Option<String>,
+    },
+    WorkflowCreate {
+        name: Option<String>,
+        description: Option<String>,
+    },
+    WorkflowRun {
+        name: String,
+    },
     WorkflowList,
     ClusterStatus,
     ServerStatus,
     Metrics,
-    KnowledgeSearch { query: String },
+    KnowledgeSearch {
+        query: String,
+    },
     ConfigGet,
     Help,
     Unknown,
@@ -113,7 +125,7 @@ pub async fn nl_stream(
     State(state): State<AppState>,
     Json(req): Json<NlCommandRequest>,
 ) -> axum::response::Response {
-    use axum::response::IntoResponse;
+    // IntoResponse unused in tests
 
     // 解析意图并执行
     let (intent, confidence) = parse_intent(&req.command);
@@ -144,32 +156,77 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     let cmd = command.trim().to_lowercase();
 
     // Agent 相关
-    if (cmd.contains("创建") || cmd.contains("create") || cmd.contains("新建")) && cmd.contains("agent") {
-        let name = extract_name(&cmd, &["agent", "创建", "create", "新建", "一个", "名为", "叫"]);
+    if (cmd.contains("创建") || cmd.contains("create") || cmd.contains("新建"))
+        && cmd.contains("agent")
+    {
+        let name = extract_name(
+            &cmd,
+            &["agent", "创建", "create", "新建", "一个", "名为", "叫"],
+        );
         return (Intent::AgentCreate { name, model: None }, 0.9);
     }
-    if (cmd.contains("列出") || cmd.contains("list") || cmd.contains("查看") || cmd.contains("show")) && cmd.contains("agent") {
+    if (cmd.contains("列出")
+        || cmd.contains("list")
+        || cmd.contains("查看")
+        || cmd.contains("show"))
+        && cmd.contains("agent")
+    {
         return (Intent::AgentList, 0.95);
     }
-    if (cmd.contains("删除") || cmd.contains("delete") || cmd.contains("remove")) && cmd.contains("agent") {
+    if (cmd.contains("删除") || cmd.contains("delete") || cmd.contains("remove"))
+        && cmd.contains("agent")
+    {
         let name = extract_name(&cmd, &["agent", "删除", "delete", "remove"]);
-        return (Intent::AgentDelete { name: name.unwrap_or_default() }, 0.85);
+        return (
+            Intent::AgentDelete {
+                name: name.unwrap_or_default(),
+            },
+            0.85,
+        );
     }
-    if (cmd.contains("运行") || cmd.contains("run") || cmd.contains("执行") || cmd.contains("invoke")) && cmd.contains("agent") {
+    if (cmd.contains("运行")
+        || cmd.contains("run")
+        || cmd.contains("执行")
+        || cmd.contains("invoke"))
+        && cmd.contains("agent")
+    {
         let name = extract_name(&cmd, &["agent", "运行", "run", "执行", "invoke"]);
-        return (Intent::AgentRun { name: name.unwrap_or_default(), prompt: None }, 0.85);
+        return (
+            Intent::AgentRun {
+                name: name.unwrap_or_default(),
+                prompt: None,
+            },
+            0.85,
+        );
     }
 
     // Workflow 相关
-    if (cmd.contains("创建") || cmd.contains("create")) && (cmd.contains("workflow") || cmd.contains("工作流")) {
+    if (cmd.contains("创建") || cmd.contains("create"))
+        && (cmd.contains("workflow") || cmd.contains("工作流"))
+    {
         let name = extract_name(&cmd, &["workflow", "工作流", "创建", "create"]);
-        return (Intent::WorkflowCreate { name, description: None }, 0.9);
+        return (
+            Intent::WorkflowCreate {
+                name,
+                description: None,
+            },
+            0.9,
+        );
     }
-    if (cmd.contains("运行") || cmd.contains("run") || cmd.contains("执行")) && (cmd.contains("workflow") || cmd.contains("工作流")) {
+    if (cmd.contains("运行") || cmd.contains("run") || cmd.contains("执行"))
+        && (cmd.contains("workflow") || cmd.contains("工作流"))
+    {
         let name = extract_name(&cmd, &["workflow", "工作流", "运行", "run", "执行"]);
-        return (Intent::WorkflowRun { name: name.unwrap_or_default() }, 0.85);
+        return (
+            Intent::WorkflowRun {
+                name: name.unwrap_or_default(),
+            },
+            0.85,
+        );
     }
-    if (cmd.contains("列出") || cmd.contains("list") || cmd.contains("查看")) && (cmd.contains("workflow") || cmd.contains("工作流")) {
+    if (cmd.contains("列出") || cmd.contains("list") || cmd.contains("查看"))
+        && (cmd.contains("workflow") || cmd.contains("工作流"))
+    {
         return (Intent::WorkflowList, 0.95);
     }
 
@@ -177,7 +234,11 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     if cmd.contains("集群") || cmd.contains("cluster") {
         return (Intent::ClusterStatus, 0.9);
     }
-    if cmd.contains("状态") || cmd.contains("status") || cmd.contains("健康") || cmd.contains("health") {
+    if cmd.contains("状态")
+        || cmd.contains("status")
+        || cmd.contains("健康")
+        || cmd.contains("health")
+    {
         return (Intent::ServerStatus, 0.9);
     }
     if cmd.contains("指标") || cmd.contains("metrics") || cmd.contains("统计") {
@@ -195,10 +256,18 @@ fn parse_intent(command: &str) -> (Intent, f64) {
     }
 
     // English
-    if cmd.starts_with("list") && cmd.contains("agent") { return (Intent::AgentList, 0.9); }
-    if cmd.starts_with("list") && (cmd.contains("workflow") || cmd.contains("workflows")) { return (Intent::WorkflowList, 0.9); }
-    if cmd.contains("cluster") { return (Intent::ClusterStatus, 0.9); }
-    if cmd.contains("help") { return (Intent::Help, 0.95); }
+    if cmd.starts_with("list") && cmd.contains("agent") {
+        return (Intent::AgentList, 0.9);
+    }
+    if cmd.starts_with("list") && (cmd.contains("workflow") || cmd.contains("workflows")) {
+        return (Intent::WorkflowList, 0.9);
+    }
+    if cmd.contains("cluster") {
+        return (Intent::ClusterStatus, 0.9);
+    }
+    if cmd.contains("help") {
+        return (Intent::Help, 0.95);
+    }
 
     (Intent::Unknown, 0.0)
 }
@@ -209,7 +278,10 @@ fn extract_name(cmd: &str, exclude_words: &[&str]) -> Option<String> {
     for pattern in &["名为 ", "叫 ", "named ", "called "] {
         if let Some(pos) = cmd.find(pattern) {
             let after = &cmd[pos + pattern.len()..];
-            let name: String = after.chars().take_while(|c| !c.is_whitespace() && *c != '的' && *c != '"' && *c != '\'').collect();
+            let name: String = after
+                .chars()
+                .take_while(|c| !c.is_whitespace() && *c != '的' && *c != '"' && *c != '\'')
+                .collect();
             if !name.is_empty() && name.len() > 1 {
                 return Some(name);
             }
@@ -221,7 +293,10 @@ fn extract_name(cmd: &str, exclude_words: &[&str]) -> Option<String> {
     for word in &words {
         let lower = word.to_lowercase();
         if !exclude_words.contains(&lower.as_str())
-            && !["的", "一个", "a", "an", "the", "named", "called", "名为", "叫"].contains(&lower.as_str())
+            && ![
+                "的", "一个", "a", "an", "the", "named", "called", "名为", "叫",
+            ]
+            .contains(&lower.as_str())
             && !lower.is_empty()
             && lower.len() > 1
             && !lower.chars().all(|c| c.is_ascii_digit())
@@ -236,8 +311,11 @@ fn extract_name(cmd: &str, exclude_words: &[&str]) -> Option<String> {
 fn extract_query(cmd: &str) -> String {
     // 尝试提取引号内的内容
     if let Some(start) = cmd.find('"').or_else(|| cmd.find('\u{201c}')) {
-        if let Some(end) = cmd[start+1..].find('"').or_else(|| cmd[start+1..].find('\u{201d}')) {
-            return cmd[start+1..start+1+end].to_string();
+        if let Some(end) = cmd[start + 1..]
+            .find('"')
+            .or_else(|| cmd[start + 1..].find('\u{201d}'))
+        {
+            return cmd[start + 1..start + 1 + end].to_string();
         }
     }
     // 去掉关键词
@@ -248,10 +326,7 @@ fn extract_query(cmd: &str) -> String {
 }
 
 /// 执行解析后的意图
-async fn execute_intent(
-    intent: &Intent,
-    state: &AppState,
-) -> (Vec<NlAction>, String, Vec<String>) {
+async fn execute_intent(intent: &Intent, state: &AppState) -> (Vec<NlAction>, String, Vec<String>) {
     match intent {
         Intent::AgentList => {
             let agents = state.agents.read().await;
@@ -271,11 +346,17 @@ async fn execute_intent(
                 format!("共 {} 个 Agent: {}", count, names.join(", "))
             };
 
-            (vec![action], msg, vec!["创建新 Agent".to_string(), "查看集群状态".to_string()])
+            (
+                vec![action],
+                msg,
+                vec!["创建新 Agent".to_string(), "查看集群状态".to_string()],
+            )
         }
 
         Intent::AgentCreate { name, model } => {
-            let agent_name = name.clone().unwrap_or_else(|| format!("agent-{}", &uuid::Uuid::new_v4().to_string()[..8]));
+            let agent_name = name
+                .clone()
+                .unwrap_or_else(|| format!("agent-{}", &uuid::Uuid::new_v4().to_string()[..8]));
             let model_name = model.clone().unwrap_or_else(|| "gpt-4o".to_string());
 
             let spec = AgentSpec {
@@ -304,13 +385,19 @@ async fn execute_intent(
             (
                 vec![action],
                 format!("✓ 已创建 Agent '{}' (ID: {})", agent_name, agent_id),
-                vec![format!("运行 Agent '{}'", agent_name), "查看 Agent 列表".to_string()],
+                vec![
+                    format!("运行 Agent '{}'", agent_name),
+                    "查看 Agent 列表".to_string(),
+                ],
             )
         }
 
         Intent::AgentDelete { name } => {
             let mut agents = state.agents.write().await;
-            let agent_id = agents.values().find(|a| a.spec.name == *name).map(|a| a.id.clone());
+            let agent_id = agents
+                .values()
+                .find(|a| a.spec.name == *name)
+                .map(|a| a.id.clone());
 
             if let Some(id) = agent_id {
                 agents.remove(&id);
@@ -320,7 +407,11 @@ async fn execute_intent(
                     status: "completed".to_string(),
                     summary: Some(format!("Agent '{}' deleted", name)),
                 };
-                (vec![action], format!("✓ 已删除 Agent '{}'", name), vec!["查看 Agent 列表".to_string()])
+                (
+                    vec![action],
+                    format!("✓ 已删除 Agent '{}'", name),
+                    vec!["查看 Agent 列表".to_string()],
+                )
             } else {
                 let action = NlAction {
                     action_type: "agent.delete".to_string(),
@@ -328,7 +419,11 @@ async fn execute_intent(
                     status: "failed".to_string(),
                     summary: Some(format!("Agent '{}' not found", name)),
                 };
-                (vec![action], format!("✗ 未找到 Agent '{}'", name), vec!["查看 Agent 列表".to_string()])
+                (
+                    vec![action],
+                    format!("✗ 未找到 Agent '{}'", name),
+                    vec!["查看 Agent 列表".to_string()],
+                )
             }
         }
 
@@ -336,14 +431,18 @@ async fn execute_intent(
             let agents = state.agents.read().await;
             let agent = agents.values().find(|a| a.spec.name == *name);
 
-            if let Some(agent) = agent {
+            if let Some(_agent) = agent {
                 let action = NlAction {
                     action_type: "agent.run".to_string(),
                     params: serde_json::json!({ "name": name, "prompt": prompt }),
                     status: "submitted".to_string(),
                     summary: Some(format!("Agent '{}' run submitted", name)),
                 };
-                (vec![action], format!("✓ 已提交 Agent '{}' 的运行请求", name), vec!["查看运行状态".to_string()])
+                (
+                    vec![action],
+                    format!("✓ 已提交 Agent '{}' 的运行请求", name),
+                    vec!["查看运行状态".to_string()],
+                )
             } else {
                 let action = NlAction {
                     action_type: "agent.run".to_string(),
@@ -351,7 +450,11 @@ async fn execute_intent(
                     status: "failed".to_string(),
                     summary: Some(format!("Agent '{}' not found", name)),
                 };
-                (vec![action], format!("✗ 未找到 Agent '{}'", name), vec!["查看 Agent 列表".to_string()])
+                (
+                    vec![action],
+                    format!("✗ 未找到 Agent '{}'", name),
+                    vec!["查看 Agent 列表".to_string()],
+                )
             }
         }
 
@@ -373,11 +476,17 @@ async fn execute_intent(
                 format!("共 {} 个工作流: {}", count, names.join(", "))
             };
 
-            (vec![action], msg, vec!["创建工作流".to_string(), "运行工作流".to_string()])
+            (
+                vec![action],
+                msg,
+                vec!["创建工作流".to_string(), "运行工作流".to_string()],
+            )
         }
 
         Intent::WorkflowCreate { name, description } => {
-            let wf_name = name.clone().unwrap_or_else(|| format!("workflow-{}", &uuid::Uuid::new_v4().to_string()[..8]));
+            let wf_name = name
+                .clone()
+                .unwrap_or_else(|| format!("workflow-{}", &uuid::Uuid::new_v4().to_string()[..8]));
             let wf_desc = description.clone().unwrap_or_default();
 
             let now = chrono::Utc::now().to_rfc3339();
@@ -406,21 +515,29 @@ async fn execute_intent(
                 summary: Some(format!("Workflow '{}' created", wf_name)),
             };
 
-            (vec![action], format!("✓ 已创建工作流 '{}'", wf_name), vec![format!("运行工作流 '{}'", wf_name)])
+            (
+                vec![action],
+                format!("✓ 已创建工作流 '{}'", wf_name),
+                vec![format!("运行工作流 '{}'", wf_name)],
+            )
         }
 
         Intent::WorkflowRun { name } => {
             let workflows = state.workflows.read().await;
             let workflow = workflows.values().find(|w| w.name == *name);
 
-            if let Some(wf) = workflow {
+            if let Some(_wf) = workflow {
                 let action = NlAction {
                     action_type: "workflow.run".to_string(),
                     params: serde_json::json!({ "name": name }),
                     status: "submitted".to_string(),
                     summary: Some(format!("Workflow '{}' run submitted", name)),
                 };
-                (vec![action], format!("✓ 已提交工作流 '{}' 的运行请求", name), vec!["查看工作流状态".to_string()])
+                (
+                    vec![action],
+                    format!("✓ 已提交工作流 '{}' 的运行请求", name),
+                    vec!["查看工作流状态".to_string()],
+                )
             } else {
                 let action = NlAction {
                     action_type: "workflow.run".to_string(),
@@ -428,7 +545,11 @@ async fn execute_intent(
                     status: "failed".to_string(),
                     summary: Some(format!("Workflow '{}' not found", name)),
                 };
-                (vec![action], format!("✗ 未找到工作流 '{}'", name), vec!["查看工作流列表".to_string()])
+                (
+                    vec![action],
+                    format!("✗ 未找到工作流 '{}'", name),
+                    vec!["查看工作流列表".to_string()],
+                )
             }
         }
 
@@ -440,7 +561,11 @@ async fn execute_intent(
                 status: "completed".to_string(),
                 summary: Some("Cluster status retrieved".to_string()),
             };
-            (vec![action], format!("✓ 集群状态: 健康, {} 个 Agent", agents_count), vec!["查看指标".to_string()])
+            (
+                vec![action],
+                format!("✓ 集群状态: 健康, {} 个 Agent", agents_count),
+                vec!["查看指标".to_string()],
+            )
         }
 
         Intent::ServerStatus => {
@@ -450,7 +575,11 @@ async fn execute_intent(
                 status: "completed".to_string(),
                 summary: Some("Server is running".to_string()),
             };
-            (vec![action], "✓ KIAS 服务运行正常".to_string(), vec!["查看集群状态".to_string()])
+            (
+                vec![action],
+                "✓ KIAS 服务运行正常".to_string(),
+                vec!["查看集群状态".to_string()],
+            )
         }
 
         Intent::Metrics => {
@@ -460,7 +589,11 @@ async fn execute_intent(
                 status: "completed".to_string(),
                 summary: Some("Metrics retrieved".to_string()),
             };
-            (vec![action], "✓ 指标摘要".to_string(), vec!["查看 Agent 指标".to_string()])
+            (
+                vec![action],
+                "✓ 指标摘要".to_string(),
+                vec!["查看 Agent 指标".to_string()],
+            )
         }
 
         Intent::KnowledgeSearch { query } => {
@@ -480,7 +613,11 @@ async fn execute_intent(
                 status: "completed".to_string(),
                 summary: Some("Config retrieved".to_string()),
             };
-            (vec![action], "✓ 当前配置".to_string(), vec!["更新配置".to_string()])
+            (
+                vec![action],
+                "✓ 当前配置".to_string(),
+                vec!["更新配置".to_string()],
+            )
         }
 
         Intent::Help => {
@@ -504,7 +641,8 @@ async fn execute_intent(
                  - 查看状态 / status\n\
                  - 查看指标 / metrics\n\
                  - 搜索 xxx / search xxx\n\
-                 - 帮助 / help".to_string(),
+                 - 帮助 / help"
+                    .to_string(),
                 vec!["查看 Agent 列表".to_string(), "查看集群状态".to_string()],
             )
         }
@@ -593,7 +731,10 @@ mod tests {
 
     #[test]
     fn test_extract_name() {
-        let name = extract_name("创建一个名为 test 的 agent", &["agent", "创建", "一个", "名为"]);
+        let name = extract_name(
+            "创建一个名为 test 的 agent",
+            &["agent", "创建", "一个", "名为"],
+        );
         assert!(name.is_some());
         assert_eq!(name.unwrap(), "test");
     }

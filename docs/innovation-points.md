@@ -1186,3 +1186,12 @@ Source: GitHub API search 2026-05-16 21:34
   - 可参考 Symbiont 的 policy engine 设计增强 kias-mcp-protocol 的沙箱安全
   - "显式权限声明" 模式比隐式 ACL 更安全
 - **评分**: 创新性 8/10, 相关性 9/10, 可行性 8/10
+
+
+### 116. graniet/llm ⭐346 (Rust, MIT)
+- **URL**: https://github.com/graniet/llm
+- **发现时间**: 2026-05-16 23:29
+- **Description**: Rust library + CLI for unified LLM/Agent/voice orchestration (OpenAI, Claude, Gemini, Ollama, ElevenLabs). Multi-step AI workflows with STT/TTS/completions/vision/reasoning.
+- **KIAS 关联**: model-router (multi-provider routing), llm-engine (unified API), agent-runtime (workflow chaining)
+- **借鉴点**: Single extensible API across 10+ providers, built-in voice pipeline (STT→LLM→TTS), chain/evaluate/serve pattern for multi-step workflows
+- **优先级**: 🟡 Medium — model-router already handles multi-provider; voice pipeline is future KIAS feature

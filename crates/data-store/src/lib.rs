@@ -46,7 +46,8 @@ pub use models::{
     WorkflowRow,
 };
 pub use repository::{
-    DatabaseHealth, ExperienceReplayRepository, PoolStats, PrefixCacheRepository, PrefixCacheStats,
-    Repository, SqliteRepository,
+    AgentRepository, ComponentRepository, ConfigRepository, DatabaseHealth,
+    ExperienceReplayRepository, PoolStats, PrefixCacheRepository, PrefixCacheStats,
+    Repository, SkillRepository, SqliteRepository, TaskRepository, WorkflowRepository,
 };
 pub use vector_persist::{PersistentVectorStore, VectorSearchResult};

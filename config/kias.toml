@@ -5,7 +5,8 @@ port = 8080
 [model]
 provider = "openai"
 model = "gpt-4o"
-api_key = "sk-placeholder"
+api_key = "sk-39300117e827728f3f08071a9d6099cc8f507fc5b13e01e654039f7aa7707ad9"
+base_url = "https://api.minimax.chat/v1"
 
 [database]
 path = "kias.db"

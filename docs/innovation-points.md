@@ -1225,3 +1225,18 @@ Source: GitHub API search 2026-05-16 21:34
 - **描述**: An open, schema-driven language for configuring agent orchestration systems
 - **KIAS 相关**: 声明式 agent 配置语言 — KIAS 的 YAML agent 定义可借鉴其 schema 驱动设计
 - **创新点**: Salesforce 出品，企业级 agent 配置标准化
+
+## 2026-05-17: MCP 生态持续扩展
+
+### 新发现 MCP 项目
+1. **rust-mcp-stack/rust-mcp-schema** ⭐75 — Type-safe MCP schema in Rust. 直接相关: KIAS 的 MCP 协议实现可参考其类型安全设计。
+2. **genomoncology/biomcp** ⭐507 — BioMCP: 生物医学 MCP。展示 MCP 在垂直领域的应用模式。
+3. **nwiizo/tfmcp** ⭐364 — Terraform MCP Tool. 展示 MCP + 基础设施工具的集成模式。
+4. **linw1995/nvim-mcp** ⭐51 — Neovim MCP integration. IDE 集成的参考模式。
+5. **navicore/jdwp-mcp** ⭐40 — Java debugging via MCP. 调试工具集成的创新方向。
+6. **timrogers/formanator** ⭐84 — Forma CLI + MCP. CLI 工具包装为 MCP 服务的模式。
+
+### 趋势分析
+- MCP 生态从通用框架向垂直领域扩展（生物医学、基础设施、IDE、调试）
+- Rust MCP SDK (⭐3425) 持续增长，成为官方推荐实现
+- KIAS 的 MCP 实现已走在前列（双向客户端/服务端、JSON-RPC 2.0、多传输层）

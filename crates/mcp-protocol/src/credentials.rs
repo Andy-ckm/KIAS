@@ -120,6 +120,104 @@ pub struct RotationPolicy {
 }
 
 // ---------------------------------------------------------------------------
+// Rotation Notification
+// ---------------------------------------------------------------------------
+
+/// Event fired when a credential needs rotation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RotationEvent {
+    /// Credential ID that needs rotation.
+    pub credential_id: String,
+    /// Credential name.
+    pub credential_name: String,
+    /// Credential type.
+    pub credential_type: CredentialType,
+    /// When the credential was last rotated.
+    pub last_rotated_at: Option<SystemTime>,
+    /// How long since last rotation.
+    pub elapsed: Duration,
+    /// Required rotation interval.
+    pub interval: Duration,
+    /// Number of rotations already performed.
+    pub rotations_performed: u32,
+    /// Maximum rotations allowed (if any).
+    pub max_rotations: Option<u32>,
+}
+
+/// Trait for credential rotation notification backends.
+///
+/// Implementations can send notifications via webhooks, message queues,
+/// logging, or any other mechanism.
+#[async_trait::async_trait]
+pub trait RotationNotifier: Send + Sync {
+    /// Notify that a credential needs rotation.
+    async fn notify_rotation(&self, event: &RotationEvent) -> Result<(), McpError>;
+}
+
+/// Console-based notifier using tracing (default).
+///
+/// Logs rotation events at `warn` level. Suitable for development
+/// and single-node deployments.
+pub struct ConsoleRotationNotifier;
+
+#[async_trait::async_trait]
+impl RotationNotifier for ConsoleRotationNotifier {
+    async fn notify_rotation(&self, event: &RotationEvent) -> Result<(), McpError> {
+        eprintln!(
+            "[ROTATION] Credential '{}' (id={}, type={}) needs rotation:              elapsed={}s, interval={}s, rotations={}/{:?}",
+            event.credential_name,
+            event.credential_id,
+            event.credential_type,
+            event.elapsed.as_secs(),
+            event.interval.as_secs(),
+            event.rotations_performed,
+            event.max_rotations,
+        );
+        Ok(())
+    }
+}
+
+/// In-memory notifier for testing.
+///
+/// Stores rotation events in a shared vec for assertion in tests.
+pub struct InMemoryRotationNotifier {
+    events: Arc<RwLock<Vec<RotationEvent>>>,
+}
+
+impl InMemoryRotationNotifier {
+    /// Create a new in-memory notifier.
+    pub fn new() -> Self {
+        Self {
+            events: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    /// Get all recorded rotation events.
+    pub async fn events(&self) -> Vec<RotationEvent> {
+        self.events.read().await.clone()
+    }
+
+    /// Clear all recorded events.
+    pub async fn clear(&self) {
+        self.events.write().await.clear();
+    }
+}
+
+impl Default for InMemoryRotationNotifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl RotationNotifier for InMemoryRotationNotifier {
+    async fn notify_rotation(&self, event: &RotationEvent) -> Result<(), McpError> {
+        self.events.write().await.push(event.clone());
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Credential Store
 // ---------------------------------------------------------------------------
 
@@ -407,20 +505,24 @@ pub struct CredentialManager {
     encryptor: Arc<dyn CredentialEncryptor>,
     /// Audit log.
     audit_log: Arc<RwLock<Vec<AuditEntry>>>,
+    /// Rotation notifier.
+    notifier: Arc<dyn RotationNotifier>,
 }
 
 impl CredentialManager {
-    /// Create a new credential manager.
+    /// Create a new credential manager with a custom rotation notifier.
     pub fn new(
         config: CredentialManagerConfig,
         store: Arc<dyn CredentialStore>,
         encryptor: Arc<dyn CredentialEncryptor>,
+        notifier: Arc<dyn RotationNotifier>,
     ) -> Self {
         let manager = Self {
             config,
             store,
             encryptor,
             audit_log: Arc::new(RwLock::new(Vec::new())),
+            notifier,
         };
 
         // Start auto-rotation check if enabled
@@ -629,11 +731,22 @@ impl CredentialManager {
                         .unwrap_or_default();
 
                     if elapsed >= policy.interval {
-                        // TODO: Trigger rotation notification/webhook
-                        println!(
-                            "Credential {} needs rotation (last rotated: {:?})",
-                            credential.id, rotated_at
-                        );
+                        let event = RotationEvent {
+                            credential_id: credential.id.clone(),
+                            credential_name: credential.name.clone(),
+                            credential_type: credential.credential_type.clone(),
+                            last_rotated_at: Some(rotated_at),
+                            elapsed,
+                            interval: policy.interval,
+                            rotations_performed: policy.rotations_performed,
+                            max_rotations: policy.max_rotations,
+                        };
+                        if let Err(e) = self.notifier.notify_rotation(&event).await {
+                            eprintln!(
+                                "[ROTATION ERROR] Failed to notify for credential {}: {}",
+                                event.credential_id, e
+                            );
+                        }
                     }
                 }
             }
@@ -669,6 +782,7 @@ impl Clone for CredentialManager {
             store: self.store.clone(),
             encryptor: self.encryptor.clone(),
             audit_log: self.audit_log.clone(),
+            notifier: self.notifier.clone(),
         }
     }
 }
@@ -681,7 +795,12 @@ mod tests {
     async fn test_credential_store_and_retrieve() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
 
         let id = manager
             .store(
@@ -705,7 +824,12 @@ mod tests {
     async fn test_credential_revocation() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
 
         let id = manager
             .store(
@@ -731,7 +855,12 @@ mod tests {
     async fn test_credential_rotation() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
 
         let id = manager
             .store(
@@ -763,7 +892,12 @@ mod tests {
     async fn test_audit_log() {
         let store = Arc::new(InMemoryCredentialStore::new());
         let encryptor = Arc::new(NoOpEncryptor);
-        let manager = CredentialManager::new(CredentialManagerConfig::default(), store, encryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
 
         let id = manager
             .store(
@@ -783,5 +917,224 @@ mod tests {
 
         let log = manager.audit_log().await;
         assert!(log.len() >= 2); // At least create + read
+    }
+
+    #[tokio::test]
+    async fn test_rotation_notifier_receives_event() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let notifier = Arc::new(InMemoryRotationNotifier::new());
+        let store_clone = store.clone();
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            notifier.clone(),
+        );
+
+        // Store a credential with a rotation policy (1 second interval)
+        let id = manager
+            .store(
+                "rotatable",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                Some(RotationPolicy {
+                    auto_rotate: true,
+                    interval: Duration::from_millis(1), // 1ms for testing
+                    grace_period: Duration::from_secs(60),
+                    max_rotations: Some(10),
+                    rotations_performed: 0,
+                }),
+            )
+            .await
+            .unwrap();
+
+        // Manually set rotated_at to the past so check_rotations triggers
+        {
+            let mut credential = store_clone.get(&id).await.unwrap().unwrap();
+            credential.rotated_at = Some(SystemTime::now() - Duration::from_secs(3600));
+            store_clone.update(&credential).await.unwrap();
+        }
+
+        // Run rotation check
+        manager.check_rotations().await.unwrap();
+
+        // Verify notifier received the event
+        let events = notifier.events().await;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].credential_id, id);
+        assert_eq!(events[0].credential_name, "rotatable");
+        assert_eq!(events[0].credential_type, CredentialType::ApiKey);
+        assert!(events[0].elapsed >= Duration::from_secs(3600));
+        assert_eq!(events[0].rotations_performed, 0);
+        assert_eq!(events[0].max_rotations, Some(10));
+    }
+
+    #[tokio::test]
+    async fn test_rotation_notifier_not_triggered_when_not_due() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let notifier = Arc::new(InMemoryRotationNotifier::new());
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            notifier.clone(),
+        );
+
+        // Store a credential with a long rotation interval
+        manager
+            .store(
+                "not-due",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                Some(RotationPolicy {
+                    auto_rotate: true,
+                    interval: Duration::from_secs(86400 * 365), // 1 year
+                    grace_period: Duration::from_secs(3600),
+                    max_rotations: None,
+                    rotations_performed: 0,
+                }),
+            )
+            .await
+            .unwrap();
+
+        // Run rotation check — should NOT trigger
+        manager.check_rotations().await.unwrap();
+
+        let events = notifier.events().await;
+        assert_eq!(events.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_rotation_notifier_skips_non_auto_rotate() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let notifier = Arc::new(InMemoryRotationNotifier::new());
+        let store_for_manager = store.clone();
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store_for_manager,
+            encryptor,
+            notifier.clone(),
+        );
+
+        // Store a credential with auto_rotate = false and short interval
+        let id = manager
+            .store(
+                "manual-only",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                Some(RotationPolicy {
+                    auto_rotate: false,
+                    interval: Duration::from_millis(1),
+                    grace_period: Duration::from_secs(60),
+                    max_rotations: None,
+                    rotations_performed: 0,
+                }),
+            )
+            .await
+            .unwrap();
+
+        // Set rotated_at to past
+        {
+            let mut credential = store.get(&id).await.unwrap().unwrap();
+            credential.rotated_at = Some(SystemTime::now() - Duration::from_secs(3600));
+            store.update(&credential).await.unwrap();
+        }
+
+        manager.check_rotations().await.unwrap();
+
+        let events = notifier.events().await;
+        assert_eq!(events.len(), 0); // auto_rotate is false
+    }
+
+    #[tokio::test]
+    async fn test_rotation_notifier_multiple_credentials() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let notifier = Arc::new(InMemoryRotationNotifier::new());
+        let store_clone = store.clone();
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            notifier.clone(),
+        );
+
+        // Store 3 credentials that need rotation
+        for i in 0..3 {
+            let id = manager
+                .store(
+                    &format!("cred-{i}"),
+                    CredentialType::ApiKey,
+                    b"secret",
+                    "admin",
+                    HashMap::new(),
+                    vec![],
+                    None,
+                    Some(RotationPolicy {
+                        auto_rotate: true,
+                        interval: Duration::from_millis(1),
+                        grace_period: Duration::from_secs(60),
+                        max_rotations: Some(5),
+                        rotations_performed: i,
+                    }),
+                )
+                .await
+                .unwrap();
+
+            // Set rotated_at to past
+            let mut credential = store_clone.get(&id).await.unwrap().unwrap();
+            credential.rotated_at = Some(SystemTime::now() - Duration::from_secs(7200));
+            store_clone.update(&credential).await.unwrap();
+        }
+
+        manager.check_rotations().await.unwrap();
+
+        let events = notifier.events().await;
+        assert_eq!(events.len(), 3);
+        // Verify different rotation counts
+        let counts: Vec<u32> = events.iter().map(|e| e.rotations_performed).collect();
+        assert!(counts.contains(&0));
+        assert!(counts.contains(&1));
+        assert!(counts.contains(&2));
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_notifier_clear() {
+        let notifier = InMemoryRotationNotifier::new();
+
+        // Manually push an event
+        notifier
+            .notify_rotation(&RotationEvent {
+                credential_id: "test".to_string(),
+                credential_name: "test".to_string(),
+                credential_type: CredentialType::ApiKey,
+                last_rotated_at: None,
+                elapsed: Duration::from_secs(0),
+                interval: Duration::from_secs(0),
+                rotations_performed: 0,
+                max_rotations: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(notifier.events().await.len(), 1);
+
+        notifier.clear().await;
+        assert_eq!(notifier.events().await.len(), 0);
     }
 }

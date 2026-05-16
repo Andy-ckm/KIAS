@@ -29,11 +29,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info};
 
-/// HNSW-backed vector store from knowledge crate (re-exported for API compatibility)
-pub use kias_knowledge::VectorStore as HnswVectorStore;
+/// HNSW-backed vector store from common crate (re-exported for API compatibility)
+pub use kias_common::vector::VectorStore as HnswVectorStore;
 
 /// Statistics about an HNSW index
-pub use kias_knowledge::VectorStoreStats;
+pub use kias_common::vector::VectorStoreStats;
 
 /// A single vector entry stored in the persistent vector store.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ pub struct VectorEntry {
 /// Per-index HNSW store with its metadata map
 #[derive(Clone)]
 struct HnswIndex {
-    store: Arc<RwLock<kias_knowledge::VectorStore>>,
+    store: Arc<RwLock<kias_common::vector::VectorStore>>,
     metadata: Arc<dashmap::DashMap<String, serde_json::Value>>,
 }
 
@@ -111,7 +111,9 @@ impl PersistentVectorStore {
         let indices = self.indices.write().await;
         if !indices.contains_key(name) {
             let index = HnswIndex {
-                store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(dimension))),
+                store: Arc::new(RwLock::new(kias_common::vector::VectorStore::new(
+                    dimension,
+                ))),
                 metadata: Arc::new(dashmap::DashMap::default()),
             };
             indices.insert(name.to_string(), index);
@@ -147,7 +149,7 @@ impl PersistentVectorStore {
 
             let dim = dimension as usize;
             let index = HnswIndex {
-                store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(dim))),
+                store: Arc::new(RwLock::new(kias_common::vector::VectorStore::new(dim))),
                 metadata: Arc::new(dashmap::DashMap::default()),
             };
 
@@ -212,7 +214,7 @@ impl PersistentVectorStore {
                 indices_w
                     .entry(index_name.to_string())
                     .or_insert_with(|| HnswIndex {
-                        store: Arc::new(RwLock::new(kias_knowledge::VectorStore::new(
+                        store: Arc::new(RwLock::new(kias_common::vector::VectorStore::new(
                             embedding.len(),
                         ))),
                         metadata: Arc::new(dashmap::DashMap::default()),
@@ -304,7 +306,7 @@ impl PersistentVectorStore {
             // Use write lock and extract Arcs before nested await
             let indices_w = self.indices.write().await;
             // Get reference and clone the Arc<store> before we need to await
-            let store_opt: Option<Arc<RwLock<kias_knowledge::VectorStore>>> =
+            let store_opt: Option<Arc<RwLock<kias_common::vector::VectorStore>>> =
                 indices_w.get(index_name).map(|v| v.store.clone());
             let meta_opt: Option<Arc<dashmap::DashMap<String, serde_json::Value>>> =
                 indices_w.get(index_name).map(|v| v.metadata.clone());
@@ -345,7 +347,7 @@ impl PersistentVectorStore {
     }
 
     /// Get HNSW statistics for an index.
-    pub fn stats(&self, index_name: &str) -> Option<kias_knowledge::VectorStoreStats> {
+    pub fn stats(&self, index_name: &str) -> Option<kias_common::vector::VectorStoreStats> {
         self.indices.try_read().ok().and_then(|indices| {
             indices
                 .get(index_name)

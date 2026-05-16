@@ -908,3 +908,45 @@
 - **Language**: Rust
 - **Description**: AI agent orchestrator with Neo4j knowledge graph, Meilisearch semantic search, Tree-sitter code parsing
 - **KIAS relevance**: Knowledge graph + semantic search integration — our knowledge crate uses HNSW + SimHash; Neo4j + Meilisearch is an alternative stack worth studying
+
+## 124. hermes-rs (eikarna) ⭐23
+- **URL**: https://github.com/eikarna/hermes-rs
+- **Language**: Rust
+- **Description**: A high-performance Rust implementation of the Hermes-Agent orchestration loop for LLM-driven tool execution
+- **KIAS relevance**: Direct competitor — Rust agent orchestration loop. Compare execution model with our team-engine and goal-engine
+
+## 125. ferris-search (lispking) ⭐54
+- **URL**: https://github.com/lispking/ferris-search
+- **Language**: Rust
+- **Description**: A blazing-fast MCP server for multi-engine web search, written in Rust
+- **KIAS relevance**: MCP server implementation — study for our mcp-protocol crate's search capabilities
+
+## 126. rbinmcp (kirkderp) ⭐21
+- **URL**: https://github.com/kirkderp/rbinmcp
+- **Language**: Rust
+- **Description**: Rogue Binary MCP: Docker-packaged binary analysis lab for AI agents with MCP server and sandbox
+- **KIAS relevance**: Sandboxed MCP execution — compare with our sandbox backend pattern
+
+## 127. mcpmate (loocor) ⭐16
+- **URL**: https://github.com/loocor/mcpmate
+- **Language**: Rust
+- **Description**: MCPMate: comprehensive MCP management center for config, discovery, and orchestration
+- **KIAS relevance**: MCP management UX — our tool registry + hot-reload could adopt similar discovery patterns
+
+## 128. Rust-MCP-Server (yuunnn-w) ⭐8
+- **URL**: https://github.com/yuunnn-w/Rust-MCP-Server
+- **Language**: Rust
+- **Description**: High-performance MCP server implementation built with Rust
+- **KIAS relevance**: Reference MCP server implementation — compare transport layer design with our mcp-protocol
+
+## 129. lean4-mcp (RIvance) ⭐5
+- **URL**: https://github.com/RIvance/lean4-mcp
+- **Language**: Rust
+- **Description**: Lightweight MCP server proxying between AI agents and Lean 4 language
+- **KIAS relevance**: Domain-specific MCP server pattern — shows how to build MCP for specialized backends
+
+## 130. honeymcp (tokimo-lab) ⭐2
+- **URL**: https://github.com/tokimo-lab/tokimo-package-mcp
+- **Language**: Rust
+- **Description**: MCP client types, transports, and connection management for Tokimo
+- **KIAS relevance**: MCP client implementation — study transport abstraction for our client-side protocol

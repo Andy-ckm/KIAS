@@ -1714,6 +1714,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "im-integration"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1736,6 +1753,21 @@ dependencies = [
  "portable-atomic",
  "unicode-width 0.2.2",
  "web-time",
+]
+
+[[package]]
+name = "innovation-agent"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

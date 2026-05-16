@@ -25,6 +25,8 @@ members = [
     "crates/llm-engine",
     "crates/tool-executor",
     "crates/agent-runtime",
+    "crates/innovation-agent",
+    "crates/im-integration",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

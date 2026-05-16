@@ -10,6 +10,7 @@ pub mod replay;
 pub mod state;
 pub mod subgraph;
 pub mod typed_state;
+pub mod yaml_loader;
 
 pub use approval::{
     evaluate_policy, ApprovalCondition, ApprovalContext, ApprovalDecision, ApprovalEvaluation,

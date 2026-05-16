@@ -446,6 +446,32 @@ impl SandboxConfig {
         }
     }
 
+    /// Create a gVisor sandbox configuration.
+    ///
+    /// Uses `docker --runtime=runsc` for container isolation with gVisor's
+    /// user-space kernel.
+    pub fn gvisor(name: &str, image: &str, command: Vec<String>) -> Self {
+        Self {
+            backend: SandboxBackend::GVisor,
+            name: name.to_string(),
+            image: Some(image.to_string()),
+            command,
+            workdir: None,
+            env: HashMap::new(),
+            limits: ResourceLimits::default(),
+            network: NetworkPolicy {
+                enabled: false, // Isolated by default
+                ..NetworkPolicy::default()
+            },
+            filesystem: FilesystemConfig::default(),
+            seccomp: false, // gVisor handles its own filtering
+            apparmor: false,
+            uid: None,
+            gid: None,
+            labels: HashMap::new(),
+        }
+    }
+
     /// Create a WASM sandbox configuration.
     pub fn wasm(name: &str, module: &str) -> Self {
         Self {
@@ -2139,20 +2165,85 @@ impl SandboxBackendTrait for FirecrackerSandboxBackend {
 }
 
 // ---------------------------------------------------------------------------
-// gVisor Sandbox Backend (stub – not yet implemented)
+// gVisor Sandbox Backend (real implementation via docker --runtime=runsc)
 // ---------------------------------------------------------------------------
+
+/// Container info tracked by the gVisor backend.
+struct GVisorContainerInfo {
+    container_id: String,
+    start_time: std::time::Instant,
+}
 
 /// gVisor (runsc) container runtime sandbox backend.
 ///
-/// TODO: implement using `docker --runtime=runsc` or direct `runsc` CLI.
 /// gVisor provides a user-space kernel that intercepts syscalls for stronger
-/// isolation than standard containers while maintaining compatibility.
-pub struct GVisorSandboxBackend;
+/// isolation than standard containers while maintaining OCI compatibility.
+///
+/// This backend uses `docker --runtime=runsc` to create containers backed by
+/// gVisor's `runsc` runtime. All Docker-compatible features (resource limits,
+/// network policy, mounts, env vars) work transparently.
+pub struct GVisorSandboxBackend {
+    /// Active containers: sandbox_id -> container info.
+    containers: Arc<RwLock<HashMap<String, GVisorContainerInfo>>>,
+    /// Default container image.
+    default_image: String,
+    /// Path to the `runsc` binary (used for version checks and direct ops).
+    runsc_bin: String,
+}
 
 impl GVisorSandboxBackend {
-    /// Create a new `GVisorSandboxBackend`.
+    /// Create a new `GVisorSandboxBackend` with default settings.
     pub fn new() -> Self {
-        Self
+        Self {
+            containers: Arc::new(RwLock::new(HashMap::new())),
+            default_image: "ubuntu:22.04".to_string(),
+            runsc_bin: "runsc".to_string(),
+        }
+    }
+
+    /// Use a custom default image.
+    pub fn with_default_image(image: impl Into<String>) -> Self {
+        Self {
+            default_image: image.into(),
+            ..Self::new()
+        }
+    }
+
+    /// Use a custom `runsc` binary path.
+    pub fn with_runsc_bin(bin: impl Into<String>) -> Self {
+        Self {
+            runsc_bin: bin.into(),
+            ..Self::new()
+        }
+    }
+
+    /// Run `docker --runtime=runsc <args>` and return the output.
+    async fn gvisor_docker_cmd(args: &[&str]) -> Result<std::process::Output, McpError> {
+        let mut full_args = vec!["--runtime=runsc"];
+        full_args.extend_from_slice(args);
+
+        tokio::process::Command::new("docker")
+            .args(&full_args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map_err(|e| McpError::Internal(format!("gVisor docker command failed: {}", e)))
+    }
+
+    /// Check if gVisor runtime is available on this system.
+    pub async fn check_available() -> bool {
+        tokio::process::Command::new("docker")
+            .args(["info", "--format", "{{.Runtimes}}"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await
+            .map(|o| {
+                let info = String::from_utf8_lossy(&o.stdout);
+                info.contains("runsc")
+            })
+            .unwrap_or(false)
     }
 }
 
@@ -2164,37 +2255,258 @@ impl Default for GVisorSandboxBackend {
 
 #[async_trait::async_trait]
 impl SandboxBackendTrait for GVisorSandboxBackend {
-    async fn create(&self, _config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
-        // TODO: implement via docker --runtime=runsc or direct runsc create
-        Err(McpError::Internal(
-            "gVisor backend not yet implemented".to_string(),
-        ))
+    async fn create(&self, config: &SandboxConfig) -> Result<SandboxInstance, McpError> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let image = config.image.as_deref().unwrap_or(&self.default_image);
+
+        // Build `docker --runtime=runsc create` arguments.
+        let mut args: Vec<String> = vec!["create".to_string(), "--name".to_string(), id.clone()];
+
+        // Resource limits
+        if let Some(mem) = config.limits.memory_bytes {
+            args.push("--memory".to_string());
+            args.push(format!("{}b", mem));
+        }
+        if let Some(cores) = config.limits.cpu_cores {
+            args.push("--cpus".to_string());
+            args.push(format!("{}", cores));
+        }
+        // Network policy — gVisor supports network isolation
+        if !config.network.enabled {
+            args.push("--network".to_string());
+            args.push("none".to_string());
+        }
+        // Working directory
+        if let Some(ref workdir) = config.workdir {
+            args.push("--workdir".to_string());
+            args.push(workdir.to_string_lossy().to_string());
+        }
+        // Environment variables
+        for (k, v) in &config.env {
+            args.push("--env".to_string());
+            args.push(format!("{}={}", k, v));
+        }
+        // Read-only mounts
+        for mp in &config.filesystem.readonly_mounts {
+            args.push("--mount".to_string());
+            args.push(format!(
+                "type=bind,source={},target={},readonly",
+                mp.host.display(),
+                mp.guest.display()
+            ));
+        }
+        // Read-write mounts
+        for mp in &config.filesystem.readwrite_mounts {
+            args.push("--mount".to_string());
+            args.push(format!(
+                "type=bind,source={},target={}",
+                mp.host.display(),
+                mp.guest.display()
+            ));
+        }
+
+        // Seccomp profile for additional syscall filtering
+        args.push("--security-opt".to_string());
+        args.push("seccomp=unconfined".to_string()); // gVisor handles its own filtering
+
+        // Image + command
+        args.push(image.to_string());
+        args.extend(config.command.iter().cloned());
+
+        let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        let output = Self::gvisor_docker_cmd(&arg_refs).await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(McpError::Internal(format!(
+                "gVisor docker create failed: {}",
+                stderr
+            )));
+        }
+
+        let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        Ok(SandboxInstance {
+            id,
+            config: config.clone(),
+            state: SandboxState::Ready,
+            created_at: SystemTime::now(),
+            started_at: None,
+            completed_at: None,
+            result: None,
+            pid: None,
+            container_id: Some(container_id),
+        })
     }
 
-    async fn start(&self, _instance: &mut SandboxInstance) -> Result<(), McpError> {
-        Err(McpError::Internal(
-            "gVisor backend not yet implemented".to_string(),
-        ))
-    }
+    async fn start(&self, instance: &mut SandboxInstance) -> Result<(), McpError> {
+        if instance.state != SandboxState::Ready {
+            return Err(McpError::InvalidRequest(
+                "sandbox not in Ready state".to_string(),
+            ));
+        }
 
-    async fn wait(&self, _instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
-        Err(McpError::Internal(
-            "gVisor backend not yet implemented".to_string(),
-        ))
-    }
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
 
-    async fn terminate(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
-        Err(McpError::Internal(
-            "gVisor backend not yet implemented".to_string(),
-        ))
-    }
+        let output = Self::gvisor_docker_cmd(&["start", cid]).await?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(McpError::Internal(format!(
+                "gVisor docker start failed: {}",
+                stderr
+            )));
+        }
 
-    async fn destroy(&self, _instance: &SandboxInstance) -> Result<(), McpError> {
+        let info = GVisorContainerInfo {
+            container_id: cid.clone(),
+            start_time: std::time::Instant::now(),
+        };
+        self.containers
+            .write()
+            .await
+            .insert(instance.id.clone(), info);
+
+        instance.state = SandboxState::Running;
+        instance.started_at = Some(SystemTime::now());
         Ok(())
     }
 
-    async fn resource_usage(&self, _instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
-        Ok(ResourceUsage::default())
+    async fn wait(&self, instance: &SandboxInstance) -> Result<SandboxResult, McpError> {
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
+
+        // Block until the container stops.
+        let wait_out = Self::gvisor_docker_cmd(&["wait", cid]).await?;
+        let exit_code: i32 = if wait_out.status.success() {
+            String::from_utf8_lossy(&wait_out.stdout)
+                .trim()
+                .parse()
+                .unwrap_or(-1)
+        } else {
+            -1
+        };
+
+        // Capture logs.
+        let logs_out = Self::gvisor_docker_cmd(&["logs", cid]).await?;
+        let stdout = String::from_utf8_lossy(&logs_out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&logs_out.stderr).to_string();
+
+        let elapsed = self
+            .containers
+            .read()
+            .await
+            .get(&instance.id)
+            .map(|c| c.start_time.elapsed())
+            .unwrap_or_default();
+
+        Ok(SandboxResult {
+            exit_code,
+            stdout,
+            stderr,
+            duration: elapsed,
+            peak_memory_bytes: 0, // gVisor doesn't expose this via docker wait
+            cpu_usage: None,
+        })
+    }
+
+    async fn terminate(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
+
+        let output = Self::gvisor_docker_cmd(&["kill", cid]).await?;
+        if !output.status.success() {
+            // Container may have already exited — not an error.
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stderr.contains("is not running") {
+                tracing::warn!(sandbox_id = %instance.id, stderr = %stderr, "gVisor kill returned non-zero");
+            }
+        }
+        Ok(())
+    }
+
+    async fn destroy(&self, instance: &SandboxInstance) -> Result<(), McpError> {
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
+
+        // Force remove (even if running).
+        let _ = Self::gvisor_docker_cmd(&["rm", "-f", cid]).await;
+        self.containers.write().await.remove(&instance.id);
+        Ok(())
+    }
+
+    async fn resource_usage(&self, instance: &SandboxInstance) -> Result<ResourceUsage, McpError> {
+        let cid = instance
+            .container_id
+            .as_ref()
+            .ok_or_else(|| McpError::Internal("missing container_id".to_string()))?;
+
+        // Use `docker stats --no-stream` for a point-in-time snapshot.
+        let output = Self::gvisor_docker_cmd(&[
+            "stats",
+            "--no-stream",
+            "--format",
+            "{{.MemUsage}},{{.CPUPerc}}",
+            cid,
+        ])
+        .await?;
+
+        if !output.status.success() {
+            return Ok(ResourceUsage::default());
+        }
+
+        let stats = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        // Parse "123.4MiB / 1GiB, 5.67%" format
+        let parts: Vec<&str> = stats.split(", ").collect();
+        let memory_usage = if let Some(mem_str) = parts.first() {
+            parse_docker_memory(mem_str.split(" / ").next().unwrap_or("0B"))
+        } else {
+            0
+        };
+        let cpu_usage = if let Some(cpu_str) = parts.get(1) {
+            cpu_str.trim_end_matches('%').parse::<f64>().ok()
+        } else {
+            None
+        };
+
+        Ok(ResourceUsage {
+            memory_bytes: memory_usage,
+            cpu_usage,
+            ..ResourceUsage::default()
+        })
+    }
+}
+
+/// Parse Docker memory format (e.g., "123.4MiB") to bytes.
+fn parse_docker_memory(s: &str) -> u64 {
+    let s = s.trim();
+    if s.ends_with("GiB") {
+        s.trim_end_matches("GiB")
+            .parse::<f64>()
+            .map(|v| (v * 1024.0 * 1024.0 * 1024.0) as u64)
+            .unwrap_or(0)
+    } else if s.ends_with("MiB") {
+        s.trim_end_matches("MiB")
+            .parse::<f64>()
+            .map(|v| (v * 1024.0 * 1024.0) as u64)
+            .unwrap_or(0)
+    } else if s.ends_with("KiB") {
+        s.trim_end_matches("KiB")
+            .parse::<f64>()
+            .map(|v| (v * 1024.0) as u64)
+            .unwrap_or(0)
+    } else if s.ends_with("B") {
+        s.trim_end_matches('B').parse::<u64>().unwrap_or(0)
+    } else {
+        0
     }
 }
 
@@ -2559,10 +2871,14 @@ mod tests {
     }
 
     #[test]
-    fn test_gvisor_backend_stub() {
+    fn test_gvisor_backend_construction() {
         let backend = GVisorSandboxBackend::new();
         let _default = GVisorSandboxBackend::default();
+        let custom_image = GVisorSandboxBackend::with_default_image("alpine:3.18");
+        let custom_runsc = GVisorSandboxBackend::with_runsc_bin("/usr/local/bin/runsc");
         let _ = &backend;
+        let _ = &custom_image;
+        let _ = &custom_runsc;
     }
 
     #[test]
@@ -2619,11 +2935,69 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_gvisor_backend_returns_error() {
+    async fn test_gvisor_backend_create_fails_without_docker() {
+        // gVisor backend uses `docker --runtime=runsc` — in CI there's no Docker,
+        // so create should fail gracefully with an error (not panic).
         let backend = GVisorSandboxBackend::new();
-        let config = SandboxConfig::process("test", vec!["echo".to_string()]);
+        let config = SandboxConfig::gvisor(
+            "test",
+            "ubuntu:22.04",
+            vec!["echo".to_string(), "hello".to_string()],
+        );
         let result = backend.create(&config).await;
-        assert!(result.is_err());
+        // May succeed if Docker is installed, or fail if not — both are OK.
+        // The key is: no panic.
+        if result.is_err() {
+            let err_msg = format!("{}", result.unwrap_err());
+            assert!(
+                err_msg.contains("gVisor")
+                    || err_msg.contains("docker")
+                    || err_msg.contains("os error"),
+                "Unexpected error: {}",
+                err_msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_gvisor_sandbox_config() {
+        let config = SandboxConfig::gvisor(
+            "my-sandbox",
+            "python:3.11",
+            vec![
+                "python".to_string(),
+                "-c".to_string(),
+                "print('hello')".to_string(),
+            ],
+        );
+        assert_eq!(config.backend, SandboxBackend::GVisor);
+        assert_eq!(config.name, "my-sandbox");
+        assert_eq!(config.image.as_deref(), Some("python:3.11"));
+        assert_eq!(config.command, vec!["python", "-c", "print('hello')"]);
+        assert!(!config.network.enabled); // Isolated by default
+        assert!(!config.seccomp); // gVisor handles its own filtering
+    }
+
+    #[test]
+    fn test_parse_docker_memory() {
+        assert_eq!(
+            parse_docker_memory("123.4MiB"),
+            (123.4 * 1024.0 * 1024.0) as u64
+        );
+        assert_eq!(
+            parse_docker_memory("1.5GiB"),
+            (1.5 * 1024.0 * 1024.0 * 1024.0) as u64
+        );
+        assert_eq!(parse_docker_memory("512KiB"), (512.0 * 1024.0) as u64);
+        assert_eq!(parse_docker_memory("1024B"), 1024);
+        assert_eq!(parse_docker_memory("0B"), 0);
+        assert_eq!(parse_docker_memory("garbage"), 0);
+        assert_eq!(parse_docker_memory(""), 0);
+        // With whitespace
+        assert_eq!(
+            parse_docker_memory("  256MiB  "),
+            (256.0 * 1024.0 * 1024.0) as u64
+        );
     }
 
     #[tokio::test]

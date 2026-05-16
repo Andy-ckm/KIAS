@@ -1960,6 +1960,7 @@ dependencies = [
  "kias-common",
  "kias-controller",
  "kias-executor",
+ "kias-knowledge",
  "kias-langgraph-engine",
  "kias-model-router",
  "kias-scheduler",

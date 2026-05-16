@@ -138,18 +138,23 @@ pub struct WebhookResponse {
 pub trait PlatformAdapter: Send + Sync {
     /// 解析Webhook请求
     fn parse_webhook(&self, request: &WebhookRequest) -> Result<UnifiedMessage, String>;
-    
+
     /// 构建回复
-    fn build_reply(&self, message: &UnifiedMessage, reply: &ReplyMessage) -> Result<WebhookResponse, String>;
-    
+    fn build_reply(
+        &self,
+        message: &UnifiedMessage,
+        reply: &ReplyMessage,
+    ) -> Result<WebhookResponse, String>;
+
     /// 验证请求签名
     fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool;
-    
+
     /// 获取平台类型
     fn platform_type(&self) -> ImPlatform;
 }
 
 /// 微信适配器
+#[allow(dead_code)]
 pub struct WechatAdapter {
     token: String,
     encoding_aes_key: Option<String>,
@@ -157,14 +162,17 @@ pub struct WechatAdapter {
 
 impl WechatAdapter {
     pub fn new(token: String, encoding_aes_key: Option<String>) -> Self {
-        Self { token, encoding_aes_key }
+        Self {
+            token,
+            encoding_aes_key,
+        }
     }
 }
 
 impl PlatformAdapter for WechatAdapter {
     fn parse_webhook(&self, request: &WebhookRequest) -> Result<UnifiedMessage, String> {
         let body = &request.body;
-        
+
         let msg_type = body["MsgType"].as_str().unwrap_or("text");
         let content = match msg_type {
             "text" => MessageContent::Text(body["Content"].as_str().unwrap_or("").to_string()),
@@ -178,7 +186,10 @@ impl PlatformAdapter for WechatAdapter {
         Ok(UnifiedMessage {
             id: body["MsgId"].as_str().unwrap_or("unknown").to_string(),
             platform: ImPlatform::Wechat,
-            sender_id: body["FromUserName"].as_str().unwrap_or("unknown").to_string(),
+            sender_id: body["FromUserName"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
             sender_name: None,
             receiver_id: body["ToUserName"].as_str().map(|s| s.to_string()),
             content,
@@ -188,7 +199,11 @@ impl PlatformAdapter for WechatAdapter {
         })
     }
 
-    fn build_reply(&self, message: &UnifiedMessage, reply: &ReplyMessage) -> Result<WebhookResponse, String> {
+    fn build_reply(
+        &self,
+        message: &UnifiedMessage,
+        reply: &ReplyMessage,
+    ) -> Result<WebhookResponse, String> {
         let reply_content = match &reply.content {
             MessageContent::Text(text) => text.clone(),
             _ => "Unsupported message type".to_string(),
@@ -210,7 +225,7 @@ impl PlatformAdapter for WechatAdapter {
         })
     }
 
-    fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool {
+    fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
         // 简化实现，生产环境需要完整的签名验证
         true
     }
@@ -221,6 +236,7 @@ impl PlatformAdapter for WechatAdapter {
 }
 
 /// Telegram适配器
+#[allow(dead_code)]
 pub struct TelegramAdapter {
     bot_token: String,
 }
@@ -234,23 +250,29 @@ impl TelegramAdapter {
 impl PlatformAdapter for TelegramAdapter {
     fn parse_webhook(&self, request: &WebhookRequest) -> Result<UnifiedMessage, String> {
         let body = &request.body;
-        
+
         let message = &body["message"];
         let chat = &message["chat"];
         let from = &message["from"];
-        
+
         let content = if let Some(text) = message["text"].as_str() {
             MessageContent::Text(text.to_string())
         } else if let Some(photo) = message["photo"].as_array() {
             MessageContent::Image {
-                url: photo.last().and_then(|p| p["file_id"].as_str()).unwrap_or("").to_string(),
+                url: photo
+                    .last()
+                    .and_then(|p| p["file_id"].as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 caption: message["caption"].as_str().map(|s| s.to_string()),
             }
         } else {
             MessageContent::Text("Unsupported message type".to_string())
         };
 
-        let message_type = if chat["type"].as_str() == Some("group") || chat["type"].as_str() == Some("supergroup") {
+        let message_type = if chat["type"].as_str() == Some("group")
+            || chat["type"].as_str() == Some("supergroup")
+        {
             MessageType::Group
         } else {
             MessageType::Private
@@ -269,7 +291,11 @@ impl PlatformAdapter for TelegramAdapter {
         })
     }
 
-    fn build_reply(&self, message: &UnifiedMessage, reply: &ReplyMessage) -> Result<WebhookResponse, String> {
+    fn build_reply(
+        &self,
+        message: &UnifiedMessage,
+        reply: &ReplyMessage,
+    ) -> Result<WebhookResponse, String> {
         let reply_content = match &reply.content {
             MessageContent::Text(text) => text.clone(),
             _ => "Unsupported message type".to_string(),
@@ -290,7 +316,7 @@ impl PlatformAdapter for TelegramAdapter {
         })
     }
 
-    fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool {
+    fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
         // Telegram使用secret_path验证，这里简化处理
         true
     }
@@ -301,6 +327,7 @@ impl PlatformAdapter for TelegramAdapter {
 }
 
 /// Slack适配器
+#[allow(dead_code)]
 pub struct SlackAdapter {
     verification_token: String,
     signing_secret: Option<String>,
@@ -308,14 +335,17 @@ pub struct SlackAdapter {
 
 impl SlackAdapter {
     pub fn new(verification_token: String, signing_secret: Option<String>) -> Self {
-        Self { verification_token, signing_secret }
+        Self {
+            verification_token,
+            signing_secret,
+        }
     }
 }
 
 impl PlatformAdapter for SlackAdapter {
     fn parse_webhook(&self, request: &WebhookRequest) -> Result<UnifiedMessage, String> {
         let body = &request.body;
-        
+
         // 处理URL验证挑战
         if body["type"].as_str() == Some("url_verification") {
             return Err("url_verification".to_string());
@@ -323,11 +353,14 @@ impl PlatformAdapter for SlackAdapter {
 
         let event = &body["event"];
         let event_type = event["type"].as_str().unwrap_or("unknown");
-        
+
         let content = match event_type {
             "message" => MessageContent::Text(event["text"].as_str().unwrap_or("").to_string()),
             "file_shared" => MessageContent::File {
-                url: event["file"]["url_private"].as_str().unwrap_or("").to_string(),
+                url: event["file"]["url_private"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
                 filename: event["file"]["name"].as_str().unwrap_or("").to_string(),
                 mime_type: event["file"]["mimetype"].as_str().map(|s| s.to_string()),
             },
@@ -353,7 +386,11 @@ impl PlatformAdapter for SlackAdapter {
         })
     }
 
-    fn build_reply(&self, message: &UnifiedMessage, reply: &ReplyMessage) -> Result<WebhookResponse, String> {
+    fn build_reply(
+        &self,
+        message: &UnifiedMessage,
+        reply: &ReplyMessage,
+    ) -> Result<WebhookResponse, String> {
         let reply_content = match &reply.content {
             MessageContent::Text(text) => text.clone(),
             _ => "Unsupported message type".to_string(),
@@ -373,7 +410,7 @@ impl PlatformAdapter for SlackAdapter {
         })
     }
 
-    fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool {
+    fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
         // 简化实现，生产环境需要完整的签名验证
         true
     }
@@ -384,6 +421,7 @@ impl PlatformAdapter for SlackAdapter {
 }
 
 /// 飞书适配器
+#[allow(dead_code)]
 pub struct FeishuAdapter {
     verification_token: String,
     encrypt_key: Option<String>,
@@ -391,14 +429,17 @@ pub struct FeishuAdapter {
 
 impl FeishuAdapter {
     pub fn new(verification_token: String, encrypt_key: Option<String>) -> Self {
-        Self { verification_token, encrypt_key }
+        Self {
+            verification_token,
+            encrypt_key,
+        }
     }
 }
 
 impl PlatformAdapter for FeishuAdapter {
     fn parse_webhook(&self, request: &WebhookRequest) -> Result<UnifiedMessage, String> {
         let body = &request.body;
-        
+
         // 处理URL验证挑战
         if body["type"].as_str() == Some("url_verification") {
             return Err("url_verification".to_string());
@@ -406,12 +447,12 @@ impl PlatformAdapter for FeishuAdapter {
 
         let event = &body["event"];
         let message = &event["message"];
-        
+
         let content = match message["message_type"].as_str() {
             Some("text") => {
-                let text_content: serde_json::Value = serde_json::from_str(
-                    message["content"].as_str().unwrap_or("{}")
-                ).unwrap_or(serde_json::Value::Null);
+                let text_content: serde_json::Value =
+                    serde_json::from_str(message["content"].as_str().unwrap_or("{}"))
+                        .unwrap_or(serde_json::Value::Null);
                 MessageContent::Text(text_content["text"].as_str().unwrap_or("").to_string())
             }
             Some("image") => MessageContent::Image {
@@ -428,19 +469,35 @@ impl PlatformAdapter for FeishuAdapter {
         };
 
         Ok(UnifiedMessage {
-            id: message["message_id"].as_str().unwrap_or("unknown").to_string(),
+            id: message["message_id"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
             platform: ImPlatform::Feishu,
-            sender_id: event["sender"]["sender_id"]["open_id"].as_str().unwrap_or("unknown").to_string(),
-            sender_name: event["sender"]["sender_id"]["name"].as_str().map(|s| s.to_string()),
+            sender_id: event["sender"]["sender_id"]["open_id"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
+            sender_name: event["sender"]["sender_id"]["name"]
+                .as_str()
+                .map(|s| s.to_string()),
             receiver_id: message["chat_id"].as_str().map(|s| s.to_string()),
             content,
             message_type,
-            timestamp: message["create_time"].as_str().unwrap_or("0").parse().unwrap_or(0),
+            timestamp: message["create_time"]
+                .as_str()
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0),
             raw_data: Some(body.clone()),
         })
     }
 
-    fn build_reply(&self, message: &UnifiedMessage, reply: &ReplyMessage) -> Result<WebhookResponse, String> {
+    fn build_reply(
+        &self,
+        _message: &UnifiedMessage,
+        reply: &ReplyMessage,
+    ) -> Result<WebhookResponse, String> {
         let reply_content = match &reply.content {
             MessageContent::Text(text) => serde_json::json!({"text": text}),
             _ => serde_json::json!({"text": "Unsupported message type"}),
@@ -459,7 +516,7 @@ impl PlatformAdapter for FeishuAdapter {
         })
     }
 
-    fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool {
+    fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
         // 简化实现，生产环境需要完整的签名验证
         true
     }
@@ -474,7 +531,10 @@ pub struct AdapterFactory;
 
 impl AdapterFactory {
     /// 创建平台适配器
-    pub fn create(platform: &ImPlatform, config: &HashMap<String, String>) -> Box<dyn PlatformAdapter> {
+    pub fn create(
+        platform: &ImPlatform,
+        config: &HashMap<String, String>,
+    ) -> Box<dyn PlatformAdapter> {
         match platform {
             ImPlatform::Wechat => {
                 let token = config.get("token").cloned().unwrap_or_default();
@@ -486,12 +546,18 @@ impl AdapterFactory {
                 Box::new(TelegramAdapter::new(bot_token))
             }
             ImPlatform::Slack => {
-                let verification_token = config.get("verification_token").cloned().unwrap_or_default();
+                let verification_token = config
+                    .get("verification_token")
+                    .cloned()
+                    .unwrap_or_default();
                 let signing_secret = config.get("signing_secret").cloned();
                 Box::new(SlackAdapter::new(verification_token, signing_secret))
             }
             ImPlatform::Feishu => {
-                let verification_token = config.get("verification_token").cloned().unwrap_or_default();
+                let verification_token = config
+                    .get("verification_token")
+                    .cloned()
+                    .unwrap_or_default();
                 let encrypt_key = config.get("encrypt_key").cloned();
                 Box::new(FeishuAdapter::new(verification_token, encrypt_key))
             }
@@ -503,6 +569,12 @@ impl AdapterFactory {
 /// IM集成管理器
 pub struct ImIntegrationManager {
     adapters: HashMap<ImPlatform, Box<dyn PlatformAdapter>>,
+}
+
+impl Default for ImIntegrationManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImIntegrationManager {
@@ -519,14 +591,16 @@ impl ImIntegrationManager {
 
     /// 处理Webhook请求
     pub fn handle_webhook(&self, request: &WebhookRequest) -> Result<WebhookResponse, String> {
-        let adapter = self.adapters.get(&request.platform)
+        let adapter = self
+            .adapters
+            .get(&request.platform)
             .ok_or_else(|| format!("No adapter registered for platform: {:?}", request.platform))?;
 
         let message = adapter.parse_webhook(request)?;
-        
+
         // 这里可以添加消息处理逻辑
         // 例如：调用KIAS NL接口处理消息
-        
+
         let reply = ReplyMessage {
             content: MessageContent::Text(format!("Received: {:?}", message.content)),
             reply_to: None,
@@ -565,7 +639,7 @@ mod tests {
         let mut manager = ImIntegrationManager::new();
         let adapter = Box::new(WechatAdapter::new("test".to_string(), None));
         manager.register_adapter(ImPlatform::Wechat, adapter);
-        
+
         assert!(manager.adapters.contains_key(&ImPlatform::Wechat));
     }
 }

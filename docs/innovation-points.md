@@ -840,3 +840,39 @@
 - Tags: orchestration, workflow, agent-framework
 - **KIAS relevance**: Another Rust-native approach to agent workflow — validates our architecture direction
 - Source: https://github.com/EzekTec-Inc/AgentFlow
+
+## 113. agentwerk (canvascomputing) ⭐12
+- **URL**: https://github.com/canvascomputing/agentwerk
+- **Language**: Rust
+- **Description**: Minimal Rust crate for agentic capabilities in any application
+- **KIAS relevance**: Lightweight embedding pattern — compare with our model-router approach
+
+## 114. OpenThymos (gryszzz) ⭐11
+- **URL**: https://github.com/gryszzz/OpenThymos
+- **Language**: Rust
+- **Description**: Unified AI execution runtime for coding agents across CLI, VS Code, terminal, web
+- **KIAS relevance**: Multi-surface agent runtime — our CLI + dashboard approach is similar
+
+## 115. Eidolon-CLI (OmarTheGrey) ⭐7
+- **URL**: https://github.com/OmarTheGrey/Eidolon-CLI
+- **Language**: Rust
+- **Description**: Extensible AI coding agent harness in Rust — designed to be embedded, extended
+- **KIAS relevance**: Harness architecture pattern for agent extensibility
+
+## 116. open-multi-agent-rs (Supernova1744) ⭐3
+- **URL**: https://github.com/Supernova1744/open-multi-agent-rs
+- **Language**: Rust
+- **Description**: Rust port of multi-agent LLM workflow orchestration
+- **KIAS relevance**: Multi-agent orchestration patterns — compare with our team-engine
+
+## 117. nexo-rs (lordmacu) ⭐2
+- **URL**: https://github.com/lordmacu/nexo-rs
+- **Language**: Rust
+- **Description**: Rust multi-agent LLM framework — OpenClaw alternative. WhatsApp+Telegram+Gmail+browser agents
+- **KIAS relevance**: Multi-channel agent deployment (messaging platforms)
+
+## 118. Agenium (RigelNana) ⭐2
+- **URL**: https://github.com/RigelNana/Agenium
+- **Language**: Rust
+- **Description**: Elemental Rust framework for production-grade AI agents
+- **KIAS relevance**: Production-grade focus aligns with our quality standards

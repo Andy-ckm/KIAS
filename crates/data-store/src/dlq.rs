@@ -68,7 +68,7 @@ pub struct DeadLetterEntry {
 }
 
 /// SQLite-backed dead letter queue.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeadLetterQueue {
     pool: SqlitePool,
 }

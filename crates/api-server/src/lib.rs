@@ -103,6 +103,19 @@ impl AppState {
         }
     }
 
+    /// Attach persistent audit log and DLQ after construction.
+    ///
+    /// Called by the service manager once SQLite is initialized.
+    pub fn with_persistence(
+        mut self,
+        audit_log: Arc<kias_data_store::SqliteAuditLog>,
+        dlq: Arc<kias_data_store::DeadLetterQueue>,
+    ) -> Self {
+        self.sqlite_audit_log = Some(audit_log);
+        self.dead_letter_queue = Some(dlq);
+        self
+    }
+
     /// Create AppState asynchronously (for use in async test contexts)
     pub async fn new_async(config: KiasConfig) -> Self {
         let mut nodes = std::collections::HashMap::new();

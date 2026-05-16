@@ -889,3 +889,22 @@
 - **Language**: Rust
 - **Description**: A pure Rust framework for building real autonomous super agents (WIP)
 - **KIAS relevance**: Autonomous agent framework — compare architecture with our goal-engine + autonomy-controller
+
+
+## 121. tuicommander (sstraus) ⭐65
+- **URL**: https://github.com/sstraus/tuicommander
+- **Language**: Rust (Tauri + SolidJS)
+- **Description**: Desktop terminal orchestrator for running dozens of AI coding agents in parallel
+- **KIAS relevance**: Parallel agent orchestration UI — our dashboard approach is similar but web-based
+
+## 122. beehive (storozhenko98) ⭐57
+- **URL**: https://github.com/storozhenko98/beehive
+- **Language**: Rust
+- **Description**: Orchestrate coding agents across isolated git workspaces
+- **KIAS relevance**: Workspace isolation pattern — our VFS and sandbox execution serve similar purpose
+
+## 123. project-orchestrator (this-rs) ⭐116
+- **URL**: https://github.com/this-rs/project-orchestrator
+- **Language**: Rust
+- **Description**: AI agent orchestrator with Neo4j knowledge graph, Meilisearch semantic search, Tree-sitter code parsing
+- **KIAS relevance**: Knowledge graph + semantic search integration — our knowledge crate uses HNSW + SimHash; Neo4j + Meilisearch is an alternative stack worth studying

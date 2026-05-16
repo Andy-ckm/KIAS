@@ -1099,3 +1099,31 @@
 - **KIAS Gap**: KIAS doesn't need blockchain integration, but the SDK pattern for agent composition is worth studying
 - **Status**: 待研究
 
+
+### 105. gradium-ai/gradbot ⭐74 (Rust)
+Open source framework to vibecode and prototype voice agents with Gradium APIs. Voice-first agent paradigm.
+Source: GitHub API search 2026-05-16 21:34
+
+### 106. Th0rgal/sandboxed.sh ⭐427 (Rust)
+Safe runtime for autonomous on-chain AI agents: isolated sandboxes, Library skills, encrypted secrets. Strong sandboxing model for agent execution.
+Source: GitHub API search 2026-05-16 21:34
+
+### 107. capsulerun/capsule ⭐283 (Rust)
+Secure runtime to sandbox AI agent tasks. Run untrusted code in isolated WebAssembly environments. WASM-based sandboxing pattern.
+Source: GitHub API search 2026-05-16 21:34
+
+### 108. awakenworks/awaken ⭐73 (Rust)
+AI agent runtime for Rust — type-safe state, multi-protocol serving, plugin extensibility. Type-safe state machine approach.
+Source: GitHub API search 2026-05-16 21:34
+
+### 109. sinaptik-ai/starpod ⭐67 (Rust)
+Open-source AI agent runtime built in Rust. Define once, deploy isolated instances per tenant with built-in observability. Multi-tenant isolation pattern.
+Source: GitHub API search 2026-05-16 21:34
+
+### 110. Ai00-X/ai00_server ⭐610 (Rust)
+The all-in-one RWKV runtime box with embed, RAG, AI agents, and more. RWKV-based inference alternative to transformer architectures.
+Source: GitHub API search 2026-05-16 21:34
+
+### 111. jtshow/Medusa ⭐27 (Rust)
+Medusa Skill Framework for AI Agents. Skill registration and discovery system.
+Source: GitHub API search 2026-05-16 21:34

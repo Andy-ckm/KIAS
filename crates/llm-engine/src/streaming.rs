@@ -12,24 +12,15 @@ pub enum StreamEvent {
 
     /// 工具调用开始
     #[serde(rename = "tool_call_start")]
-    ToolCallStart {
-        id: String,
-        name: String,
-    },
+    ToolCallStart { id: String, name: String },
 
     /// 工具调用参数增量
     #[serde(rename = "tool_call_delta")]
-    ToolCallDelta {
-        id: String,
-        arguments: String,
-    },
+    ToolCallDelta { id: String, arguments: String },
 
     /// 工具调用完成
     #[serde(rename = "tool_call_end")]
-    ToolCallEnd {
-        id: String,
-        result: String,
-    },
+    ToolCallEnd { id: String, result: String },
 
     /// 完成
     #[serde(rename = "done")]
@@ -40,14 +31,12 @@ pub enum StreamEvent {
 
     /// 错误
     #[serde(rename = "error")]
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// 流式处理器
 pub struct StreamProcessor {
-    events: Vec<StreamEvent>,
+    _events: Vec<StreamEvent>,
     current_tool_calls: std::collections::HashMap<String, ToolCallState>,
 }
 
@@ -58,10 +47,16 @@ struct ToolCallState {
     arguments: String,
 }
 
+impl Default for StreamProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamProcessor {
     pub fn new() -> Self {
         Self {
-            events: Vec::new(),
+            _events: Vec::new(),
             current_tool_calls: std::collections::HashMap::new(),
         }
     }
@@ -83,16 +78,22 @@ impl StreamProcessor {
             // 处理工具调用
             if let Some(tool_calls) = &choice.delta.tool_calls {
                 for tc in tool_calls {
-                    let id = tc.id.clone().unwrap_or_else(|| format!("call_{}", tc.index));
+                    let id = tc
+                        .id
+                        .clone()
+                        .unwrap_or_else(|| format!("call_{}", tc.index));
 
                     if let Some(func) = &tc.function {
                         if let Some(name) = &func.name {
                             // 新工具调用开始
-                            self.current_tool_calls.insert(id.clone(), ToolCallState {
-                                id: id.clone(),
-                                name: name.clone(),
-                                arguments: String::new(),
-                            });
+                            self.current_tool_calls.insert(
+                                id.clone(),
+                                ToolCallState {
+                                    id: id.clone(),
+                                    name: name.clone(),
+                                    arguments: String::new(),
+                                },
+                            );
                             events.push(StreamEvent::ToolCallStart {
                                 id: id.clone(),
                                 name: name.clone(),
@@ -127,13 +128,15 @@ impl StreamProcessor {
 
     /// 获取所有工具调用结果
     pub fn get_tool_calls(&self) -> Vec<ToolCallResult> {
-        self.current_tool_calls.values().map(|state| {
-            ToolCallResult {
+        self.current_tool_calls
+            .values()
+            .map(|state| ToolCallResult {
                 id: state.id.clone(),
                 name: state.name.clone(),
-                arguments: serde_json::from_str(&state.arguments).unwrap_or(serde_json::Value::Null),
-            }
-        }).collect()
+                arguments: serde_json::from_str(&state.arguments)
+                    .unwrap_or(serde_json::Value::Null),
+            })
+            .collect()
     }
 }
 

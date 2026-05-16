@@ -1,13 +1,18 @@
 //! 工具注册表
 
+use crate::builtin::{Tool, ToolResult};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::builtin::{Tool, ToolResult};
 
 /// 工具注册表
 pub struct ToolRegistry {
     tools: HashMap<String, Arc<Box<dyn Tool>>>,
+}
+
+impl Default for ToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ToolRegistry {
@@ -30,13 +35,14 @@ impl ToolRegistry {
 
     /// 列出所有工具
     pub fn list(&self) -> Vec<ToolInfo> {
-        self.tools.values().map(|tool| {
-            ToolInfo {
+        self.tools
+            .values()
+            .map(|tool| ToolInfo {
                 name: tool.name().to_string(),
                 description: tool.description().to_string(),
                 parameters: tool.parameters(),
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     /// 执行工具

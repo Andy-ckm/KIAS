@@ -6,12 +6,12 @@
 //! 3. Execute Tools → Observations
 //! 4. Loop until done
 
+use crate::context::AgentContext;
+use crate::types::*;
+use llm_engine::{ChatMessage, ChatRequest, LlmProvider, MessageRole};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use llm_engine::{LlmProvider, ChatRequest, ChatMessage, MessageRole, TokenUsage};
 use tool_executor::ToolRegistry;
-use crate::types::*;
-use crate::context::AgentContext;
 
 /// Agent 执行器
 pub struct AgentExecutor {
@@ -121,7 +121,10 @@ impl AgentExecutor {
             // 更新 token 统计
             if let Some(usage) = &response.usage {
                 total_tokens += usage.total_tokens;
-                let cost = self.cost_tracker.record_usage(&self.config.model, usage).await;
+                let cost = self
+                    .cost_tracker
+                    .record_usage(&self.config.model, usage)
+                    .await;
                 total_cost += cost;
             }
 

@@ -39,33 +39,54 @@ pub struct ModelPricing {
     pub output_cost_per_1m: f64,
 }
 
+impl Default for CostTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CostTracker {
     pub fn new() -> Self {
         let mut pricing = HashMap::new();
 
         // OpenAI 模型定价
-        pricing.insert("gpt-4o".to_string(), ModelPricing {
-            input_cost_per_1m: 2.50,
-            output_cost_per_1m: 10.00,
-        });
-        pricing.insert("gpt-4o-mini".to_string(), ModelPricing {
-            input_cost_per_1m: 0.15,
-            output_cost_per_1m: 0.60,
-        });
-        pricing.insert("gpt-4-turbo".to_string(), ModelPricing {
-            input_cost_per_1m: 10.00,
-            output_cost_per_1m: 30.00,
-        });
+        pricing.insert(
+            "gpt-4o".to_string(),
+            ModelPricing {
+                input_cost_per_1m: 2.50,
+                output_cost_per_1m: 10.00,
+            },
+        );
+        pricing.insert(
+            "gpt-4o-mini".to_string(),
+            ModelPricing {
+                input_cost_per_1m: 0.15,
+                output_cost_per_1m: 0.60,
+            },
+        );
+        pricing.insert(
+            "gpt-4-turbo".to_string(),
+            ModelPricing {
+                input_cost_per_1m: 10.00,
+                output_cost_per_1m: 30.00,
+            },
+        );
 
         // Anthropic 模型定价
-        pricing.insert("claude-sonnet-4-20250514".to_string(), ModelPricing {
-            input_cost_per_1m: 3.00,
-            output_cost_per_1m: 15.00,
-        });
-        pricing.insert("claude-3-5-haiku-20241022".to_string(), ModelPricing {
-            input_cost_per_1m: 0.80,
-            output_cost_per_1m: 4.00,
-        });
+        pricing.insert(
+            "claude-sonnet-4-20250514".to_string(),
+            ModelPricing {
+                input_cost_per_1m: 3.00,
+                output_cost_per_1m: 15.00,
+            },
+        );
+        pricing.insert(
+            "claude-3-5-haiku-20241022".to_string(),
+            ModelPricing {
+                input_cost_per_1m: 0.80,
+                output_cost_per_1m: 4.00,
+            },
+        );
 
         Self {
             daily_costs: Arc::new(RwLock::new(HashMap::new())),
@@ -100,7 +121,8 @@ impl CostTracker {
     pub fn calculate_cost(&self, model: &str, usage: &crate::types::TokenUsage) -> f64 {
         if let Some(pricing) = self.pricing.get(model) {
             let input_cost = (usage.prompt_tokens as f64 / 1_000_000.0) * pricing.input_cost_per_1m;
-            let output_cost = (usage.completion_tokens as f64 / 1_000_000.0) * pricing.output_cost_per_1m;
+            let output_cost =
+                (usage.completion_tokens as f64 / 1_000_000.0) * pricing.output_cost_per_1m;
             input_cost + output_cost
         } else {
             0.0

@@ -5,10 +5,7 @@
 //!
 //! 消息流: IM 平台 → Webhook → 消息解析 → NL 命令处理器 → 响应格式化 → IM 平台
 
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ApiError;
@@ -59,6 +56,7 @@ pub struct WebhookResponse {
     pub extra: Option<serde_json::Value>,
 }
 
+#[allow(dead_code)]
 fn default_reply_type() -> String {
     "text".to_string()
 }
@@ -70,7 +68,11 @@ pub trait ImAdapter: Send + Sync {
     /// 格式化响应为平台格式
     fn format_response(&self, response: &WebhookResponse) -> serde_json::Value;
     /// 验证 Webhook 签名
-    fn verify_signature(&self, headers: &std::collections::HashMap<String, String>, body: &[u8]) -> bool;
+    fn verify_signature(
+        &self,
+        headers: &std::collections::HashMap<String, String>,
+        body: &[u8],
+    ) -> bool;
 }
 
 /// 微信适配器
@@ -80,13 +82,27 @@ impl ImAdapter for WechatAdapter {
     fn parse_message(&self, raw: &serde_json::Value) -> Result<WebhookRequest, String> {
         Ok(WebhookRequest {
             platform: "wechat".to_string(),
-            sender_id: raw.get("FromUserName").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+            sender_id: raw
+                .get("FromUserName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
             sender_name: None,
-            message: raw.get("Content").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            message: raw
+                .get("Content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             message_type: "text".to_string(),
-            conversation_id: raw.get("ToUserName").and_then(|v| v.as_str()).map(String::from),
+            conversation_id: raw
+                .get("ToUserName")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             metadata: None,
-            timestamp: raw.get("CreateTime").and_then(|v| v.as_str()).map(String::from),
+            timestamp: raw
+                .get("CreateTime")
+                .and_then(|v| v.as_str())
+                .map(String::from),
         })
     }
 
@@ -97,7 +113,11 @@ impl ImAdapter for WechatAdapter {
         })
     }
 
-    fn verify_signature(&self, _headers: &std::collections::HashMap<String, String>, _body: &[u8]) -> bool {
+    fn verify_signature(
+        &self,
+        _headers: &std::collections::HashMap<String, String>,
+        _body: &[u8],
+    ) -> bool {
         true // 微信验证逻辑在 handler 层处理
     }
 }
@@ -110,13 +130,33 @@ impl ImAdapter for TelegramAdapter {
         let message = raw.get("message").ok_or("missing message field")?;
         Ok(WebhookRequest {
             platform: "telegram".to_string(),
-            sender_id: message.get("from").and_then(|f| f.get("id")).and_then(|v| v.as_i64()).unwrap_or(0).to_string(),
-            sender_name: message.get("from").and_then(|f| f.get("first_name")).and_then(|v| v.as_str()).map(String::from),
-            message: message.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            sender_id: message
+                .get("from")
+                .and_then(|f| f.get("id"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0)
+                .to_string(),
+            sender_name: message
+                .get("from")
+                .and_then(|f| f.get("first_name"))
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            message: message
+                .get("text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             message_type: "text".to_string(),
-            conversation_id: message.get("chat").and_then(|c| c.get("id")).and_then(|v| v.as_i64()).map(|i| i.to_string()),
+            conversation_id: message
+                .get("chat")
+                .and_then(|c| c.get("id"))
+                .and_then(|v| v.as_i64())
+                .map(|i| i.to_string()),
             metadata: None,
-            timestamp: message.get("date").and_then(|v| v.as_i64()).map(|i| i.to_string()),
+            timestamp: message
+                .get("date")
+                .and_then(|v| v.as_i64())
+                .map(|i| i.to_string()),
         })
     }
 
@@ -127,7 +167,11 @@ impl ImAdapter for TelegramAdapter {
         })
     }
 
-    fn verify_signature(&self, _headers: &std::collections::HashMap<String, String>, _body: &[u8]) -> bool {
+    fn verify_signature(
+        &self,
+        _headers: &std::collections::HashMap<String, String>,
+        _body: &[u8],
+    ) -> bool {
         true // Telegram 使用 secret token 验证
     }
 }
@@ -139,11 +183,22 @@ impl ImAdapter for SlackAdapter {
     fn parse_message(&self, raw: &serde_json::Value) -> Result<WebhookRequest, String> {
         Ok(WebhookRequest {
             platform: "slack".to_string(),
-            sender_id: raw.get("user").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+            sender_id: raw
+                .get("user")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
             sender_name: None,
-            message: raw.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            message: raw
+                .get("text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             message_type: "text".to_string(),
-            conversation_id: raw.get("channel").and_then(|v| v.as_str()).map(String::from),
+            conversation_id: raw
+                .get("channel")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             metadata: None,
             timestamp: raw.get("ts").and_then(|v| v.as_str()).map(String::from),
         })
@@ -156,7 +211,11 @@ impl ImAdapter for SlackAdapter {
         })
     }
 
-    fn verify_signature(&self, _headers: &std::collections::HashMap<String, String>, _body: &[u8]) -> bool {
+    fn verify_signature(
+        &self,
+        _headers: &std::collections::HashMap<String, String>,
+        _body: &[u8],
+    ) -> bool {
         true
     }
 }
@@ -168,15 +227,33 @@ impl ImAdapter for FeishuAdapter {
     fn parse_message(&self, raw: &serde_json::Value) -> Result<WebhookRequest, String> {
         let event = raw.get("event").ok_or("missing event field")?;
         let message = event.get("message").ok_or("missing message field")?;
-        let sender = event.get("sender").and_then(|s| s.get("sender_id")).ok_or("missing sender")?;
+        let sender = event
+            .get("sender")
+            .and_then(|s| s.get("sender_id"))
+            .ok_or("missing sender")?;
 
         Ok(WebhookRequest {
             platform: "feishu".to_string(),
-            sender_id: sender.get("open_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+            sender_id: sender
+                .get("open_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
             sender_name: None,
-            message: message.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            message_type: message.get("message_type").and_then(|v| v.as_str()).unwrap_or("text").to_string(),
-            conversation_id: message.get("chat_id").and_then(|v| v.as_str()).map(String::from),
+            message: message
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            message_type: message
+                .get("message_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("text")
+                .to_string(),
+            conversation_id: message
+                .get("chat_id")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             metadata: None,
             timestamp: None,
         })
@@ -191,7 +268,11 @@ impl ImAdapter for FeishuAdapter {
         })
     }
 
-    fn verify_signature(&self, _headers: &std::collections::HashMap<String, String>, _body: &[u8]) -> bool {
+    fn verify_signature(
+        &self,
+        _headers: &std::collections::HashMap<String, String>,
+        _body: &[u8],
+    ) -> bool {
         true
     }
 }
@@ -224,7 +305,8 @@ pub async fn im_webhook(
 
     // 调用 NL 命令处理器
     let (intent, confidence) = crate::handlers::nl_command::parse_intent_for_im(&req.message);
-    let (actions, message, suggestions) = crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
+    let (actions, message, suggestions) =
+        crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
 
     // 构建回复
     let mut reply = message;
@@ -264,11 +346,13 @@ pub async fn wechat_webhook(
     Json(raw): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let adapter = WechatAdapter;
-    let req = adapter.parse_message(&raw)
+    let req = adapter
+        .parse_message(&raw)
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
     let (intent, _) = crate::handlers::nl_command::parse_intent_for_im(&req.message);
-    let (actions, message, _) = crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
+    let (_actions, message, _) =
+        crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
 
     let response = WebhookResponse {
         success: true,
@@ -287,11 +371,13 @@ pub async fn telegram_webhook(
     Json(raw): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let adapter = TelegramAdapter;
-    let req = adapter.parse_message(&raw)
+    let req = adapter
+        .parse_message(&raw)
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
     let (intent, _) = crate::handlers::nl_command::parse_intent_for_im(&req.message);
-    let (actions, message, _) = crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
+    let (_actions, message, _) =
+        crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
 
     let response = WebhookResponse {
         success: true,
@@ -317,11 +403,13 @@ pub async fn feishu_webhook(
     }
 
     let adapter = FeishuAdapter;
-    let req = adapter.parse_message(&raw)
+    let req = adapter
+        .parse_message(&raw)
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
     let (intent, _) = crate::handlers::nl_command::parse_intent_for_im(&req.message);
-    let (actions, message, _) = crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
+    let (_actions, message, _) =
+        crate::handlers::nl_command::execute_intent_for_im(&intent, &state).await;
 
     let response = WebhookResponse {
         success: true,

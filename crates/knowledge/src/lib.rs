@@ -2,6 +2,7 @@ pub mod agentic_rag;
 pub mod context_manager;
 pub mod graph;
 pub mod graphrag;
+pub mod inspiration_stream;
 pub mod memory;
 pub mod memory_layers;
 pub mod retriever;

@@ -992,3 +992,39 @@
 - **Language**: TypeScript
 - **Description**: Production-ready platform for agentic workflow development
 - **KIAS relevance**: Mature agentic workflow platform — study their workflow DSL, node types, and execution model for improving workflow-engine
+
+### 92. webclaw — Rust Web Content Extraction for LLMs (⭐1155)
+- **Repo**: https://github.com/0xMassi/webclaw
+- **Language**: Rust
+- **Stars**: 1,155
+- **Description**: Fast, local-first web content extraction for LLMs. Scrape, crawl, extract structured data — CLI, REST API, and MCP server.
+- **Topics**: ai-agents, crawler, firecrawl-alternative, html-to-markdown, mcp-server, web-crawler, tls-fingerprinting
+- **Relevance to KIAS**: Could serve as reference for KIAS's web content extraction capabilities. MCP server integration makes it pluggable.
+- **Key Pattern**: CLI + REST API + MCP server triple interface for the same core functionality.
+
+### 93. omem — Shared Memory for AI Agents (⭐196)
+- **Repo**: https://github.com/ourmem/omem
+- **Language**: Rust
+- **Stars**: 196
+- **Description**: Persistent memory for AI agents with Space-based sharing across agents and teams. Plugins for OpenCode, Claude Code, OpenClaw, MCP Server.
+- **Topics**: ai-agent, ai-memory, lancedb, memory-sharing, persistent-memory, vector-search
+- **Relevance to KIAS**: Space-based memory sharing aligns with KIAS's team-engine memory management. LanceDB for vector storage is interesting alternative to in-memory HNSW.
+- **Key Pattern**: Memory spaces as first-class concept — agents share memory within a "space", isolated between spaces.
+
+### 94. yantrikdb — Cognitive Memory Database (⭐143)
+- **Repo**: https://github.com/yantrikos/yantrikdb-server
+- **Language**: Rust
+- **Stars**: 143
+- **Description**: Cognitive memory database for AI agents — consolidates duplicates, detects contradictions, fades stale memories via temporal decay.
+- **Topics**: agent-memory, cognitive-memory, database, hnsw, knowledge-graph, mcp-server, persistent-memory, vector-database
+- **Relevance to KIAS**: Very relevant — combines HNSW + knowledge graph + temporal decay. KIAS's data-store could adopt temporal decay for stale memory eviction.
+- **Key Pattern**: Memory consolidation (dedup + contradiction detection) + temporal decay (fading old memories). Ships as library / MCP server / HTTP cluster.
+
+### 95. engraph — Local Knowledge Graph for Agents (⭐136)
+- **Repo**: https://github.com/devwhodevs/engraph
+- **Language**: Rust
+- **Stars**: 136
+- **Description**: Local knowledge graph for AI agents. Hybrid search + MCP server for Obsidian vaults.
+- **Topics**: ai-agents, knowledge-graph, local-first, mcp, obsidian, rag, semantic-search
+- **Relevance to KIAS**: Hybrid search (keyword + semantic) for knowledge graphs. MCP server for Obsidian vaults is a novel integration pattern.
+- **Key Pattern**: Local-first knowledge graph with hybrid search (BM25 + embedding similarity). Could improve KIAS's knowledge crate retrieval.

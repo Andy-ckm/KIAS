@@ -1080,3 +1080,22 @@
 - **Why it matters**: Addresses the trust problem in MCP tool execution — agents shouldn't have unrestricted shell access. KIAS's sandbox already has resource limits, but Mithril's approach of purpose-built validated tools is more secure.
 - **KIAS relevance**: Consider adding tool validation layer to mcp-protocol sandbox — pre-validate commands before execution
 - **Date added**: 2026-05-16 20:23
+
+### 103. rp-engine — YAML-native Agent Workflow Engine
+- **Repo**: jieyefriic/rp-engine ⭐544
+- **Language**: Rust | License: Apache-2.0 | Created: 2026-01-19
+- **Description**: YAML-native agent workflow execution engine. Direct competitor to KIAS workflow-engine.
+- **Relevance**: HIGH — Same domain (agent workflow), same language (Rust), YAML-native config, MCP support
+- **Key Features**: YAML workflow definitions, agent orchestration, MCP integration
+- **KIAS Gap**: KIAS workflow engine is Rust-native but not YAML-configured. Consider YAML workflow definition support.
+- **Status**: 待研究 (needs deeper analysis of architecture)
+
+### 104. nexus-sdk — Agentic Workflow Engine SDK
+- **Repo**: Talus-Network/nexus-sdk ⭐184
+- **Language**: Rust | License: Apache-2.0 | Created: 2025-02-12
+- **Description**: SDK for building with Nexus, the Agentic Workflow Engine. Blockchain-integrated (Sui).
+- **Relevance**: MEDIUM — Agent workflow but blockchain-focused (Sui/Talus ecosystem)
+- **Key Features**: Agent building SDK, tool creation, blockchain integration
+- **KIAS Gap**: KIAS doesn't need blockchain integration, but the SDK pattern for agent composition is worth studying
+- **Status**: 待研究
+

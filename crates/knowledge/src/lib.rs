@@ -22,5 +22,3 @@ pub use vector::{
     cosine_distance, cosine_similarity, l2_distance, EmbeddingEngine, LocalEmbeddingEngine,
     VectorRetriever, VectorStore, VectorStoreStats,
 };
-
-

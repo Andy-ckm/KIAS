@@ -321,8 +321,7 @@ impl VqCodebook {
         // Update running average of intra-cluster distance
         let entry = &mut self.entries[nearest_id];
         let n = entry.total_assignments as f64;
-        entry.avg_intra_distance =
-            entry.avg_intra_distance * ((n - 1.0) / n) + distance / n;
+        entry.avg_intra_distance = entry.avg_intra_distance * ((n - 1.0) / n) + distance / n;
 
         Ok(QuantizationResult {
             agent_id: profile.agent_id.clone(),
@@ -570,15 +569,17 @@ mod tests {
         let cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
         assert_eq!(cb.k, 2);
         // Centroids should not be all zeros after k-means init
-        let non_zero = cb.entries.iter().any(|e| e.centroid.iter().any(|&v| v != 0.0));
+        let non_zero = cb
+            .entries
+            .iter()
+            .any(|e| e.centroid.iter().any(|&v| v != 0.0));
         assert!(non_zero, "Centroids should be initialized from profiles");
     }
 
     #[test]
     fn test_quantize_basic() {
         let profiles = sample_profiles();
-        let mut cb =
-            VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
+        let mut cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
 
         let result = cb.quantize(&profiles[0]).unwrap();
         assert_eq!(result.agent_id, "agent-1");
@@ -597,8 +598,7 @@ mod tests {
     #[test]
     fn test_train_step_updates_centroid() {
         let profiles = sample_profiles();
-        let mut cb =
-            VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.5).unwrap();
+        let mut cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.5).unwrap();
 
         let before_centroid = cb.entries[0].centroid.clone();
         // Train with a profile that maps to prototype 0
@@ -612,8 +612,7 @@ mod tests {
     #[test]
     fn test_batch_training_convergence() {
         let profiles = sample_profiles();
-        let mut cb =
-            VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
+        let mut cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
 
         let report = cb.train(&profiles, 20).unwrap();
         assert_eq!(report.epochs, 20);
@@ -628,8 +627,7 @@ mod tests {
     #[test]
     fn test_assignment_tracking() {
         let profiles = sample_profiles();
-        let mut cb =
-            VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
+        let mut cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
 
         let result = cb.quantize(&profiles[0]).unwrap();
         assert_eq!(cb.get_assignment("agent-1"), Some(result.prototype_id));
@@ -639,16 +637,13 @@ mod tests {
     #[test]
     fn test_agents_in_prototype() {
         let profiles = sample_profiles();
-        let mut cb =
-            VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
+        let mut cb = VqCodebook::init_from_profiles(2, test_features(), &profiles, 0.1).unwrap();
 
         for p in &profiles {
             let _ = cb.quantize(p).unwrap();
         }
 
-        let total: usize = (0..cb.k)
-            .map(|i| cb.agents_in_prototype(i).len())
-            .sum();
+        let total: usize = (0..cb.k).map(|i| cb.agents_in_prototype(i).len()).sum();
         assert_eq!(total, profiles.len());
     }
 

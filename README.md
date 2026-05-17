@@ -96,7 +96,7 @@ KIAS is grounded in **Qian Xuesen's Systems Engineering methodology** — treati
 
 **Seven Principles (from [Qian Xuesen Theory](docs/qian-xuesen-engineering-principles.md)):**
 
-> **开发必须遵守 [四步开发法](docs/development-methodology.md)**：评估 → 审视 → 方案 → 开发。违反铁律 = 返工。
+> **开发必须遵守 [完整方法论](docs/METHODOLOGY.md)**：钱学森系统工程原理 + 马斯克第一性原则 + 论文+源码支撑。违反铁律 = 返工。
 
 | # | Principle | KIAS Implementation |
 |---|-----------|---------------------|

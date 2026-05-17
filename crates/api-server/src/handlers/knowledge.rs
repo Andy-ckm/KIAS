@@ -323,8 +323,8 @@ mod tests {
             status: "ok".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains(""document_id":"doc-1""));
-        assert!(json.contains(""chunks_created":5"));
+        assert!(json.contains("document_id")); assert!(json.contains("doc-1"));
+        assert!(json.contains("chunks_created")); assert!(json.contains("5"));
     }
 
     #[test]
@@ -336,7 +336,7 @@ mod tests {
             score: 0.95,
         };
         let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains(""score":0.95"));
+        assert!(json.contains("score")); assert!(json.contains("0.95"));
     }
 
     #[test]

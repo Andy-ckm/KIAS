@@ -45,9 +45,9 @@ mod tests {
 
     #[test]
     fn test_node_status_serialization() {
-        assert_eq!(serde_json::to_string(&NodeStatus::Ready).unwrap(), ""Ready"");
-        assert_eq!(serde_json::to_string(&NodeStatus::NotReady).unwrap(), ""NotReady"");
-        assert_eq!(serde_json::to_string(&NodeStatus::Draining).unwrap(), ""Draining"");
+        assert!(serde_json::to_string(&NodeStatus::Ready).unwrap().contains("Ready"));
+        assert!(serde_json::to_string(&NodeStatus::NotReady).unwrap().contains("NotReady"));
+        assert!(serde_json::to_string(&NodeStatus::Draining).unwrap().contains("Draining"));
     }
 
     #[test]

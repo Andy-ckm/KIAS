@@ -164,4 +164,72 @@ mod tests {
         assert!(json.contains("ok"));
         assert!(json.contains("req-001"));
     }
+
+    #[test]
+    fn test_exit_code_config_error() {
+        assert_eq!(ExitCode::ConfigError as i32, 8);
+    }
+
+    #[test]
+    fn test_command_result_with_none_optional_fields() {
+        let result = CommandResult {
+            status: "partial".to_string(),
+            data: "data".to_string(),
+            metadata: ResultMetadata {
+                duration_ms: 0,
+                tokens_used: None,
+                cost: None,
+                request_id: "req-none".to_string(),
+            },
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("partial"));
+        assert!(json.contains("null"));
+    }
+
+    #[test]
+    fn test_result_metadata_debug() {
+        let meta = ResultMetadata {
+            duration_ms: 42,
+            tokens_used: Some(100),
+            cost: Some(0.05),
+            request_id: "debug-test".to_string(),
+        };
+        let debug_str = format!("{:?}", meta);
+        assert!(debug_str.contains("42"));
+        assert!(debug_str.contains("debug-test"));
+    }
+
+    #[test]
+    fn test_command_result_with_number_data() {
+        let result = CommandResult {
+            status: "count".to_string(),
+            data: 42u32,
+            metadata: ResultMetadata {
+                duration_ms: 10,
+                tokens_used: None,
+                cost: None,
+                request_id: "req-num".to_string(),
+            },
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("42"));
+    }
+
+    #[test]
+    fn test_command_result_with_vec_data() {
+        let result = CommandResult {
+            status: "list".to_string(),
+            data: vec!["item1", "item2", "item3"],
+            metadata: ResultMetadata {
+                duration_ms: 5,
+                tokens_used: Some(20),
+                cost: Some(0.001),
+                request_id: "req-vec".to_string(),
+            },
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("item1"));
+        assert!(json.contains("item3"));
+    }
 }

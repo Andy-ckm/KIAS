@@ -74,4 +74,54 @@ mod tests {
             assert!(json.contains(name), "Expected {} in {}", name, json);
         }
     }
+
+    #[test]
+    fn test_workflow_run_clone_debug() {
+        let run = WorkflowRun {
+            run_id: "run-clone".to_string(),
+            workflow_name: "wf-test".to_string(),
+            status: WorkflowStatus::Failed,
+            started_at: "2024-01-01".to_string(),
+            completed_at: Some("2024-01-02".to_string()),
+            input: serde_json::json!({"key": "value"}),
+            output: Some(serde_json::json!({"error": "timeout"})),
+        };
+        let cloned = run.clone();
+        assert_eq!(cloned.run_id, "run-clone");
+        assert!(matches!(cloned.status, WorkflowStatus::Failed));
+        assert!(cloned.output.is_some());
+        let _debug = format!("{:?}", cloned);
+    }
+
+    #[test]
+    fn test_workflow_run_with_complex_input() {
+        let run = WorkflowRun {
+            run_id: "run-complex".to_string(),
+            workflow_name: "data-pipeline".to_string(),
+            status: WorkflowStatus::Running,
+            started_at: "2024-01-01".to_string(),
+            completed_at: None,
+            input: serde_json::json!({
+                "nested": {"key": "value"},
+                "array": [1, 2, 3],
+                "flag": true
+            }),
+            output: None,
+        };
+        let json = serde_json::to_string(&run).unwrap();
+        assert!(json.contains("data-pipeline"));
+        let deserialized: WorkflowRun = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.input["nested"]["key"], "value");
+    }
+
+    #[test]
+    fn test_workflow_status_deserialize() {
+        let statuses = vec!["Pending", "Running", "Completed", "Failed", "Cancelled"];
+        for name in statuses {
+            let json = String::from("\"") + name + "\"";
+            let status: WorkflowStatus = serde_json::from_str(&json).unwrap();
+            let serialized = serde_json::to_string(&status).unwrap();
+            assert!(serialized.contains(name));
+        }
+    }
 }

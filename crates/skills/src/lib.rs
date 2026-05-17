@@ -1,5 +1,6 @@
 pub mod builtin;
 pub mod composition;
+pub mod curator;
 pub mod distillation;
 pub mod pipeline;
 pub mod registry;
@@ -9,6 +10,7 @@ pub mod version_control;
 
 pub use builtin::register_builtin_skills;
 pub use composition::{CompositeSkill, SchemaValidation, SkillComposer};
+pub use curator::{Curator, CuratorConfig, CuratorReport, SkillHealthReport, SkillHealthStatus};
 pub use pipeline::{
     ErrorPolicy, InputMapping, PipelineBuilder, PipelineResult, PipelineStep, SkillPipeline,
 };

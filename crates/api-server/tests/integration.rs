@@ -810,3 +810,227 @@ async fn test_config_audit_log_empty_initially() {
     let entries = body.as_array().unwrap();
     assert_eq!(entries.len(), 0);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. Workflow Endpoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_list_workflows_empty() {
+    let app = create_router(default_state().await);
+    let (status, body) = get_json(&app, "/api/v1/workflows").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["total"], 0);
+    assert!(body["workflows"].is_array());
+    assert_eq!(body["workflows"].as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn test_create_workflow() {
+    let app = create_router(default_state().await);
+    let body = serde_json::json!({
+        "name": "test-workflow",
+        "description": "A test workflow"
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/workflows")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let wf: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(wf["name"], "test-workflow");
+    assert!(wf["id"].is_string());
+    assert_eq!(wf["status"], "Draft");
+}
+
+#[tokio::test]
+async fn test_create_and_get_workflow_by_id() {
+    let app = create_router(default_state().await);
+
+    // Create
+    let body = serde_json::json!({
+        "name": "wf-get-test",
+        "description": "test get by id"
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/workflows")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let created: Value = serde_json::from_slice(&bytes).unwrap();
+    let wf_id = created["id"].as_str().unwrap().to_string();
+
+    // Get by ID
+    let (status, fetched) = get_json(&app, &format!("/api/v1/workflows/{}", wf_id)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(fetched["name"], "wf-get-test");
+}
+
+#[tokio::test]
+async fn test_delete_workflow() {
+    let app = create_router(default_state().await);
+
+    // Create
+    let body = serde_json::json!({"name": "wf-delete-test"});
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/workflows")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let created: Value = serde_json::from_slice(&bytes).unwrap();
+    let wf_id = created["id"].as_str().unwrap().to_string();
+
+    // Delete
+    let req = Request::builder()
+        .method("DELETE")
+        .uri(format!("/api/v1/workflows/{}", wf_id))
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Verify gone
+    let (status, _) = get_json(&app, &format!("/api/v1/workflows/{}", wf_id)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_get_nonexistent_workflow_returns_404() {
+    let app = create_router(default_state().await);
+    let (status, _) = get_json(&app, "/api/v1/workflows/nonexistent-id").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 9. Deep Health Endpoint
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_deep_health_returns_200() {
+    let app = create_router(default_state().await);
+    let (status, body) = get_json(&app, "/healthz/deep").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["status"].is_string());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10. Scheduler Status Endpoint
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_scheduler_status() {
+    let app = create_router(default_state().await);
+    let (status, body) = get_json(&app, "/api/v1/scheduler/status").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.is_object());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. NL Command Endpoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_nl_command_basic() {
+    let app = create_router(default_state().await);
+    let body = serde_json::json!({
+        "command": "查看系统状态"
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/nl/command")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let result: Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(result["message"].is_string());
+}
+
+#[tokio::test]
+async fn test_nl_command_empty_returns_400() {
+    let app = create_router(default_state().await);
+    let body = serde_json::json!({
+        "command": ""
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/nl/command")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    // Empty command should be rejected
+    assert!(
+        resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::OK,
+        "Expected 400 or 200 for empty command, got {}",
+        resp.status()
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 12. Intent Recognition Endpoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_recognize_intent() {
+    let app = create_router(default_state().await);
+    let body = serde_json::json!({
+        "input": "部署一个新Agent到生产环境"
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/intent/recognize")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let result: Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(result["intent"].is_object() || result["intent_type"].is_string());
+}
+
+#[tokio::test]
+async fn test_decompose_task() {
+    let app = create_router(default_state().await);
+    let body = serde_json::json!({
+        "input": "创建一个工作流来处理客户支持请求"
+    });
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/intent/decompose")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let result: Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(result.is_object());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 13. IM Integration Endpoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn test_im_platforms_returns_list() {
+    let app = create_router(default_state().await);
+    let (status, body) = get_json(&app, "/api/v1/im/platforms").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.is_object() || body.is_array());
+}

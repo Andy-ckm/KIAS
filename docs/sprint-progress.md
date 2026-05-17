@@ -1,3 +1,40 @@
+## 最新更新：2026-05-17 15:27 (Sprint 73 — API Server Integration Tests +12)
+
+### 🎯 Sprint 73 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,043 通过 / 0 失败 (+12) |
+
+### 🔧 本轮新增
+- **API Server 集成测试扩展**: 57 → 69 tests (+12, +21%)
+  - `test_list_workflows_empty` — 工作流列表空状态
+  - `test_create_workflow` — 创建工作流
+  - `test_create_and_get_workflow_by_id` — 创建后按 ID 查询
+  - `test_delete_workflow` — 删除工作流 + 验证已删除
+  - `test_get_nonexistent_workflow_returns_404` — 不存在工作流返回 404
+  - `test_deep_health_returns_200` — 深度健康检查端点
+  - `test_scheduler_status` — 调度器状态端点
+  - `test_nl_command_basic` — NL 命令基本功能
+  - `test_nl_command_empty_returns_400` — 空 NL 命令处理
+  - `test_recognize_intent` — 意图识别端点
+  - `test_decompose_task` — 任务分解端点
+  - `test_im_platforms_returns_list` — IM 平台列表端点
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 103,576
+- **测试数量**: 2,043 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+
+### 💾 磁盘状态
+- / (系统盘): 21G 可用 / 40G (45%)
+- /mnt (挂载盘): 4.5G 可用 / 30G (84%)
+
+---
+
 ## 最新更新：2026-05-17 14:51 (Sprint 72 — kias-cli 测试密度提升)
 
 ### 🎯 Sprint 72 质量门禁检查

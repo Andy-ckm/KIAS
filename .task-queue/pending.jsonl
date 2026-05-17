@@ -1,1 +1,13 @@
-{"id": "task_1779023635399", "type": "research", "payload": {"task": "深度分析Sembr开源项目：Agent-first三层架构、意图语义匹配、fire API、成本优化。映射到KIAS SkillMatcher升级和A2A fire端点", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:13:55", "status": "pending"}
+{"id": "task_1779023775934", "type": "dev", "payload": {"task": "实现A2A /fire同步端点：Agent标准化调用接口（Sembr灵感）", "priority": 4}, "priority": 5, "created_at": "2026-05-17 21:16:15", "status": "pending"}
+{"id": "task_1779023775989", "type": "dev", "payload": {"task": "接入免费嵌入层：SiliconFlow BGE-M3向量模型（Sembr成本优化灵感）", "priority": 5}, "priority": 5, "created_at": "2026-05-17 21:16:15", "status": "pending"}
+{"id": "task_1779024705431", "type": "dev", "payload": {"task": "实现Kanban看板：6列状态机（Triage→Todo→Ready→InProgress→Blocked→Done），SQLite持久化，Dispatcher自动调度，父子依赖+文件交接", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:31:45", "status": "pending"}
+{"id": "task_1779025390609", "type": "dev", "payload": {"task": "Agent SOUL.md身份层：声明式身份定义+热加载+prompt注入", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:43:10", "status": "pending"}
+{"id": "task_1779025397007", "type": "dev", "payload": {"task": "Agent MEMORY.md中期记忆：用户偏好+环境事实+prompt注入", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}
+{"id": "task_1779025397034", "type": "dev", "payload": {"task": "Runtime Loop循环执行：controller支持执行→观察→调整→再执行", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}
+{"id": "task_1779025397060", "type": "dev", "payload": {"task": "预置Finance/Logistics/HR工作流模板（SAP场景）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}
+{"id": "task_1779025397086", "type": "dev", "payload": {"task": "Curator健康检查：定期cron扫描Skill健康度+清理过期", "priority": 3}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}
+{"id": "task_1779025397112", "type": "dev", "payload": {"task": "数据治理层：多数据源接入+权限+审计（SAP三支柱）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}
+{"id": "task_1779025903112", "type": "dev", "payload": {"task": "MCP browser工具接入：支持浏览器自动化（Kimi WebBridge灵感）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 21:51:43", "status": "pending"}
+{"id": "task_1779025903139", "type": "dev", "payload": {"task": "跨平台数据聚合框架：X/Reddit/HN统一抓取+结构化（Kimi WebBridge灵感）", "priority": 4}, "priority": 5, "created_at": "2026-05-17 21:51:43", "status": "pending"}
+{"id": "task_1779025903165", "type": "dev", "payload": {"task": "浏览器工作流录制→Skill自动生成（Kimi WebBridge灵感）", "priority": 4}, "priority": 5, "created_at": "2026-05-17 21:51:43", "status": "pending"}
+{"id": "task_1779026267371", "type": "dev", "payload": {"task": "Agent能力分层+任务复杂度评估+智能路由（PrfaaS选择性卸载灵感）", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:57:47", "status": "pending"}

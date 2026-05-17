@@ -28,8 +28,8 @@ pub use delegation::{
 pub use embedder::{Embedder, HashingEmbedder};
 pub use engine::TeamEngine;
 pub use memory::{
-    ContextBuilder, EntityFact, EntityMemory, LongTermMemory, MemoryEntry, MemoryManager,
-    ShortTermMemory,
+    ContextBuilder, EntityFact, EntityMemory, LongTermMemory, MemoryCategory, MemoryEntry,
+    MemoryManager, MidTermEntry, MidTermMemory, ShortTermMemory,
 };
 pub use owner::Owner;
 pub use semantic_matcher::{SemanticMatchResult, SemanticMatcherConfig, SemanticSkillMatcher};

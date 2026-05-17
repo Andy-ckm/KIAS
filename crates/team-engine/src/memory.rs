@@ -897,4 +897,88 @@ mod tests {
         assert!(facts.is_empty());
         assert_eq!(em.entity_count(), 0);
     }
+
+    #[test]
+    fn test_mid_term_memory_add_and_search() {
+        let mut mtm = MidTermMemory::new(100);
+        mtm.add(MemoryCategory::UserPreference, "User prefers concise responses");
+        mtm.add(MemoryCategory::EnvironmentFact, "OS: Ubuntu 22.04");
+        mtm.add(MemoryCategory::Convention, "Always use main branch");
+
+        let results = mtm.search("concise", 10);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("concise"));
+
+        let results = mtm.search("Ubuntu", 10);
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_mid_term_memory_replace() {
+        let mut mtm = MidTermMemory::new(100);
+        let id = mtm.add(MemoryCategory::Convention, "Use master branch");
+        assert!(mtm.replace(&id, "Use main branch"));
+        let results = mtm.search("main", 10);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("main"));
+    }
+
+    #[test]
+    fn test_mid_term_memory_remove() {
+        let mut mtm = MidTermMemory::new(100);
+        let id = mtm.add(MemoryCategory::Correction, "Don't use sed");
+        assert_eq!(mtm.len(), 1);
+        assert!(mtm.remove(&id));
+        assert_eq!(mtm.len(), 0);
+    }
+
+    #[test]
+    fn test_mid_term_memory_get_by_category() {
+        let mut mtm = MidTermMemory::new(100);
+        mtm.add(MemoryCategory::UserPreference, "Prefers concise");
+        mtm.add(MemoryCategory::UserPreference, "Prefers Chinese");
+        mtm.add(MemoryCategory::EnvironmentFact, "OS: Ubuntu");
+
+        let prefs = mtm.get_by_category(&MemoryCategory::UserPreference);
+        assert_eq!(prefs.len(), 2);
+        let env = mtm.get_by_category(&MemoryCategory::EnvironmentFact);
+        assert_eq!(env.len(), 1);
+    }
+
+    #[test]
+    fn test_mid_term_memory_prompt_context() {
+        let mut mtm = MidTermMemory::new(100);
+        mtm.add(MemoryCategory::UserPreference, "Prefers concise responses");
+        mtm.add(MemoryCategory::Convention, "Always use main branch");
+
+        let ctx = mtm.build_prompt_context();
+        assert!(ctx.contains("## Memory (injected)"));
+        assert!(ctx.contains("Prefers concise"));
+        assert!(ctx.contains("main branch"));
+    }
+
+    #[test]
+    fn test_mid_term_memory_markdown_roundtrip() {
+        let mut mtm = MidTermMemory::new(100);
+        mtm.add(MemoryCategory::UserPreference, "Prefers concise");
+        mtm.add(MemoryCategory::Convention, "Use main branch");
+
+        let md = mtm.to_markdown();
+        assert!(md.contains("# Agent Memory"));
+        assert!(md.contains("Prefers concise"));
+
+        let mut mtm2 = MidTermMemory::new(100);
+        mtm2.from_markdown(&md);
+        assert_eq!(mtm2.len(), 2);
+    }
+
+    #[test]
+    fn test_mid_term_memory_eviction() {
+        let mut mtm = MidTermMemory::new(3);
+        mtm.add(MemoryCategory::Convention, "entry 1");
+        mtm.add(MemoryCategory::Convention, "entry 2");
+        mtm.add(MemoryCategory::Convention, "entry 3");
+        mtm.add(MemoryCategory::Convention, "entry 4");
+        assert_eq!(mtm.len(), 3);
+    }
 }

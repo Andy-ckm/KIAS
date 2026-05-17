@@ -20,6 +20,7 @@ members = [
     "crates/autonomy-controller",
     "crates/mcp-protocol",
     "crates/data-store",
+    "crates/data-governance",
     "crates/model-router",
     "crates/llm-engine",
     "crates/tool-executor",

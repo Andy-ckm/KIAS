@@ -8,6 +8,7 @@ pub mod codegen;
 pub mod context_aware_decomposer;
 pub mod deployer;
 pub mod detector;
+pub mod intent_driven_loop;
 pub mod intent_recognizer;
 pub mod learner;
 pub mod llm_intent;

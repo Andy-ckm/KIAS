@@ -2426,7 +2426,10 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
             // Container may have already exited — not an error.
             let stderr = String::from_utf8_lossy(&output.stderr);
             if !stderr.contains("is not running") {
-                eprintln!("gVisor kill returned non-zero: sandbox_id={}, stderr={}", instance.id, stderr);
+                eprintln!(
+                    "gVisor kill returned non-zero: sandbox_id={}, stderr={}",
+                    instance.id, stderr
+                );
             }
         }
         Ok(())

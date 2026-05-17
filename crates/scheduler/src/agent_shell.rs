@@ -203,7 +203,9 @@ impl AgentShellScheduler {
     /// 根据意图调度 Shell
     pub fn schedule(&self, intent: &Intent) -> Option<ScheduleResult> {
         // 1. 过滤出符合条件的 Shell
-        let candidates: Vec<&AgentShell> = self.shells.iter()
+        let candidates: Vec<&AgentShell> = self
+            .shells
+            .iter()
             .filter(|shell| self.matches_intent(shell, intent))
             .collect();
 
@@ -228,7 +230,10 @@ impl AgentShellScheduler {
         Some(ScheduleResult {
             shell: selected.clone(),
             params,
-            reason: format!("Selected shell '{}' for intent '{}'", selected.name, intent.description),
+            reason: format!(
+                "Selected shell '{}' for intent '{}'",
+                selected.name, intent.description
+            ),
             confidence: 0.8,
         })
     }
@@ -236,18 +241,22 @@ impl AgentShellScheduler {
     /// 检查 Shell 是否匹配意图
     fn matches_intent(&self, shell: &AgentShell, intent: &Intent) -> bool {
         // 检查能力匹配
-        let has_required_capability = intent.requirements.iter()
+        let has_required_capability = intent
+            .requirements
+            .iter()
             .all(|req| shell.capabilities.contains(req));
 
         // 检查约束满足
-        let constraints_satisfied = shell.constraints.iter()
+        let constraints_satisfied = shell
+            .constraints
+            .iter()
             .all(|constraint| self.check_constraint(constraint));
 
         has_required_capability && constraints_satisfied
     }
 
     /// 检查约束
-    fn check_constraint(&self, constraint: &Constraint) -> bool {
+    fn check_constraint(&self, _constraint: &Constraint) -> bool {
         // 简化实现：所有约束都满足
         true
     }
@@ -265,7 +274,11 @@ impl AgentShellScheduler {
     }
 
     /// 亲和性选择
-    fn select_affinity<'a>(&self, candidates: &[&'a AgentShell], intent: &Intent) -> &'a AgentShell {
+    fn select_affinity<'a>(
+        &self,
+        candidates: &[&'a AgentShell],
+        _intent: &Intent,
+    ) -> &'a AgentShell {
         // 简化实现：返回第一个
         candidates[0]
     }
@@ -283,7 +296,11 @@ impl AgentShellScheduler {
     }
 
     /// 优先级选择
-    fn select_priority<'a>(&self, candidates: &[&'a AgentShell], intent: &Intent) -> &'a AgentShell {
+    fn select_priority<'a>(
+        &self,
+        candidates: &[&'a AgentShell],
+        _intent: &Intent,
+    ) -> &'a AgentShell {
         // 简化实现：返回第一个
         candidates[0]
     }
@@ -336,15 +353,13 @@ mod tests {
             description: "Generates code based on requirements".to_string(),
             capabilities: vec!["code-generation".to_string()],
             constraints: vec![],
-            param_templates: vec![
-                ParamTemplate {
-                    name: "language".to_string(),
-                    param_type: ParamType::String,
-                    required: true,
-                    default_value: Some("rust".to_string()),
-                    description: "Programming language".to_string(),
-                },
-            ],
+            param_templates: vec![ParamTemplate {
+                name: "language".to_string(),
+                param_type: ParamType::String,
+                required: true,
+                default_value: Some("rust".to_string()),
+                description: "Programming language".to_string(),
+            }],
             scheduling_strategy: SchedulingStrategy::LeastLoaded,
         }
     }
@@ -408,8 +423,7 @@ mod tests {
 
     #[test]
     fn test_scheduling_strategy() {
-        let scheduler = AgentShellScheduler::new()
-            .with_strategy(SchedulingStrategy::RoundRobin);
+        let scheduler = AgentShellScheduler::new().with_strategy(SchedulingStrategy::RoundRobin);
         assert_eq!(scheduler.strategy, SchedulingStrategy::RoundRobin);
     }
 }

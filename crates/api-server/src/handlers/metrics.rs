@@ -171,9 +171,12 @@ mod tests {
             },
         };
         let json = serde_json::to_string(&summary).unwrap();
-        assert!(json.contains("agent_count")); assert!(json.contains("5"));
-        assert!(json.contains("node_count")); assert!(json.contains("3"));
-        assert!(json.contains("running")); assert!(json.contains("2"));
+        assert!(json.contains("agent_count"));
+        assert!(json.contains("5"));
+        assert!(json.contains("node_count"));
+        assert!(json.contains("3"));
+        assert!(json.contains("running"));
+        assert!(json.contains("2"));
     }
 
     #[test]
@@ -189,7 +192,8 @@ mod tests {
             start_time: Some("2026-01-01T10:00:00Z".to_string()),
         };
         let json = serde_json::to_string(&metrics).unwrap();
-        assert!(json.contains("restart_count")); assert!(json.contains("2"));
+        assert!(json.contains("restart_count"));
+        assert!(json.contains("2"));
         assert!(json.contains("Running"));
     }
 
@@ -209,9 +213,12 @@ mod tests {
             running_agents: 2,
         };
         let json = serde_json::to_string(&status).unwrap();
-        assert!(json.contains("overall")); assert!(json.contains("healthy"));
-        assert!(json.contains("total_agents")); assert!(json.contains("3"));
-        assert!(json.contains("running_agents")); assert!(json.contains("2"));
+        assert!(json.contains("overall"));
+        assert!(json.contains("healthy"));
+        assert!(json.contains("total_agents"));
+        assert!(json.contains("3"));
+        assert!(json.contains("running_agents"));
+        assert!(json.contains("2"));
     }
 
     #[test]
@@ -225,7 +232,8 @@ mod tests {
             gpu: "1".to_string(),
         };
         let json = serde_json::to_string(&nh).unwrap();
-        assert!(json.contains("gpu")); assert!(json.contains("1"));
+        assert!(json.contains("gpu"));
+        assert!(json.contains("1"));
     }
 
     #[test]
@@ -239,6 +247,7 @@ mod tests {
             unknown: 0,
         };
         let json = serde_json::to_string(&stats).unwrap();
-        assert!(json.contains("pending")); assert!(json.contains("0"));
+        assert!(json.contains("pending"));
+        assert!(json.contains("0"));
     }
 }

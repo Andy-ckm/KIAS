@@ -1,8 +1,10 @@
+use super::autonomy_integration::{ActionApproval, AutonomyGate};
 use super::state::{AgentConfig, AgentInfo, AgentStatus, ControllerState};
 use async_trait::async_trait;
 use chrono::Utc;
 use kias_common::KiasResult;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Callback trait for spawning actual agents — keeps the reconciler testable and
 /// allows production code to wire in real HTTP/CLI agent creation.
@@ -31,6 +33,7 @@ pub trait Reconciler: Send + Sync {
 
 pub struct DefaultReconciler<S: AgentSpawner> {
     spawner: Arc<S>,
+    autonomy_gate: Option<Arc<Mutex<AutonomyGate>>>,
 }
 
 impl Default for DefaultReconciler<NoOpSpawner> {
@@ -43,7 +46,14 @@ impl<S: AgentSpawner> DefaultReconciler<S> {
     pub fn new(spawner: S) -> Self {
         Self {
             spawner: Arc::new(spawner),
+            autonomy_gate: None,
         }
+    }
+
+    /// Attach an [`AutonomyGate`] — spawns will be policy-checked before execution.
+    pub fn with_autonomy_gate(mut self, gate: AutonomyGate) -> Self {
+        self.autonomy_gate = Some(Arc::new(Mutex::new(gate)));
+        self
     }
 }
 
@@ -69,12 +79,39 @@ impl<S: AgentSpawner> Reconciler for DefaultReconciler<S> {
             );
 
             for i in 0..to_spawn {
+                // Autonomy gate check before spawning
+                if let Some(ref gate) = self.autonomy_gate {
+                    let mut g = gate.lock().await;
+                    let approval = g.check_approval("agent_spawn");
+                    match approval {
+                        ActionApproval::Approved | ActionApproval::ApprovedWithSandbox => {
+                            tracing::debug!(tool = "agent_spawn", "Autonomy gate: approved");
+                        }
+                        other => {
+                            tracing::warn!(
+                                tool = "agent_spawn",
+                                ?other,
+                                "Autonomy gate: spawn blocked"
+                            );
+                            // Record failure and skip this spawn
+                            g.record_outcome("agent_spawn", false);
+                            continue;
+                        }
+                    }
+                    drop(g);
+                }
+
                 let agent_id = self.spawner.spawn(&state.desired.agent_config).await?;
                 let agent_name = format!(
                     "{}-{}",
                     state.desired.agent_config.name,
                     actual_tracked + i + 1
                 );
+                // Record successful spawn with autonomy gate
+                if let Some(ref gate) = self.autonomy_gate {
+                    gate.lock().await.record_outcome("agent_spawn", true);
+                }
+
                 let mut info = AgentInfo::new(&agent_id, &agent_name);
                 info.status = AgentStatus::Running;
                 state.agents.insert(agent_id, info);
@@ -175,5 +212,21 @@ mod tests {
         let state = make_test_state(5, 0);
         assert_eq!(state.desired.replicas, 5);
         assert_eq!(state.desired.agent_config.name, "test-agent");
+    }
+
+    #[tokio::test]
+    async fn test_reconcile_with_autonomy_gate_full_auto() {
+        use super::super::autonomy_integration::AutonomyGate;
+        use kias_autonomy_controller::AutonomyLevel;
+
+        let mut gate = AutonomyGate::new();
+        gate.set_level(AutonomyLevel::FullAuto);
+        let reconciler = DefaultReconciler::<NoOpSpawner>::default().with_autonomy_gate(gate);
+        let mut state = make_test_state(3, 0);
+
+        reconciler.reconcile(&mut state).await.unwrap();
+
+        // FullAuto should allow all spawns
+        assert_eq!(state.agents.len(), 3);
     }
 }

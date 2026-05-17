@@ -123,7 +123,7 @@ impl AgentExecutor {
                 total_tokens += usage.total_tokens;
                 let cost = self
                     .cost_tracker
-                    .record_usage(&self.config.model, usage)
+                    .record_agent_usage(&self.config.name, &self.config.model, usage)
                     .await;
                 total_cost += cost;
             }

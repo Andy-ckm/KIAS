@@ -75,11 +75,19 @@ impl Skill for SqlQuerySkill {
         let is_read_only = query_upper.starts_with("SELECT") || query_upper.starts_with("EXPLAIN");
         let rows_affected: u64 = if is_read_only { 0 } else { 1 };
         let columns: Vec<&str> = if query_upper.contains("SELECT") {
-            query.split("SELECT").nth(1)
+            query
+                .split("SELECT")
+                .nth(1)
                 .and_then(|s| s.split("FROM").next())
-                .map(|s| s.split(',').map(|c| c.split_whitespace().last().unwrap_or("*")).collect())
+                .map(|s| {
+                    s.split(',')
+                        .map(|c| c.split_whitespace().last().unwrap_or("*"))
+                        .collect()
+                })
                 .unwrap_or_else(|| vec!["*"])
-        } else { vec![] };
+        } else {
+            vec![]
+        };
         Ok(serde_json::json!({
             "status": "ok",
             "query": query,
@@ -144,14 +152,24 @@ impl Skill for CsvProcessSkill {
         let content = std::fs::read_to_string(file_path)
             .map_err(|e| kias_common::KiasError::Validation(format!("Cannot read file: {}", e)))?;
         let mut reader = csv::Reader::from_reader(content.as_bytes());
-        let headers: Vec<String> = reader.headers().map(|h| h.iter().map(|s| s.to_string()).collect()).unwrap_or_default();
+        let headers: Vec<String> = reader
+            .headers()
+            .map(|h| h.iter().map(|s| s.to_string()).collect())
+            .unwrap_or_default();
         let mut rows: Vec<Vec<String>> = Vec::new();
         for record in reader.records().flatten() {
             rows.push(record.iter().map(|s| s.to_string()).collect());
         }
         let filtered = match operation {
-            "count" => { return Ok(serde_json::json!({"status":"ok","row_count":rows.len(),"columns":headers.len()})); }
-            "head" => { rows.truncate(10); serde_json::to_value(&rows).unwrap_or(Value::Null) }
+            "count" => {
+                return Ok(
+                    serde_json::json!({"status":"ok","row_count":rows.len(),"columns":headers.len()}),
+                );
+            }
+            "head" => {
+                rows.truncate(10);
+                serde_json::to_value(&rows).unwrap_or(Value::Null)
+            }
             _ => serde_json::to_value(&rows).unwrap_or(Value::Null),
         };
         Ok(serde_json::json!({
@@ -215,14 +233,19 @@ impl Skill for DataTransformSkill {
             "filter" => {
                 let key = params.get("key").and_then(|v| v.as_str()).unwrap_or("");
                 let val = params.get("value").cloned().unwrap_or(Value::Null);
-                let filtered: Vec<_> = arr.into_iter().filter(|item| item.get(key) == Some(&val)).collect();
+                let filtered: Vec<_> = arr
+                    .into_iter()
+                    .filter(|item| item.get(key) == Some(&val))
+                    .collect();
                 serde_json::json!(filtered)
             }
             "sort" => {
                 let key = params.get("key").and_then(|v| v.as_str()).unwrap_or("");
                 let mut sorted = arr;
                 sorted.sort_by(|a, b| {
-                    a.get(key).map(|v| v.to_string()).cmp(&b.get(key).map(|v| v.to_string()))
+                    a.get(key)
+                        .map(|v| v.to_string())
+                        .cmp(&b.get(key).map(|v| v.to_string()))
                 });
                 serde_json::json!(sorted)
             }
@@ -727,24 +750,49 @@ impl Skill for DocAnalysisSkill {
         // 文档分析：词频统计、可读性评分、关键词提取
         let words: Vec<&str> = content.split_whitespace().collect();
         #[allow(clippy::manual_pattern_char_comparison)]
-        let sentences: Vec<&str> = content.split(|c| matches!(c, '.' | '!' | '?')).filter(|s| !s.trim().is_empty()).collect();
+        let sentences: Vec<&str> = content
+            .split(|c| matches!(c, '.' | '!' | '?'))
+            .filter(|s| !s.trim().is_empty())
+            .collect();
         let word_count = words.len();
         let sentence_count = sentences.len().max(1);
         let avg_sentence_len = word_count as f64 / sentence_count as f64;
         // 简单可读性分数 (Flesch-like)
-        let readability = 206.835 - (1.015 * avg_sentence_len) - (84.6 * (content.chars().filter(|c| c.is_alphabetic()).count() as f64 / word_count.max(1) as f64));
+        let readability = 206.835
+            - (1.015 * avg_sentence_len)
+            - (84.6
+                * (content.chars().filter(|c| c.is_alphabetic()).count() as f64
+                    / word_count.max(1) as f64));
         // 关键词提取：按词频
         let mut freq = std::collections::HashMap::new();
-        let stopwords: std::collections::HashSet<&str> = ["the","a","an","is","are","was","were","be","been","being","have","has","had","do","does","did","will","would","shall","should","may","might","can","could","of","in","to","for","with","on","at","by","from","as","into","through","during","before","after","above","below","and","but","or","nor","not","so","yet","both","either","neither","each","every","all","any","few","more","most","other","some","such","no","only","own","same","than","too","very","just","that","this","these","those","it","its"].iter().cloned().collect();
+        let stopwords: std::collections::HashSet<&str> = [
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has",
+            "had", "do", "does", "did", "will", "would", "shall", "should", "may", "might", "can",
+            "could", "of", "in", "to", "for", "with", "on", "at", "by", "from", "as", "into",
+            "through", "during", "before", "after", "above", "below", "and", "but", "or", "nor",
+            "not", "so", "yet", "both", "either", "neither", "each", "every", "all", "any", "few",
+            "more", "most", "other", "some", "such", "no", "only", "own", "same", "than", "too",
+            "very", "just", "that", "this", "these", "those", "it", "its",
+        ]
+        .iter()
+        .cloned()
+        .collect();
         for w in &words {
-            let lower = w.to_lowercase().trim_matches(|c: char| !c.is_alphanumeric()).to_string();
+            let lower = w
+                .to_lowercase()
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_string();
             if lower.len() > 3 && !stopwords.contains(lower.as_str()) {
                 *freq.entry(lower).or_insert(0u64) += 1;
             }
         }
         let mut keywords: Vec<(String, u64)> = freq.into_iter().collect();
         keywords.sort_by_key(|a| std::cmp::Reverse(a.1));
-        let top_keywords: Vec<_> = keywords.into_iter().take(10).map(|(k,v)| serde_json::json!({"word":k,"count":v})).collect();
+        let top_keywords: Vec<_> = keywords
+            .into_iter()
+            .take(10)
+            .map(|(k, v)| serde_json::json!({"word":k,"count":v}))
+            .collect();
         Ok(serde_json::json!({
             "status": "ok",
             "analysis_type": analysis_type,
@@ -808,7 +856,11 @@ impl Skill for JournalEntrySkill {
         tracing::info!(entry_type = %entry_type, amount = amount, "Creating journal entry");
 
         // 复式记账：验证借贷平衡
-        let entries = params.get("entries").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let entries = params
+            .get("entries")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
         let mut total_debit = 0.0f64;
         let mut total_credit = 0.0f64;
         for entry in &entries {
@@ -875,11 +927,28 @@ impl Skill for ReconciliationSkill {
         tracing::info!(account = %account, period = %period, "Reconciling account");
 
         // 账目核对：比较两组记录找差异
-        let set_a = params.get("set_a").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let set_b = params.get("set_b").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let id_field = params.get("id_field").and_then(|v| v.as_str()).unwrap_or("id");
-        let ids_a: std::collections::HashSet<String> = set_a.iter().filter_map(|r| r.get(id_field).map(|v| v.to_string())).collect();
-        let ids_b: std::collections::HashSet<String> = set_b.iter().filter_map(|r| r.get(id_field).map(|v| v.to_string())).collect();
+        let set_a = params
+            .get("set_a")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let set_b = params
+            .get("set_b")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let id_field = params
+            .get("id_field")
+            .and_then(|v| v.as_str())
+            .unwrap_or("id");
+        let ids_a: std::collections::HashSet<String> = set_a
+            .iter()
+            .filter_map(|r| r.get(id_field).map(|v| v.to_string()))
+            .collect();
+        let ids_b: std::collections::HashSet<String> = set_b
+            .iter()
+            .filter_map(|r| r.get(id_field).map(|v| v.to_string()))
+            .collect();
         let only_in_a: Vec<_> = ids_a.difference(&ids_b).cloned().collect();
         let only_in_b: Vec<_> = ids_b.difference(&ids_a).cloned().collect();
         Ok(serde_json::json!({
@@ -949,9 +1018,20 @@ impl Skill for ResumeScreeningSkill {
 
         // 简历筛选：关键词匹配+经验提取+评分
         let resume_lower = resume_text.to_lowercase();
-        let keywords: Vec<&str> = job_requirements.split(|c: char| !c.is_alphanumeric()).filter(|w| w.len() > 2).collect();
-        let matched: Vec<&str> = keywords.iter().filter(|kw| resume_lower.contains(&kw.to_lowercase())).cloned().collect();
-        let _score = if keywords.is_empty() { 0 } else { (matched.len() as f64 / keywords.len() as f64 * 100.0) as u32 };
+        let keywords: Vec<&str> = job_requirements
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| w.len() > 2)
+            .collect();
+        let matched: Vec<&str> = keywords
+            .iter()
+            .filter(|kw| resume_lower.contains(&kw.to_lowercase()))
+            .cloned()
+            .collect();
+        let _score = if keywords.is_empty() {
+            0
+        } else {
+            (matched.len() as f64 / keywords.len() as f64 * 100.0) as u32
+        };
         let _years_exp = resume_lower.split("year").count().saturating_sub(1).min(30);
         Ok(serde_json::json!({
             "status": "ok",
@@ -1009,15 +1089,28 @@ impl Skill for AttendanceTrackingSkill {
         tracing::info!(employee_id = %employee_id, action = %action, "Tracking attendance");
 
         // 考勤记录：解析时间、计算工时
-        let timestamp = params.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
+        let timestamp = params
+            .get("timestamp")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let action_type = action;
         let _hours_worked = if action == "check_out" {
-            params.get("check_in_time").and_then(|v| v.as_str()).and_then(|ci| {
-                chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%d %H:%M").ok().and_then(|out|
-                    chrono::NaiveDateTime::parse_from_str(ci, "%Y-%m-%d %H:%M").ok().map(|cin| (out - cin).num_minutes() as f64 / 60.0)
-                )
-            }).unwrap_or(0.0)
-        } else { 0.0 };
+            params
+                .get("check_in_time")
+                .and_then(|v| v.as_str())
+                .and_then(|ci| {
+                    chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%d %H:%M")
+                        .ok()
+                        .and_then(|out| {
+                            chrono::NaiveDateTime::parse_from_str(ci, "%Y-%m-%d %H:%M")
+                                .ok()
+                                .map(|cin| (out - cin).num_minutes() as f64 / 60.0)
+                        })
+                })
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
         Ok(serde_json::json!({
             "status": "ok",
             "message": format!("Attendance {} recorded", action_type),
@@ -1074,9 +1167,15 @@ impl Skill for ProcurementSkill {
 
         // 采购管理：生成PO、验证供应商、检查预算
         let quantity = params.get("quantity").and_then(|v| v.as_u64()).unwrap_or(1);
-        let unit_price = params.get("unit_price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let unit_price = params
+            .get("unit_price")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
         let total_cost = quantity as f64 * unit_price;
-        let budget_limit = params.get("budget_limit").and_then(|v| v.as_f64()).unwrap_or(f64::MAX);
+        let budget_limit = params
+            .get("budget_limit")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(f64::MAX);
         let within_budget = total_cost <= budget_limit;
         Ok(serde_json::json!({
             "status": if within_budget { "ok" } else { "over_budget" },
@@ -1132,9 +1231,18 @@ impl Skill for InventoryManagementSkill {
 
         // 库存管理：库存检查、再订货点计算
         let current_qty = params.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
-        let reorder_point = params.get("reorder_point").and_then(|v| v.as_i64()).unwrap_or(10);
-        let lead_time_days = params.get("lead_time_days").and_then(|v| v.as_i64()).unwrap_or(7);
-        let daily_usage = params.get("daily_usage").and_then(|v| v.as_i64()).unwrap_or(1);
+        let reorder_point = params
+            .get("reorder_point")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(10);
+        let lead_time_days = params
+            .get("lead_time_days")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(7);
+        let daily_usage = params
+            .get("daily_usage")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(1);
         let _suggested_reorder = lead_time_days * daily_usage;
         let needs_reorder = current_qty <= reorder_point;
         Ok(serde_json::json!({
@@ -1200,11 +1308,23 @@ impl Skill for PresentationGenerationSkill {
         let slide_count = params.get("slides").and_then(|v| v.as_u64()).unwrap_or(5);
         let mut slides = Vec::new();
         slides.push(serde_json::json!({"type":"title","content":format!("# {}", topic),"subtitle":format!("Prepared for {}", audience)}));
-        let sections = ["Overview", "Analysis", "Key Findings", "Recommendations", "Summary"];
-        for (_i, section) in sections.iter().enumerate().take(slide_count.saturating_sub(1) as usize) {
-            slides.push(serde_json::json!({"type":"content","title":section,"content":format!("## {}
+        let sections = [
+            "Overview",
+            "Analysis",
+            "Key Findings",
+            "Recommendations",
+            "Summary",
+        ];
+        for (_i, section) in sections
+            .iter()
+            .enumerate()
+            .take(slide_count.saturating_sub(1) as usize)
+        {
+            slides.push(
+                serde_json::json!({"type":"content","title":section,"content":format!("## {}
 
-Detailed content for {} regarding {}", section, section.to_lowercase(), topic)}));
+Detailed content for {} regarding {}", section, section.to_lowercase(), topic)}),
+            );
         }
         Ok(serde_json::json!({
             "status": "ok",
@@ -1259,15 +1379,37 @@ impl Skill for BusinessAnalysisSkill {
         tracing::info!(analysis_type = %analysis_type, target = %target, "Performing business analysis");
 
         // 商业分析：SWOT + KPI + 趋势检测
-        let data = params.get("data").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let metric = params.get("metric").and_then(|v| v.as_str()).unwrap_or("revenue");
-        let values: Vec<f64> = data.iter().filter_map(|d| d.get(metric).and_then(|v| v.as_f64())).collect();
+        let data = params
+            .get("data")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let metric = params
+            .get("metric")
+            .and_then(|v| v.as_str())
+            .unwrap_or("revenue");
+        let values: Vec<f64> = data
+            .iter()
+            .filter_map(|d| d.get(metric).and_then(|v| v.as_f64()))
+            .collect();
         let _trend = if values.len() >= 2 {
             let last = values.last().unwrap_or(&0.0);
             let first = values.first().unwrap_or(&0.0);
-            if last > first { "upward" } else if last < first { "downward" } else { "stable" }
-        } else { "insufficient_data" };
-        let _avg = if values.is_empty() { 0.0 } else { values.iter().sum::<f64>() / values.len() as f64 };
+            if last > first {
+                "upward"
+            } else if last < first {
+                "downward"
+            } else {
+                "stable"
+            }
+        } else {
+            "insufficient_data"
+        };
+        let _avg = if values.is_empty() {
+            0.0
+        } else {
+            values.iter().sum::<f64>() / values.len() as f64
+        };
         let _max = values.iter().cloned().fold(f64::MIN, f64::max);
         let _min = values.iter().cloned().fold(f64::MAX, f64::min);
         Ok(serde_json::json!({

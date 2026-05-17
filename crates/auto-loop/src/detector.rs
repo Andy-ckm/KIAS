@@ -331,4 +331,253 @@ mod tests {
         assert_eq!(problems.len(), 1);
         assert!(problems[0].has_problem);
     }
+
+    #[test]
+    fn test_data_loss_detector_no_initial_count() {
+        let detector = DataLossDetector::new("agents".to_string());
+        let result = detector.detect();
+        assert!(!result.has_problem);
+        assert!(result.problem_type.is_none());
+        assert!(result.severity.is_none());
+    }
+
+    #[test]
+    fn test_data_loss_detector_count_increase() {
+        let mut detector = DataLossDetector::new("tasks".to_string());
+        detector.update_count(10);
+        detector.update_count(20);
+        let result = detector.detect();
+        assert!(!result.has_problem);
+    }
+
+    #[test]
+    fn test_data_loss_detector_count_stable() {
+        let mut detector = DataLossDetector::new("items".to_string());
+        detector.update_count(10);
+        detector.update_count(10);
+        let result = detector.detect();
+        assert!(!result.has_problem);
+    }
+
+    #[test]
+    fn test_data_loss_detector_from_zero() {
+        let mut detector = DataLossDetector::new("data".to_string());
+        detector.update_count(0);
+        detector.update_count(0);
+        let result = detector.detect();
+        // 0 -> 0 is not data loss (last > 0 check)
+        assert!(!result.has_problem);
+    }
+
+    #[test]
+    fn test_data_loss_detector_severity_and_data() {
+        let mut detector = DataLossDetector::new("agents".to_string());
+        detector.update_count(100);
+        detector.update_count(50);
+        let result = detector.detect();
+        assert!(result.has_problem);
+        assert_eq!(result.severity, Some(8));
+        assert_eq!(result.data.get("data_name").unwrap(), "agents");
+        assert_eq!(result.data.get("last_count").unwrap(), "100");
+        assert_eq!(result.data.get("current_count").unwrap(), "50");
+        assert!(result.description.as_ref().unwrap().contains("100"));
+        assert!(result.description.as_ref().unwrap().contains("50"));
+    }
+
+    #[test]
+    fn test_data_loss_detector_name_and_type() {
+        let detector = DataLossDetector::new("test".to_string());
+        assert_eq!(detector.name(), "DataLossDetector");
+        assert!(matches!(detector.detector_type(), DetectorType::DataLoss));
+    }
+
+    #[test]
+    fn test_test_failure_detector_all_pass() {
+        let mut detector = TestFailureDetector::new();
+        detector.add_result(TestResult {
+            name: "test1".to_string(),
+            passed: true,
+            error: None,
+            duration_seconds: 0.1,
+        });
+        detector.add_result(TestResult {
+            name: "test2".to_string(),
+            passed: true,
+            error: None,
+            duration_seconds: 0.2,
+        });
+        let result = detector.detect();
+        assert!(!result.has_problem);
+        assert!(result.problem_type.is_none());
+    }
+
+    #[test]
+    fn test_test_failure_detector_empty() {
+        let detector = TestFailureDetector::new();
+        let result = detector.detect();
+        assert!(!result.has_problem);
+    }
+
+    #[test]
+    fn test_test_failure_detector_multiple_failures() {
+        let mut detector = TestFailureDetector::new();
+        for i in 0..5 {
+            detector.add_result(TestResult {
+                name: format!("test_{}", i),
+                passed: false,
+                error: Some(format!("error_{}", i)),
+                duration_seconds: 0.1,
+            });
+        }
+        let result = detector.detect();
+        assert!(result.has_problem);
+        assert_eq!(result.severity, Some(6));
+        assert_eq!(result.data.get("total_tests").unwrap(), "5");
+        assert_eq!(result.data.get("failed_tests").unwrap(), "5");
+        let desc = result.description.unwrap();
+        assert!(desc.contains("5个测试失败"));
+    }
+
+    #[test]
+    fn test_test_failure_detector_name_and_type() {
+        let detector = TestFailureDetector::new();
+        assert_eq!(detector.name(), "TestFailureDetector");
+        assert!(matches!(
+            detector.detector_type(),
+            DetectorType::TestFailure
+        ));
+    }
+
+    #[test]
+    fn test_detector_manager_empty() {
+        let mut manager = DetectorManager::new();
+        let problems = manager.detect_all();
+        assert!(problems.is_empty());
+        assert!(manager.history().is_empty());
+        assert!(manager.recent_problems().is_empty());
+    }
+
+    #[test]
+    fn test_detector_manager_history_tracking() {
+        let mut manager = DetectorManager::new();
+
+        // Add a detector that reports no problem
+        let mut det1 = DataLossDetector::new("a".to_string());
+        det1.update_count(10);
+        manager.register_detector(Box::new(det1));
+
+        // First detect — no problem
+        manager.detect_all();
+        assert_eq!(manager.history().len(), 1);
+        assert!(!manager.history()[0].has_problem);
+
+        // Add a second detector with a problem
+        let mut det2 = DataLossDetector::new("b".to_string());
+        det2.update_count(100);
+        det2.update_count(50);
+        manager.register_detector(Box::new(det2));
+
+        manager.detect_all();
+        // History: 1 (first detect) + 2 (second detect runs both det1 and det2) = 3
+        assert_eq!(manager.history().len(), 3);
+        // det1 still has no problem, det2 has a problem
+        assert!(!manager.history()[1].has_problem);
+        assert!(manager.history()[2].has_problem);
+    }
+
+    #[test]
+    fn test_detector_manager_recent_problems() {
+        let mut manager = DetectorManager::new();
+
+        let mut det = DataLossDetector::new("x".to_string());
+        det.update_count(10);
+        det.update_count(5);
+        manager.register_detector(Box::new(det));
+
+        manager.detect_all();
+        let problems = manager.recent_problems();
+        assert_eq!(problems.len(), 1);
+        assert!(problems[0].has_problem);
+    }
+
+    #[test]
+    fn test_detector_manager_multiple_detectors() {
+        let mut manager = DetectorManager::new();
+
+        // Detector 1: data loss
+        let mut det1 = DataLossDetector::new("agents".to_string());
+        det1.update_count(100);
+        det1.update_count(50);
+        manager.register_detector(Box::new(det1));
+
+        // Detector 2: test failure
+        let mut det2 = TestFailureDetector::new();
+        det2.add_result(TestResult {
+            name: "fail".to_string(),
+            passed: false,
+            error: Some("err".to_string()),
+            duration_seconds: 0.1,
+        });
+        manager.register_detector(Box::new(det2));
+
+        // Detector 3: no problem
+        let mut det3 = DataLossDetector::new("tasks".to_string());
+        det3.update_count(10);
+        det3.update_count(20);
+        manager.register_detector(Box::new(det3));
+
+        let problems = manager.detect_all();
+        assert_eq!(problems.len(), 2); // det1 and det2 have problems, det3 doesn't
+        assert_eq!(manager.history().len(), 3);
+    }
+
+    #[test]
+    fn test_detection_result_serialization() {
+        let mut detector = DataLossDetector::new("test".to_string());
+        detector.update_count(10);
+        detector.update_count(5);
+        let result = detector.detect();
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: DetectionResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.has_problem, result.has_problem);
+        assert_eq!(deserialized.problem_type, result.problem_type);
+        assert_eq!(deserialized.severity, result.severity);
+    }
+
+    #[test]
+    fn test_test_result_serialization() {
+        let result = TestResult {
+            name: "test_serial".to_string(),
+            passed: false,
+            error: Some("boom".to_string()),
+            duration_seconds: 1.5,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: TestResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "test_serial");
+        assert!(!deserialized.passed);
+        assert_eq!(deserialized.error, Some("boom".to_string()));
+    }
+
+    #[test]
+    fn test_detector_type_serialization() {
+        let dt = DetectorType::DataLoss;
+        let json = serde_json::to_string(&dt).unwrap();
+        assert!(json.contains("DataLoss"));
+
+        let dt2 = DetectorType::Performance;
+        let json2 = serde_json::to_string(&dt2).unwrap();
+        assert!(json2.contains("Performance"));
+    }
+
+    #[test]
+    fn test_default_trait_implementations() {
+        let detector = TestFailureDetector::default();
+        assert!(detector.test_results.is_empty());
+
+        let manager = DetectorManager::default();
+        assert!(manager.detectors.is_empty());
+        assert!(manager.history.is_empty());
+    }
 }

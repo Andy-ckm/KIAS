@@ -89,32 +89,28 @@ impl LlmIntentClassifier {
 
     /// 识别意图
     pub async fn recognize(&self, input: &str) -> RecognizedIntent {
-        if self.enabled && self.client.is_some() {
-            let request = LlmIntentRequest {
-                input: input.to_string(),
-                context: None,
-                available_tools: vec![],
-            };
+        if self.enabled {
+            if let Some(client) = self.client.as_ref() {
+                let request = LlmIntentRequest {
+                    input: input.to_string(),
+                    context: None,
+                    available_tools: vec![],
+                };
 
-            match self
-                .client
-                .as_ref()
-                .unwrap()
-                .classify_intent(&request)
-                .await
-            {
-                Ok(response) => {
-                    return RecognizedIntent {
-                        intent_type: response.intent_type.clone(),
-                        complexity: self.estimate_complexity(input, &response),
-                        priority: self.estimate_priority(input, &response),
-                        keywords: self.extract_keywords(input),
-                        raw_input: input.to_string(),
-                        confidence: response.confidence,
-                    };
-                }
-                Err(e) => {
-                    tracing::warn!("LLM classification failed: {}, falling back to keyword", e);
+                match client.classify_intent(&request).await {
+                    Ok(response) => {
+                        return RecognizedIntent {
+                            intent_type: response.intent_type.clone(),
+                            complexity: self.estimate_complexity(input, &response),
+                            priority: self.estimate_priority(input, &response),
+                            keywords: self.extract_keywords(input),
+                            raw_input: input.to_string(),
+                            confidence: response.confidence,
+                        };
+                    }
+                    Err(e) => {
+                        tracing::warn!("LLM classification failed: {}, falling back to keyword", e);
+                    }
                 }
             }
         }

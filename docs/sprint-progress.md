@@ -1,3 +1,40 @@
+## 最新更新：2026-05-17 09:23 (Sprint 65 — vector_persist test coverage)
+
+### 🎯 Sprint 65 状态检查
+- **构建**: ✅ cargo build 通过
+- **格式化**: ✅ cargo fmt --check 干净
+- **Clippy**: ✅ 0 warnings
+- **测试**: ✅ 1842 passed, 0 failed (从 1832 → 1842, +10)
+- **Git**: ✅ 推送到 main (3f3e811)
+
+### 本次完成
+1. **缺陷验证**: 两个列出的缺陷（Redis未实现、data-store→knowledge跨层依赖）均已在之前Sprint修复
+2. **Pivot**: 转向 test coverage gaps
+3. **vector_persist 模块测试**: 从 5 → 0 tests (+10)
+   - test_insert_into_nonexistent_index: 错误处理
+   - test_search_nonexistent_index: 错误处理
+   - test_create_duplicate_index_idempotent: INSERT OR IGNORE
+   - test_insert_overwrites_same_external_id: INSERT OR REPLACE
+   - test_multiple_indices: 独立命名索引
+   - test_embedding_bytes_roundtrip: f32↔bytes 转换
+   - test_embedding_bytes_empty: 空向量边界
+   - test_count_nonexistent_index: 返回 0
+   - test_list_indices_empty: 空存储
+   - test_stats_nonexistent_index: 返回 None
+
+### 📊 统计
+| 指标 | 值 |
+|------|-----|
+| 总测试数 | 1842 |
+| 新增测试 | +10 |
+| 代码行数 | 95799 |
+| Clippy warnings | 0 |
+| Fmt issues | 0 |
+| 磁盘 / | 89% |
+| 磁盘 /mnt | 2% |
+
+---
+
 ## 最新更新：2026-05-17 08:54 (Sprint 64 — tool-executor registry tests)
 
 ### 🎯 Sprint 64 状态检查

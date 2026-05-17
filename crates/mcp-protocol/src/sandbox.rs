@@ -2409,8 +2409,9 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
             stdout,
             stderr,
             duration: elapsed,
-            peak_memory_bytes: 0, // gVisor doesn't expose this via docker wait
-            cpu_usage: None,
+            resource_usage: ResourceUsage::default(),
+            terminated: false,
+            termination_reason: None,
         })
     }
 
@@ -2425,7 +2426,7 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
             // Container may have already exited — not an error.
             let stderr = String::from_utf8_lossy(&output.stderr);
             if !stderr.contains("is not running") {
-                tracing::warn!(sandbox_id = %instance.id, stderr = %stderr, "gVisor kill returned non-zero");
+                eprintln!("gVisor kill returned non-zero: sandbox_id={}, stderr={}", instance.id, stderr);
             }
         }
         Ok(())
@@ -2478,8 +2479,8 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
         };
 
         Ok(ResourceUsage {
-            memory_bytes: memory_usage,
-            cpu_usage,
+            peak_memory_bytes: memory_usage,
+            cpu_time_ns: cpu_usage.map(|c| (c * 1_000_000.0) as u64).unwrap_or(0),
             ..ResourceUsage::default()
         })
     }

@@ -1966,9 +1966,18 @@ mod tests {
             .expect("batch insert");
 
         // Lookup h1 twice, h2 once
-        repo.prefix_cache.lookup("sm-h1", "stats-model").await.expect("lookup");
-        repo.prefix_cache.lookup("sm-h1", "stats-model").await.expect("lookup");
-        repo.prefix_cache.lookup("sm-h2", "stats-model").await.expect("lookup");
+        repo.prefix_cache
+            .lookup("sm-h1", "stats-model")
+            .await
+            .expect("lookup");
+        repo.prefix_cache
+            .lookup("sm-h1", "stats-model")
+            .await
+            .expect("lookup");
+        repo.prefix_cache
+            .lookup("sm-h2", "stats-model")
+            .await
+            .expect("lookup");
 
         let stats = repo
             .prefix_cache
@@ -1999,23 +2008,35 @@ mod tests {
         let repo = test_repo().await;
 
         // Insert for model A
-        let a_entries = vec![
-            PrefixCacheRow::new("iso-h1", "model-a", vec![1], 50),
-        ];
-        repo.prefix_cache.batch_insert(&a_entries).await.expect("insert a");
+        let a_entries = vec![PrefixCacheRow::new("iso-h1", "model-a", vec![1], 50)];
+        repo.prefix_cache
+            .batch_insert(&a_entries)
+            .await
+            .expect("insert a");
 
         // Insert for model B
         let b_entries = vec![
             PrefixCacheRow::new("iso-h2", "model-b", vec![2], 100),
             PrefixCacheRow::new("iso-h3", "model-b", vec![3], 150),
         ];
-        repo.prefix_cache.batch_insert(&b_entries).await.expect("insert b");
+        repo.prefix_cache
+            .batch_insert(&b_entries)
+            .await
+            .expect("insert b");
 
-        let stats_a = repo.prefix_cache.model_stats("model-a").await.expect("stats a");
+        let stats_a = repo
+            .prefix_cache
+            .model_stats("model-a")
+            .await
+            .expect("stats a");
         assert_eq!(stats_a.entries, 1);
         assert_eq!(stats_a.total_tokens, 50);
 
-        let stats_b = repo.prefix_cache.model_stats("model-b").await.expect("stats b");
+        let stats_b = repo
+            .prefix_cache
+            .model_stats("model-b")
+            .await
+            .expect("stats b");
         assert_eq!(stats_b.entries, 2);
         assert_eq!(stats_b.total_tokens, 250);
     }
@@ -2031,18 +2052,21 @@ mod tests {
         // Insert 5 experiences for the same agent
         for i in 0..5 {
             let entry = ExperienceReplayRow::new(
-                "limit-agent",
+                &agent.id,
                 &format!("input-{i}"),
                 &format!("output-{i}"),
                 0.8,
             );
-            repo.experience_replay.batch_insert(&[entry]).await.expect("insert");
+            repo.experience_replay
+                .batch_insert(&[entry])
+                .await
+                .expect("insert");
         }
 
         // Get with limit 3
         let limited = repo
             .experience_replay
-            .get_by_agent("limit-agent", Some(3))
+            .get_by_agent(&agent.id, Some(3))
             .await
             .expect("get_by_agent limited");
         assert_eq!(limited.len(), 3, "should respect limit");
@@ -2050,7 +2074,7 @@ mod tests {
         // Get with default limit (None = 100)
         let all = repo
             .experience_replay
-            .get_by_agent("limit-agent", None)
+            .get_by_agent(&agent.id, None)
             .await
             .expect("get_by_agent default");
         assert_eq!(all.len(), 5, "should return all 5");
@@ -2081,11 +2105,17 @@ mod tests {
 
         // Lookup 3 times
         for _ in 0..3 {
-            repo.prefix_cache.lookup("hit-test", "m1").await.expect("lookup");
+            repo.prefix_cache
+                .lookup("hit-test", "m1")
+                .await
+                .expect("lookup");
         }
 
         let stats_after = repo.prefix_cache.model_stats("m1").await.expect("stats");
-        assert_eq!(stats_after.total_hits, 3, "hit count should be 3 after 3 lookups");
+        assert_eq!(
+            stats_after.total_hits, 3,
+            "hit count should be 3 after 3 lookups"
+        );
     }
 
     #[tokio::test]
@@ -2097,17 +2127,35 @@ mod tests {
             PrefixCacheRow::new("multi-h2", "gpt4", vec![2], 20),
             PrefixCacheRow::new("multi-h3", "claude", vec![3], 30),
         ];
-        repo.prefix_cache.batch_insert(&entries).await.expect("batch insert");
+        repo.prefix_cache
+            .batch_insert(&entries)
+            .await
+            .expect("batch insert");
 
         // Lookup across models
-        let r1 = repo.prefix_cache.lookup("multi-h1", "gpt4").await.expect("lookup");
+        let r1 = repo
+            .prefix_cache
+            .lookup("multi-h1", "gpt4")
+            .await
+            .expect("lookup");
         assert!(r1.is_some(), "should find gpt4 entry");
-        let r2 = repo.prefix_cache.lookup("multi-h3", "claude").await.expect("lookup");
+        let r2 = repo
+            .prefix_cache
+            .lookup("multi-h3", "claude")
+            .await
+            .expect("lookup");
         assert!(r2.is_some(), "should find claude entry");
 
         // Cross-model lookup should miss
-        let r3 = repo.prefix_cache.lookup("multi-h1", "claude").await.expect("lookup");
-        assert!(r3.is_none(), "gpt4 hash should not be found under claude model");
+        let r3 = repo
+            .prefix_cache
+            .lookup("multi-h1", "claude")
+            .await
+            .expect("lookup");
+        assert!(
+            r3.is_none(),
+            "gpt4 hash should not be found under claude model"
+        );
     }
 
     #[tokio::test]
@@ -2123,17 +2171,29 @@ mod tests {
         repo.configs.upsert(&c3).await.expect("upsert c3");
 
         // Get specific key
-        let result = repo.configs.get_by_key("ns1", "key-a").await.expect("get_by_key");
+        let result = repo
+            .configs
+            .get_by_key("ns1", "key-a")
+            .await
+            .expect("get_by_key");
         assert!(result.is_some());
         assert_eq!(result.unwrap().value, "value-a");
 
         // Get key from different namespace
-        let result = repo.configs.get_by_key("ns2", "key-a").await.expect("get_by_key");
+        let result = repo
+            .configs
+            .get_by_key("ns2", "key-a")
+            .await
+            .expect("get_by_key");
         assert!(result.is_some());
         assert_eq!(result.unwrap().value, "value-c");
 
         // Get nonexistent key
-        let result = repo.configs.get_by_key("ns1", "missing").await.expect("get_by_key");
+        let result = repo
+            .configs
+            .get_by_key("ns1", "missing")
+            .await
+            .expect("get_by_key");
         assert!(result.is_none());
     }
 
@@ -2164,14 +2224,25 @@ mod tests {
         repo.components.create(&c2).await.expect("create c2");
         repo.components.create(&c3).await.expect("create c3");
 
-        let sensors = repo.components.get_by_type("sensor").await.expect("get_by_type");
+        let sensors = repo
+            .components
+            .get_by_type("sensor")
+            .await
+            .expect("get_by_type");
         assert_eq!(sensors.len(), 2);
 
-        let actuators = repo.components.get_by_type("actuator").await.expect("get_by_type");
+        let actuators = repo
+            .components
+            .get_by_type("actuator")
+            .await
+            .expect("get_by_type");
         assert_eq!(actuators.len(), 1);
 
-        let missing = repo.components.get_by_type("nonexistent").await.expect("get_by_type");
+        let missing = repo
+            .components
+            .get_by_type("nonexistent")
+            .await
+            .expect("get_by_type");
         assert!(missing.is_empty());
     }
-
 }

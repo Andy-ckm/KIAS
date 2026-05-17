@@ -78,3 +78,76 @@ impl From<kias_common::KiasError> for ApiError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_error_constructors() {
+        let e = ApiError::not_found("agent not found");
+        assert_eq!(e.status, StatusCode::NOT_FOUND);
+        assert_eq!(e.message, "agent not found");
+
+        let e = ApiError::bad_request("invalid input");
+        assert_eq!(e.status, StatusCode::BAD_REQUEST);
+        assert_eq!(e.message, "invalid input");
+
+        let e = ApiError::internal("something broke");
+        assert_eq!(e.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(e.message, "something broke");
+
+        let e = ApiError::conflict("already exists");
+        assert_eq!(e.status, StatusCode::CONFLICT);
+        assert_eq!(e.message, "already exists");
+
+        let e = ApiError::unauthorized("no token");
+        assert_eq!(e.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(e.message, "no token");
+
+        let e = ApiError::forbidden("insufficient permissions");
+        assert_eq!(e.status, StatusCode::FORBIDDEN);
+        assert_eq!(e.message, "insufficient permissions");
+    }
+
+    #[test]
+    fn test_api_error_display() {
+        let e = ApiError::not_found("not here");
+        assert_eq!(format!("{e}"), "[404 Not Found] not here");
+    }
+
+    #[test]
+    fn test_api_error_from_string() {
+        let e = ApiError::new(StatusCode::BAD_GATEWAY, "gateway down".to_string());
+        assert_eq!(e.status, StatusCode::BAD_GATEWAY);
+        assert_eq!(e.message, "gateway down");
+    }
+
+    #[test]
+    fn test_api_error_from_kias_error_not_found() {
+        let kias = kias_common::KiasError::AgentNotFound("abc".to_string());
+        let api: ApiError = kias.into();
+        assert_eq!(api.status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_api_error_from_kias_error_auth() {
+        let kias = kias_common::KiasError::AuthenticationFailed("bad token".to_string());
+        let api: ApiError = kias.into();
+        assert_eq!(api.status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_api_error_from_kias_error_validation() {
+        let kias = kias_common::KiasError::Validation("invalid field".to_string());
+        let api: ApiError = kias.into();
+        assert_eq!(api.status, StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_api_error_from_kias_error_conflict() {
+        let kias = kias_common::KiasError::Conflict("duplicate".to_string());
+        let api: ApiError = kias.into();
+        assert_eq!(api.status, StatusCode::CONFLICT);
+    }
+}

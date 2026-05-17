@@ -96,11 +96,7 @@ impl SkillRegistry {
 
     /// List all unique tags
     pub fn all_tags(&self) -> Vec<String> {
-        let mut tags: Vec<String> = self
-            .skills
-            .values()
-            .flat_map(|s| s.config().tags)
-            .collect();
+        let mut tags: Vec<String> = self.skills.values().flat_map(|s| s.config().tags).collect();
         tags.sort();
         tags.dedup();
         tags
@@ -233,7 +229,7 @@ mod tests {
     #[test]
     fn test_find_by_tag() {
         let mut registry = SkillRegistry::new();
-        let mut skill1 = MockSkill::new("http_call", "HTTP");
+        let skill1 = MockSkill::new("http_call", "HTTP");
         // Can't set tags on MockSkill directly, but we can test the method exists
         registry.register(Box::new(skill1));
 

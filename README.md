@@ -3,13 +3,13 @@
      3|    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
      4|  </a>
      5|  <a href="https://github.com/Andy-ckm/KIAS/actions">
-     6|    <img src="https://img.shields.io/badge/tests-1720%20passed-brightgreen.svg" alt="Tests">
+     6|    <img src="https://img.shields.io/badge/tests-1910%20passed-brightgreen.svg" alt="Tests">
      7|  </a>
      8|  <a href="https://www.rust-lang.org">
      9|    <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
     10|  </a>
     11|  <a href="https://github.com/Andy-ckm/KIAS">
-    12|    <img src="https://img.shields.io/badge/crates-22-purple.svg" alt="Crates">
+    12|    <img src="https://img.shields.io/badge/crates-28-purple.svg" alt="Crates">
     13|  </a>
     14|  <a href="https://github.com/Andy-ckm/KIAS">
     15|    <img src="https://img.shields.io/badge/LOC-85K%2B-blue.svg" alt="Lines of Code">

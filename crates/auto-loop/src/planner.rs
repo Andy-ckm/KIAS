@@ -640,8 +640,8 @@ mod tests {
 
     #[test]
     fn test_default_trait_implementations() {
-        let _ = PersistencePlanGenerator::default();
-        let _ = ConfigFixPlanGenerator::default();
+        let _ = PersistencePlanGenerator;
+        let _ = ConfigFixPlanGenerator;
         let _ = PlanGeneratorManager::default();
     }
 

@@ -117,9 +117,15 @@ mod tests {
 
     #[test]
     fn test_agent_status_serialization() {
-        assert!(serde_json::to_string(&AgentStatus::Pending).unwrap().contains("Pending"));
-        assert!(serde_json::to_string(&AgentStatus::Running).unwrap().contains("Running"));
-        assert!(serde_json::to_string(&AgentStatus::Failed).unwrap().contains("Failed"));
+        assert!(serde_json::to_string(&AgentStatus::Pending)
+            .unwrap()
+            .contains("Pending"));
+        assert!(serde_json::to_string(&AgentStatus::Running)
+            .unwrap()
+            .contains("Running"));
+        assert!(serde_json::to_string(&AgentStatus::Failed)
+            .unwrap()
+            .contains("Failed"));
     }
 
     #[test]

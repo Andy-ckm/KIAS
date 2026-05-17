@@ -474,7 +474,7 @@ impl Default for ContextAwareDecomposer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::intent_recognizer::{Complexity, IntentRecognizer, Priority};
+    use crate::intent_recognizer::{Complexity, Priority};
 
     fn create_test_intent(intent_type: IntentType, complexity: Complexity) -> RecognizedIntent {
         RecognizedIntent {

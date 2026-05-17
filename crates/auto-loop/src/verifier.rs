@@ -509,7 +509,7 @@ mod tests {
 
     #[test]
     fn test_run_command_failure() {
-        let (success, _stdout, stderr, _dur) = run_command("false", &[], "/tmp", 10);
+        let (success, _stdout, _stderr, _dur) = run_command("false", &[], "/tmp", 10);
         assert!(!success);
     }
 

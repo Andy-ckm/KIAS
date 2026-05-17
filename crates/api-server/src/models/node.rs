@@ -45,9 +45,15 @@ mod tests {
 
     #[test]
     fn test_node_status_serialization() {
-        assert!(serde_json::to_string(&NodeStatus::Ready).unwrap().contains("Ready"));
-        assert!(serde_json::to_string(&NodeStatus::NotReady).unwrap().contains("NotReady"));
-        assert!(serde_json::to_string(&NodeStatus::Draining).unwrap().contains("Draining"));
+        assert!(serde_json::to_string(&NodeStatus::Ready)
+            .unwrap()
+            .contains("Ready"));
+        assert!(serde_json::to_string(&NodeStatus::NotReady)
+            .unwrap()
+            .contains("NotReady"));
+        assert!(serde_json::to_string(&NodeStatus::Draining)
+            .unwrap()
+            .contains("Draining"));
     }
 
     #[test]
@@ -72,8 +78,16 @@ mod tests {
             id: "node-1".to_string(),
             name: "worker-1".to_string(),
             status: NodeStatus::Ready,
-            resources: ResourceCapacity { cpu: "4".to_string(), memory: "8Gi".to_string(), gpu: "0".to_string() },
-            allocatable: ResourceCapacity { cpu: "4".to_string(), memory: "8Gi".to_string(), gpu: "0".to_string() },
+            resources: ResourceCapacity {
+                cpu: "4".to_string(),
+                memory: "8Gi".to_string(),
+                gpu: "0".to_string(),
+            },
+            allocatable: ResourceCapacity {
+                cpu: "4".to_string(),
+                memory: "8Gi".to_string(),
+                gpu: "0".to_string(),
+            },
             labels: HashMap::from([("zone".to_string(), "us-east".to_string())]),
             created_at: "2026-01-01T00:00:00Z".to_string(),
             last_heartbeat: "2026-01-01T00:01:00Z".to_string(),

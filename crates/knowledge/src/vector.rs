@@ -23,9 +23,9 @@ use super::retriever::{MatchType, Retriever, ScoredNode};
 
 // Re-export vector types from common (canonical location)
 pub use kias_common::vector::{
-    cosine_distance, cosine_similarity, hnsw_ml, l2_distance, LayerStats, VectorEntry, VectorStore,
-    VectorStoreStats, DEFAULT_EMBEDDING_DIM, HNSW_EF_CONSTRUCTION, HNSW_EF_SEARCH, HNSW_M,
-    HNSW_M_MAX,
+    cosine_distance, cosine_similarity, hnsw_ml, l2_distance, HnswSnapshot, LayerStats,
+    VectorEntry, VectorStore, VectorStoreStats, DEFAULT_EMBEDDING_DIM, HNSW_EF_CONSTRUCTION,
+    HNSW_EF_SEARCH, HNSW_M, HNSW_M_MAX,
 };
 
 // ============================================================

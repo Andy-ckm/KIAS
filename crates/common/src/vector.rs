@@ -150,6 +150,23 @@ impl Ord for Candidate {
 /// HNSW layer: maps node_id -> set of neighbor node_ids
 type Layer = HashMap<String, HashSet<String>>;
 
+/// Serializable snapshot of the HNSW graph structure.
+///
+/// Captures the full topology (layers, connections, entry point) so that
+/// after a restart the graph can be restored in O(N) instead of rebuilding
+/// via O(N·M·logN) re-inserts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HnswSnapshot {
+    /// All vector entries indexed by node_id.
+    pub entries: HashMap<String, VectorEntry>,
+    /// Adjacency lists per layer.  `layers[l][node_id]` = set of neighbor ids.
+    pub layers: Vec<HashMap<String, Vec<String>>>,
+    /// Entry point node id (highest-layer node).
+    pub entry_point: Option<String>,
+    /// Embedding dimension.
+    pub dimension: usize,
+}
+
 /// Vector store with HNSW approximate nearest neighbor index
 pub struct VectorStore {
     /// All stored vectors indexed by node_id
@@ -163,13 +180,62 @@ pub struct VectorStore {
 }
 
 impl VectorStore {
-    /// Create a new empty vector store
+    /// Create a new empty vector store.
     pub fn new(dimension: usize) -> Self {
         Self {
             entries: HashMap::new(),
             layers: vec![Layer::new()],
             entry_point: None,
             dimension,
+        }
+    }
+
+    /// Save the full HNSW graph structure to a serializable snapshot.
+    ///
+    /// Use [`load_graph`] to restore.  The snapshot captures all layers and
+    /// connections so the topology survives restarts without re-insertion.
+    pub fn save_graph(&self) -> HnswSnapshot {
+        let layers_ser: Vec<HashMap<String, Vec<String>>> = self
+            .layers
+            .iter()
+            .map(|layer| {
+                layer
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.iter().cloned().collect()))
+                    .collect()
+            })
+            .collect();
+
+        HnswSnapshot {
+            entries: self.entries.clone(),
+            layers: layers_ser,
+            entry_point: self.entry_point.clone(),
+            dimension: self.dimension,
+        }
+    }
+
+    /// Restore an HNSW graph from a previously saved snapshot.
+    ///
+    /// This is O(N) and preserves the original graph topology, unlike
+    /// re-inserting entries one by one which is O(N·M·logN) and may
+    /// produce a different graph.
+    pub fn load_graph(snapshot: HnswSnapshot) -> Self {
+        let layers: Vec<Layer> = snapshot
+            .layers
+            .into_iter()
+            .map(|layer| {
+                layer
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into_iter().collect()))
+                    .collect()
+            })
+            .collect();
+
+        Self {
+            entries: snapshot.entries,
+            layers,
+            entry_point: snapshot.entry_point,
+            dimension: snapshot.dimension,
         }
     }
 
@@ -704,5 +770,83 @@ mod tests {
             "HNSW recall too low: {}/10 overlap with exact search",
             overlap,
         );
+    }
+
+    #[test]
+    fn test_save_load_graph_roundtrip() {
+        let dim = 8;
+        let mut store = VectorStore::new(dim);
+
+        // Insert enough vectors to build multi-layer graph
+        for i in 0..100 {
+            let mut v = vec![0.0f32; dim];
+            v[i % dim] = 1.0;
+            store.insert(format!("node_{}", i), v);
+        }
+
+        let original_stats = store.stats();
+        let original_entry_point = store.entry_point.clone();
+
+        // Save graph
+        let snapshot = store.save_graph();
+        assert_eq!(snapshot.dimension, dim);
+        assert_eq!(snapshot.entries.len(), 100);
+        assert!(snapshot.layers.len() >= 1);
+
+        // Serialize to JSON and back (simulates disk I/O)
+        let json = serde_json::to_string(&snapshot).expect("serialize");
+        let restored_snapshot: HnswSnapshot = serde_json::from_str(&json).expect("deserialize");
+
+        // Load into new store
+        let restored = VectorStore::load_graph(restored_snapshot);
+
+        // Verify structure matches
+        assert_eq!(restored.len(), 100);
+        assert_eq!(restored.dimension(), dim);
+        assert_eq!(restored.layer_count(), store.layer_count());
+        assert_eq!(restored.entry_point, original_entry_point);
+
+        // Verify search produces similar results (HNSW is approximate,
+        // and HashSet iteration order may differ after roundtrip)
+        let mut query = vec![0.0f32; dim];
+        query[0] = 1.0;
+        let original_results = store.search_knn(&query, 5);
+        let restored_results = restored.search_knn(&query, 5);
+        assert_eq!(original_results.len(), restored_results.len());
+
+        // At least 3 of 5 results should match (recall check)
+        let original_ids: std::collections::HashSet<&String> =
+            original_results.iter().map(|(id, _)| id).collect();
+        let restored_ids: std::collections::HashSet<&String> =
+            restored_results.iter().map(|(id, _)| id).collect();
+        let overlap = original_ids.intersection(&restored_ids).count();
+        assert!(
+            overlap >= 3,
+            "HNSW search recall too low after graph roundtrip: {}/5",
+            overlap
+        );
+
+        // Verify stats match
+        let restored_stats = restored.stats();
+        assert_eq!(original_stats.total_vectors, restored_stats.total_vectors);
+        assert_eq!(original_stats.layers.len(), restored_stats.layers.len());
+        for (orig_layer, rest_layer) in original_stats
+            .layers
+            .iter()
+            .zip(restored_stats.layers.iter())
+        {
+            assert_eq!(orig_layer.node_count, rest_layer.node_count);
+            assert_eq!(orig_layer.total_edges, rest_layer.total_edges);
+        }
+    }
+
+    #[test]
+    fn test_save_load_empty_graph() {
+        let store = VectorStore::new(4);
+        let snapshot = store.save_graph();
+        let restored = VectorStore::load_graph(snapshot);
+        assert!(restored.is_empty());
+        assert_eq!(restored.dimension(), 4);
+        assert!(restored.entry_point.is_none());
     }
 }

@@ -219,12 +219,11 @@ impl Skill for DockerManageSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec![
-                "ops".to_string(),
-                "docker".to_string(),
-                "container".to_string(),
-            ])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "ops".to_string(),
+            "docker".to_string(),
+            "container".to_string(),
+        ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -264,7 +263,9 @@ impl Skill for DockerManageSkill {
             .arg(&command)
             .output()
             .await
-            .map_err(|e| kias_common::KiasError::ExternalService(format!("Docker command failed: {}", e)))?;
+            .map_err(|e| {
+                kias_common::KiasError::ExternalService(format!("Docker command failed: {}", e))
+            })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -305,12 +306,11 @@ impl Skill for SystemdManageSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec![
-                "ops".to_string(),
-                "systemd".to_string(),
-                "service".to_string(),
-            ])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "ops".to_string(),
+            "systemd".to_string(),
+            "service".to_string(),
+        ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -351,7 +351,9 @@ impl Skill for SystemdManageSkill {
             .arg(&command)
             .output()
             .await
-            .map_err(|e| kias_common::KiasError::ExternalService(format!("Systemd command failed: {}", e)))?;
+            .map_err(|e| {
+                kias_common::KiasError::ExternalService(format!("Systemd command failed: {}", e))
+            })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -394,12 +396,11 @@ impl Skill for NetworkScanSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec![
-                "security".to_string(),
-                "network".to_string(),
-                "scan".to_string(),
-            ])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "security".to_string(),
+            "network".to_string(),
+            "scan".to_string(),
+        ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -477,12 +478,11 @@ impl Skill for VulnCheckSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description())
-            .with_tags(vec![
-                "security".to_string(),
-                "vulnerability".to_string(),
-                "audit".to_string(),
-            ])
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "security".to_string(),
+            "vulnerability".to_string(),
+            "audit".to_string(),
+        ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -517,7 +517,9 @@ impl Skill for VulnCheckSkill {
             .arg(&command)
             .output()
             .await
-            .map_err(|e| kias_common::KiasError::ExternalService(format!("Vuln check failed: {}", e)))?;
+            .map_err(|e| {
+                kias_common::KiasError::ExternalService(format!("Vuln check failed: {}", e))
+            })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -580,10 +582,7 @@ impl Skill for PaperFetchSkill {
             .and_then(|v| v.as_str())
             .unwrap_or("arxiv");
 
-        let limit = params
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(10);
+        let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(10);
 
         tracing::info!(query = %query, source = %source, limit = limit, "Fetching papers");
 
@@ -602,16 +601,13 @@ impl Skill for PaperFetchSkill {
         };
 
         let client = reqwest::Client::new();
-        let response = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| kias_common::KiasError::ExternalService(format!("Paper fetch failed: {}", e)))?;
+        let response = client.get(&url).send().await.map_err(|e| {
+            kias_common::KiasError::ExternalService(format!("Paper fetch failed: {}", e))
+        })?;
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| kias_common::KiasError::ExternalService(format!("Failed to read response: {}", e)))?;
+        let body = response.text().await.map_err(|e| {
+            kias_common::KiasError::ExternalService(format!("Failed to read response: {}", e))
+        })?;
 
         Ok(serde_json::json!({
             "status": "ok",

@@ -370,7 +370,66 @@ impl BuiltinAgents {
             Self::sec_agent(),
             Self::code_agent(),
             Self::research_agent(),
+            Self::finance_agent(),
+            Self::hr_agent(),
+            Self::supply_chain_agent(),
         ]
+    }
+
+    /// Finance Agent — 财务管理（月结、对账、报表）
+    pub fn finance_agent() -> AgentProfile {
+        AgentProfile::new("finance-agent", "Finance Agent")
+            .with_capability("journal_entry", 0.9)
+            .with_capability("reconciliation", 0.95)
+            .with_capability("financial_reporting", 0.85)
+            .with_capability("audit_trail", 0.9)
+            .with_specialization("finance")
+            .with_specialization("accounting")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 2048,
+                max_cpu_percent: 60.0,
+            })
+            .with_permission("filesystem")
+            .with_permission("network")
+    }
+
+    /// HR Agent — 人力资源（招聘、考勤、薪酬）
+    pub fn hr_agent() -> AgentProfile {
+        AgentProfile::new("hr-agent", "HR Agent")
+            .with_capability("resume_screening", 0.85)
+            .with_capability("attendance_tracking", 0.9)
+            .with_capability("payroll_processing", 0.8)
+            .with_capability("employee_onboarding", 0.85)
+            .with_specialization("hr")
+            .with_specialization("human-resources")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 1024,
+                max_cpu_percent: 50.0,
+            })
+            .with_permission("filesystem")
+    }
+
+    /// Supply Chain Agent — 供应链（采购、库存、物流）
+    pub fn supply_chain_agent() -> AgentProfile {
+        AgentProfile::new("supply-chain-agent", "Supply Chain Agent")
+            .with_capability("procurement", 0.85)
+            .with_capability("inventory_management", 0.9)
+            .with_capability("logistics_optimization", 0.8)
+            .with_capability("demand_forecasting", 0.75)
+            .with_specialization("supply-chain")
+            .with_specialization("logistics")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 2048,
+                max_cpu_percent: 70.0,
+            })
+            .with_permission("filesystem")
+            .with_permission("network")
     }
 }
 

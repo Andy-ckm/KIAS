@@ -239,6 +239,7 @@ mod tests {
             connection_registry: crate::websocket::ConnectionRegistry::default(),
             event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
         }
     }
@@ -298,6 +299,7 @@ mod tests {
             knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
                 kias_knowledge::graph::KnowledgeGraph::new(),
             )),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
         };
 

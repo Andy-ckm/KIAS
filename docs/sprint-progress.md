@@ -1,3 +1,33 @@
+## 最新更新：2026-05-17 10:33 (Sprint 67 — metrics 测试覆盖 + AppState 修复)
+
+### 🎯 Sprint 67 质量门检查
+- ✅ `cargo build --workspace` — 0 errors
+- ✅ `cargo fmt --all -- --check` — clean
+- ✅ `cargo clippy --workspace -- -D warnings` — 0 warnings
+- ✅ `cargo test --workspace` — **1893 tests passed** (default features)
+- ✅ `cargo test -p kias-mcp-protocol --features metrics` — **27 metrics tests passed**
+
+### 📝 本次完成
+1. **修复 sibling subagent 残留问题**: `ingested_docs` 字段缺失导致 4 个 AppState 构造器编译失败
+   - `tokens.rs`: 2 处 `AppState { }` 构造器添加 `ingested_docs`
+   - `scheduler.rs`: 2 处 `AppState { }` 构造器添加 `ingested_docs`
+   - `knowledge.rs`: `State(_state)` → `State(app_state)` 修复变量名
+2. **mcp-protocol/metrics.rs 测试覆盖**: 4 tests → 27 tests (密度 0.68 → 4.54)
+   - 新增 23 个测试: percentile 边界、延迟计算、禁用收集器、工具追踪、计数器/仪表盘、Prometheus 导出、环形缓冲溢出、RequestTimer、序列化、配置默认值
+3. **缺陷验证**: 两个列出的缺陷均已在之前 Sprint 修复
+   - Redis: config.rs 已有诚实文档 "no Redis dependency — cache is either SQLite-backed or in-memory"
+   - 跨层依赖: data-store 仅依赖 kias-common，无 kias-knowledge 依赖
+
+### 💾 磁盘状态
+- `/` (系统盘): 45% (22G 可用)
+- `/mnt` (挂载盘): 52% (14G 可用)
+
+### 📊 测试密度改善
+| Crate | Before | After | Change |
+|-------|--------|-------|--------|
+| mcp-protocol metrics | 4 tests (0.68) | 27 tests (4.54) | +23 tests |
+
+---
 ## 最新更新：2026-05-17 09:55 (Sprint 66 — auto-loop test coverage)
 
 ### 🎯 Sprint 66 状态检查

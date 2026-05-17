@@ -476,7 +476,9 @@ impl TaskDecomposer {
             in_degree.entry(node_id.clone()).or_insert(0);
         }
         for (_, to) in &graph.edges {
-            *in_degree.get_mut(to).unwrap() += 1;
+            if let Some(deg) = in_degree.get_mut(to) {
+                *deg += 1;
+            }
         }
 
         let mut queue: VecDeque<String> = in_degree
@@ -490,10 +492,11 @@ impl TaskDecomposer {
             sorted.push(current.clone());
             for (from, to) in &graph.edges {
                 if *from == current {
-                    let deg = in_degree.get_mut(to).unwrap();
-                    *deg -= 1;
-                    if *deg == 0 {
-                        queue.push_back(to.clone());
+                    if let Some(deg) = in_degree.get_mut(to) {
+                        *deg -= 1;
+                        if *deg == 0 {
+                            queue.push_back(to.clone());
+                        }
                     }
                 }
             }

@@ -589,4 +589,331 @@ mod tests {
         assert_eq!(percentile(&data, 0.9), 9.0);
         assert_eq!(percentile(&data, 0.95), 10.0);
     }
+
+    #[test]
+    fn test_percentile_empty() {
+        assert_eq!(percentile(&[], 0.5), 0.0);
+        assert_eq!(percentile(&[], 0.99), 0.0);
+    }
+
+    #[test]
+    fn test_percentile_single() {
+        assert_eq!(percentile(&[42], 0.0), 42.0);
+        assert_eq!(percentile(&[42], 0.5), 42.0);
+        assert_eq!(percentile(&[42], 1.0), 42.0);
+    }
+
+    #[test]
+    fn test_calculate_latency_metrics_empty() {
+        let metrics = calculate_latency_metrics(&[]);
+        assert_eq!(metrics.count, 0);
+        assert_eq!(metrics.min_us, 0);
+        assert_eq!(metrics.max_us, 0);
+        assert_eq!(metrics.avg_us, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_latency_metrics_single() {
+        let metrics = calculate_latency_metrics(&[100]);
+        assert_eq!(metrics.count, 1);
+        assert_eq!(metrics.min_us, 100);
+        assert_eq!(metrics.max_us, 100);
+        assert_eq!(metrics.avg_us, 100.0);
+        assert_eq!(metrics.p50_us, 100.0);
+        assert_eq!(metrics.p99_us, 100.0);
+    }
+
+    #[test]
+    fn test_metrics_config_default() {
+        let config = MetricsConfig::default();
+        assert!(config.enabled);
+        assert!(config.per_tool_metrics);
+        assert!(config.per_client_metrics);
+        assert_eq!(config.latency_buckets.len(), 11);
+        assert_eq!(config.retention, Duration::from_secs(3600));
+    }
+
+    #[tokio::test]
+    async fn test_collector_custom_config() {
+        let config = MetricsConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        let collector = MetricsCollector::new(config);
+
+        // Disabled collector should not record
+        collector.request_start().await;
+        collector
+            .request_end(Duration::from_millis(10), true, Some("test"))
+            .await;
+
+        let snapshot = collector.snapshot().await;
+        assert_eq!(snapshot.requests.total, 0);
+        assert_eq!(snapshot.requests.active, 0);
+    }
+
+    #[tokio::test]
+    async fn test_request_start_increments_active() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.request_start().await;
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 1);
+        assert_eq!(snap.requests.active, 1);
+
+        collector.request_start().await;
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 2);
+        assert_eq!(snap.requests.active, 2);
+    }
+
+    #[tokio::test]
+    async fn test_request_end_decrements_active() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.request_start().await;
+        collector.request_start().await;
+        collector
+            .request_end(Duration::from_millis(10), true, None)
+            .await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 2);
+        assert_eq!(snap.requests.active, 1);
+        assert_eq!(snap.requests.success, 1);
+        assert_eq!(snap.requests.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_tool_metrics_tracking() {
+        let collector = MetricsCollector::with_defaults();
+
+        // Record multiple invocations of different tools
+        for _ in 0..3 {
+            collector.request_start().await;
+            collector
+                .request_end(Duration::from_millis(10), true, Some("search"))
+                .await;
+        }
+        for _ in 0..2 {
+            collector.request_start().await;
+            collector
+                .request_end(Duration::from_millis(5), false, Some("execute"))
+                .await;
+        }
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.tools.len(), 2);
+
+        let search = snap.tools.iter().find(|t| t.name == "search").unwrap();
+        assert_eq!(search.invocations, 3);
+        assert_eq!(search.successes, 3);
+        assert_eq!(search.failures, 0);
+        assert_eq!(search.error_rate, 0.0);
+
+        let exec = snap.tools.iter().find(|t| t.name == "execute").unwrap();
+        assert_eq!(exec.invocations, 2);
+        assert_eq!(exec.successes, 0);
+        assert_eq!(exec.failures, 2);
+        assert_eq!(exec.error_rate, 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_counter_multiple_increments() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.inc_counter("requests", 10).await;
+        collector.inc_counter("requests", 20).await;
+        collector.inc_counter("errors", 5).await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.counters.get("requests"), Some(&30));
+        assert_eq!(snap.counters.get("errors"), Some(&5));
+    }
+
+    #[tokio::test]
+    async fn test_gauge_overwrite() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.set_gauge("cpu", 0.5).await;
+        collector.set_gauge("cpu", 0.8).await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.gauges.get("cpu"), Some(&0.8));
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_empty() {
+        let collector = MetricsCollector::with_defaults();
+        let snap = collector.snapshot().await;
+
+        assert_eq!(snap.requests.total, 0);
+        assert_eq!(snap.requests.success, 0);
+        assert_eq!(snap.requests.failed, 0);
+        assert_eq!(snap.requests.active, 0);
+        assert_eq!(snap.latency.count, 0);
+        assert!(snap.tools.is_empty());
+        assert!(snap.counters.is_empty());
+        assert!(snap.gauges.is_empty());
+        assert_eq!(snap.system.uptime_secs, 0);
+    }
+
+    #[tokio::test]
+    async fn test_reset_clears_all() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.request_start().await;
+        collector
+            .request_end(Duration::from_millis(10), true, Some("test"))
+            .await;
+        collector.inc_counter("c", 5).await;
+        collector.set_gauge("g", 1.0).await;
+
+        collector.reset().await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 0);
+        assert_eq!(snap.latency.count, 0);
+        assert!(snap.tools.is_empty());
+        assert!(snap.counters.is_empty());
+        assert!(snap.gauges.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_prometheus_export_with_tools() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.request_start().await;
+        collector
+            .request_end(Duration::from_millis(10), true, Some("search"))
+            .await;
+
+        let prom = collector.prometheus_export().await;
+        assert!(prom.contains("mcp_requests_total 1"));
+        assert!(prom.contains("mcp_requests_active 0"));
+        assert!(prom.contains("mcp_tool_invocations_total"));
+        assert!(prom.contains("mcp_tool_latency_us"));
+        assert!(prom.contains("mcp_tool_error_rate"));
+        assert!(prom.contains("search"));
+        assert!(prom.contains("# HELP"));
+        assert!(prom.contains("# TYPE"));
+    }
+
+    #[tokio::test]
+    async fn test_prometheus_export_custom_metrics() {
+        let collector = MetricsCollector::with_defaults();
+
+        collector.inc_counter("cache_hits", 100).await;
+        collector.set_gauge("queue_depth", 5.0).await;
+
+        let prom = collector.prometheus_export().await;
+        assert!(prom.contains("mcp_cache_hits 100"));
+        assert!(prom.contains("mcp_queue_depth 5"));
+    }
+
+    #[tokio::test]
+    async fn test_latency_ring_buffer_overflow() {
+        let collector = MetricsCollector::with_defaults();
+
+        // Push 10001 samples to test ring buffer
+        for i in 0..10001u64 {
+            collector.request_start().await;
+            collector
+                .request_end(Duration::from_micros(i), true, None)
+                .await;
+        }
+
+        let snap = collector.snapshot().await;
+        // Should have exactly 10000 samples (ring buffer limit)
+        assert_eq!(snap.latency.count, 10000);
+    }
+
+    #[tokio::test]
+    async fn test_request_timer_finish_success() {
+        let collector = Arc::new(MetricsCollector::with_defaults());
+        let timer = RequestTimer::start(collector.clone(), Some("test_tool".to_string()));
+
+        // Small delay to measure latency
+        tokio::time::sleep(Duration::from_millis(1)).await;
+        timer.finish(true).await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 1);
+        assert_eq!(snap.requests.success, 1);
+        assert!(snap.latency.avg_us > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_request_timer_no_tool() {
+        let collector = Arc::new(MetricsCollector::with_defaults());
+        let timer = RequestTimer::start(collector.clone(), None);
+        // Small delay to let spawned request_start() complete
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        timer.finish(true).await;
+
+        let snap = collector.snapshot().await;
+        assert_eq!(snap.requests.total, 1);
+        assert!(snap.tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_collector_noop_counters() {
+        let config = MetricsConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        let collector = MetricsCollector::new(config);
+
+        collector.inc_counter("c", 10).await;
+        collector.set_gauge("g", 1.0).await;
+
+        let snap = collector.snapshot().await;
+        assert!(snap.counters.is_empty());
+        assert!(snap.gauges.is_empty());
+    }
+
+    #[test]
+    fn test_metric_value_serialization() {
+        let counter = MetricValue::Counter { value: 42 };
+        let json = serde_json::to_string(&counter).unwrap();
+        assert!(json.contains("Counter"));
+        assert!(json.contains("42"));
+
+        let gauge = MetricValue::Gauge { value: 3.15 };
+        let json = serde_json::to_string(&gauge).unwrap();
+        assert!(json.contains("Gauge"));
+    }
+
+    #[test]
+    fn test_metrics_snapshot_serialization() {
+        let snap = MetricsSnapshot {
+            timestamp_ms: 1234567890,
+            requests: RequestMetrics::default(),
+            latency: LatencyMetrics::default(),
+            tools: vec![],
+            system: SystemMetrics::default(),
+            counters: HashMap::new(),
+            gauges: HashMap::new(),
+        };
+        let json = serde_json::to_string(&snap).unwrap();
+        let deserialized: MetricsSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.timestamp_ms, 1234567890);
+    }
+
+    #[test]
+    fn test_tool_metrics_defaults() {
+        let tm = ToolMetrics::default();
+        assert_eq!(tm.name, "");
+        assert_eq!(tm.invocations, 0);
+        assert_eq!(tm.error_rate, 0.0);
+    }
+
+    #[test]
+    fn test_latency_metrics_defaults() {
+        let lm = LatencyMetrics::default();
+        assert_eq!(lm.count, 0);
+        assert_eq!(lm.min_us, 0);
+        assert_eq!(lm.max_us, 0);
+        assert_eq!(lm.avg_us, 0.0);
+    }
 }

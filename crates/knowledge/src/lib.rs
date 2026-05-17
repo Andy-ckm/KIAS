@@ -22,3 +22,9 @@ pub use vector::{
     cosine_distance, cosine_similarity, l2_distance, EmbeddingEngine, LocalEmbeddingEngine,
     VectorRetriever, VectorStore, VectorStoreStats,
 };
+
+pub mod context_expander;
+pub mod query_rewrite;
+
+pub use context_expander::{Chunk, ContextExpander, ExpandedContext};
+pub use query_rewrite::{QueryIntent, QueryRewriter, RewrittenQuery};

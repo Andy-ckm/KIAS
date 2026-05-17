@@ -312,7 +312,11 @@ impl DistillationEngine {
         DistilledSkill {
             name: format!(
                 "auto-{}",
-                pattern.sequence.join("-").to_lowercase().replace(['_', '.'], "-")
+                pattern
+                    .sequence
+                    .join("-")
+                    .to_lowercase()
+                    .replace(['_', '.'], "-")
             ),
             description: format!(
                 "Auto-distilled from {} observations. Sequence: {}",
@@ -361,7 +365,6 @@ struct PatternAccumulator {
     success_count: usize,
     examples: Vec<String>,
 }
-
 
 #[cfg(test)]
 mod tests {

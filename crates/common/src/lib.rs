@@ -24,6 +24,7 @@ pub mod types;
 pub mod utils;
 pub mod vector;
 pub mod vfs;
+pub mod vq_codebook;
 
 // Re-export the most commonly used items at crate root for convenience.
 pub use config::KiasConfig;

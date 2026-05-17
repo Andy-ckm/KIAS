@@ -26,3 +26,4 @@ pub use scheduler::{ResourceQuota, Scheduler, TenantContext, TenantStats};
 pub use edge::{
     EdgeClusterStats, EdgeNode, EdgeScheduler, EdgeSchedulingConstraints, NodeLocation, NodeTier,
 };
+pub mod agent_shell;

@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_xuesen_principles_all_defined() {
-        let principles = vec![
+        let principles = [
             XuesenPrinciple::Holism,
             XuesenPrinciple::MetaSynthesis,
             XuesenPrinciple::FeedbackControl,
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_first_principles_all_defined() {
-        let principles = vec![
+        let principles = [
             FirstPrinciple::BackToBasics,
             FirstPrinciple::QuestionAssumptions,
             FirstPrinciple::EvidenceBased,

@@ -573,7 +573,7 @@ impl Default for ToolAwareRecognizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::intent_recognizer::{Complexity, IntentRecognizer, Priority};
+    use crate::intent_recognizer::{Complexity, Priority};
 
     #[test]
     fn test_tool_aware_recognizer_new() {

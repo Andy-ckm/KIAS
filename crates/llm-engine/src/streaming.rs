@@ -206,7 +206,7 @@ mod tests {
         }
     }
 
-    fn tool_call_delta_choice(id: &str, args: &str) -> StreamChoice {
+    fn _tool_call_delta_choice(id: &str, args: &str) -> StreamChoice {
         StreamChoice {
             index: 0,
             delta: StreamDelta {

@@ -1,3 +1,45 @@
+## 最新更新：2026-05-17 19:52 (Sprint 74 — Test Coverage Expansion +17)
+
+### 🎯 Sprint 74 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,139 通过 / 0 失败 (+17) |
+
+### 🔧 本轮新增
+- **data-store 测试扩展**: 81 → 91 tests (+10, +12%)
+  - `test_model_stats_direct` — model_stats 统计验证 (entries/hits/tokens)
+  - `test_model_stats_empty_model` — 空模型统计返回零值
+  - `test_model_stats_cross_model_isolation` — 跨模型隔离验证
+  - `test_experience_replay_get_by_agent_with_limit` — 经验回放按 Agent 查询 + limit
+  - `test_experience_replay_get_by_agent_empty` — 空 Agent 查询返回空
+  - `test_prefix_cache_lookup_increments_hit_count` — 前缀缓存命中计数
+  - `test_prefix_cache_batch_insert_and_lookup_multiple_models` — 多模型缓存隔离
+  - `test_config_get_by_key_specific` — 配置按 key 精确查询 + 跨命名空间
+  - `test_skill_get_enabled_filters_correctly` — 技能启用状态过滤
+  - `test_component_get_by_type` — 组件按类型过滤
+- **scheduler 测试扩展**: 114 → 120 tests (+6, +5%)
+  - `test_node_cache_info_hit_rate` — 缓存命中率计算 (0/0.7/1.0)
+  - `test_update_and_get_node_cache` — 缓存信息存取
+  - `test_record_cache_hit_and_miss` — 命中/未命中计数
+  - `test_record_cache_hit_nonexistent_node` — 不存在节点不 panic
+  - `test_cache_weight_clamping` — 权重边界值 [0.0, 1.0] 验证
+  - `test_multiple_cached_nodes_picks_best` — 多缓存节点选择最优
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 107,696
+- **测试数量**: 2,139 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+
+### 💾 磁盘状态
+- / (系统盘): 22G 可用 / 40G (44%)
+- /mnt (挂载盘): 16G 可用 / 30G (46%)
+
+---
+
 ## 最新更新：2026-05-17 15:27 (Sprint 73 — API Server Integration Tests +12)
 
 ### 🎯 Sprint 73 质量门禁检查

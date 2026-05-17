@@ -238,8 +238,7 @@ impl Dispatcher {
             .values()
             .filter(|a| a.status == AgentStatus::Idle && a.current_tasks < a.max_tasks)
             .filter(|a| {
-                required_caps.is_empty()
-                    || required_caps.iter().all(|c| a.capabilities.contains(c))
+                required_caps.is_empty() || required_caps.iter().all(|c| a.capabilities.contains(c))
             })
             .map(|a| {
                 let score = a

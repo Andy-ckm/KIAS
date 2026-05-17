@@ -158,6 +158,7 @@ impl CircuitBreaker {
         let state = self.state.read().await;
         if *state == CircuitState::HalfOpen {
             drop(state);
+            drop(metrics);
             let mut successes = self.half_open_successes.write().await;
             *successes += 1;
             if *successes >= self.config.half_open_success_threshold {
@@ -515,11 +516,7 @@ impl ClientRateLimiter {
     async fn get_or_create(&self, client_id: &str) -> TokenBucketRateLimiter {
         let clients = self.clients.read().await;
         if let Some(limiter) = clients.get(client_id) {
-            return TokenBucketRateLimiter::new(RateLimiterConfig {
-                max_tokens: limiter.config.max_tokens,
-                refill_rate: limiter.config.refill_rate,
-                initial_tokens: Some(limiter.config.max_tokens),
-            });
+            return limiter.clone();
         }
         drop(clients);
 
@@ -1013,5 +1010,4 @@ mod tests {
         assert_ne!(CircuitState::Closed, CircuitState::Open);
         assert_ne!(CircuitState::Open, CircuitState::HalfOpen);
     }
-
 }

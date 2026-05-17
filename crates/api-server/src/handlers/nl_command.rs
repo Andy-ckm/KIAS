@@ -154,14 +154,22 @@ pub async fn nl_stream(
     });
 
     // 返回 SSE 格式响应
-    let body = format!("data: {}\n\n", serde_json::to_string(&result).unwrap());
+    let body = format!(
+        "data: {}\\n\\n",
+        serde_json::to_string(&result).unwrap_or_default()
+    );
     axum::response::Response::builder()
         .status(200)
         .header("Content-Type", "text/event-stream")
         .header("Cache-Control", "no-cache")
         .header("Connection", "keep-alive")
         .body(axum::body::Body::from(body))
-        .unwrap()
+        .unwrap_or_else(|_| {
+            axum::response::Response::builder()
+                .status(500)
+                .body(axum::body::Body::empty())
+                .unwrap()
+        })
 }
 
 /// 意图解析器

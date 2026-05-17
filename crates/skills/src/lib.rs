@@ -3,6 +3,7 @@ pub mod composition;
 pub mod pipeline;
 pub mod registry;
 pub mod skill;
+pub mod version_control;
 
 pub use builtin::register_builtin_skills;
 pub use composition::{CompositeSkill, SchemaValidation, SkillComposer};

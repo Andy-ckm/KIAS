@@ -14,7 +14,7 @@
 //! ```
 
 use async_trait::async_trait;
-use kias_common::KiasResult;
+use kias_common::{KiasError, KiasResult};
 use std::sync::Arc;
 use tracing::{debug, info};
 
@@ -181,6 +181,179 @@ impl EmbeddingEngine for LocalEmbeddingEngine {
             results.push(self.embed(text).await?);
         }
         Ok(results)
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+}
+
+// ============================================================
+// SiliconFlow BGE-M3 Embedding Engine
+// ============================================================
+
+/// BGE-M3 embedding dimension (1024)
+pub const BGE_M3_DIMENSION: usize = 1024;
+
+/// SiliconFlow API embedding request
+#[derive(serde::Serialize)]
+struct SiliconFlowEmbeddingRequest {
+    model: String,
+    input: Vec<String>,
+}
+
+/// SiliconFlow API embedding response
+#[derive(serde::Deserialize)]
+struct SiliconFlowEmbeddingResponse {
+    data: Vec<SiliconFlowEmbeddingData>,
+}
+
+/// Single embedding in the response
+#[derive(serde::Deserialize)]
+struct SiliconFlowEmbeddingData {
+    embedding: Vec<f32>,
+}
+
+/// Cloud-based embedding engine using SiliconFlow's free BGE-M3 model.
+///
+/// SiliconFlow offers free access to BAAI/bge-m3 embeddings, providing
+/// high-quality 1024-dim vectors at zero cost. This is inspired by Sembr's
+/// cost optimization approach — use free tiers aggressively.
+///
+/// ## Setup
+///
+/// Get a free API key from https://cloud.siliconflow.cn and set:
+/// ```bash
+/// export KIAS_KNOWLEDGE__SILICONFLOW_API_KEY=sk-xxx
+/// ```
+///
+/// ## Rate Limits
+///
+/// Free tier has generous limits but includes automatic retry with
+/// exponential backoff for transient failures.
+pub struct SiliconFlowEmbeddingEngine {
+    client: reqwest::Client,
+    api_key: String,
+    base_url: String,
+    model: String,
+    dimension: usize,
+}
+
+impl SiliconFlowEmbeddingEngine {
+    /// Create a new SiliconFlow embedding engine.
+    ///
+    /// # Arguments
+    /// * `api_key` - SiliconFlow API key (sk-xxx)
+    /// * `model` - Model name (default: "BAAI/bge-m3")
+    pub fn new(api_key: String, model: String) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            api_key,
+            base_url: "https://api.siliconflow.cn/v1".to_string(),
+            model,
+            dimension: BGE_M3_DIMENSION,
+        }
+    }
+
+    /// Create with a custom base URL (for proxies or self-hosted).
+    pub fn with_base_url(mut self, base_url: String) -> Self {
+        self.base_url = base_url;
+        self
+    }
+
+    /// Build the full embeddings endpoint URL
+    fn endpoint(&self) -> String {
+        format!("{}/embeddings", self.base_url)
+    }
+
+    /// Execute an embedding request with retry logic.
+    async fn do_embed(&self, texts: &[String]) -> KiasResult<Vec<Vec<f32>>> {
+        let request = SiliconFlowEmbeddingRequest {
+            model: self.model.clone(),
+            input: texts.to_vec(),
+        };
+
+        let mut last_err = None;
+        for attempt in 0..3 {
+            if attempt > 0 {
+                let delay_ms = 200 * (1u64 << attempt);
+                tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+                debug!(attempt = attempt + 1, "Retrying SiliconFlow embedding request");
+            }
+
+            let resp = self
+                .client
+                .post(self.endpoint())
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .header("Content-Type", "application/json")
+                .json(&request)
+                .send()
+                .await;
+
+            match resp {
+                Ok(response) => {
+                    let status = response.status();
+                    if !status.is_success() {
+                        let body = response.text().await.unwrap_or_default();
+                        tracing::warn!(
+                            status = %status,
+                            body = %body,
+                            "SiliconFlow embedding API error"
+                        );
+                        last_err = Some(KiasError::ExternalService(format!(
+                            "SiliconFlow API returned {}: {}",
+                            status, body
+                        )));
+                        continue;
+                    }
+
+                    let embedding_resp: SiliconFlowEmbeddingResponse =
+                        response.json().await.map_err(|e| {
+                            KiasError::ExternalService(format!(
+                                "Failed to parse SiliconFlow response: {}",
+                                e
+                            ))
+                        })?;
+
+                    if embedding_resp.data.len() != texts.len() {
+                        return Err(KiasError::ExternalService(format!(
+                            "Expected {} embeddings, got {}",
+                            texts.len(),
+                            embedding_resp.data.len()
+                        )));
+                    }
+
+                    return Ok(embedding_resp.data.into_iter().map(|d| d.embedding).collect());
+                }
+                Err(e) => {
+                    last_err = Some(KiasError::ExternalService(format!(
+                        "SiliconFlow request failed: {}",
+                        e
+                    )));
+                }
+            }
+        }
+
+        Err(last_err.unwrap_or_else(|| KiasError::ExternalService("SiliconFlow embedding failed".to_string())))
+    }
+}
+
+#[async_trait]
+impl EmbeddingEngine for SiliconFlowEmbeddingEngine {
+    async fn embed(&self, text: &str) -> KiasResult<Vec<f32>> {
+        let results = self.do_embed(&[text.to_string()]).await?;
+        Ok(results.into_iter().next().unwrap_or_default())
+    }
+
+    async fn embed_batch(&self, texts: &[&str]) -> KiasResult<Vec<Vec<f32>>> {
+        let owned: Vec<String> = texts.iter().map(|s| s.to_string()).collect();
+        // SiliconFlow supports up to 32 inputs per batch
+        let mut all_embeddings = Vec::with_capacity(owned.len());
+        for chunk in owned.chunks(32) {
+            let embeddings = self.do_embed(chunk).await?;
+            all_embeddings.extend(embeddings);
+        }
+        Ok(all_embeddings)
     }
 
     fn dimension(&self) -> usize {
@@ -376,6 +549,69 @@ mod tests {
         for emb in &embeddings {
             assert_eq!(emb.len(), 32);
         }
+    }
+
+    // ===== SiliconFlowEmbeddingEngine tests =====
+
+    #[test]
+    fn test_siliconflow_engine_construction() {
+        let engine = SiliconFlowEmbeddingEngine::new(
+            "sk-test-key".to_string(),
+            "BAAI/bge-m3".to_string(),
+        );
+        assert_eq!(engine.dimension(), BGE_M3_DIMENSION);
+    }
+
+    #[test]
+    fn test_siliconflow_engine_custom_base_url() {
+        let engine = SiliconFlowEmbeddingEngine::new(
+            "sk-test-key".to_string(),
+            "BAAI/bge-m3".to_string(),
+        )
+        .with_base_url("https://proxy.example.com/v1".to_string());
+        assert_eq!(engine.endpoint(), "https://proxy.example.com/v1/embeddings");
+    }
+
+    #[test]
+    fn test_siliconflow_engine_default_endpoint() {
+        let engine = SiliconFlowEmbeddingEngine::new(
+            "sk-test-key".to_string(),
+            "BAAI/bge-m3".to_string(),
+        );
+        assert_eq!(
+            engine.endpoint(),
+            "https://api.siliconflow.cn/v1/embeddings"
+        );
+    }
+
+    #[test]
+    fn test_siliconflow_request_serialization() {
+        let req = SiliconFlowEmbeddingRequest {
+            model: "BAAI/bge-m3".to_string(),
+            input: vec!["hello world".to_string()],
+        };
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "BAAI/bge-m3");
+        assert_eq!(json["input"][0], "hello world");
+    }
+
+    #[test]
+    fn test_siliconflow_response_deserialization() {
+        let json = r#"{
+            "data": [
+                {"embedding": [0.1, 0.2, 0.3]},
+                {"embedding": [0.4, 0.5, 0.6]}
+            ]
+        }"#;
+        let resp: SiliconFlowEmbeddingResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.data.len(), 2);
+        assert_eq!(resp.data[0].embedding, vec![0.1, 0.2, 0.3]);
+        assert_eq!(resp.data[1].embedding, vec![0.4, 0.5, 0.6]);
+    }
+
+    #[test]
+    fn test_bge_m3_dimension_constant() {
+        assert_eq!(BGE_M3_DIMENSION, 1024);
     }
 
     // ===== VectorRetriever tests =====

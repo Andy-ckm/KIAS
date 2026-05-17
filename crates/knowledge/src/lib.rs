@@ -20,5 +20,5 @@ pub use memory::{AgentMemoryStore, Importance, MemoryEntry, MemoryType};
 pub use retriever::{HybridRetriever, KeywordRetriever, MatchType, Retriever, ScoredNode};
 pub use vector::{
     cosine_distance, cosine_similarity, l2_distance, EmbeddingEngine, LocalEmbeddingEngine,
-    VectorRetriever, VectorStore, VectorStoreStats,
+    SiliconFlowEmbeddingEngine, VectorRetriever, VectorStore, VectorStoreStats, BGE_M3_DIMENSION,
 };

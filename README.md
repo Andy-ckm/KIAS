@@ -39,17 +39,37 @@
 
 ## Overview
 
-KIAS is a Rust-based AI Agent cluster scheduling system that applies Kubernetes control-plane architecture to LLM agent orchestration. It addresses the gap between prototype agent scripts and production-ready agent infrastructure: state persistence, crash recovery, multi-agent coordination, cache-aware scheduling, sandboxed execution, and observability.
+### 核心理念
 
-**Core: Positive Loop + Self-Evolution = Long-running Agents**
+KIAS 的核心是 **正向循环 + 自我进化**：
 
 ```
 运行 → 观察 → 提取模式 → 生成 Skill → 验证 → 部署 → 再运行
 ```
 
-Two primary scenarios:
-- **Infrastructure (like K8S):** Orchestrate, schedule, and manage Agent clusters at scale
-- **Development (dogfooding):** Use KIAS to develop KIAS — the first Long-running Agent
+每一轮循环都让系统更强——故障经验沉淀为 Skill，成功模式被复用，Agent 能力持续积累。
+
+> **KIAS = Long-running Agents 的基石。**
+> 详见 [`docs/strategy/two-core-scenarios.md`](docs/strategy/two-core-scenarios.md)
+
+### 两大核心场景
+
+**场景一：基础设施编排（Like K8s）**
+把 Agent 当作"容器"来管理——声明式定义、自动调度、自愈恢复、弹性伸缩。
+- Agent 生命周期管理（创建/销毁/重启/自愈）
+- 集群调度（能力匹配/负载均衡/资源隔离）
+- 全链路可观测（Tracing/Metrics/Logging/审计）
+- 熔断限流 + 凭证管理 + RBAC + 多租户
+- 模型路由（成本/质量权衡 + fallback）
+
+**场景二：自循环开发（Self-cyclic Development）**
+用 Agent 开发 Agent——自创建、自编排、自测试、自部署、自进化。
+- 需求 → Agent（自然语言解析为 Agent 定义）
+- 任务 → Workflow（自动拆解为 DAG 编排）
+- 操作 → Skill（从历史中提取可复用模式）
+- 变更 → 部署（质量门禁 + 滚动发布）
+
+**两者关系：** 基础设施为开发提供运行环境，自循环开发为基础设施提供进化能力，形成正向增强循环。
 
 **Key numbers:**
 

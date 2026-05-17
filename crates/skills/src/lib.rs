@@ -7,6 +7,7 @@ pub mod registry;
 pub mod skill;
 pub mod skill_dag;
 pub mod version_control;
+pub mod web_recorder;
 
 pub use builtin::register_builtin_skills;
 pub use composition::{CompositeSkill, SchemaValidation, SkillComposer};
@@ -16,3 +17,8 @@ pub use pipeline::{
 };
 pub use registry::SkillRegistry;
 pub use skill::{HttpCallSkill, JsonTransformSkill, ShellSkill, Skill, SkillConfig};
+pub use web_recorder::{
+    BrowserAction, BrowserRecording, BrowserWorkflowSkill, ParameterDefinition, ParameterType,
+    RecorderConfig, RecordingStore, ScrollDirection, SkillGenerator, WebRecorder, WorkflowConfig,
+    WorkflowExecutionResult,
+};

@@ -246,11 +246,13 @@ checksum = "3c1e7e457ea78e524f48639f551fd79703ac3f2237f5ecccdf4708f8a75ad373"
 name = "auto-loop"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "kias-autonomy-controller",
  "kias-controller",
  "serde",
  "serde_json",
+ "tokio",
  "tokio-test",
  "tracing",
  "uuid",

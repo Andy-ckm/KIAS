@@ -434,7 +434,7 @@ impl MidTermMemory {
             .filter(|e| e.content.to_lowercase().contains(&query_lower))
             .cloned()
             .collect();
-        results.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.updated_at));
         results.truncate(limit);
 
         // Update access counts

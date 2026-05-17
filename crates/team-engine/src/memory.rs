@@ -336,11 +336,222 @@ impl EntityMemory {
     }
 }
 
+/// Memory category for mid-term memory (Hermes-inspired)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum MemoryCategory {
+    /// User preferences (e.g., "prefers concise responses")
+    UserPreference,
+    /// Environment facts (e.g., "OS: Ubuntu 22.04", "Python 3.11")
+    EnvironmentFact,
+    /// Tool quirks (e.g., "terminal timeout needs 300s for cargo test")
+    ToolQuirk,
+    /// Stable conventions (e.g., "always use main branch, never master")
+    Convention,
+    /// Recurring corrections (e.g., "don't use sed for file editing")
+    Correction,
+}
+
+impl std::fmt::Display for MemoryCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UserPreference => write!(f, "user_preference"),
+            Self::EnvironmentFact => write!(f, "environment_fact"),
+            Self::ToolQuirk => write!(f, "tool_quirk"),
+            Self::Convention => write!(f, "convention"),
+            Self::Correction => write!(f, "correction"),
+        }
+    }
+}
+
+/// Mid-term memory entry with category
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MidTermEntry {
+    pub id: String,
+    pub category: MemoryCategory,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub access_count: u32,
+}
+
+/// Mid-term memory: persistent across sessions, categorized
+/// Inspired by Hermes MEMORY.md — user preferences, environment facts, conventions
+#[derive(Debug)]
+pub struct MidTermMemory {
+    entries: Vec<MidTermEntry>,
+    max_entries: usize,
+}
+
+impl MidTermMemory {
+    pub fn new(max_entries: usize) -> Self {
+        Self {
+            entries: Vec::new(),
+            max_entries,
+        }
+    }
+
+    /// Add a new memory entry
+    pub fn add(&mut self, category: MemoryCategory, content: &str) -> String {
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now();
+        let entry = MidTermEntry {
+            id: id.clone(),
+            category,
+            content: content.to_string(),
+            created_at: now,
+            updated_at: now,
+            access_count: 0,
+        };
+        self.entries.push(entry);
+        self.evict_if_needed();
+        id
+    }
+
+    /// Replace an existing entry by id
+    pub fn replace(&mut self, id: &str, new_content: &str) -> bool {
+        if let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) {
+            entry.content = new_content.to_string();
+            entry.updated_at = Utc::now();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Remove an entry by id
+    pub fn remove(&mut self, id: &str) -> bool {
+        let len_before = self.entries.len();
+        self.entries.retain(|e| e.id != id);
+        self.entries.len() < len_before
+    }
+
+    /// Search entries by query (substring match on content)
+    pub fn search(&mut self, query: &str, limit: usize) -> Vec<MidTermEntry> {
+        let query_lower = query.to_lowercase();
+        let mut results: Vec<MidTermEntry> = self
+            .entries
+            .iter()
+            .filter(|e| e.content.to_lowercase().contains(&query_lower))
+            .cloned()
+            .collect();
+        results.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        results.truncate(limit);
+
+        // Update access counts
+        for result in &results {
+            if let Some(entry) = self.entries.iter_mut().find(|e| e.id == result.id) {
+                entry.access_count += 1;
+            }
+        }
+        results
+    }
+
+    /// Get all entries of a specific category
+    pub fn get_by_category(&self, category: &MemoryCategory) -> Vec<MidTermEntry> {
+        self.entries
+            .iter()
+            .filter(|e| &e.category == category)
+            .cloned()
+            .collect()
+    }
+
+    /// Build prompt injection string from all memories
+    pub fn build_prompt_context(&self) -> String {
+        let mut sections: HashMap<String, Vec<String>> = HashMap::new();
+        for entry in &self.entries {
+            sections
+                .entry(entry.category.to_string())
+                .or_default()
+                .push(entry.content.clone());
+        }
+
+        let mut context = String::from("## Memory (injected)\n\n");
+        for (category, items) in &sections {
+            context.push_str(&format!("### {}\n", category));
+            for item in items {
+                context.push_str(&format!("- {}\n", item));
+            }
+            context.push('\n');
+        }
+        context
+    }
+
+    /// Export to MEMORY.md format
+    pub fn to_markdown(&self) -> String {
+        let mut md = String::from("# Agent Memory\n\n");
+        let mut by_category: HashMap<String, Vec<&MidTermEntry>> = HashMap::new();
+        for entry in &self.entries {
+            by_category
+                .entry(entry.category.to_string())
+                .or_default()
+                .push(entry);
+        }
+        for (cat, entries) in &by_category {
+            md.push_str(&format!("## {}\n\n", cat));
+            for entry in entries {
+                md.push_str(&format!("- {}\n", entry.content));
+            }
+            md.push('\n');
+        }
+        md
+    }
+
+    /// Import from MEMORY.md markdown string
+    pub fn from_markdown(&mut self, markdown: &str) {
+        let mut current_category = MemoryCategory::Convention;
+        for line in markdown.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("## ") {
+                let cat_str = trimmed.trim_start_matches("## ").trim();
+                current_category = match cat_str.to_lowercase().as_str() {
+                    "user_preference" | "user preference" => MemoryCategory::UserPreference,
+                    "environment_fact" | "environment fact" => MemoryCategory::EnvironmentFact,
+                    "tool_quirk" | "tool quirk" => MemoryCategory::ToolQuirk,
+                    "convention" => MemoryCategory::Convention,
+                    "correction" => MemoryCategory::Correction,
+                    _ => continue,
+                };
+            } else if trimmed.starts_with("- ") {
+                let content = trimmed.trim_start_matches("- ").trim();
+                if !content.is_empty() {
+                    self.add(current_category.clone(), content);
+                }
+            }
+        }
+    }
+
+    fn evict_if_needed(&mut self) {
+        if self.entries.len() > self.max_entries {
+            self.entries.sort_by(|a, b| {
+                b.access_count
+                    .cmp(&a.access_count)
+                    .then(b.updated_at.cmp(&a.updated_at))
+            });
+            self.entries.truncate(self.max_entries);
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+impl Default for MidTermMemory {
+    fn default() -> Self {
+        Self::new(500)
+    }
+}
+
 /// Unified memory manager combining all three tiers
 pub struct MemoryManager {
     pub short_term: Arc<RwLock<ShortTermMemory>>,
     pub long_term: Arc<RwLock<LongTermMemory>>,
     pub entity: Arc<RwLock<EntityMemory>>,
+    pub mid_term: Arc<RwLock<MidTermMemory>>,
 }
 
 impl MemoryManager {
@@ -357,7 +568,46 @@ impl MemoryManager {
             ))),
             long_term: Arc::new(RwLock::new(LongTermMemory::new(long_term_max))),
             entity: Arc::new(RwLock::new(EntityMemory::new(entity_max_per))),
+            mid_term: Arc::new(RwLock::new(MidTermMemory::default())),
         }
+    }
+
+    /// Build full prompt context from all memory tiers
+    pub async fn build_full_context(&self, query: &str, max_tokens: usize) -> String {
+        let mut context = String::new();
+
+        // Mid-term memories (user preferences, conventions, etc.)
+        let mid = self.mid_term.read().await;
+        context.push_str(&mid.build_prompt_context());
+        drop(mid);
+
+        // Relevant short-term memories
+        let mut stm = self.short_term.write().await;
+        let stm_results = stm.search(query, 5);
+        if !stm_results.is_empty() {
+            context.push_str("## Recent Context\n\n");
+            for entry in &stm_results {
+                context.push_str(&format!("- [{}] {}\n", entry.agent_id, entry.content));
+            }
+            context.push('\n');
+        }
+        drop(stm);
+
+        // Relevant long-term memories
+        let mut ltm = self.long_term.write().await;
+        let ltm_results = ltm.search(query, 5);
+        if !ltm_results.is_empty() {
+            context.push_str("## Knowledge\n\n");
+            for entry in &ltm_results {
+                context.push_str(&format!("- {}\n", entry.content));
+            }
+        }
+
+        // Truncate to max_tokens (approximate)
+        if context.len() > max_tokens * 4 {
+            context.truncate(max_tokens * 4);
+        }
+        context
     }
 }
 

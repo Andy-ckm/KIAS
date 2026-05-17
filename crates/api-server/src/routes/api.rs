@@ -206,6 +206,17 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::post(nl_command::nl_stream),
         );
 
+    // --- Intent recognition routes ---
+    let intent_routes = Router::new()
+        .route(
+            "/api/v1/intent/recognize",
+            axum::routing::post(nl_command::recognize_intent),
+        )
+        .route(
+            "/api/v1/intent/decompose",
+            axum::routing::post(nl_command::decompose_task),
+        );
+
     // --- IM integration routes ---
     let im_routes = Router::new()
         .route("/api/v1/im/webhook", axum::routing::post(im::im_webhook))
@@ -232,6 +243,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(scheduler_routes)
         .merge(a2a_routes)
         .merge(nl_routes)
+        .merge(intent_routes)
         .merge(im_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(

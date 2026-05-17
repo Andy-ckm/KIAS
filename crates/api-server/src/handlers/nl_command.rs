@@ -922,3 +922,170 @@ pub async fn execute_intent_for_im(
 ) -> (Vec<NlAction>, String, Vec<String>) {
     execute_intent(intent, state).await
 }
+
+// ─── 意图识别 API 端点 ──────────────────────────────────
+
+/// 意图识别请求
+#[derive(Debug, Clone, Deserialize)]
+pub struct RecognizeIntentRequest {
+    /// 用户输入
+    pub input: String,
+    /// 可选上下文
+    #[serde(default)]
+    pub context: Option<String>,
+}
+
+/// 意图识别响应
+#[derive(Debug, Clone, Serialize)]
+pub struct RecognizeIntentResponse {
+    /// 意图类型
+    pub intent_type: String,
+    /// 复杂度
+    pub complexity: String,
+    /// 优先级
+    pub priority: String,
+    /// 置信度
+    pub confidence: f64,
+    /// 关键词
+    pub keywords: Vec<String>,
+    /// 推荐工具
+    pub recommended_tools: Vec<RecommendedToolResponse>,
+}
+
+/// 推荐工具响应
+#[derive(Debug, Clone, Serialize)]
+pub struct RecommendedToolResponse {
+    /// 工具名称
+    pub name: String,
+    /// 匹配分数
+    pub score: f64,
+    /// 匹配原因
+    pub reason: String,
+}
+
+/// 任务拆解请求
+#[derive(Debug, Clone, Deserialize)]
+pub struct DecomposeTaskRequest {
+    /// 用户输入
+    pub input: String,
+    /// 意图类型（可选）
+    #[serde(default)]
+    pub intent_type: Option<String>,
+}
+
+/// 任务拆解响应
+#[derive(Debug, Clone, Serialize)]
+pub struct DecomposeTaskResponse {
+    /// 任务数量
+    pub task_count: usize,
+    /// 总预估耗时（秒）
+    pub total_estimated_duration: u64,
+    /// 是否需要多Agent协作
+    pub requires_multi_agent: bool,
+    /// 任务列表
+    pub tasks: Vec<TaskResponse>,
+}
+
+/// 任务响应
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskResponse {
+    /// 任务ID
+    pub id: String,
+    /// 任务名称
+    pub name: String,
+    /// 任务描述
+    pub description: String,
+    /// 依赖任务
+    pub dependencies: Vec<String>,
+    /// 预估耗时（秒）
+    pub estimated_duration: u64,
+    /// 所需技能
+    pub required_skills: Vec<String>,
+}
+
+/// 意图识别端点
+pub async fn recognize_intent(
+    Json(request): Json<RecognizeIntentRequest>,
+) -> Result<Json<RecognizeIntentResponse>, ApiError> {
+    // 使用关键词识别器
+    let recognizer = auto_loop::intent_recognizer::IntentRecognizer::new();
+    let intent = recognizer.recognize(&request.input);
+
+    // 转换为响应
+    let response = RecognizeIntentResponse {
+        intent_type: format!("{:?}", intent.intent_type),
+        complexity: format!("{:?}", intent.complexity),
+        priority: format!("{:?}", intent.priority),
+        confidence: intent.confidence,
+        keywords: intent.keywords,
+        recommended_tools: vec![], // TODO: 集成 ToolAwareRecognizer
+    };
+
+    Ok(Json(response))
+}
+
+/// 任务拆解端点
+pub async fn decompose_task(
+    Json(request): Json<DecomposeTaskRequest>,
+) -> Result<Json<DecomposeTaskResponse>, ApiError> {
+    // 解析意图类型
+    let intent_type = if let Some(ref type_str) = request.intent_type {
+        match type_str.as_str() {
+            "CodeGeneration" => auto_loop::intent_recognizer::IntentType::CodeGeneration,
+            "BugFix" => auto_loop::intent_recognizer::IntentType::BugFix,
+            "CodeReview" => auto_loop::intent_recognizer::IntentType::CodeReview,
+            "TestGeneration" => auto_loop::intent_recognizer::IntentType::TestGeneration,
+            "Documentation" => auto_loop::intent_recognizer::IntentType::Documentation,
+            "SecurityAudit" => auto_loop::intent_recognizer::IntentType::SecurityAudit,
+            "PerformanceOptimization" => {
+                auto_loop::intent_recognizer::IntentType::PerformanceOptimization
+            }
+            "KnowledgeQuery" => auto_loop::intent_recognizer::IntentType::KnowledgeQuery,
+            "SystemAdmin" => auto_loop::intent_recognizer::IntentType::SystemAdmin,
+            _ => auto_loop::intent_recognizer::IntentType::Unknown,
+        }
+    } else {
+        // 自动识别意图
+        let recognizer = auto_loop::intent_recognizer::IntentRecognizer::new();
+        let intent = recognizer.recognize(&request.input);
+        intent.intent_type
+    };
+
+    // 创建意图
+    let intent = auto_loop::intent_recognizer::RecognizedIntent {
+        intent_type,
+        complexity: auto_loop::intent_recognizer::Complexity::Medium,
+        priority: auto_loop::intent_recognizer::Priority::Medium,
+        keywords: vec![],
+        raw_input: request.input.clone(),
+        confidence: 0.8,
+    };
+
+    // 拆解任务
+    let decomposer = auto_loop::task_decomposer::TaskDecomposer::new();
+    let result = decomposer.decompose(&intent);
+
+    // 转换为响应
+    let tasks: Vec<TaskResponse> = result
+        .task_graph
+        .nodes
+        .values()
+        .map(|node| TaskResponse {
+            id: node.id.clone(),
+            name: node.name.clone(),
+            description: node.description.clone(),
+            dependencies: node.dependencies.clone(),
+            estimated_duration: node.estimated_duration,
+            required_skills: node.required_skills.clone(),
+        })
+        .collect();
+
+    let response = DecomposeTaskResponse {
+        task_count: result.task_count,
+        total_estimated_duration: result.total_estimated_duration,
+        requires_multi_agent: result.requires_multi_agent,
+        tasks,
+    };
+
+    Ok(Json(response))
+}

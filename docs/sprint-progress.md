@@ -1,3 +1,38 @@
+## 最新更新：2026-05-17 12:45 (Sprint 70 — mcp-protocol sandbox compilation fix)
+
+### 🎯 Sprint 70 质量门检查
+- ✅ `cargo build --workspace` — 0 errors
+- ✅ `cargo fmt --all -- --check` — clean
+- ✅ `cargo clippy --workspace -- -D warnings` — 0 warnings
+- ✅ `cargo test --workspace` — **1910 tests passed**
+
+### 📝 本次完成
+1. **修复 mcp-protocol sandbox.rs 编译错误** (5 errors with --features full)
+   - SandboxResult 字段名不匹配: peak_memory_bytes/cpu_usage → resource_usage (ResourceUsage struct)
+   - ResourceUsage 字段名不匹配: memory_bytes → peak_memory_bytes, cpu_usage → cpu_time_ns
+   - tracing::warn! 替换为 eprintln! (tracing 不是 mcp-protocol 的依赖)
+2. **修复 kias-scheduler clippy warnings** (3 unused variables)
+   - check_constraint: constraint → _constraint
+   - select_affinity: intent → _intent
+   - select_priority: intent → _intent
+3. **README 更新**: LOC badge 85K→99K, 测试数 badge 更新
+4. **磁盘清理**: 删除 incremental build cache (9.1G), /mnt 87%→56%
+
+### 💾 磁盘状态
+- `/` (系统盘): 45% (22G 可用)
+- `/mnt` (挂载盘): 56% (13G 可用)
+
+### 📊 统计
+| 指标 | 值 |
+|------|-----|
+| 总测试数 | 1910 |
+| 代码行数 | 98,596 |
+| Clippy warnings | 0 |
+| Fmt issues | 0 |
+| mcp-protocol tests | 158 (full features) |
+
+---
+
 ## 最新更新：2026-05-17 12:10 (Sprint 69 — AgenticRAG test coverage)
 
 ### 🎯 Sprint 69 质量门检查

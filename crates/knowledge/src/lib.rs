@@ -5,6 +5,7 @@ pub mod graphrag;
 pub mod inspiration_stream;
 pub mod memory;
 pub mod memory_layers;
+pub mod quality_pipeline;
 pub mod retriever;
 pub mod vector;
 

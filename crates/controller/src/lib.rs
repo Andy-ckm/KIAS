@@ -1,4 +1,5 @@
 pub mod autonomy_integration;
+pub mod controller_loop;
 pub mod events;
 pub mod handoff;
 pub mod health;
@@ -10,6 +11,10 @@ pub mod runtime_loop;
 pub mod state;
 
 pub use autonomy_integration::{ActionApproval, AutonomyGate};
+pub use controller_loop::{
+    ControllerEventObserver, ControllerLoop, ControllerLoopConfig, ConvergenceEvaluator,
+    ReconcileExecutor, RoundActionSummary,
+};
 pub use events::{
     AgentEvent, AgentEventEnvelope, AlertProcessor, EventBus, EventProcessor, EventType,
     LoggingProcessor, MetricsProcessor,

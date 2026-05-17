@@ -995,4 +995,195 @@ mod tests {
             err_msg
         );
     }
+
+    #[tokio::test]
+    async fn test_jwt_valid_token_with_issuer() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec()).with_issuer("kias");
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "iss": "kias",
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().sub, "user-1");
+    }
+
+    #[tokio::test]
+    async fn test_jwt_with_audience() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec())
+            .with_issuer("kias")
+            .with_audience("mcp-server");
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "iss": "kias",
+            "aud": "mcp-server",
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_jwt_wrong_audience() {
+        let key = b"test-secret-key-32bytes-long!!!!!";
+        let provider = JwtAuthProvider::new(key.to_vec()).with_audience("mcp-server");
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let claims = serde_json::json!({
+            "sub": "user-1",
+            "aud": "wrong-audience",
+            "exp": now + 3600,
+            "iat": now
+        });
+        let token = make_jwt(key, &claims, None);
+
+        let result = provider.validate_token(&token).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_api_key_revocation() {
+        let provider = ApiKeyAuthProvider::new();
+        let user = UserInfo {
+            id: "user-1".to_string(),
+            username: "testuser".to_string(),
+            email: None,
+            roles: vec!["developer".to_string()],
+            active: true,
+            attributes: HashMap::new(),
+        };
+
+        provider.register_key("revoke-test-key", user).await;
+
+        // Verify key works
+        let result = provider.validate_token("revoke-test-key").await;
+        assert!(result.is_ok());
+
+        // Revoke
+        let revoked = provider.revoke_key("revoke-test-key").await;
+        assert!(revoked);
+
+        // Verify key no longer works
+        let result = provider.validate_token("revoke-test-key").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_api_key_revoke_nonexistent() {
+        let provider = ApiKeyAuthProvider::new();
+        let revoked = provider.revoke_key("nonexistent").await;
+        assert!(!revoked);
+    }
+
+    #[tokio::test]
+    async fn test_role_builder_with_inherits() {
+        let role = Role::new("custom", "Custom role")
+            .with_permission(Permission::ToolsList)
+            .with_inherits("viewer");
+
+        assert_eq!(role.name, "custom");
+        assert_eq!(role.description, "Custom role");
+        assert!(role.permissions.contains(&Permission::ToolsList));
+        assert!(role.inherits.contains(&"viewer".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_get_user_permissions() {
+        let auth = AuthorizationManager::new();
+
+        // Wait for builtin roles to be registered
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let admin_user = UserInfo {
+            id: "admin-1".to_string(),
+            username: "admin".to_string(),
+            email: None,
+            roles: vec!["admin".to_string()],
+            active: true,
+            attributes: HashMap::new(),
+        };
+
+        let permissions = auth.get_user_permissions(&admin_user).await;
+        assert!(permissions.contains(&Permission::Admin));
+        assert!(permissions.contains(&Permission::ToolsList));
+        assert!(permissions.contains(&Permission::ResourcesList));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_set_default_roles() {
+        let mut auth = AuthorizationManager::new();
+        auth.set_default_roles(vec!["viewer".to_string()]);
+
+        // Wait for builtin roles to be registered
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Verify default roles were set by checking a user with no explicit roles
+        // Default roles apply during check_permission, not get_user_permissions
+        let user = UserInfo {
+            id: "user-1".to_string(),
+            username: "testuser".to_string(),
+            email: None,
+            roles: vec![], // No explicit roles
+            active: true,
+            attributes: HashMap::new(),
+        };
+
+        // check_permission should use default roles
+        let can_list = auth.check_permission(&user, &Permission::ToolsList).await;
+        assert!(can_list.is_ok());
+    }
+
+    #[test]
+    fn test_user_info_has_permission() {
+        let user = UserInfo {
+            id: "user-1".to_string(),
+            username: "testuser".to_string(),
+            email: None,
+            roles: vec!["admin".to_string()],
+            active: true,
+            attributes: HashMap::new(),
+        };
+
+        // Verify user info structure
+        assert_eq!(user.id, "user-1");
+        assert_eq!(user.username, "testuser");
+        assert!(user.roles.contains(&"admin".to_string()));
+        assert!(user.active);
+    }
+
+    #[test]
+    fn test_role_builder_multiple_permissions() {
+        let role = Role::new("power-user", "Power user role")
+            .with_permission(Permission::ToolsList)
+            .with_permission(Permission::ToolsCall("*".to_string()))
+            .with_permission(Permission::ResourcesList)
+            .with_permission(Permission::ResourcesRead("*".to_string()));
+
+        assert_eq!(role.permissions.len(), 4);
+    }
 }

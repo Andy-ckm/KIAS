@@ -213,10 +213,8 @@ impl IntentRecognizer {
                 .filter(|kw| input_lower.contains(&kw.to_lowercase()))
                 .count();
 
-            if match_count > 0 {
-                if best_match.is_none() || match_count > best_match.unwrap().1 {
-                    best_match = Some((rule, match_count));
-                }
+            if match_count > 0 && (best_match.is_none() || match_count > best_match.unwrap().1) {
+                best_match = Some((rule, match_count));
             }
         }
 

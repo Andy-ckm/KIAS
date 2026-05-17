@@ -1137,4 +1137,338 @@ mod tests {
         notifier.clear().await;
         assert_eq!(notifier.events().await.len(), 0);
     }
+
+    #[test]
+    fn test_credential_type_display() {
+        assert_eq!(CredentialType::ApiKey.to_string(), "api_key");
+        assert_eq!(CredentialType::OAuthToken.to_string(), "oauth_token");
+        assert_eq!(CredentialType::BearerToken.to_string(), "bearer_token");
+        assert_eq!(CredentialType::SshKey.to_string(), "ssh_key");
+        assert_eq!(CredentialType::TlsCertificate.to_string(), "tls_certificate");
+        assert_eq!(CredentialType::BasicAuth.to_string(), "basic_auth");
+        assert_eq!(CredentialType::Custom("custom".to_string()).to_string(), "custom");
+    }
+
+    #[tokio::test]
+    async fn test_list_all_credentials() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        // Store 3 credentials
+        for i in 0..3 {
+            manager
+                .store(
+                    &format!("cred-{}", i),
+                    CredentialType::ApiKey,
+                    b"secret",
+                    "admin",
+                    HashMap::new(),
+                    vec![],
+                    None,
+                    None,
+                )
+                .await
+                .unwrap();
+        }
+
+        let all = manager.list(None).await.unwrap();
+        assert_eq!(all.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_list_filter_by_type() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        manager
+            .store("api-key", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+        manager
+            .store("oauth-token", CredentialType::OAuthToken, b"token", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        let filter = CredentialFilter {
+            credential_type: Some(CredentialType::ApiKey),
+            status: None,
+            tags: vec![],
+            created_by: None,
+        };
+        let filtered = manager.list(Some(filter)).await.unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "api-key");
+    }
+
+    #[tokio::test]
+    async fn test_list_filter_by_status() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        let id = manager
+            .store("active-cred", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        manager
+            .store("another-cred", CredentialType::ApiKey, b"secret2", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        // Revoke one
+        manager.revoke(&id, "admin").await.unwrap();
+
+        let filter = CredentialFilter {
+            credential_type: None,
+            status: Some(CredentialStatus::Revoked),
+            tags: vec![],
+            created_by: None,
+        };
+        let filtered = manager.list(Some(filter)).await.unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "active-cred");
+    }
+
+    #[tokio::test]
+    async fn test_list_filter_by_tags() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        manager
+            .store(
+                "tagged-cred",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec!["production".to_string(), "api".to_string()],
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        manager
+            .store(
+                "untagged-cred",
+                CredentialType::ApiKey,
+                b"secret2",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let filter = CredentialFilter {
+            credential_type: None,
+            status: None,
+            tags: vec!["production".to_string()],
+            created_by: None,
+        };
+        let filtered = manager.list(Some(filter)).await.unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "tagged-cred");
+    }
+
+    #[tokio::test]
+    async fn test_list_filter_by_created_by() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        manager
+            .store("admin-cred", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        manager
+            .store("user-cred", CredentialType::ApiKey, b"secret2", "user-1", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        let filter = CredentialFilter {
+            credential_type: None,
+            status: None,
+            tags: vec![],
+            created_by: Some("admin".to_string()),
+        };
+        let filtered = manager.list(Some(filter)).await.unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "admin-cred");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_credential() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        let result = manager.get("nonexistent", "user-1").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_store_with_metadata() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        let mut metadata = HashMap::new();
+        metadata.insert("environment".to_string(), "production".to_string());
+        metadata.insert("team".to_string(), "backend".to_string());
+
+        let id = manager
+            .store(
+                "metadata-cred",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                metadata,
+                vec!["important".to_string()],
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let all = manager.list(None).await.unwrap();
+        let cred = all.iter().find(|c| c.id == id).unwrap();
+        assert_eq!(cred.metadata.get("environment").unwrap(), "production");
+        assert_eq!(cred.metadata.get("team").unwrap(), "backend");
+        assert_eq!(cred.tags, vec!["important".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn test_credential_manager_clone() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        // Store via original
+        manager
+            .store("clone-test", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        // Clone and verify access
+        let cloned = manager.clone();
+        let all = cloned.list(None).await.unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].name, "clone-test");
+    }
+
+    #[tokio::test]
+    async fn test_store_with_expiration() {
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            CredentialManagerConfig::default(),
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        let expires_at = SystemTime::now() + Duration::from_secs(3600);
+        let id = manager
+            .store(
+                "expiring-cred",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                Some(expires_at),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let all = manager.list(None).await.unwrap();
+        let cred = all.iter().find(|c| c.id == id).unwrap();
+        assert!(cred.expires_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_audit_disabled() {
+        let config = CredentialManagerConfig {
+            audit_enabled: false,
+            ..Default::default()
+        };
+        let store = Arc::new(InMemoryCredentialStore::new());
+        let encryptor = Arc::new(NoOpEncryptor);
+        let manager = CredentialManager::new(
+            config,
+            store,
+            encryptor,
+            Arc::new(InMemoryRotationNotifier::new()),
+        );
+
+        manager
+            .store("no-audit", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .await
+            .unwrap();
+
+        let log = manager.audit_log().await;
+        assert!(log.is_empty());
+    }
+
+    #[test]
+    fn test_aes_gcm_encryptor_generate_key() {
+        let key = AesGcmEncryptor::generate_key();
+        assert_eq!(key.len(), 32); // AES-256 key
+    }
+
+    #[test]
+    fn test_aes_gcm_encryptor_new() {
+        let key = AesGcmEncryptor::generate_key();
+        let encryptor = AesGcmEncryptor::new(key);
+        assert!(encryptor.is_ok());
+    }
 }

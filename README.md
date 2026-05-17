@@ -3,7 +3,7 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS/actions">
-    <img src="https://img.shields.io/badge/tests-2122%20passed-brightgreen.svg" alt="Tests">
+    <img src="https://img.shields.io/badge/tests-2257%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/badge/crates-26-purple.svg" alt="Crates">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/badge/LOC-107K%2B-blue.svg" alt="Lines of Code">
+    <img src="https://img.shields.io/badge/LOC-108K%2B-blue.svg" alt="Lines of Code">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
@@ -41,6 +41,16 @@
 
 KIAS is a Rust-based AI Agent cluster scheduling system that applies Kubernetes control-plane architecture to LLM agent orchestration. It addresses the gap between prototype agent scripts and production-ready agent infrastructure: state persistence, crash recovery, multi-agent coordination, cache-aware scheduling, sandboxed execution, and observability.
 
+**Core: Positive Loop + Self-Evolution = Long-running Agents**
+
+```
+运行 → 观察 → 提取模式 → 生成 Skill → 验证 → 部署 → 再运行
+```
+
+Two primary scenarios:
+- **Infrastructure (like K8S):** Orchestrate, schedule, and manage Agent clusters at scale
+- **Development (dogfooding):** Use KIAS to develop KIAS — the first Long-running Agent
+
 **Key numbers:**
 
 <p align="center">
@@ -49,9 +59,9 @@ KIAS is a Rust-based AI Agent cluster scheduling system that applies Kubernetes 
 
 | Metric | Value |
 |--------|-------|
-| Rust Crates | 28 |
-| Lines of Code | 99,000+ |
-| Tests | 1,910 passing |
+| Rust Crates | 26 |
+| Lines of Code | 108,000+ |
+| Tests | 2,257 passing |
 | Scheduling Algorithms | 7 (including GPU-Aware, Edge) |
 | MCP Sandbox Backends | 5 (Docker / Firecracker / gVisor / Wasm / Process) |
 | Test Coverage | `#[cfg(test)]` module in every crate |

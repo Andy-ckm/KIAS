@@ -431,6 +431,25 @@ impl BuiltinAgents {
             .with_permission("filesystem")
             .with_permission("network")
     }
+
+    /// Consultant Agent — 顾问（产品顾问、技术顾问、业务顾问）
+    pub fn consultant_agent() -> AgentProfile {
+        AgentProfile::new("consultant-agent", "Consultant Agent")
+            .with_capability("product_consulting", 0.9)
+            .with_capability("technical_advisory", 0.85)
+            .with_capability("business_analysis", 0.9)
+            .with_capability("presentation_generation", 0.8)
+            .with_specialization("consulting")
+            .with_specialization("advisory")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 2048,
+                max_cpu_percent: 60.0,
+            })
+            .with_permission("filesystem")
+            .with_permission("network")
+    }
 }
 
 #[cfg(test)]

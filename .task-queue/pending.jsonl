@@ -1,4 +1,3 @@
-{"id": "task_1779023775934", "type": "dev", "payload": {"task": "实现A2A /fire同步端点：Agent标准化调用接口（Sembr灵感）", "priority": 4}, "priority": 5, "created_at": "2026-05-17 21:16:15", "status": "pending"}
 {"id": "task_1779023775989", "type": "dev", "payload": {"task": "接入免费嵌入层：SiliconFlow BGE-M3向量模型（Sembr成本优化灵感）", "priority": 5}, "priority": 5, "created_at": "2026-05-17 21:16:15", "status": "pending"}
 {"id": "task_1779024705431", "type": "dev", "payload": {"task": "实现Kanban看板：6列状态机（Triage→Todo→Ready→InProgress→Blocked→Done），SQLite持久化，Dispatcher自动调度，父子依赖+文件交接", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:31:45", "status": "pending"}
 {"id": "task_1779025397034", "type": "dev", "payload": {"task": "Runtime Loop循环执行：controller支持执行→观察→调整→再执行", "priority": 2}, "priority": 5, "created_at": "2026-05-17 21:43:17", "status": "pending"}

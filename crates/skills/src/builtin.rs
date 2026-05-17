@@ -718,10 +718,7 @@ impl Skill for JournalEntrySkill {
             .and_then(|v| v.as_str())
             .unwrap_or("standard");
 
-        let amount = params
-            .get("amount")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
+        let amount = params.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
         let description = params
             .get("description")
@@ -839,7 +836,9 @@ impl Skill for ResumeScreeningSkill {
             .get("job_requirements")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                kias_common::KiasError::Validation("Missing 'job_requirements' parameter".to_string())
+                kias_common::KiasError::Validation(
+                    "Missing 'job_requirements' parameter".to_string(),
+                )
             })?;
 
         let resume_text = params
@@ -956,10 +955,7 @@ impl Skill for ProcurementSkill {
             .and_then(|v| v.as_str())
             .unwrap_or("list_vendors");
 
-        let item = params
-            .get("item")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let item = params.get("item").and_then(|v| v.as_str()).unwrap_or("");
 
         tracing::info!(action = %action, item = %item, "Procurement action");
 
@@ -1012,10 +1008,7 @@ impl Skill for InventoryManagementSkill {
             .and_then(|v| v.as_str())
             .unwrap_or("check_stock");
 
-        let sku = params
-            .get("sku")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let sku = params.get("sku").and_then(|v| v.as_str()).unwrap_or("");
 
         tracing::info!(action = %action, sku = %sku, "Inventory management");
 
@@ -1128,10 +1121,7 @@ impl Skill for BusinessAnalysisSkill {
             .and_then(|v| v.as_str())
             .unwrap_or("market_research");
 
-        let target = params
-            .get("target")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let target = params.get("target").and_then(|v| v.as_str()).unwrap_or("");
 
         tracing::info!(analysis_type = %analysis_type, target = %target, "Performing business analysis");
 

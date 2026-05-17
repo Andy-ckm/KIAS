@@ -1949,4 +1949,229 @@ mod tests {
             .expect("model_stats");
         assert!(remaining.entries >= 1, "at least h3 should survive");
     }
+
+    #[tokio::test]
+    async fn test_model_stats_direct() {
+        let repo = test_repo().await;
+
+        // Insert entries for model "stats-model"
+        let entries = vec![
+            PrefixCacheRow::new("sm-h1", "stats-model", vec![1, 2, 3], 100),
+            PrefixCacheRow::new("sm-h2", "stats-model", vec![4, 5, 6], 200),
+            PrefixCacheRow::new("sm-h3", "stats-model", vec![7, 8, 9], 300),
+        ];
+        repo.prefix_cache
+            .batch_insert(&entries)
+            .await
+            .expect("batch insert");
+
+        // Lookup h1 twice, h2 once
+        repo.prefix_cache.lookup("sm-h1", "stats-model").await.expect("lookup");
+        repo.prefix_cache.lookup("sm-h1", "stats-model").await.expect("lookup");
+        repo.prefix_cache.lookup("sm-h2", "stats-model").await.expect("lookup");
+
+        let stats = repo
+            .prefix_cache
+            .model_stats("stats-model")
+            .await
+            .expect("model_stats");
+        assert_eq!(stats.entries, 3, "should have 3 entries");
+        assert_eq!(stats.total_hits, 3, "h1:2 + h2:1 = 3 hits");
+        assert_eq!(stats.total_tokens, 600, "100+200+300 = 600 tokens");
+    }
+
+    #[tokio::test]
+    async fn test_model_stats_empty_model() {
+        let repo = test_repo().await;
+
+        let stats = repo
+            .prefix_cache
+            .model_stats("nonexistent-model")
+            .await
+            .expect("model_stats for nonexistent");
+        assert_eq!(stats.entries, 0);
+        assert_eq!(stats.total_hits, 0);
+        assert_eq!(stats.total_tokens, 0);
+    }
+
+    #[tokio::test]
+    async fn test_model_stats_cross_model_isolation() {
+        let repo = test_repo().await;
+
+        // Insert for model A
+        let a_entries = vec![
+            PrefixCacheRow::new("iso-h1", "model-a", vec![1], 50),
+        ];
+        repo.prefix_cache.batch_insert(&a_entries).await.expect("insert a");
+
+        // Insert for model B
+        let b_entries = vec![
+            PrefixCacheRow::new("iso-h2", "model-b", vec![2], 100),
+            PrefixCacheRow::new("iso-h3", "model-b", vec![3], 150),
+        ];
+        repo.prefix_cache.batch_insert(&b_entries).await.expect("insert b");
+
+        let stats_a = repo.prefix_cache.model_stats("model-a").await.expect("stats a");
+        assert_eq!(stats_a.entries, 1);
+        assert_eq!(stats_a.total_tokens, 50);
+
+        let stats_b = repo.prefix_cache.model_stats("model-b").await.expect("stats b");
+        assert_eq!(stats_b.entries, 2);
+        assert_eq!(stats_b.total_tokens, 250);
+    }
+
+    #[tokio::test]
+    async fn test_experience_replay_get_by_agent_with_limit() {
+        let repo = test_repo().await;
+
+        // Create agent first (FK constraint)
+        let agent = AgentRow::new("limit-agent");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        // Insert 5 experiences for the same agent
+        for i in 0..5 {
+            let entry = ExperienceReplayRow::new(
+                "limit-agent",
+                &format!("input-{i}"),
+                &format!("output-{i}"),
+                0.8,
+            );
+            repo.experience_replay.batch_insert(&[entry]).await.expect("insert");
+        }
+
+        // Get with limit 3
+        let limited = repo
+            .experience_replay
+            .get_by_agent("limit-agent", Some(3))
+            .await
+            .expect("get_by_agent limited");
+        assert_eq!(limited.len(), 3, "should respect limit");
+
+        // Get with default limit (None = 100)
+        let all = repo
+            .experience_replay
+            .get_by_agent("limit-agent", None)
+            .await
+            .expect("get_by_agent default");
+        assert_eq!(all.len(), 5, "should return all 5");
+    }
+
+    #[tokio::test]
+    async fn test_experience_replay_get_by_agent_empty() {
+        let repo = test_repo().await;
+
+        let result = repo
+            .experience_replay
+            .get_by_agent("no-such-agent", None)
+            .await
+            .expect("get_by_agent empty");
+        assert!(result.is_empty(), "no experiences for nonexistent agent");
+    }
+
+    #[tokio::test]
+    async fn test_prefix_cache_lookup_increments_hit_count() {
+        let repo = test_repo().await;
+
+        let entry = PrefixCacheRow::new("hit-test", "m1", vec![42], 10);
+        repo.prefix_cache.insert(&entry).await.expect("insert");
+
+        // Initial hit count should be 0
+        let stats_before = repo.prefix_cache.model_stats("m1").await.expect("stats");
+        assert_eq!(stats_before.total_hits, 0);
+
+        // Lookup 3 times
+        for _ in 0..3 {
+            repo.prefix_cache.lookup("hit-test", "m1").await.expect("lookup");
+        }
+
+        let stats_after = repo.prefix_cache.model_stats("m1").await.expect("stats");
+        assert_eq!(stats_after.total_hits, 3, "hit count should be 3 after 3 lookups");
+    }
+
+    #[tokio::test]
+    async fn test_prefix_cache_batch_insert_and_lookup_multiple_models() {
+        let repo = test_repo().await;
+
+        let entries = vec![
+            PrefixCacheRow::new("multi-h1", "gpt4", vec![1], 10),
+            PrefixCacheRow::new("multi-h2", "gpt4", vec![2], 20),
+            PrefixCacheRow::new("multi-h3", "claude", vec![3], 30),
+        ];
+        repo.prefix_cache.batch_insert(&entries).await.expect("batch insert");
+
+        // Lookup across models
+        let r1 = repo.prefix_cache.lookup("multi-h1", "gpt4").await.expect("lookup");
+        assert!(r1.is_some(), "should find gpt4 entry");
+        let r2 = repo.prefix_cache.lookup("multi-h3", "claude").await.expect("lookup");
+        assert!(r2.is_some(), "should find claude entry");
+
+        // Cross-model lookup should miss
+        let r3 = repo.prefix_cache.lookup("multi-h1", "claude").await.expect("lookup");
+        assert!(r3.is_none(), "gpt4 hash should not be found under claude model");
+    }
+
+    #[tokio::test]
+    async fn test_config_get_by_key_specific() {
+        let repo = test_repo().await;
+
+        // Insert configs with different keys in same namespace
+        let c1 = ConfigRow::new("ns1", "key-a", "value-a");
+        let c2 = ConfigRow::new("ns1", "key-b", "value-b");
+        let c3 = ConfigRow::new("ns2", "key-a", "value-c");
+        repo.configs.upsert(&c1).await.expect("upsert c1");
+        repo.configs.upsert(&c2).await.expect("upsert c2");
+        repo.configs.upsert(&c3).await.expect("upsert c3");
+
+        // Get specific key
+        let result = repo.configs.get_by_key("ns1", "key-a").await.expect("get_by_key");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "value-a");
+
+        // Get key from different namespace
+        let result = repo.configs.get_by_key("ns2", "key-a").await.expect("get_by_key");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "value-c");
+
+        // Get nonexistent key
+        let result = repo.configs.get_by_key("ns1", "missing").await.expect("get_by_key");
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_skill_get_enabled_filters_correctly() {
+        let repo = test_repo().await;
+
+        let mut s1 = SkillRow::new("enabled-skill", "an enabled skill");
+        s1.enabled = 1;
+        let mut s2 = SkillRow::new("disabled-skill", "a disabled skill");
+        s2.enabled = 0;
+        repo.skills.create(&s1).await.expect("create s1");
+        repo.skills.create(&s2).await.expect("create s2");
+
+        let enabled = repo.skills.get_enabled().await.expect("get_enabled");
+        assert_eq!(enabled.len(), 1, "only one skill is enabled");
+        assert_eq!(enabled[0].name, "enabled-skill");
+    }
+
+    #[tokio::test]
+    async fn test_component_get_by_type() {
+        let repo = test_repo().await;
+
+        let c1 = ComponentRow::new("comp-a", "sensor");
+        let c2 = ComponentRow::new("comp-b", "sensor");
+        let c3 = ComponentRow::new("comp-c", "actuator");
+        repo.components.create(&c1).await.expect("create c1");
+        repo.components.create(&c2).await.expect("create c2");
+        repo.components.create(&c3).await.expect("create c3");
+
+        let sensors = repo.components.get_by_type("sensor").await.expect("get_by_type");
+        assert_eq!(sensors.len(), 2);
+
+        let actuators = repo.components.get_by_type("actuator").await.expect("get_by_type");
+        assert_eq!(actuators.len(), 1);
+
+        let missing = repo.components.get_by_type("nonexistent").await.expect("get_by_type");
+        assert!(missing.is_empty());
+    }
+
 }

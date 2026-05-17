@@ -1,3 +1,35 @@
+## 最新更新：2026-05-18 00:05 (Sprint 78 — ControllerLoop + Verification)
+
+### 🎯 Sprint 78 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,327 通过 / 0 失败 (+59) |
+
+### 🔧 本轮新增
+- **ControllerLoop**: `crates/controller/src/controller_loop.rs` (717行, 16 tests)
+  - Bridges generic RuntimeLoop engine with controller's reconciliation + health-check
+  - Execute→Observe→Adjust loop with convergence evaluation
+  - `ControllerEventObserver` publishes round lifecycle events to EventBus
+  - `ReconcileExecutor` runs reconciliation + health check each round
+  - `ConvergenceEvaluator` scores actual vs desired state (0.0–1.0)
+  - `ControllerLoopConfig` with `with_defaults()` factory
+- **Fmt fix**: controller_loop.rs formatting drift resolved
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 117,543
+- **测试数量**: 2,327 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+- **Crates**: 26
+
+### 💾 磁盘状态
+- / (系统盘): 22G 可用 / 40G (44%)
+- /mnt (挂载盘): 5.8G 可用 / 30G (80%) — release clean done
+
+---
 ## 最新更新：2026-05-17 22:47 (Sprint 77 — Verification Cycle + Fmt Cleanup)
 
 ### 🎯 Sprint 77 质量门禁检查

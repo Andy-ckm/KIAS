@@ -5,6 +5,7 @@ pub mod engine;
 pub mod error_handler;
 pub mod executor;
 pub mod graph;
+pub mod kanban;
 pub mod node;
 pub mod replay;
 pub mod state;

@@ -1,3 +1,30 @@
+## 最新更新：2026-05-17 20:18 (Sprint 75 — Quality Gate Verification + Paper Index Cleanup)
+
+### 🎯 Sprint 75 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,139 通过 / 0 失败 |
+
+### 🔧 本轮修复
+- **paper-index.md 修复**: 清除行号前缀伪影 (`1|1|1|1|` 格式)，恢复纯 Markdown
+  - 原因: read_file 输出直接写入文件导致行号嵌入内容
+  - 修复: 使用 write_file 重写完整文件
+- **arXiv/Semantic Scholar API**: 本轮搜索超时/429，已有论文库保留
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 107,696
+- **测试数量**: 2,139 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+
+### 💾 磁盘状态
+- / (系统盘): 22G 可用 / 40G (44%)
+
+---
+
 ## 最新更新：2026-05-17 19:52 (Sprint 74 — Test Coverage Expansion +17)
 
 ### 🎯 Sprint 74 质量门禁检查

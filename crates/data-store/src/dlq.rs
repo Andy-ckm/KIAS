@@ -582,4 +582,347 @@ mod tests {
         let b_entries = dlq.list(Some("agent-B"), false, 100).await.unwrap();
         assert_eq!(b_entries.len(), 1);
     }
+
+    #[tokio::test]
+    async fn test_list_can_retry_only() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let id1 = dlq
+            .enqueue(
+                "t1",
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                3,
+                3,
+                DeadLetterReason::MaxRetriesExceeded,
+            )
+            .await
+            .unwrap();
+        dlq.enqueue(
+            "t2",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Timeout,
+        )
+        .await
+        .unwrap();
+
+        // Mark first as non-retryable
+        dlq.retry(&id1).await.unwrap();
+
+        // List retryable only
+        let retryable = dlq.list(None, true, 100).await.unwrap();
+        assert_eq!(retryable.len(), 1);
+        assert_eq!(retryable[0].task_id, "t2");
+
+        // List all
+        let all = dlq.list(None, false, 100).await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_list_with_limit() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        for i in 0..5 {
+            dlq.enqueue(
+                &format!("t{i}"),
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                1,
+                3,
+                DeadLetterReason::Unknown,
+            )
+            .await
+            .unwrap();
+        }
+
+        let limited = dlq.list(None, false, 3).await.unwrap();
+        assert_eq!(limited.len(), 3);
+
+        let all = dlq.list(None, false, 100).await.unwrap();
+        assert_eq!(all.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_discard_nonexistent() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let removed = dlq.discard("nonexistent-id").await.unwrap();
+        assert!(!removed);
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let entry = dlq.get("nonexistent-id").await.unwrap();
+        assert!(entry.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_by_task_nonexistent() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let entry = dlq.get_by_task("nonexistent-task").await.unwrap();
+        assert!(entry.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_stats_after_discard() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let id1 = dlq
+            .enqueue(
+                "t1",
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                3,
+                3,
+                DeadLetterReason::MaxRetriesExceeded,
+            )
+            .await
+            .unwrap();
+        dlq.enqueue(
+            "t2",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Timeout,
+        )
+        .await
+        .unwrap();
+
+        dlq.discard(&id1).await.unwrap();
+
+        let stats = dlq.stats().await.unwrap();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.retryable, 1);
+        assert_eq!(stats.discarded, 0);
+    }
+
+    #[tokio::test]
+    async fn test_all_reasons() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let reasons = vec![
+            DeadLetterReason::MaxRetriesExceeded,
+            DeadLetterReason::Timeout,
+            DeadLetterReason::Cancelled,
+            DeadLetterReason::DependencyMissing,
+            DeadLetterReason::Unknown,
+        ];
+
+        for (i, reason) in reasons.iter().enumerate() {
+            dlq.enqueue(
+                &format!("t{i}"),
+                "a1",
+                None,
+                "n",
+                "t",
+                None,
+                "e",
+                1,
+                3,
+                reason.clone(),
+            )
+            .await
+            .unwrap();
+        }
+
+        let entries = dlq.list(None, false, 100).await.unwrap();
+        assert_eq!(entries.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_reason_display_and_parse() {
+        assert_eq!(
+            DeadLetterReason::MaxRetriesExceeded.to_string(),
+            "max_retries_exceeded"
+        );
+        assert_eq!(DeadLetterReason::Timeout.to_string(), "timeout");
+        assert_eq!(DeadLetterReason::Cancelled.to_string(), "cancelled");
+        assert_eq!(
+            DeadLetterReason::DependencyMissing.to_string(),
+            "dependency_missing"
+        );
+        assert_eq!(DeadLetterReason::Unknown.to_string(), "unknown");
+
+        assert!(matches!(
+            reason_from_str("max_retries_exceeded"),
+            DeadLetterReason::MaxRetriesExceeded
+        ));
+        assert!(matches!(
+            reason_from_str("timeout"),
+            DeadLetterReason::Timeout
+        ));
+        assert!(matches!(
+            reason_from_str("cancelled"),
+            DeadLetterReason::Cancelled
+        ));
+        assert!(matches!(
+            reason_from_str("dependency_missing"),
+            DeadLetterReason::DependencyMissing
+        ));
+        assert!(matches!(
+            reason_from_str("unknown"),
+            DeadLetterReason::Unknown
+        ));
+        assert!(matches!(
+            reason_from_str("invalid"),
+            DeadLetterReason::Unknown
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_enqueue_with_workflow_id() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let id = dlq
+            .enqueue(
+                "t1",
+                "a1",
+                Some("wf-123"),
+                "process",
+                "compute",
+                Some("{\"key\": \"value\"}"),
+                "timeout error",
+                5,
+                5,
+                DeadLetterReason::MaxRetriesExceeded,
+            )
+            .await
+            .unwrap();
+
+        let entry = dlq.get(&id).await.unwrap().unwrap();
+        assert_eq!(entry.workflow_id, Some("wf-123".to_string()));
+        assert_eq!(entry.input, Some("{\"key\": \"value\"}".to_string()));
+        assert_eq!(entry.retry_count, 5);
+        assert_eq!(entry.max_retries, 5);
+        assert_eq!(entry.task_name, "process");
+        assert_eq!(entry.task_type, "compute");
+        assert_eq!(entry.last_error, "timeout error");
+    }
+
+    #[tokio::test]
+    async fn test_purge_older_than() {
+        let pool = setup_db().await;
+        let pool_clone = pool.clone();
+        let dlq = DeadLetterQueue::new(pool);
+
+        // Insert an entry with a very old failed_at date
+        sqlx::query(
+            "INSERT INTO dead_letter_queue (id, task_id, agent_id, workflow_id, task_name, task_type, input, last_error, retry_count, max_retries, failed_at, original_created_at, dead_letter_reason, can_retry, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind("old-entry")
+        .bind("t-old")
+        .bind("a1")
+        .bind(None::<&str>)
+        .bind("n")
+        .bind("t")
+        .bind(None::<&str>)
+        .bind("e")
+        .bind(1i32)
+        .bind(3i32)
+        .bind("2020-01-01T00:00:00Z")
+        .bind("2020-01-01T00:00:00Z")
+        .bind("unknown")
+        .bind(1i32)
+        .bind("{}")
+        .execute(&pool_clone)
+        .await
+        .unwrap();
+
+        // Insert a recent entry
+        dlq.enqueue(
+            "t-new",
+            "a1",
+            None,
+            "n",
+            "t",
+            None,
+            "e",
+            1,
+            3,
+            DeadLetterReason::Unknown,
+        )
+        .await
+        .unwrap();
+
+        // Purge entries older than 30 days
+        let purged = dlq.purge_older_than(30).await.unwrap();
+        assert_eq!(purged, 1);
+
+        // Only recent entry should remain
+        let remaining = dlq.list(None, false, 100).await.unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].task_id, "t-new");
+    }
+
+    #[tokio::test]
+    async fn test_entry_fields_complete() {
+        let pool = setup_db().await;
+        let dlq = DeadLetterQueue::new(pool);
+
+        let id = dlq
+            .enqueue(
+                "task-abc",
+                "agent-xyz",
+                Some("wf-99"),
+                "my_task",
+                "llm_call",
+                Some("prompt text"),
+                "rate limited",
+                3,
+                5,
+                DeadLetterReason::MaxRetriesExceeded,
+            )
+            .await
+            .unwrap();
+
+        let entry = dlq.get(&id).await.unwrap().unwrap();
+        assert_eq!(entry.task_id, "task-abc");
+        assert_eq!(entry.agent_id, "agent-xyz");
+        assert_eq!(entry.workflow_id, Some("wf-99".to_string()));
+        assert_eq!(entry.task_name, "my_task");
+        assert_eq!(entry.task_type, "llm_call");
+        assert_eq!(entry.input, Some("prompt text".to_string()));
+        assert_eq!(entry.last_error, "rate limited");
+        assert_eq!(entry.retry_count, 3);
+        assert_eq!(entry.max_retries, 5);
+        assert!(entry.can_retry);
+        assert_eq!(entry.reason, DeadLetterReason::MaxRetriesExceeded);
+        assert!(!entry.id.is_empty());
+    }
 }

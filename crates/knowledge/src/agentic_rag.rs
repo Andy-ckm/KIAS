@@ -1318,4 +1318,483 @@ mod tests {
             "0 tool calls => 0.0"
         );
     }
+
+    // ============================================================
+    // Helper function tests
+    // ============================================================
+
+    #[test]
+    fn test_estimate_tokens() {
+        // estimate_tokens = text.len() / 4
+        assert_eq!(estimate_tokens(""), 0);
+        assert_eq!(estimate_tokens("test"), 1); // 4 chars / 4
+        assert_eq!(estimate_tokens("hello world"), 2); // 11 chars / 4 = 2
+        assert_eq!(estimate_tokens("a"), 0); // 1 char / 4 = 0
+    }
+
+    #[test]
+    fn test_extract_keywords() {
+        // Filters words with len > 3, lowercases
+        let kw = extract_keywords("the quick brown fox jumps");
+        assert_eq!(kw, vec!["quick", "brown", "jumps"]);
+        // "the" and "fox" are <= 3 chars
+
+        let kw2 = extract_keywords("Rust programming language");
+        assert_eq!(kw2, vec!["rust", "programming", "language"]);
+
+        let kw3 = extract_keywords("");
+        assert!(kw3.is_empty());
+
+        let kw4 = extract_keywords("a an the is");
+        assert!(kw4.is_empty()); // all <= 3 chars
+    }
+
+    #[test]
+    fn test_find_best_ref_highest_score() {
+        let conversation = vec![ConversationMessage {
+            role: MessageRole::Assistant,
+            content: String::new(),
+            tool_calls: vec![],
+            tool_result: Some(ToolResult::Search(vec![
+                SearchResult {
+                    ref_id: "doc_low".into(),
+                    title: "Low".into(),
+                    filename: "low.txt".into(),
+                    file_type: "txt".into(),
+                    snippet: "low".into(),
+                    score: 0.3,
+                    total_lines: 10,
+                },
+                SearchResult {
+                    ref_id: "doc_high".into(),
+                    title: "High".into(),
+                    filename: "high.txt".into(),
+                    file_type: "txt".into(),
+                    snippet: "high".into(),
+                    score: 0.9,
+                    total_lines: 10,
+                },
+            ])),
+            token_count: 0,
+        }];
+        let best = find_best_ref(&conversation);
+        assert_eq!(best, Some("doc_high".to_string()));
+    }
+
+    #[test]
+    fn test_find_best_ref_empty_conversation() {
+        let best = find_best_ref(&[]);
+        assert!(best.is_none());
+    }
+
+    #[test]
+    fn test_find_best_ref_no_search_results() {
+        let conversation = vec![ConversationMessage {
+            role: MessageRole::User,
+            content: "hello".into(),
+            tool_calls: vec![],
+            tool_result: None,
+            token_count: 5,
+        }];
+        let best = find_best_ref(&conversation);
+        assert!(best.is_none());
+    }
+
+    #[test]
+    fn test_summarize_args_queries() {
+        let args = ToolArgs {
+            queries: Some(vec!["q1".into(), "q2".into()]),
+            ..Default::default()
+        };
+        let s = summarize_args(&args);
+        assert!(s.contains("q1"));
+        assert!(s.contains("q2"));
+    }
+
+    #[test]
+    fn test_summarize_args_ref_id() {
+        let args = ToolArgs {
+            ref_id: Some("doc1".into()),
+            ..Default::default()
+        };
+        let s = summarize_args(&args);
+        assert_eq!(s, "ref_id=doc1");
+    }
+
+    #[test]
+    fn test_summarize_args_empty() {
+        let args = ToolArgs::default();
+        let s = summarize_args(&args);
+        assert_eq!(s, "empty");
+    }
+
+    #[test]
+    fn test_summarize_result_all_variants() {
+        let search = ToolResult::Search(vec![]);
+        assert_eq!(summarize_result(&search), "0 results");
+
+        let find = ToolResult::Find(vec![]);
+        assert_eq!(summarize_result(&find), "0 matches");
+
+        let open = ToolResult::Open(OpenResult {
+            ref_id: "d".into(),
+            lines: vec![],
+            start_line: 5,
+            end_line: 10,
+            total_lines: 100,
+        });
+        assert_eq!(summarize_result(&open), "lines 5-10 of 100");
+
+        let summarize = ToolResult::Summarize(SummarizeResult {
+            preserved_refs: vec![],
+            tokens_freed: 500,
+            summary: "freed".into(),
+        });
+        assert_eq!(summarize_result(&summarize), "freed 500 tokens");
+
+        let error = ToolResult::Error {
+            tool: RetrievalTool::Search,
+            message: "timeout".into(),
+        };
+        assert_eq!(summarize_result(&error), "error: timeout");
+    }
+
+    // ============================================================
+    // InMemoryDocumentStore edge cases
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_store_get_metadata() {
+        let store = make_store();
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".into(),
+                    title: "Title".into(),
+                    filename: "f.txt".into(),
+                    file_type: "txt".into(),
+                    total_lines: 5,
+                    total_tokens: 50,
+                },
+                vec!["content".into()],
+            )
+            .await;
+
+        let meta = store.get_metadata("doc1").await;
+        assert!(meta.is_some());
+        assert_eq!(meta.unwrap().title, "Title");
+
+        let missing = store.get_metadata("nonexistent").await;
+        assert!(missing.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_store_search_no_match() {
+        let store = make_store();
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".into(),
+                    title: "Test".into(),
+                    filename: "t.txt".into(),
+                    file_type: "txt".into(),
+                    total_lines: 5,
+                    total_tokens: 50,
+                },
+                vec!["hello world".into()],
+            )
+            .await;
+
+        let results = store.search(&["nonexistent".into()], 10).await;
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_store_search_max_results() {
+        let store = make_store();
+        for i in 0..10 {
+            store
+                .add_document(
+                    DocumentMetadata {
+                        id: format!("doc{}", i),
+                        title: format!("Doc {}", i),
+                        filename: format!("d{}.txt", i),
+                        file_type: "txt".into(),
+                        total_lines: 5,
+                        total_tokens: 50,
+                    },
+                    vec!["common keyword".into()],
+                )
+                .await;
+        }
+
+        let results = store.search(&["common".into()], 3).await;
+        assert!(results.len() <= 3);
+    }
+
+    #[tokio::test]
+    async fn test_store_open_nonexistent_doc() {
+        let store = make_store();
+        let result = store.get_content("missing", 0, 10).await;
+        assert!(result.lines.is_empty());
+        assert_eq!(result.total_lines, 0);
+    }
+
+    #[tokio::test]
+    async fn test_store_find_in_doc_max_per_pattern() {
+        let store = make_store();
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".into(),
+                    title: "Test".into(),
+                    filename: "t.txt".into(),
+                    file_type: "txt".into(),
+                    total_lines: 10,
+                    total_tokens: 100,
+                },
+                vec![
+                    "match line 1".into(),
+                    "no match".into(),
+                    "match line 3".into(),
+                    "match line 4".into(),
+                ],
+            )
+            .await;
+
+        let results = store.find_in_doc("doc1", &["match".into()], 2).await;
+        assert_eq!(results.len(), 2); // max_per_pattern = 2
+    }
+
+    // ============================================================
+    // Engine edge cases
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_engine_reset() {
+        let store = Arc::new(make_store());
+        store
+            .add_document(
+                DocumentMetadata {
+                    id: "doc1".into(),
+                    title: "Test".into(),
+                    filename: "t.txt".into(),
+                    file_type: "txt".into(),
+                    total_lines: 10,
+                    total_tokens: 100,
+                },
+                vec!["test content".into()],
+            )
+            .await;
+
+        let engine = AgenticRAGEngine::with_rules(store).unwrap();
+        engine.retrieve("test").await;
+
+        // Verify state exists
+        assert!(!engine.get_conversation().await.is_empty());
+
+        // Reset
+        engine.reset().await;
+
+        // Verify state cleared
+        assert!(engine.get_conversation().await.is_empty());
+        assert!(engine.get_ref_map().await.is_empty());
+        assert_eq!(engine.get_metrics().await.total_tool_calls, 0);
+    }
+
+    #[test]
+    fn test_engine_invalid_config() {
+        let result = AgenticRAGEngine::new(
+            Arc::new(make_store()),
+            Arc::new(RuleBasedStrategy::default()),
+            AgenticRAGConfig {
+                max_iterations: 0,
+                ..Default::default()
+            },
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_with_rules_convenience() {
+        let engine = AgenticRAGEngine::with_rules(Arc::new(make_store()));
+        assert!(engine.is_ok());
+    }
+
+    // ============================================================
+    // FlywheelLearner edge cases
+    // ============================================================
+
+    #[test]
+    fn test_flywheel_default() {
+        let learner = FlywheelLearner::default();
+        // Should be equivalent to FlywheelLearner::new()
+        // Just verify it compiles and doesn't panic
+        let _ = learner;
+    }
+
+    #[tokio::test]
+    async fn test_flywheel_recommend_no_match() {
+        let learner = FlywheelLearner::new();
+        learner
+            .record(RetrievalExperience {
+                query: "revenue report".into(),
+                successful_refs: vec!["doc1".into()],
+                tools_used: vec![RetrievalTool::Search],
+                iterations: 1,
+                quality_score: 0.8,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            })
+            .await;
+
+        // Query with no overlapping keywords
+        let recommended = learner.recommend("quantum physics").await;
+        assert!(recommended.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_flywheel_dedup_recommendations() {
+        let learner = FlywheelLearner::new();
+        // Record two experiences with overlapping keywords
+        learner
+            .record(RetrievalExperience {
+                query: "revenue data".into(),
+                successful_refs: vec!["doc1".into()],
+                tools_used: vec![RetrievalTool::Search],
+                iterations: 1,
+                quality_score: 0.8,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            })
+            .await;
+        learner
+            .record(RetrievalExperience {
+                query: "revenue analysis".into(),
+                successful_refs: vec!["doc1".into()],
+                tools_used: vec![RetrievalTool::Search],
+                iterations: 1,
+                quality_score: 0.9,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            })
+            .await;
+
+        let recommended = learner.recommend("revenue").await;
+        // "doc1" should appear only once (deduped)
+        let doc1_count = recommended.iter().filter(|r| r == &"doc1").count();
+        assert_eq!(doc1_count, 1);
+    }
+
+    // ============================================================
+    // Serde roundtrip tests
+    // ============================================================
+
+    #[test]
+    fn test_retrieval_tool_serde_roundtrip() {
+        let tools = vec![
+            RetrievalTool::Search,
+            RetrievalTool::Find,
+            RetrievalTool::Open,
+            RetrievalTool::Summarize,
+        ];
+        for tool in &tools {
+            let json = serde_json::to_string(tool).unwrap();
+            let back: RetrievalTool = serde_json::from_str(&json).unwrap();
+            assert_eq!(*tool, back);
+        }
+    }
+
+    #[test]
+    fn test_search_result_serde_roundtrip() {
+        let result = SearchResult {
+            ref_id: "doc1".into(),
+            title: "Test".into(),
+            filename: "test.txt".into(),
+            file_type: "txt".into(),
+            snippet: "content".into(),
+            score: 0.85,
+            total_lines: 100,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: SearchResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.ref_id, "doc1");
+        assert!((back.score - 0.85).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_tool_result_serde_roundtrip() {
+        let results = vec![
+            ToolResult::Search(vec![]),
+            ToolResult::Find(vec![]),
+            ToolResult::Open(OpenResult {
+                ref_id: "d".into(),
+                lines: vec![],
+                start_line: 0,
+                end_line: 0,
+                total_lines: 0,
+            }),
+            ToolResult::Summarize(SummarizeResult {
+                preserved_refs: vec![],
+                tokens_freed: 0,
+                summary: "empty".into(),
+            }),
+            ToolResult::Error {
+                tool: RetrievalTool::Search,
+                message: "fail".into(),
+            },
+        ];
+        for result in &results {
+            let json = serde_json::to_string(result).unwrap();
+            let back: ToolResult = serde_json::from_str(&json).unwrap();
+            // Verify roundtrip by checking JSON equality
+            let json2 = serde_json::to_string(&back).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    #[test]
+    fn test_agentic_retrieval_result_serde() {
+        let result = AgenticRetrievalResult {
+            answer: "test answer".into(),
+            iterations: 3,
+            tool_calls: 5,
+            references: vec!["doc1".into()],
+            token_usage: 1000,
+            duration_ms: 500,
+            metrics: RetrievalMetrics::default(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: AgenticRetrievalResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.answer, "test answer");
+        assert_eq!(back.iterations, 3);
+    }
+
+    // ============================================================
+    // Config edge cases
+    // ============================================================
+
+    #[test]
+    fn test_config_validation_token_warning_ratio_zero() {
+        let config = AgenticRAGConfig {
+            token_warning_ratio: 0.0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_open_window_lines_zero() {
+        let config = AgenticRAGConfig {
+            open_window_lines: 0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_clone_and_debug() {
+        let config = AgenticRAGConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.max_iterations, config.max_iterations);
+        // Debug should not panic
+        let _ = format!("{:?}", config);
+    }
 }

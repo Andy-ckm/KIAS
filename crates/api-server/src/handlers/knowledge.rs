@@ -276,3 +276,74 @@ pub async fn list_documents(State(state): State<AppState>) -> Json<serde_json::V
         "documents": doc_summaries,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_search_query_deserialize() {
+        let json = r#"{"q":"rust programming","limit":10}"#;
+        let q: SearchQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.q, "rust programming");
+        assert_eq!(q.limit, Some(10));
+    }
+
+    #[test]
+    fn test_search_query_without_limit() {
+        let json = r#"{"q":"test"}"#;
+        let q: SearchQuery = serde_json::from_str(json).unwrap();
+        assert_eq!(q.q, "test");
+        assert!(q.limit.is_none());
+    }
+
+    #[test]
+    fn test_ingest_request_deserialize() {
+        let json = r#"{"title":"My Doc","content":"Hello world","tags":["tag1"],"source_type":"paper"}"#;
+        let req: IngestRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.title, "My Doc");
+        assert_eq!(req.content, "Hello world");
+        assert_eq!(req.tags, vec!["tag1"]);
+        assert_eq!(req.source_type, "paper");
+        assert!(req.source_url.is_none());
+    }
+
+    #[test]
+    fn test_ingest_request_with_source_url() {
+        let json = r#"{"title":"Paper","content":"Abstract...","tags":[],"source_type":"paper","source_url":"https://arxiv.org/123"}"#;
+        let req: IngestRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.source_url, Some("https://arxiv.org/123".to_string()));
+    }
+
+    #[test]
+    fn test_ingest_response_serialize() {
+        let resp = IngestResponse {
+            document_id: "doc-1".to_string(),
+            chunks_created: 5,
+            status: "ok".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains(""document_id":"doc-1""));
+        assert!(json.contains(""chunks_created":5"));
+    }
+
+    #[test]
+    fn test_search_result_serialize() {
+        let result = SearchResult {
+            page_id: "p1".to_string(),
+            title: "Test".to_string(),
+            snippet: "A snippet".to_string(),
+            score: 0.95,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains(""score":0.95"));
+    }
+
+    #[test]
+    fn test_search_result_deserialize() {
+        let json = r#"{"page_id":"p1","title":"T","snippet":"S","score":0.8}"#;
+        let r: SearchResult = serde_json::from_str(json).unwrap();
+        assert_eq!(r.page_id, "p1");
+        assert_eq!(r.score, 0.8);
+    }
+}

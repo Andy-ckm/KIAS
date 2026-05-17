@@ -15,7 +15,8 @@ credentials = ["dep:aes-gcm", "dep:rand"]
 hot-reload = ["dep:serde_yaml"]
 sandbox = []
 docker = ["sandbox"]
-full = ["http", "auth", "resilience", "metrics", "credentials", "hot-reload", "sandbox", "docker"]
+browser = []
+full = ["http", "auth", "resilience", "metrics", "credentials", "hot-reload", "sandbox", "docker", "browser"]
 
 [dependencies]
 serde = { workspace = true }

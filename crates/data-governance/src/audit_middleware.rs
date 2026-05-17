@@ -184,18 +184,9 @@ mod tests {
     #[test]
     fn test_method_to_action() {
         assert_eq!(method_to_action(&Method::POST), Some(AuditAction::Create));
-        assert_eq!(
-            method_to_action(&Method::PUT),
-            Some(AuditAction::Update)
-        );
-        assert_eq!(
-            method_to_action(&Method::PATCH),
-            Some(AuditAction::Update)
-        );
-        assert_eq!(
-            method_to_action(&Method::DELETE),
-            Some(AuditAction::Delete)
-        );
+        assert_eq!(method_to_action(&Method::PUT), Some(AuditAction::Update));
+        assert_eq!(method_to_action(&Method::PATCH), Some(AuditAction::Update));
+        assert_eq!(method_to_action(&Method::DELETE), Some(AuditAction::Delete));
         assert_eq!(method_to_action(&Method::GET), Some(AuditAction::Read));
     }
 

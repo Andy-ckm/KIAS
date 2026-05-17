@@ -133,12 +133,7 @@ impl PolicyEngine {
     /// Evaluate access for a given role, resource type, and action.
     ///
     /// Strategy: Deny overrides Allow. Default is Deny.
-    pub async fn evaluate(
-        &self,
-        role: &str,
-        resource_type: &str,
-        action: &str,
-    ) -> AccessDecision {
+    pub async fn evaluate(&self, role: &str, resource_type: &str, action: &str) -> AccessDecision {
         let policies = self.policies.read().await;
         let matching: Vec<&ResourcePolicy> = policies
             .iter()
@@ -182,7 +177,15 @@ impl Default for PolicyEngine {
 pub fn default_policies() -> Vec<ResourcePolicy> {
     let mut policies = Vec::new();
     let resource_types = ["agent", "node", "workflow", "task", "config", "knowledge"];
-    let all_actions = ["Create", "Read", "Update", "Delete", "Schedule", "Execute", "ConfigChange"];
+    let all_actions = [
+        "Create",
+        "Read",
+        "Update",
+        "Delete",
+        "Schedule",
+        "Execute",
+        "ConfigChange",
+    ];
     let operator_actions = ["Create", "Read", "Update", "Schedule", "Execute"];
 
     let mut id_counter = 0u32;
@@ -293,20 +296,8 @@ mod tests {
     #[tokio::test]
     async fn test_deny_overrides_allow() {
         let engine = PolicyEngine::with_policies(vec![
-            make_policy(
-                "p1",
-                "Operator",
-                "agent",
-                "Delete",
-                PolicyEffect::Allow,
-            ),
-            make_policy(
-                "p2",
-                "Operator",
-                "agent",
-                "Delete",
-                PolicyEffect::Deny,
-            ),
+            make_policy("p1", "Operator", "agent", "Delete", PolicyEffect::Allow),
+            make_policy("p2", "Operator", "agent", "Delete", PolicyEffect::Deny),
         ]);
 
         let decision = engine.evaluate("Operator", "agent", "Delete").await;
@@ -339,13 +330,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_disabled_policy_ignored() {
-        let mut policy = make_policy(
-            "p1",
-            "Admin",
-            "agent",
-            "Read",
-            PolicyEffect::Allow,
-        );
+        let mut policy = make_policy("p1", "Admin", "agent", "Read", PolicyEffect::Allow);
         policy.enabled = false;
 
         let engine = PolicyEngine::with_policies(vec![policy]);
@@ -356,13 +341,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_and_remove_policy() {
         let engine = PolicyEngine::new();
-        let policy = make_policy(
-            "p1",
-            "Admin",
-            "agent",
-            "Read",
-            PolicyEffect::Allow,
-        );
+        let policy = make_policy("p1", "Admin", "agent", "Read", PolicyEffect::Allow);
 
         engine.add_policy(policy).await;
         assert!(engine.evaluate("Admin", "agent", "Read").await.is_allowed());

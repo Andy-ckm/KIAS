@@ -29,6 +29,9 @@ pub mod transport;
 pub mod types;
 
 // Feature-gated modules
+#[cfg(feature = "browser")]
+pub mod browser;
+
 #[cfg(feature = "auth")]
 pub mod auth;
 
@@ -113,6 +116,12 @@ pub use sandbox::{
 
 #[cfg(feature = "docker")]
 pub use sandbox::DockerSandboxBackend;
+
+// Re-export browser types
+#[cfg(feature = "browser")]
+pub use browser::{
+    BrowserError, BrowserSession, BrowserToolKit, JsResult, PageContent, PageLink, ScreenshotResult,
+};
 
 /// JSON-RPC protocol version constant.
 pub const JSONRPC_VERSION: &str = "2.0";

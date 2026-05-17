@@ -339,7 +339,7 @@ impl ToolAwareRecognizer {
         for intent in &tool.supported_intents {
             self.intent_tool_map
                 .entry(intent.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(tool.name.clone());
         }
         self.tools.push(tool);

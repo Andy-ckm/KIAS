@@ -5,6 +5,7 @@
 
 pub mod analyzer;
 pub mod codegen;
+pub mod context_aware_decomposer;
 pub mod deployer;
 pub mod detector;
 pub mod intent_recognizer;

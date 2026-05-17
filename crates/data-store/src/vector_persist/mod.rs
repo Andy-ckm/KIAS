@@ -1,6 +1,6 @@
 //! # Persistent Vector Store
 //!
-//! Bridges the HNSW vector index from `kias-knowledge` with SQLite persistence.
+//! Bridges the HNSW vector index from `kias-common` with SQLite persistence.
 //! Vectors are stored as binary blobs in SQLite and loaded into memory on startup
 //! for fast approximate nearest neighbor (ANN) search via HNSW.
 //!
@@ -13,7 +13,7 @@
 //!
 //! ## Implementation Status
 //!
-//! The HNSW index in `kias-knowledge` is a hand-rolled implementation with
+//! The HNSW index in `kias-common` is a hand-rolled implementation with
 //! proper multi-layer graph, beam search, and connection pruning — it is
 //! NOT a brute-force O(N) scan. However, it lacks battle-tested quality
 //! (SIMD distance, parallel build, disk-backed graphs, recall benchmarks).

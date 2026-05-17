@@ -67,9 +67,9 @@ mod tests {
             ],
         };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains(""status":"ok""));
-        assert!(json.contains(""version":"0.1.0""));
-        assert!(json.contains(""components":["));
+        assert!(json.contains("\"status\":\"ok\""));
+        assert!(json.contains("\"version\":\"0.1.0\""));
+        assert!(json.contains("\"components\":["));
     }
 
     #[test]
@@ -119,21 +119,21 @@ mod tests {
     fn test_list_response_serialization() {
         let resp = ListResponse { items: vec!["a", "b"], total: 2 };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains(""items":["a","b"]"));
-        assert!(json.contains(""total":2"));
+        assert!(json.contains("\"items\":[\"a\",\"b\"]"));
+        assert!(json.contains("\"total\":2"));
     }
 
     #[test]
     fn test_api_response_serialization() {
         let resp = ApiResponse { data: "hello" };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains(""data":"hello""));
+        assert!(json.contains("\"data\":\"hello\""));
     }
 
     #[test]
     fn test_action_response_serialization() {
         let resp = ActionResponse { message: "created".to_string() };
         let json = serde_json::to_string(&resp).unwrap();
-        assert!(json.contains(""message":"created""));
+        assert!(json.contains("\"message\":\"created\""));
     }
 }

@@ -1,0 +1,322 @@
+# SAP HR: Employee Onboarding Workflow
+#
+# 模拟 SAP HCM / SuccessFactors 的员工入职全流程：
+#   Offer 确认 → 背景调查 → IT 账号开通 → 资产分配 → 合规培训 → 部门介绍 → 试用期跟踪
+#
+# 场景：新员工从接受 offer 到正式入职的端到端流程
+# 亮点：多部门并行准备 + 人工审批门禁 + 合规检查 + 子工作流
+
+name: sap-hr-onboarding
+description: >
+  SAP HR employee onboarding workflow.
+  Offer → Background Check → IT Setup → Asset Allocation → Compliance Training → Department Intro → Probation.
+entry: offer-accepted
+
+variables:
+  SAP_API: "${SAP_API_URL}"
+  COMPANY_CODE: "1000"
+  PROBATION_MONTHS: 3
+  TRAINING_DEADLINE_DAYS: 14
+
+nodes:
+  # ── 1. Offer 接收确认 ──
+  - id: offer-accepted
+    name: Offer Accepted by Candidate
+    type: process
+    config:
+      trigger: "candidate_signed_offer"
+      required_docs: ["signed_offer", "id_copy", "education_cert"]
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/hr/offer/confirm"
+      timeout_secs: 30
+
+  # ── 2. HR 审批入职 ──
+  - id: hr-approval
+    name: HR Onboarding Approval
+    type: human_review
+    approval:
+      type: HumanReview
+      timeout:
+        secs: 259200
+        nanos: 0
+
+  # ── 3. 背景调查 ──
+  - id: background-check
+    name: Background Verification
+    type: process
+    config:
+      checks:
+        - type: criminal_record
+        - type: employment_history
+        - type: education_verification
+        - type: credit_check
+      vendor: "third_party_bgv"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/hr/background-check"
+      timeout_secs: 86400
+    error_handler:
+      type: Retry
+      max_attempts: 2
+      backoff_ms: 60000
+
+  # ── 4. 背景调查结果 ──
+  - id: bg-result-check
+    name: Background Check Result
+    type: condition
+    config:
+      pass_criteria: "all_clear"
+
+  # ── 5. 并行准备（Fork）──
+  - id: preparation-fork
+    name: Fork Parallel Onboarding Tasks
+    type: fork
+    config:
+      parallel_mode: "all"
+
+  # ── 6a. IT 账号开通 ──
+  - id: it-provisioning
+    name: IT Account Provisioning
+    type: process
+    config:
+      accounts:
+        - type: active_directory
+          groups: ["employees", "department_group"]
+        - type: email
+          domain: "company.com"
+        - type: vpn
+          access_level: "standard"
+        - type: sap_user
+          roles: ["employee_basic"]
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/it/provision"
+      timeout_secs: 120
+    compensating_action:
+      description: "De-provision IT accounts on onboarding failure"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/it/deprovision"
+
+  # ── 6b. 资产分配 ──
+  - id: asset-allocation
+    name: Physical Asset Allocation
+    type: process
+    config:
+      items:
+        - type: laptop
+          spec: "standard_workstation"
+        - type: badge
+          access_zones: ["office", "parking"]
+        - type: desk
+          assignment: "hot_desk_or_assigned"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/facilities/allocate"
+      timeout_secs: 60
+    compensating_action:
+      description: "Return allocated assets"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/facilities/return"
+
+  # ── 6c. 薪资系统配置 ──
+  - id: payroll-setup
+    name: Payroll Configuration
+    type: process
+    config:
+      pay_scale: "auto_assign"
+      bank_details: "required"
+      tax_code: "auto_assign"
+      social_insurance: true
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/payroll/setup"
+
+  # ── 6d. 合规培训分配 ──
+  - id: compliance-training
+    name: Assign Compliance Training
+    type: process
+    config:
+      mandatory_courses:
+        - code: "COMP-001"
+          name: "Code of Conduct"
+          deadline_days: "${TRAINING_DEADLINE_DAYS}"
+        - code: "COMP-002"
+          name: "Data Privacy (GDPR/PIPL)"
+          deadline_days: "${TRAINING_DEADLINE_DAYS}"
+        - code: "COMP-003"
+          name: "Workplace Safety"
+          deadline_days: "${TRAINING_DEADLINE_DAYS}"
+        - code: "COMP-004"
+          name: "Anti-Corruption Policy"
+          deadline_days: "${TRAINING_DEADLINE_DAYS}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/lms/assign"
+
+  # ── 7. 并行合并 ──
+  - id: preparation-join
+    name: Join All Preparation Tasks
+    type: join
+    config:
+      wait_for_all: true
+
+  # ── 8. Day-1 入职日 ──
+  - id: day-one
+    name: Day 1 Onboarding
+    type: process
+    config:
+      activities:
+        - "welcome_meeting_with_manager"
+        - "hr_orientation_session"
+        - "team_introduction"
+        - "office_tour"
+        - "system_access_verification"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/hr/day-one"
+
+  # ── 9. 部门交接 ──
+  - id: department-handover
+    name: Department Handover
+    type: human_review
+    approval:
+      type: HumanReview
+      timeout:
+        secs: 604800
+        nanos: 0
+
+  # ── 10. 试用期跟踪（子工作流概念）──
+  - id: probation-start
+    name: Start Probation Period
+    type: process
+    config:
+      duration_months: "${PROBATION_MONTHS}"
+      review_intervals: [1, 2, 3]
+      auto_reminder: true
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/hr/probation/start"
+
+  # ── 11. 合规培训完成检查 ──
+  - id: training-check
+    name: Verify Training Completion
+    type: condition
+    config:
+      required_completion: 100
+      courses: ["COMP-001", "COMP-002", "COMP-003", "COMP-004"]
+
+  # ── 12. 入职完成 ──
+  - id: onboarding-complete
+    name: Onboarding Successfully Completed
+    type: process
+    config:
+      status: "active_employee"
+      generate_report: true
+      notify_manager: true
+
+  # ── 异常终止 ──
+  - id: bg-check-failed
+    name: Background Check Failed
+    type: process
+    config:
+      action: "notify_hr_and_revoke_offer"
+      reason: "background_verification_failed"
+
+  # ── 培训未完成 ──
+  - id: training-incomplete
+    name: Training Incomplete — Escalate
+    type: process
+    config:
+      action: "escalate_to_manager"
+      notify: ["hr_manager", "direct_manager"]
+
+edges:
+  # 主流程
+  - from: offer-accepted
+    to: hr-approval
+
+  - from: hr-approval
+    to: background-check
+
+  # 背景调查结果
+  - from: background-check
+    to: bg-result-check
+
+  - from: bg-result-check
+    to: preparation-fork
+    condition:
+      expression: "bg_check_status == 'passed'"
+      description: "Background check cleared"
+
+  - from: bg-result-check
+    to: bg-check-failed
+    condition:
+      expression: "bg_check_status == 'failed'"
+      description: "Background check failed"
+
+  # 并行准备
+  - from: preparation-fork
+    to: it-provisioning
+  - from: preparation-fork
+    to: asset-allocation
+  - from: preparation-fork
+    to: payroll-setup
+  - from: preparation-fork
+    to: compliance-training
+
+  # 合并
+  - from: it-provisioning
+    to: preparation-join
+  - from: asset-allocation
+    to: preparation-join
+  - from: payroll-setup
+    to: preparation-join
+  - from: compliance-training
+    to: preparation-join
+
+  # Day-1
+  - from: preparation-join
+    to: day-one
+
+  # 部门交接
+  - from: day-one
+    to: department-handover
+
+  # 试用期
+  - from: department-handover
+    to: probation-start
+
+  # 合规检查
+  - from: probation-start
+    to: training-check
+
+  # 培训结果分支
+  - from: training-check
+    to: onboarding-complete
+    condition:
+      expression: "all_training_completed == true"
+      description: "All mandatory training completed"
+
+  - from: training-check
+    to: training-incomplete
+    condition:
+      expression: "all_training_completed == false"
+      description: "Mandatory training not completed"
+
+exits:
+  - onboarding-complete
+  - bg-check-failed
+  - training-incomplete

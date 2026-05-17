@@ -1,0 +1,337 @@
+# SAP Logistics: Procurement-to-Pay Workflow
+#
+# 模拟 SAP MM 模块的采购全流程：
+#   采购申请 → 审批 → 询价 → 供应商选择 → 采购订单 → 收货 → 发票校验 → 付款
+#
+# 场景：从需求提出到供应商付款的端到端采购流程
+# 亮点：并行询价 + 条件审批 + 多供应商比价 + 收货质检 + 补偿回滚
+
+name: sap-logistics-procurement
+description: >
+  SAP Logistics procurement-to-pay workflow.
+  Requisition → RFQ → Vendor Selection → PO → Goods Receipt → Invoice → Payment.
+entry: create-requisition
+
+variables:
+  SAP_API: "${SAP_API_URL}"
+  PURCHASE_ORG: "1000"
+  COMPANY_CODE: "1000"
+  MIN_QUOTES: 3
+  HIGH_VALUE_THRESHOLD: 100000
+
+nodes:
+  # ── 1. 创建采购申请 ──
+  - id: create-requisition
+    name: Create Purchase Requisition
+    type: process
+    config:
+      document_type: "NB"
+      source: "demand_planning"
+      required_fields: ["material", "quantity", "delivery_date", "cost_center"]
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/requisition"
+      timeout_secs: 30
+    error_handler:
+      type: Retry
+      max_attempts: 2
+      backoff_ms: 3000
+
+  # ── 2. 采购申请审批 ──
+  - id: requisition-approval
+    name: Requisition Approval Gate
+    type: human_review
+    approval:
+      type: HumanReview
+      timeout:
+        secs: 172800
+        nanos: 0
+
+  # ── 3. 审批金额检查 ──
+  - id: value-check
+    name: Check Requisition Value
+    type: condition
+    config:
+      high_value_threshold: "${HIGH_VALUE_THRESHOLD}"
+
+  # ── 4a. 标准询价（并行发给多供应商）──
+  - id: rfq-fork
+    name: Fork RFQ to Multiple Vendors
+    type: fork
+    config:
+      parallel_mode: "all"
+
+  # ── 4b. 单一来源采购（低值）──
+  - id: single-source
+    name: Single Source Direct Order
+    type: process
+    config:
+      rule: "value < ${HIGH_VALUE_THRESHOLD} and preferred_vendor exists"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/single-source"
+
+  # ── 5. 发送询价单 ──
+  - id: send-rfq
+    name: Send RFQ to Vendor
+    type: process
+    config:
+      rfq_type: "AN"
+      response_deadline_days: 7
+      min_quotes: "${MIN_QUOTES}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/rfq"
+    error_handler:
+      type: Retry
+      max_attempts: 3
+      backoff_ms: 3000
+
+  # ── 6. 收集报价 ──
+  - id: collect-quotes
+    name: Collect Vendor Quotes
+    type: process
+    config:
+      wait_for: "${MIN_QUOTES}"
+      timeout_hours: 168
+    executor:
+      type: Http
+      method: GET
+      url: "${SAP_API}/api/mm/quotes"
+
+  # ── 7. 供应商评估 ──
+  - id: evaluate-vendors
+    name: Evaluate Vendor Quotes
+    type: process
+    config:
+      criteria:
+        - name: price
+          weight: 0.4
+        - name: delivery_time
+          weight: 0.25
+        - name: quality_rating
+          weight: 0.2
+        - name: past_performance
+          weight: 0.15
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/evaluate"
+
+  # ── 8. 并行合并 ──
+  - id: rfq-join
+    name: Join RFQ Results
+    type: join
+    config:
+      wait_for_all: true
+
+  # ── 9. LLM 辅助供应商推荐 ──
+  - id: ai-recommendation
+    name: AI Vendor Recommendation
+    type: llm
+    config:
+      model: "gpt-4"
+      prompt: >
+        Analyze the vendor quotes and evaluation scores.
+        Recommend the best vendor considering price, delivery, quality, and risk.
+        Provide a detailed comparison table and recommendation rationale.
+    executor:
+      type: Llm
+      model: "gpt-4"
+      prompt: "Analyze vendor quotes and recommend best choice"
+      temperature: 0.3
+      max_tokens: 2000
+
+  # ── 10. 采购订单创建 ──
+  - id: create-po
+    name: Create Purchase Order
+    type: process
+    config:
+      document_type: "NB"
+      purchasing_org: "${PURCHASE_ORG}"
+      company_code: "${COMPANY_CODE}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/po"
+      timeout_secs: 30
+    compensating_action:
+      description: "Cancel Purchase Order"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/mm/po/cancel"
+
+  # ── 11. 收货 ──
+  - id: goods-receipt
+    name: Goods Receipt (MIGO)
+    type: process
+    config:
+      movement_type: "101"
+      auto_post: true
+      quality_check: true
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/gr"
+      timeout_secs: 60
+    error_handler:
+      type: Retry
+      max_attempts: 2
+      backoff_ms: 5000
+    compensating_action:
+      description: "Reverse Goods Receipt"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/mm/gr/reverse"
+
+  # ── 12. 质量检验 ──
+  - id: quality-inspection
+    name: Quality Inspection
+    type: condition
+    config:
+      inspection_type: "goods_receipt"
+      sample_percentage: 10
+
+  # ── 13. 发票校验 (MIRO) ──
+  - id: invoice-verification
+    name: Invoice Verification (Three-Way Match)
+    type: process
+    config:
+      match_po: true
+      match_gr: true
+      tolerance_amount: 100
+      tolerance_percent: 2
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/invoice-verify"
+      timeout_secs: 30
+
+  # ── 14. 付款处理 ──
+  - id: process-payment
+    name: Process Vendor Payment
+    type: process
+    config:
+      payment_method: "bank_transfer"
+      payment_terms: "NET30"
+      company_code: "${COMPANY_CODE}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/fi/payment"
+
+  # ── 15. 流程完成 ──
+  - id: procurement-complete
+    name: Procurement Cycle Complete
+    type: process
+    config:
+      generate_report: true
+      notify_stakeholders: true
+
+  # ── 质检失败 → 退货 ──
+  - id: return-to-vendor
+    name: Return to Vendor
+    type: process
+    config:
+      movement_type: "122"
+      reason: "quality_failure"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/mm/return"
+    compensating_action:
+      description: "Cancel return if mistakenly triggered"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/mm/return/cancel"
+
+  - id: procurement-failed
+    name: Procurement Failed
+    type: process
+    config:
+      status: "requires_manual_intervention"
+
+edges:
+  # 主流程：申请 → 审批
+  - from: create-requisition
+    to: requisition-approval
+
+  # 审批后 → 金额分支
+  - from: requisition-approval
+    to: value-check
+
+  # 高值 → 并行询价
+  - from: value-check
+    to: rfq-fork
+    condition:
+      expression: "requisition_value >= ${HIGH_VALUE_THRESHOLD}"
+      description: "High value — requires competitive bidding"
+
+  # 低值 → 直接下单
+  - from: value-check
+    to: single-source
+    condition:
+      expression: "requisition_value < ${HIGH_VALUE_THRESHOLD}"
+      description: "Low value — single source direct order"
+
+  # 并行询价流程
+  - from: rfq-fork
+    to: send-rfq
+  - from: send-rfq
+    to: collect-quotes
+  - from: collect-quotes
+    to: evaluate-vendors
+  - from: evaluate-vendors
+    to: rfq-join
+  - from: rfq-join
+    to: ai-recommendation
+
+  # 询价完成 → 创建 PO
+  - from: ai-recommendation
+    to: create-po
+
+  # 单一来源 → 创建 PO
+  - from: single-source
+    to: create-po
+
+  # PO → 收货
+  - from: create-po
+    to: goods-receipt
+
+  # 收货 → 质检
+  - from: goods-receipt
+    to: quality-inspection
+
+  # 质检分支
+  - from: quality-inspection
+    to: invoice-verification
+    condition:
+      expression: "quality_status == 'passed'"
+      description: "Quality inspection passed"
+  - from: quality-inspection
+    to: return-to-vendor
+    condition:
+      expression: "quality_status == 'failed'"
+      description: "Quality inspection failed"
+
+  # 发票校验 → 付款
+  - from: invoice-verification
+    to: process-payment
+
+  # 付款 → 完成
+  - from: process-payment
+    to: procurement-complete
+
+  # 退货 → 失败
+  - from: return-to-vendor
+    to: procurement-failed
+
+exits:
+  - procurement-complete
+  - procurement-failed

@@ -123,7 +123,7 @@ pub struct YamlNodeDef {
 }
 
 /// YAML 节点类型（字符串枚举）
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum YamlNodeType {
     /// 处理节点（执行任务）
@@ -540,5 +540,168 @@ nodes:
 "#;
         let graph = load_graph_from_yaml(yaml).unwrap();
         assert!(graph.exit_nodes.is_empty());
+    }
+
+    /// Validate all SAP workflow templates parse and build into valid graphs.
+    #[test]
+    fn test_sap_templates_parse() {
+        let templates_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../kias/workflows/templates");
+
+        if !templates_dir.exists() {
+            // Skip if running outside the monorepo context
+            eprintln!("Templates dir not found at {:?}, skipping", templates_dir);
+            return;
+        }
+
+        let expected_files = [
+            "sap-finance-invoice-processing.yaml",
+            "sap-logistics-procurement.yaml",
+            "sap-hr-onboarding.yaml",
+        ];
+
+        for filename in &expected_files {
+            let path = templates_dir.join(filename);
+            assert!(path.exists(), "Template file missing: {:?}", path);
+
+            let graph = load_graph_from_file(&path)
+                .unwrap_or_else(|e| panic!("Failed to load template {}: {}", filename, e));
+
+            // Basic sanity checks
+            assert!(!graph.name.is_empty(), "{}: name is empty", filename);
+            assert!(!graph.nodes.is_empty(), "{}: no nodes", filename);
+            assert!(!graph.edges.is_empty(), "{}: no edges", filename);
+            assert!(!graph.entry_node.is_empty(), "{}: no entry node", filename);
+            assert!(!graph.exit_nodes.is_empty(), "{}: no exit nodes", filename);
+
+            // Verify all edge endpoints reference existing nodes
+            for edge in &graph.edges {
+                assert!(
+                    graph.nodes.contains_key(&edge.from),
+                    "{}: edge references unknown node '{}'",
+                    filename,
+                    edge.from
+                );
+                assert!(
+                    graph.nodes.contains_key(&edge.to),
+                    "{}: edge references unknown node '{}'",
+                    filename,
+                    edge.to
+                );
+            }
+
+            // Verify entry node exists
+            assert!(
+                graph.nodes.contains_key(&graph.entry_node),
+                "{}: entry node '{}' not in nodes",
+                filename,
+                graph.entry_node
+            );
+
+            // Verify exit nodes exist
+            for exit_id in &graph.exit_nodes {
+                assert!(
+                    graph.nodes.contains_key(exit_id),
+                    "{}: exit node '{}' not in nodes",
+                    filename,
+                    exit_id
+                );
+            }
+
+            println!(
+                "✓ Template '{}' loaded: {} nodes, {} edges",
+                filename,
+                graph.nodes.len(),
+                graph.edges.len()
+            );
+        }
+    }
+
+    /// Validate that each SAP template has the expected node count.
+    #[test]
+    fn test_sap_template_node_counts() {
+        let templates_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../kias/workflows/templates");
+
+        if !templates_dir.exists() {
+            eprintln!("Templates dir not found, skipping");
+            return;
+        }
+
+        // Finance: 13 nodes
+        let graph =
+            load_graph_from_file(&templates_dir.join("sap-finance-invoice-processing.yaml"))
+                .unwrap();
+        assert_eq!(
+            graph.nodes.len(),
+            13,
+            "Finance template should have 13 nodes"
+        );
+
+        // Logistics: 18 nodes
+        let graph =
+            load_graph_from_file(&templates_dir.join("sap-logistics-procurement.yaml")).unwrap();
+        assert_eq!(
+            graph.nodes.len(),
+            18,
+            "Logistics template should have 18 nodes"
+        );
+
+        // HR: 17 nodes
+        let graph = load_graph_from_file(&templates_dir.join("sap-hr-onboarding.yaml")).unwrap();
+        assert_eq!(graph.nodes.len(), 17, "HR template should have 17 nodes");
+    }
+
+    /// Validate that SAP templates use all expected node types.
+    #[test]
+    fn test_sap_template_node_types() {
+        let templates_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../kias/workflows/templates");
+
+        if !templates_dir.exists() {
+            eprintln!("Templates dir not found, skipping");
+            return;
+        }
+
+        // Finance template uses: process, condition, human_review
+        let yaml =
+            std::fs::read_to_string(templates_dir.join("sap-finance-invoice-processing.yaml"))
+                .unwrap();
+        let def = parse_workflow_yaml(&yaml).unwrap();
+        let types: std::collections::HashSet<_> = def.nodes.iter().map(|n| &n.node_type).collect();
+        assert!(
+            types.contains(&YamlNodeType::Process),
+            "Finance: missing process"
+        );
+        assert!(
+            types.contains(&YamlNodeType::Condition),
+            "Finance: missing condition"
+        );
+        assert!(
+            types.contains(&YamlNodeType::HumanReview),
+            "Finance: missing human_review"
+        );
+
+        // Logistics template uses: process, condition, fork, join, human_review, llm
+        let yaml =
+            std::fs::read_to_string(templates_dir.join("sap-logistics-procurement.yaml")).unwrap();
+        let def = parse_workflow_yaml(&yaml).unwrap();
+        let types: std::collections::HashSet<_> = def.nodes.iter().map(|n| &n.node_type).collect();
+        assert!(
+            types.contains(&YamlNodeType::Fork),
+            "Logistics: missing fork"
+        );
+        assert!(
+            types.contains(&YamlNodeType::Join),
+            "Logistics: missing join"
+        );
+        assert!(types.contains(&YamlNodeType::Llm), "Logistics: missing llm");
+
+        // HR template uses: process, condition, fork, join, human_review
+        let yaml = std::fs::read_to_string(templates_dir.join("sap-hr-onboarding.yaml")).unwrap();
+        let def = parse_workflow_yaml(&yaml).unwrap();
+        let types: std::collections::HashSet<_> = def.nodes.iter().map(|n| &n.node_type).collect();
+        assert!(types.contains(&YamlNodeType::Fork), "HR: missing fork");
+        assert!(types.contains(&YamlNodeType::Join), "HR: missing join");
     }
 }

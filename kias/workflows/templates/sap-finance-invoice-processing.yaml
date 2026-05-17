@@ -1,0 +1,267 @@
+# SAP Finance: Three-Way Invoice Processing Workflow
+#
+# 模拟 SAP FI 模块的发票处理流程：
+#   OCR 识别 → 数据提取 → 三单匹配(PO/GR/Invoice) → 例外处理 → 审批 → 过账 → 付款
+#
+# 场景：企业收到供应商发票后的端到端自动处理
+# 亮点：异常检测 + 条件分支 + 人工审批门禁 + 补偿回滚
+
+name: sap-finance-invoice-processing
+description: >
+  SAP Finance invoice processing with three-way matching.
+  OCR extraction → PO/GR matching → exception handling → approval → posting → payment.
+entry: receive-invoice
+
+variables:
+  SAP_API: "${SAP_API_URL}"
+  COMPANY_CODE: "1000"
+  CURRENCY: "CNY"
+  APPROVAL_THRESHOLD: 50000
+
+nodes:
+  # ── 1. 接收发票 ──
+  - id: receive-invoice
+    name: Receive Invoice
+    type: process
+    config:
+      source: email_attachment
+      file_types: ["pdf", "jpg", "png"]
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/invoice/receive"
+      headers:
+        Content-Type: "application/json"
+      timeout_secs: 30
+    error_handler:
+      type: Retry
+      max_attempts: 3
+      backoff_ms: 2000
+
+  # ── 2. OCR 识别 ──
+  - id: ocr-extract
+    name: OCR Invoice Extraction
+    type: process
+    config:
+      engine: tesseract-v5
+      languages: ["chi_sim", "eng"]
+      fields: ["invoice_no", "vendor", "amount", "date", "line_items"]
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/ocr/extract"
+      timeout_secs: 60
+
+  # ── 3. 数据校验 ──
+  - id: validate-data
+    name: Validate Extracted Data
+    type: condition
+    config:
+      checks:
+        - field: invoice_no
+          rule: not_empty
+        - field: amount
+          rule: greater_than
+          value: 0
+        - field: date
+          rule: valid_date
+          format: "YYYY-MM-DD"
+
+  # ── 4. 查找采购订单 ──
+  - id: match-po
+    name: Match Purchase Order
+    type: process
+    config:
+      match_fields: ["vendor", "material", "quantity"]
+      tolerance_percent: 5
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/po/match"
+      timeout_secs: 30
+
+  # ── 5. 三单匹配决策 ──
+  - id: three-way-match
+    name: Three-Way Match (PO/GR/Invoice)
+    type: condition
+    config:
+      rules:
+        - name: po_found
+          expression: "po_match_result == 'matched'"
+        - name: gr_match
+          expression: "gr_quantity >= invoice_quantity * 0.95"
+        - name: price_match
+          expression: "abs(po_price - invoice_price) / po_price < 0.03"
+
+  # ── 6a. 匹配通过 → 审批检查 ──
+  - id: check-amount
+    name: Check Approval Amount Threshold
+    type: condition
+    config:
+      threshold: "${APPROVAL_THRESHOLD}"
+
+  # ── 6b. 例外处理（匹配失败）──
+  - id: exception-handler
+    name: Handle Matching Exception
+    type: process
+    config:
+      actions:
+        - notify_procurement
+        - flag_for_review
+        - log_discrepancy
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/invoice/exception"
+    error_handler:
+      type: Skip
+
+  # ── 7. 人工审批（大额发票）──
+  - id: human-approval
+    name: Manager Approval
+    type: human_review
+    approval:
+      type: HumanReview
+      timeout:
+        secs: 86400
+        nanos: 0
+
+  # ── 8. 自动审批（小额发票）──
+  - id: auto-approve
+    name: Auto Approve (Below Threshold)
+    type: process
+    config:
+      rule: "amount < ${APPROVAL_THRESHOLD}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/invoice/auto-approve"
+
+  # ── 9. 过账到 FI ──
+  - id: post-to-fi
+    name: Post Invoice to SAP FI
+    type: process
+    config:
+      document_type: "RE"
+      posting_key: "31"
+      company_code: "${COMPANY_CODE}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/fi/post"
+      timeout_secs: 30
+    compensating_action:
+      description: "Reverse FI posting"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/fi/reverse"
+    error_handler:
+      type: Retry
+      max_attempts: 2
+      backoff_ms: 5000
+
+  # ── 10. 安排付款 ──
+  - id: schedule-payment
+    name: Schedule Payment
+    type: process
+    config:
+      payment_method: "bank_transfer"
+      due_date_offset_days: 30
+      company_code: "${COMPANY_CODE}"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/payment/schedule"
+    compensating_action:
+      description: "Cancel scheduled payment"
+      executor:
+        type: Http
+        method: POST
+        url: "${SAP_API}/api/payment/cancel"
+
+  # ── 11. 完成通知 ──
+  - id: completion-notify
+    name: Send Completion Notification
+    type: process
+    config:
+      channels: ["email", "teams"]
+      template: "invoice_processed"
+    executor:
+      type: Http
+      method: POST
+      url: "${SAP_API}/api/notify"
+
+  # ── 例外 → 结束 ──
+  - id: exception-end
+    name: Exception Resolution Pending
+    type: process
+    config:
+      status: "pending_resolution"
+
+edges:
+  # 主流程
+  - from: receive-invoice
+    to: ocr-extract
+  - from: ocr-extract
+    to: validate-data
+
+  # 数据校验分支
+  - from: validate-data
+    to: match-po
+    condition:
+      expression: "validation_passed == true"
+      description: "Data validation passed"
+  - from: validate-data
+    to: exception-handler
+    condition:
+      expression: "validation_passed == false"
+      description: "Data validation failed"
+
+  # 三单匹配
+  - from: match-po
+    to: three-way-match
+
+  # 匹配结果分支
+  - from: three-way-match
+    to: check-amount
+    condition:
+      expression: "match_status == 'all_matched'"
+      description: "PO, GR, and Invoice all matched"
+  - from: three-way-match
+    to: exception-handler
+    condition:
+      expression: "match_status != 'all_matched'"
+      description: "Matching discrepancy found"
+
+  # 审批分支
+  - from: check-amount
+    to: human-approval
+    condition:
+      expression: "invoice_amount >= ${APPROVAL_THRESHOLD}"
+      description: "Large amount requires human approval"
+  - from: check-amount
+    to: auto-approve
+    condition:
+      expression: "invoice_amount < ${APPROVAL_THRESHOLD}"
+      description: "Small amount auto-approved"
+
+  # 审批后 → 过账
+  - from: human-approval
+    to: post-to-fi
+  - from: auto-approve
+    to: post-to-fi
+
+  # 过账 → 付款 → 通知
+  - from: post-to-fi
+    to: schedule-payment
+  - from: schedule-payment
+    to: completion-notify
+
+  # 例外 → 结束
+  - from: exception-handler
+    to: exception-end
+
+exits:
+  - completion-notify
+  - exception-end

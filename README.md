@@ -12,7 +12,7 @@
     12|    <img src="https://img.shields.io/badge/crates-28-purple.svg" alt="Crates">
     13|  </a>
     14|  <a href="https://github.com/Andy-ckm/KIAS">
-    15|    <img src="https://img.shields.io/badge/LOC-85K%2B-blue.svg" alt="Lines of Code">
+    15|    <img src="https://img.shields.io/badge/LOC-99K%2B-blue.svg" alt="Lines of Code">
     16|  </a>
     17|  <a href="https://github.com/Andy-ckm/KIAS">
     18|    <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
@@ -47,13 +47,14 @@
     47|  <img src="docs/stats.svg" alt="KIAS Statistics" width="780">
     48|</p>
     49|
-    50|| Metric | Value |
-    51||--------|-------|
-    52|| Rust Crates | 22 |
-    53|| Lines of Code | 85,000+ |
-    54|| Scheduling Algorithms | 7 (including GPU-Aware, Edge) |
-    55|| MCP Sandbox Backends | 5 (Docker / Firecracker / gVisor / Wasm / Process) |
-    56|| Test Coverage | `#[cfg(test)]` module in every crate |
+| Metric | Value |
+|--------|-------|
+| Rust Crates | 28 |
+| Lines of Code | 99,000+ |
+| Tests | 1,910 passing |
+| Scheduling Algorithms | 7 (including GPU-Aware, Edge) |
+| MCP Sandbox Backends | 5 (Docker / Firecracker / gVisor / Wasm / Process) |
+| Test Coverage | `#[cfg(test)]` module in every crate |
     57|
     58|---
     59|
@@ -115,6 +116,31 @@ Phase 1: Rule-driven (keyword search, fixed workflows)        ← Current
 Phase 2: Hybrid-driven (vector+keyword, Shell scheduling)     ← Building
 Phase 3: Data-driven (AgenticRAG, learned workflows)          ← Target
 ```
+
+## Recent Progress (Last 8 Hours)
+
+KIAS follows an **autonomous development loop** driven by Qian Xuesen's Systems Engineering methodology. Here's what was built:
+
+| Feature | Tests | Source Reference | Status |
+|---------|-------|------------------|--------|
+| **AgenticRAG** — 企业级检索层 | 41 tests | AgenticRAG论文 + Dify | ✅ |
+| **InspirationStream** — Builder-Thinker双流 | 21 tests | MiniMax Mavis + AgentScope | ✅ |
+| **QualityPipeline** — 数据质量管道 | 19 tests | DeepEval + Langfuse | ✅ |
+| **ContextManager** — 七层记忆压缩 | 18 tests | Claude Code memory | ✅ |
+| **Knowledge RAG API** — 文档注入+搜索 | — | RAG全链路 | ✅ |
+| **Agent Shell Scheduling** — Shell调度 | 5 tests | K8S Pod + Dify Agent | ✅ |
+| **Auto-loop Tests** — 检测器+规划器 | 32 tests | 自驱动开发 | ✅ |
+| **做减法** — 砍掉3个未使用crate | — | 第一性原则 | ✅ |
+| **方法论体系** — 钱学森+马斯克+论文源码 | — | 系统工程 | ✅ |
+
+**做减法决策**（第一性原则）：
+- ❌ `data-generator` — 未被任何crate引用
+- ❌ `test-framework` — 未被任何crate引用
+- ❌ `web-playground` — 未被任何crate引用
+
+**四步开发法**：每个功能必须经过 评估→审视→方案→开发，必须有论文或源码支撑。
+
+---
 
 ## Core Innovations
     92|

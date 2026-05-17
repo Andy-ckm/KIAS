@@ -13,6 +13,7 @@ pub mod llm_intent;
 pub mod planner;
 pub mod recursive_decomposer;
 pub mod task_decomposer;
+pub mod tool_aware_intent;
 pub mod verifier;
 
 use serde::{Deserialize, Serialize};

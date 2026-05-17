@@ -127,10 +127,7 @@ impl SoulConfig {
 
         // Personality
         if !self.personality.style.is_empty() {
-            prompt.push_str(&format!(
-                "Personality style: {}\n",
-                self.personality.style
-            ));
+            prompt.push_str(&format!("Personality style: {}\n", self.personality.style));
         }
         if !self.personality.thoroughness.is_empty() {
             prompt.push_str(&format!(
@@ -179,10 +176,7 @@ impl SoulConfig {
 
         // Tools
         if !self.tools.is_empty() {
-            prompt.push_str(&format!(
-                "\n## Allowed Tools\n{}\n",
-                self.tools.join(", ")
-            ));
+            prompt.push_str(&format!("\n## Allowed Tools\n{}\n", self.tools.join(", ")));
         }
 
         // Description body
@@ -231,8 +225,7 @@ impl SoulLoader {
             let content = std::fs::read_to_string(&path)
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
             let config = SoulConfig::from_markdown(&content)?;
-            self.cache
-                .insert(agent_id.to_string(), (config, mtime));
+            self.cache.insert(agent_id.to_string(), (config, mtime));
         }
 
         Ok(&self.cache.get(agent_id).unwrap().0)

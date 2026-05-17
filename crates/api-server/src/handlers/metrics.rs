@@ -151,3 +151,94 @@ pub async fn cluster_status(State(state): State<AppState>) -> Json<ClusterStatus
         running_agents,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_metrics_summary_serialize() {
+        let summary = MetricsSummary {
+            agent_count: 5,
+            node_count: 3,
+            task_stats: TaskStats {
+                pending: 1,
+                scheduled: 0,
+                running: 2,
+                succeeded: 1,
+                failed: 1,
+                unknown: 0,
+            },
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains(""agent_count":5"));
+        assert!(json.contains(""node_count":3"));
+        assert!(json.contains(""running":2"));
+    }
+
+    #[test]
+    fn test_agent_metrics_serialize() {
+        let metrics = AgentMetrics {
+            id: "a1".to_string(),
+            name: "test-agent".to_string(),
+            status: AgentStatus::Running,
+            node_id: Some("n1".to_string()),
+            restart_count: 2,
+            created_at: "2026-01-01".to_string(),
+            updated_at: "2026-01-02".to_string(),
+            start_time: Some("2026-01-01T10:00:00Z".to_string()),
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        assert!(json.contains(""restart_count":2"));
+        assert!(json.contains(""Running""));
+    }
+
+    #[test]
+    fn test_cluster_status_serialize() {
+        let status = ClusterStatus {
+            overall: "healthy".to_string(),
+            nodes: vec![NodeHealth {
+                id: "n1".to_string(),
+                name: "node-1".to_string(),
+                status: "Ready".to_string(),
+                cpu: "4".to_string(),
+                memory: "8Gi".to_string(),
+                gpu: "0".to_string(),
+            }],
+            total_agents: 3,
+            running_agents: 2,
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains(""overall":"healthy""));
+        assert!(json.contains(""total_agents":3"));
+        assert!(json.contains(""running_agents":2"));
+    }
+
+    #[test]
+    fn test_node_health_serialize() {
+        let nh = NodeHealth {
+            id: "n1".to_string(),
+            name: "worker".to_string(),
+            status: "Ready".to_string(),
+            cpu: "8".to_string(),
+            memory: "16Gi".to_string(),
+            gpu: "1".to_string(),
+        };
+        let json = serde_json::to_string(&nh).unwrap();
+        assert!(json.contains(""gpu":"1""));
+    }
+
+    #[test]
+    fn test_task_stats_all_zeros() {
+        let stats = TaskStats {
+            pending: 0,
+            scheduled: 0,
+            running: 0,
+            succeeded: 0,
+            failed: 0,
+            unknown: 0,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains(""pending":0"));
+    }
+}

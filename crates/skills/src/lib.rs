@@ -1,5 +1,6 @@
 pub mod builtin;
 pub mod composition;
+pub mod distillation;
 pub mod pipeline;
 pub mod registry;
 pub mod skill;

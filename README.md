@@ -3,7 +3,7 @@
      3|    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
      4|  </a>
      5|  <a href="https://github.com/Andy-ckm/KIAS/actions">
-     6|    <img src="https://img.shields.io/badge/tests-1910%20passed-brightgreen.svg" alt="Tests">
+     6|    <img src="https://img.shields.io/badge/tests-1995%20passed-brightgreen.svg" alt="Tests">
      7|  </a>
      8|  <a href="https://www.rust-lang.org">
      9|    <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
@@ -132,6 +132,14 @@ KIAS follows an **autonomous development loop** driven by Qian Xuesen's Systems 
 | **Auto-loop Tests** — 检测器+规划器 | 32 tests | 自驱动开发 | ✅ |
 | **做减法** — 砍掉3个未使用crate | — | 第一性原则 | ✅ |
 | **方法论体系** — 钱学森+马斯克+论文源码 | — | 系统工程 | ✅ |
+| **IntentRecognizer** — 关键词意图识别 | 10 tests | DeepResearchAgent + Dify | ✅ |
+| **TaskDecomposer** — DAG任务拆解 | 11 tests | Graph of Thoughts | ✅ |
+| **LlmIntentClassifier** — LLM意图识别 | 8 tests | Self-Instruct + HuggingGPT | ✅ |
+| **RecursiveDecomposer** — 递归任务分解 | 10 tests | DeepResearchAgent | ✅ |
+| **ToolAwareRecognizer** — 工具感知意图 | 8 tests | Toolformer | ✅ |
+| **ContextAwareDecomposer** — 上下文感知分解 | 9 tests | Claude Multi-Agent Design | ✅ |
+| **IntentDrivenLoop** — 意图驱动循环 | 10 tests | Claude 五种编排模式 | ✅ |
+| **Intent API** — 意图识别端点 | — | REST API | ✅ |
 
 **做减法决策**（第一性原则）：
 - ❌ `data-generator` — 未被任何crate引用

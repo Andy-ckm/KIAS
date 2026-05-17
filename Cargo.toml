@@ -21,6 +21,7 @@ members = [
     "crates/mcp-protocol",
     "crates/data-store",
     "crates/data-governance",
+    "crates/data-aggregator",
     "crates/model-router",
     "crates/llm-engine",
     "crates/tool-executor",

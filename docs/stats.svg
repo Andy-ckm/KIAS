@@ -1,81 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="780" height="340" viewBox="0 0 780 340">
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="280" viewBox="0 0 780 280">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0d1117"/>
-      <stop offset="100%" style="stop-color:#161b22"/>
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
     </linearGradient>
     <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#58a6ff"/>
-      <stop offset="100%" style="stop-color:#bc8cff"/>
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#0f3460"/>
     </linearGradient>
-    <linearGradient id="bar1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#238636"/>
-      <stop offset="100%" style="stop-color:#2ea043"/>
-    </linearGradient>
-    <linearGradient id="bar2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#58a6ff"/>
-      <stop offset="100%" style="stop-color:#79c0ff"/>
-    </linearGradient>
-    <linearGradient id="bar3" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#bc8cff"/>
-      <stop offset="100%" style="stop-color:#d2a8ff"/>
-    </linearGradient>
-    <linearGradient id="bar4" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#f0883e"/>
-      <stop offset="100%" style="stop-color:#ffa657"/>
-    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-
-  <!-- Background -->
-  <rect width="780" height="340" rx="12" fill="url(#bg)" stroke="#30363d" stroke-width="1"/>
-
+  <rect width="780" height="280" fill="url(#bg)" rx="12"/>
+  <rect x="20" y="15" width="740" height="3" fill="url(#accent)" rx="1.5"/>
+  
   <!-- Title -->
-  <text x="40" y="45" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#e6edf3">📊 KIAS Project Statistics</text>
-  <line x1="40" y1="58" x2="740" y2="58" stroke="#21262d" stroke-width="1"/>
-
+  <text x="390" y="45" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#e94560" filter="url(#glow)">KIAS — Live Statistics</text>
+  
   <!-- Stats Grid -->
-  <!-- Row 1 -->
-  <!-- Crates -->
-  <rect x="40" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="56" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">CRATES</text>
-  <text x="56" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#58a6ff">22</text>
-
-  <!-- LOC -->
-  <rect x="220" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="236" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">LINES OF CODE</text>
-  <text x="236" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#bc8cff">88K+</text>
-
-  <!-- Tests -->
-  <rect x="400" y="78" width="165" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="416" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">TESTS</text>
-  <text x="416" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#2ea043">1,720</text>
-
-  <!-- Innovations -->
-  <rect x="580" y="78" width="160" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="596" y="102" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">INNOVATIONS</text>
-  <text x="596" y="132" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#f0883e">99</text>
-
-  <!-- Row 2 -->
-  <!-- Scheduling Algorithms -->
-  <rect x="40" y="168" width="345" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="56" y="192" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">SCHEDULING ALGORITHMS</text>
-  <text x="56" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#e6edf3">7</text>
-  <text x="86" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">including GPU-Aware, Edge</text>
-
-  <!-- MCP Sandbox -->
-  <rect x="400" y="168" width="340" height="72" rx="8" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
-  <text x="416" y="192" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">MCP SANDBOX BACKENDS</text>
-  <text x="416" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#e6edf3">5</text>
-  <text x="446" y="222" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">Docker · Firecracker · gVisor · Wasm · Process</text>
-
-  <!-- Progress Bars -->
-  <text x="40" y="275" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">TEST COVERAGE</text>
-  <rect x="40" y="285" width="700" height="8" rx="4" fill="#21262d"/>
-  <rect x="40" y="285" width="665" height="8" rx="4" fill="url(#bar1)"/>
-  <text x="720" y="293" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#2ea043">95%</text>
-
-  <text x="40" y="310" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#8b949e">ARCHITECTURE COMPLIANCE</text>
-  <rect x="40" y="320" width="700" height="8" rx="4" fill="#21262d"/>
-  <rect x="40" y="320" width="700" height="8" rx="4" fill="url(#bar2)"/>
-  <text x="720" y="328" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#58a6ff">100%</text>
+  <g font-family="system-ui, sans-serif" fill="#e0e0e0">
+    <!-- Row 1 -->
+    <g transform="translate(40, 70)">
+      <text font-size="11" fill="#888" y="0">CRATES</text>
+      <text font-size="28" font-weight="700" fill="#e94560" y="30">28</text>
+    </g>
+    <g transform="translate(180, 70)">
+      <text font-size="11" fill="#888" y="0">LINES OF CODE</text>
+      <text font-size="28" font-weight="700" fill="#4fc3f7" y="30">99,030</text>
+    </g>
+    <g transform="translate(360, 70)">
+      <text font-size="11" fill="#888" y="0">TESTS</text>
+      <text font-size="28" font-weight="700" fill="#66bb6a" y="30">1,910</text>
+    </g>
+    <g transform="translate(500, 70)">
+      <text font-size="11" fill="#888" y="0">SCHEDULING ALGOS</text>
+      <text font-size="28" font-weight="700" fill="#ffb74d" y="30">7</text>
+    </g>
+    <g transform="translate(660, 70)">
+      <text font-size="11" fill="#888" y="0">SANDBOX BACKENDS</text>
+      <text font-size="28" font-weight="700" fill="#ce93d8" y="30">5</text>
+    </g>
+    
+    <!-- Row 2: Recent 8h -->
+    <text x="40" y="135" font-size="12" font-weight="700" fill="#e94560">最近 8 小时进展</text>
+    
+    <g transform="translate(40, 150)">
+      <rect width="160" height="50" rx="6" fill="rgba(233,69,96,0.1)" stroke="rgba(233,69,96,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">AgenticRAG</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#e94560">41 tests</text>
+    </g>
+    <g transform="translate(220, 150)">
+      <rect width="160" height="50" rx="6" fill="rgba(79,195,247,0.1)" stroke="rgba(79,195,247,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">InspirationStream</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#4fc3f7">21 tests</text>
+    </g>
+    <g transform="translate(400, 150)">
+      <rect width="160" height="50" rx="6" fill="rgba(102,187,106,0.1)" stroke="rgba(102,187,106,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">QualityPipeline</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#66bb6a">19 tests</text>
+    </g>
+    <g transform="translate(580, 150)">
+      <rect width="160" height="50" rx="6" fill="rgba(255,183,77,0.1)" stroke="rgba(255,183,77,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">Agent Shell</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#ffb74d">5 tests</text>
+    </g>
+    
+    <!-- Row 3 -->
+    <g transform="translate(40, 215)">
+      <rect width="160" height="50" rx="6" fill="rgba(206,147,216,0.1)" stroke="rgba(206,147,216,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">ContextManager</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#ce93d8">18 tests</text>
+    </g>
+    <g transform="translate(220, 215)">
+      <rect width="160" height="50" rx="6" fill="rgba(239,83,80,0.1)" stroke="rgba(239,83,80,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">Auto-loop Tests</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#ef5350">32 tests</text>
+    </g>
+    <g transform="translate(400, 215)">
+      <rect width="160" height="50" rx="6" fill="rgba(129,199,132,0.1)" stroke="rgba(129,199,132,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">做减法 (第一性原则)</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#81c784">-3 crates</text>
+    </g>
+    <g transform="translate(580, 215)">
+      <rect width="160" height="50" rx="6" fill="rgba(79,195,247,0.1)" stroke="rgba(79,195,247,0.3)"/>
+      <text x="80" y="20" text-anchor="middle" font-size="10" fill="#888">方法论体系</text>
+      <text x="80" y="38" text-anchor="middle" font-size="14" font-weight="600" fill="#4fc3f7">QX+Musk+论文</text>
+    </g>
+  </g>
+  
+  <text x="390" y="275" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#555">Powered by Qian Xuesen Systems Engineering + First Principles</text>
 </svg>

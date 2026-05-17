@@ -121,8 +121,14 @@ pub struct CacheHubConfig {
 pub struct KnowledgeConfig {
     /// Whether Knowledge service is enabled.  Default: `false`.
     pub enabled: bool,
-    /// Embedding model name.  Default: `text-embedding-ada-002`.
+    /// Embedding model name.  Default: `BAAI/bge-m3`.
     pub embedding_model: String,
+    /// Embedding provider: `local` or `siliconflow`.  Default: `local`.
+    pub embedding_provider: String,
+    /// SiliconFlow API key (or set `KIAS_KNOWLEDGE__SILICONFLOW_API_KEY` env var).
+    pub siliconflow_api_key: Option<String>,
+    /// SiliconFlow API base URL.  Default: `https://api.siliconflow.cn/v1`.
+    pub siliconflow_base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -209,7 +215,10 @@ impl Default for KnowledgeConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            embedding_model: "text-embedding-ada-002".into(),
+            embedding_model: "BAAI/bge-m3".into(),
+            embedding_provider: "local".into(),
+            siliconflow_api_key: None,
+            siliconflow_base_url: "https://api.siliconflow.cn/v1".into(),
         }
     }
 }

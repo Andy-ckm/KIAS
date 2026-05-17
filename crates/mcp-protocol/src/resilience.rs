@@ -656,4 +656,362 @@ mod tests {
             .await;
         assert!(matches!(result, Err(CircuitBreakerError::Inner(_))));
     }
+    #[tokio::test]
+    async fn test_circuit_breaker_half_open_to_closed() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 2,
+            open_duration: Duration::from_millis(50),
+            half_open_success_threshold: 2,
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Open the circuit
+        cb.record_failure().await;
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Open);
+
+        // Wait for open duration
+        tokio::time::sleep(Duration::from_millis(80)).await;
+
+        // Transition to half-open
+        assert!(cb.allow_request().await);
+        assert_eq!(cb.state().await, CircuitState::HalfOpen);
+
+        // Record successes to close
+        cb.record_success().await;
+        assert_eq!(cb.state().await, CircuitState::HalfOpen);
+        cb.record_success().await;
+        assert_eq!(cb.state().await, CircuitState::Closed);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_half_open_failure_reopens() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 2,
+            open_duration: Duration::from_millis(50),
+            half_open_success_threshold: 3,
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Open the circuit
+        cb.record_failure().await;
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Open);
+
+        // Wait and transition to half-open
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        assert!(cb.allow_request().await);
+        assert_eq!(cb.state().await, CircuitState::HalfOpen);
+
+        // Failure in half-open reopens
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Open);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_execute_when_open_rejects() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 1,
+            open_duration: Duration::from_secs(60),
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Open the circuit
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Open);
+
+        // Execute should reject
+        let result = cb.execute(async { Ok::<i32, String>(42) }).await;
+        assert!(matches!(result, Err(CircuitBreakerError::Rejected)));
+
+        // Metrics should show rejected
+        let m = cb.metrics().await;
+        assert_eq!(m.rejected, 1);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_execute_timeout() {
+        let config = CircuitBreakerConfig {
+            request_timeout: Duration::from_millis(50),
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Execute a slow operation
+        let result = cb
+            .execute(async {
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                Ok::<i32, String>(42)
+            })
+            .await;
+        assert!(matches!(result, Err(CircuitBreakerError::Timeout)));
+
+        // Should record as failure
+        let m = cb.metrics().await;
+        assert_eq!(m.failures, 1);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_metrics_tracking() {
+        let cb = CircuitBreaker::with_defaults();
+
+        // Record some successes and failures
+        cb.record_success().await;
+        cb.record_success().await;
+        cb.record_failure().await;
+
+        let m = cb.metrics().await;
+        assert_eq!(m.total_requests, 3);
+        assert_eq!(m.successes, 2);
+        assert_eq!(m.failures, 1);
+        assert_eq!(m.consecutive_failures, 1);
+        assert!(m.last_failure_ms.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_reset() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 1,
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Open the circuit
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Open);
+
+        // Reset
+        cb.reset().await;
+        assert_eq!(cb.state().await, CircuitState::Closed);
+        let m = cb.metrics().await;
+        assert_eq!(m.total_requests, 0);
+        assert_eq!(m.failures, 0);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_failure_window_reset() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 3,
+            failure_window: Duration::from_millis(100),
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Record 2 failures
+        cb.record_failure().await;
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Closed);
+
+        // Wait for window to expire
+        tokio::time::sleep(Duration::from_millis(150)).await;
+
+        // 3rd failure after window reset shouldn't open
+        cb.record_failure().await;
+        assert_eq!(cb.state().await, CircuitState::Closed);
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker_state_transitions_count() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 1,
+            open_duration: Duration::from_millis(50),
+            half_open_success_threshold: 1,
+            ..Default::default()
+        };
+        let cb = CircuitBreaker::new(config);
+
+        // Closed → Open
+        cb.record_failure().await;
+        // Open → HalfOpen
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        cb.allow_request().await;
+        // HalfOpen → Closed
+        cb.record_success().await;
+
+        let m = cb.metrics().await;
+        assert_eq!(m.state_transitions, 3);
+    }
+
+    #[tokio::test]
+    async fn test_token_bucket_refill_over_time() {
+        let config = RateLimiterConfig {
+            max_tokens: 10,
+            refill_rate: 100.0, // 100 tokens/sec
+            initial_tokens: Some(0),
+        };
+        let limiter = TokenBucketRateLimiter::new(config);
+
+        // Initially empty
+        assert!(!limiter.acquire().await);
+
+        // Wait for refill
+        tokio::time::sleep(Duration::from_millis(60)).await; // ~6 tokens refilled
+
+        // Should allow now
+        assert!(limiter.acquire().await);
+    }
+
+    #[tokio::test]
+    async fn test_token_bucket_acquire_n() {
+        let config = RateLimiterConfig {
+            max_tokens: 10,
+            refill_rate: 10.0,
+            initial_tokens: Some(10),
+        };
+        let limiter = TokenBucketRateLimiter::new(config);
+
+        // Acquire 5 tokens
+        assert!(limiter.acquire_n(5).await);
+        // Acquire 5 more
+        assert!(limiter.acquire_n(5).await);
+        // 1 more should fail
+        assert!(!limiter.acquire_n(1).await);
+    }
+
+    #[tokio::test]
+    async fn test_token_bucket_stats() {
+        let config = RateLimiterConfig {
+            max_tokens: 5,
+            refill_rate: 10.0,
+            initial_tokens: Some(5),
+        };
+        let limiter = TokenBucketRateLimiter::new(config);
+
+        limiter.acquire().await;
+        limiter.acquire().await;
+        assert!(!limiter.acquire_n(5).await); // only 3 left
+
+        let stats = limiter.stats().await;
+        assert_eq!(stats.allowed, 2);
+        assert_eq!(stats.rejected, 1);
+    }
+
+    #[tokio::test]
+    async fn test_token_bucket_reset() {
+        let config = RateLimiterConfig {
+            max_tokens: 5,
+            refill_rate: 10.0,
+            initial_tokens: Some(1),
+        };
+        let limiter = TokenBucketRateLimiter::new(config);
+
+        // Exhaust tokens
+        assert!(limiter.acquire().await);
+        assert!(!limiter.acquire().await);
+
+        // Reset
+        limiter.reset().await;
+        assert!(limiter.acquire().await);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_window_current_count() {
+        let limiter = SlidingWindowRateLimiter::new(5, Duration::from_secs(1));
+
+        assert_eq!(limiter.current_count().await, 0);
+        limiter.is_allowed().await;
+        limiter.is_allowed().await;
+        assert_eq!(limiter.current_count().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_sliding_window_reset() {
+        let limiter = SlidingWindowRateLimiter::new(2, Duration::from_secs(1));
+
+        limiter.is_allowed().await;
+        limiter.is_allowed().await;
+        assert!(!limiter.is_allowed().await);
+
+        limiter.reset().await;
+        assert!(limiter.is_allowed().await);
+    }
+
+    #[tokio::test]
+    async fn test_client_rate_limiter_basic() {
+        let config = RateLimiterConfig {
+            max_tokens: 2,
+            refill_rate: 10.0,
+            initial_tokens: Some(2),
+        };
+        let manager = ClientRateLimiter::new(config);
+
+        // Client A gets 2 tokens
+        assert!(manager.acquire("client-a").await);
+        assert!(manager.acquire("client-a").await);
+        assert!(!manager.acquire("client-a").await);
+
+        // Client B independently gets 2 tokens
+        assert!(manager.acquire("client-b").await);
+        assert!(manager.acquire("client-b").await);
+        assert!(!manager.acquire("client-b").await);
+    }
+
+    #[tokio::test]
+    async fn test_client_rate_limiter_custom_config() {
+        let default_config = RateLimiterConfig {
+            max_tokens: 2,
+            refill_rate: 10.0,
+            initial_tokens: Some(2),
+        };
+        let manager = ClientRateLimiter::new(default_config);
+
+        // Set custom config for vip-client
+        manager
+            .set_client_config(
+                "vip-client",
+                RateLimiterConfig {
+                    max_tokens: 10,
+                    refill_rate: 100.0,
+                    initial_tokens: Some(10),
+                },
+            )
+            .await;
+
+        // VIP client gets more tokens
+        for _ in 0..10 {
+            assert!(manager.acquire("vip-client").await);
+        }
+        assert!(!manager.acquire("vip-client").await);
+    }
+
+    #[test]
+    fn test_circuit_breaker_error_display() {
+        let err: CircuitBreakerError<String> = CircuitBreakerError::Rejected;
+        assert_eq!(format!("{}", err), "Circuit breaker is open");
+
+        let err: CircuitBreakerError<String> = CircuitBreakerError::Timeout;
+        assert_eq!(format!("{}", err), "Request timed out");
+
+        let err: CircuitBreakerError<String> = CircuitBreakerError::Inner("boom".to_string());
+        assert_eq!(format!("{}", err), "Inner error: boom");
+    }
+
+    #[test]
+    fn test_rate_limiter_config_default() {
+        let config = RateLimiterConfig::default();
+        assert_eq!(config.max_tokens, 100);
+        assert_eq!(config.refill_rate, 10.0);
+        assert!(config.initial_tokens.is_none());
+    }
+
+    #[test]
+    fn test_circuit_breaker_config_default() {
+        let config = CircuitBreakerConfig::default();
+        assert_eq!(config.failure_threshold, 5);
+        assert_eq!(config.open_duration, Duration::from_secs(60));
+        assert_eq!(config.half_open_success_threshold, 3);
+        assert_eq!(config.request_timeout, Duration::from_secs(30));
+        assert_eq!(config.failure_window, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_circuit_state_equality() {
+        assert_eq!(CircuitState::Closed, CircuitState::Closed);
+        assert_ne!(CircuitState::Closed, CircuitState::Open);
+        assert_ne!(CircuitState::Open, CircuitState::HalfOpen);
+    }
+
 }

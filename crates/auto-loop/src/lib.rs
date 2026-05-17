@@ -7,8 +7,10 @@ pub mod analyzer;
 pub mod codegen;
 pub mod deployer;
 pub mod detector;
+pub mod intent_recognizer;
 pub mod learner;
 pub mod planner;
+pub mod task_decomposer;
 pub mod verifier;
 
 use serde::{Deserialize, Serialize};

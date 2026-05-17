@@ -22,3 +22,6 @@ uuid.workspace = true
 chrono.workspace = true
 reqwest.workspace = true
 serde_yaml.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

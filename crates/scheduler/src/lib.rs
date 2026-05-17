@@ -27,3 +27,4 @@ pub use edge::{
     EdgeClusterStats, EdgeNode, EdgeScheduler, EdgeSchedulingConstraints, NodeLocation, NodeTier,
 };
 pub mod agent_shell;
+pub mod agent_tier;

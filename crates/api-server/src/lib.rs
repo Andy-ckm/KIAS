@@ -32,8 +32,22 @@ pub struct AppState {
     pub event_replay_buffer: EventReplayBuffer,
     /// Knowledge base retriever (vector search + hybrid retrieval)
     pub knowledge_retriever: Arc<dyn Retriever>,
+    /// Ingested documents store (for RAG ingest → search pipeline)
+    pub ingested_docs: Arc<RwLock<Vec<IngestedDoc>>>,
     /// Session context manager (7-layer memory architecture)
     pub context_manager: Option<Arc<kias_knowledge::context_manager::MultiSessionContextManager>>,
+}
+
+/// An ingested document stored in memory
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IngestedDoc {
+    pub id: String,
+    pub title: String,
+    pub content: String,
+    pub tags: Vec<String>,
+    pub source_type: String,
+    pub chunks: Vec<String>,
+    pub ingested_at: String,
 }
 
 impl AppState {
@@ -106,6 +120,7 @@ impl AppState {
             connection_registry: ConnectionRegistry::default(),
             event_replay_buffer: EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
         }
     }
@@ -192,6 +207,7 @@ impl AppState {
             connection_registry: ConnectionRegistry::default(),
             event_replay_buffer: EventReplayBuffer::default(),
             knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
         }
     }

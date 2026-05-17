@@ -17,6 +17,7 @@
 
 use crate::analyzer::{AnalysisResult, AnalyzerManager};
 use crate::learner::{Learner, LessonEntry, LessonType};
+use crate::planner::{ErrorDrivenPlanner, GeneratedPlan};
 use crate::principles::{FourStepValidator, PrincipleCheckResult, QualityGate};
 use crate::verifier::{VerificationResult, VerifierManager};
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,8 @@ pub struct SelfDevResult {
     pub verification_results: Vec<VerificationResult>,
     /// 分析结果
     pub analysis_results: Vec<AnalysisResult>,
+    /// 修复方案
+    pub fix_plans: Vec<GeneratedPlan>,
     /// 原则检查
     pub principle_checks: Vec<PrincipleCheckResult>,
     /// 经验教训
@@ -72,6 +75,7 @@ pub struct SelfDevManager {
     workspace_path: PathBuf,
     verifier_mgr: VerifierManager,
     analyzer_mgr: AnalyzerManager,
+    planner: ErrorDrivenPlanner,
     learner: Learner,
 }
 
@@ -87,11 +91,13 @@ impl SelfDevManager {
         );
         let learner_path = workspace_path.join(".kias").join("learner.json");
         let learner = Learner::with_persistence(learner_path);
+        let planner = ErrorDrivenPlanner::new();
 
         Self {
             workspace_path,
             verifier_mgr,
             analyzer_mgr,
+            planner,
             learner,
         }
     }
@@ -108,6 +114,7 @@ impl SelfDevManager {
             quality_gate: None,
             verification_results: vec![],
             analysis_results: vec![],
+            fix_plans: vec![],
             principle_checks: vec![],
             lessons: vec![],
             duration_ms: 0,
@@ -176,22 +183,32 @@ impl SelfDevManager {
         let analysis_results = self.analyzer_mgr.analyze(&failure_output);
         result.analysis_results = analysis_results.clone();
 
-        // Phase 4: 生成修复建议
-        let fix_suggestions: Vec<String> = analysis_results
+        // Phase 4: 生成修复方案
+        let fix_plans: Vec<GeneratedPlan> = analysis_results
             .iter()
-            .flat_map(|a| {
-                let mut suggestions = vec![];
-                if let Some(ref root_cause) = a.root_cause {
-                    suggestions.push(format!("根因: {}", root_cause));
-                }
-                for file in &a.related_files {
-                    suggestions.push(format!("需检查: {}", file));
+            .filter_map(|a| self.planner.generate_from_analysis(a))
+            .collect();
+        result.fix_plans = fix_plans;
+
+        // Phase 5: 生成修复建议
+        let fix_plans: Vec<GeneratedPlan> = analysis_results
+            .iter()
+            .filter_map(|a| self.planner.generate_from_analysis(a))
+            .collect();
+        result.fix_plans = fix_plans.clone();
+
+        let fix_suggestions: Vec<String> = fix_plans
+            .iter()
+            .flat_map(|p| {
+                let mut suggestions = vec![format!("方案: {} — {}", p.title, p.description)];
+                for step in &p.steps {
+                    suggestions.push(format!("  Step {}: {}", step.order, step.description));
                 }
                 suggestions
             })
             .collect();
 
-        // Phase 5: 记录失败教训
+        // Phase 6: 记录失败教训
         result.status = SelfDevStatus::Failed;
         let lesson = format!(
             "质量门禁失败: {} 个验证未通过, {} 个根因分析",
@@ -285,6 +302,7 @@ mod tests {
             quality_gate: None,
             verification_results: vec![],
             analysis_results: vec![],
+            fix_plans: vec![],
             principle_checks: vec![],
             lessons: vec![],
             duration_ms: 0,

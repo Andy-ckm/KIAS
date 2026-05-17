@@ -6,6 +6,7 @@ pub mod heartbeat;
 pub mod lifecycle;
 pub mod reconciler;
 pub mod recovery;
+pub mod runtime_loop;
 pub mod state;
 
 pub use autonomy_integration::{ActionApproval, AutonomyGate};
@@ -21,6 +22,10 @@ pub use heartbeat::{HeartbeatAction, HeartbeatConfig, HeartbeatMonitor};
 pub use lifecycle::{AgentLifecycleManager, LifecycleHooks, LifecycleState};
 pub use reconciler::{AgentSpawner, DefaultReconciler, NoOpSpawner, Reconciler};
 pub use recovery::{RecoveryAction, RecoveryConfig, RecoveryManager};
+pub use runtime_loop::{
+    NoOpObserver, RuntimeLoop, RuntimeLoopBuilder, RuntimeLoopConfig, RuntimeLoopMetrics,
+    RuntimeLoopObserver, RuntimeLoopStatus, TracingObserver,
+};
 pub use state::{
     ActualState, AgentConfig, AgentInfo, AgentStatus, ControllerState, DesiredState,
     ResourceRequirements,

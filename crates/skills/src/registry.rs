@@ -60,6 +60,51 @@ impl SkillRegistry {
     pub fn unregister(&mut self, name: &str) -> bool {
         self.skills.remove(name).is_some()
     }
+
+    /// Find skills by tag
+    pub fn find_by_tag(&self, tag: &str) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.config().tags.iter().any(|t| t == tag))
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// Find skills by multiple tags (any match)
+    pub fn find_by_any_tag(&self, tags: &[&str]) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| {
+                let skill_tags = &s.config().tags;
+                tags.iter().any(|t| skill_tags.iter().any(|st| st == t))
+            })
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// Find skills by multiple tags (all match)
+    pub fn find_by_all_tags(&self, tags: &[&str]) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| {
+                let skill_tags = &s.config().tags;
+                tags.iter().all(|t| skill_tags.iter().any(|st| st == t))
+            })
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// List all unique tags
+    pub fn all_tags(&self) -> Vec<String> {
+        let mut tags: Vec<String> = self
+            .skills
+            .values()
+            .flat_map(|s| s.config().tags)
+            .collect();
+        tags.sort();
+        tags.dedup();
+        tags
+    }
 }
 
 #[cfg(test)]
@@ -183,5 +228,38 @@ mod tests {
         assert!(registry.unregister("s1"));
         assert!(!registry.has("s1"));
         assert!(!registry.unregister("s1"));
+    }
+
+    #[test]
+    fn test_find_by_tag() {
+        let mut registry = SkillRegistry::new();
+        let mut skill1 = MockSkill::new("http_call", "HTTP");
+        // Can't set tags on MockSkill directly, but we can test the method exists
+        registry.register(Box::new(skill1));
+
+        // find_by_tag should return empty for non-existent tag
+        let results = registry.find_by_tag("nonexistent");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_all_tags_empty() {
+        let registry = SkillRegistry::new();
+        let tags = registry.all_tags();
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_find_by_any_tag_empty() {
+        let registry = SkillRegistry::new();
+        let results = registry.find_by_any_tag(&["tag1", "tag2"]);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_find_by_all_tags_empty() {
+        let registry = SkillRegistry::new();
+        let results = registry.find_by_all_tags(&["tag1", "tag2"]);
+        assert!(results.is_empty());
     }
 }

@@ -17,10 +17,18 @@
 - / (系统盘): 22G 可用 / 40G (44%)
 - /mnt (挂载盘): 5.9G 可用 / 30G (80%) — debug deps 22G, 需持续监控
 
+### 📚 论文研究更新
+- **下载论文**: 2 篇新增
+  - 2605.15181.pdf (From Plans to Pixels: Learning to Plan and Orchestrate for Open-Ended Image Editing, 30MB)
+  - 2605.15132.pdf (APWA: A Distributed Architecture for Parallelizable Agentic Workflows, 1MB)
+- **已下载总计**: 7 篇论文
+- **论文索引**: 已更新 paper-index.md
+
 ### 📝 备注
 - `.task-queue/` 有 2 个未跟踪修改 (done.jsonl, pending.jsonl) — 任务队列状态文件，非代码变更
 - 最新提交: be569b8 (论文自动下载)
-- /mnt 磁盘从 Sprint 79 的 87% 降至 80%，但 debug deps (22G) 仍是主要占用
+- 本轮新增: 2 篇论文下载 + paper-index.md 更新
+- 磁盘状态: 系统盘 22G 可用 (44%)，健康
 
 ---
 

@@ -12,6 +12,7 @@ kias-common.workspace = true
 kias-executor = { path = "../executor" }
 kias-knowledge = { path = "../knowledge" }
 kias-data-store = { path = "../data-store" }
+auto-loop = { path = "../auto-loop" }
 
 tokio.workspace = true
 axum.workspace = true

@@ -1011,14 +1011,26 @@ pub async fn recognize_intent(
     let recognizer = auto_loop::intent_recognizer::IntentRecognizer::new();
     let intent = recognizer.recognize(&request.input);
 
+    // 使用工具感知识别器推荐工具
+    let tool_recognizer = auto_loop::tool_aware_intent::ToolAwareRecognizer::new();
+    let tool_intent = tool_recognizer.recognize(&request.input, intent.clone());
+
     // 转换为响应
     let response = RecognizeIntentResponse {
-        intent_type: format!("{:?}", intent.intent_type),
-        complexity: format!("{:?}", intent.complexity),
-        priority: format!("{:?}", intent.priority),
-        confidence: intent.confidence,
-        keywords: intent.keywords,
-        recommended_tools: vec![], // TODO: 集成 ToolAwareRecognizer
+        intent_type: format!("{:?}", tool_intent.base_intent.intent_type),
+        complexity: format!("{:?}", tool_intent.base_intent.complexity),
+        priority: format!("{:?}", tool_intent.base_intent.priority),
+        confidence: tool_intent.base_intent.confidence,
+        keywords: tool_intent.base_intent.keywords,
+        recommended_tools: tool_intent
+            .recommended_tools
+            .iter()
+            .map(|t| RecommendedToolResponse {
+                name: t.name.clone(),
+                score: t.score,
+                reason: t.reason.clone(),
+            })
+            .collect(),
     };
 
     Ok(Json(response))

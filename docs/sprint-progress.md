@@ -1,34 +1,33 @@
-## 最新更新：2026-05-18 01:36 (定时监控 — 质量门禁 + 磁盘检查)
+## 最新更新：2026-05-18 02:02 (Sprint 80 — Browser Automation Tools + Quality Gates)
 
 ### 🎯 质量门禁检查
 | 门禁 | 状态 |
 |------|------|
 | Build | ✅ 通过 |
+| Fmt | ✅ 通过 (修复 data-governance 2文件) |
 | Clippy | ✅ 零警告 |
-| Tests | ✅ 2,378 通过 / 0 失败 / 4 ignored (+51) |
+| Tests | ✅ 2,378 通过 / 0 失败 (default features) |
+| Tests | ✅ 2,401 通过 / 0 失败 (with browser feature) |
+
+### 🔧 本轮新增
+- **MCP Browser Automation**: `crates/mcp-protocol/src/browser/` (3 files, +785 lines)
+  - `BrowserSession` trait: 10 async methods (navigate, click, type, screenshot, read_page, scroll, wait_for, run_js, go_back, close)
+  - `BrowserToolKit`: registers all 10 tools on McpServer
+  - Feature-gated: `#[cfg(feature = "browser")]`
+  - `NoopBrowserSession` for testing
+  - 23 browser tests (session + tool handlers + definitions)
+  - Follows Kimi WebBridge pattern for agent-driven web interaction
+- **Fmt fixes**: data-governance/src/audit_middleware.rs, handlers.rs
 
 ### 📊 代码统计
-- **总 Rust 代码行数**: 114,743
-- **测试数量**: 2,378 (全部通过, +51 vs Sprint 79)
+- **总 Rust 代码行数**: 121,049
+- **测试数量**: 2,378 (default) / 2,401 (with browser feature)
 - **Clippy 警告**: 0
 - **Crates**: 27
 
 ### 💾 磁盘状态
 - / (系统盘): 22G 可用 / 40G (44%)
-- /mnt (挂载盘): 5.9G 可用 / 30G (80%) — debug deps 22G, 需持续监控
-
-### 📚 论文研究更新
-- **下载论文**: 2 篇新增
-  - 2605.15181.pdf (From Plans to Pixels: Learning to Plan and Orchestrate for Open-Ended Image Editing, 30MB)
-  - 2605.15132.pdf (APWA: A Distributed Architecture for Parallelizable Agentic Workflows, 1MB)
-- **已下载总计**: 7 篇论文
-- **论文索引**: 已更新 paper-index.md
-
-### 📝 备注
-- `.task-queue/` 有 2 个未跟踪修改 (done.jsonl, pending.jsonl) — 任务队列状态文件，非代码变更
-- 最新提交: be569b8 (论文自动下载)
-- 本轮新增: 2 篇论文下载 + paper-index.md 更新
-- 磁盘状态: 系统盘 22G 可用 (44%)，健康
+- /mnt (挂载盘): 5.0G 可用 / 30G (83%) — release 已清理
 
 ---
 

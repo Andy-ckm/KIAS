@@ -9,6 +9,7 @@ pub mod owner;
 pub mod semantic_matcher;
 pub mod session;
 pub mod skill_matcher;
+pub mod soul;
 pub mod state;
 pub mod subagent;
 pub mod swarm;
@@ -35,6 +36,7 @@ pub use owner::Owner;
 pub use semantic_matcher::{SemanticMatchResult, SemanticMatcherConfig, SemanticSkillMatcher};
 pub use session::{Session, SessionConfig, SessionMessage, SessionMetadata};
 pub use skill_matcher::{AgentProfile, MatchResult, MatcherConfig, SkillMatcher};
+pub use soul::{Personality, SoulConfig, SoulLoader};
 pub use state::{AgentRole, TaskStatus, TeamState};
 pub use subagent::{
     DelegationMode, DelegationOutcome, SubAgentError, SubAgentExecutor, SubAgentRegistry,

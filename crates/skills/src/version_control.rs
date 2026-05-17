@@ -287,7 +287,12 @@ mod tests {
     fn test_version_history_diff_summary() {
         let mut history = SkillVersionHistory::new("test-skill");
         history.add_version("1.0.0", "line1\nline2\nline3", "Initial", "system");
-        history.add_version("1.1.0", "line1\nline2\nline3\nline4", "Added line", "system");
+        history.add_version(
+            "1.1.0",
+            "line1\nline2\nline3\nline4",
+            "Added line",
+            "system",
+        );
 
         let diff = history.diff_summary("1.0.0", "1.1.0").unwrap();
         assert!(diff.content_hash_changed);
@@ -305,8 +310,12 @@ mod tests {
     #[test]
     fn test_version_store() {
         let mut store = VersionStore::new();
-        store.get_or_create("skill-a").add_version("1.0.0", "a", "init", "sys");
-        store.get_or_create("skill-b").add_version("1.0.0", "b", "init", "sys");
+        store
+            .get_or_create("skill-a")
+            .add_version("1.0.0", "a", "init", "sys");
+        store
+            .get_or_create("skill-b")
+            .add_version("1.0.0", "b", "init", "sys");
 
         assert_eq!(store.list_skills().len(), 2);
         assert_eq!(store.total_versions(), 2);

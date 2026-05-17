@@ -904,10 +904,7 @@ pub async fn fire_agent(
                 result: None,
                 artifacts: vec![],
                 duration_ms,
-                error: Some(format!(
-                    "Request timed out after {}ms",
-                    body.timeout_ms
-                )),
+                error: Some(format!("Request timed out after {}ms", body.timeout_ms)),
             }));
         }
 

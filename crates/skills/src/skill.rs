@@ -51,6 +51,12 @@ pub trait Skill: Send + Sync {
     }
     /// Execute the skill with given parameters
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value>;
+
+    /// Health check for the curator system. Returns the current health status.
+    /// Default implementation returns `Healthy` — override for real checks.
+    async fn health_check(&self) -> KiasResult<crate::curator::SkillHealthStatus> {
+        Ok(crate::curator::SkillHealthStatus::Healthy)
+    }
 }
 
 // ===== Built-in Skill Implementations =====

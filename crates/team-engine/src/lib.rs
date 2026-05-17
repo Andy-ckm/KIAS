@@ -1,10 +1,12 @@
 pub mod compaction;
 pub mod crew;
 pub mod delegation;
+pub mod embedder;
 pub mod engine;
 pub mod inspiration;
 pub mod memory;
 pub mod owner;
+pub mod semantic_matcher;
 pub mod session;
 pub mod skill_matcher;
 pub mod state;
@@ -23,12 +25,14 @@ pub use delegation::{
     AgentId, CancelDelegation, DelegateRequest, DelegateResponse, DelegationId, DelegationMessage,
     DelegationPriority, DelegationRecord, DelegationResult, DelegationState, ProgressUpdate,
 };
+pub use embedder::{Embedder, HashingEmbedder};
 pub use engine::TeamEngine;
 pub use memory::{
     ContextBuilder, EntityFact, EntityMemory, LongTermMemory, MemoryEntry, MemoryManager,
     ShortTermMemory,
 };
 pub use owner::Owner;
+pub use semantic_matcher::{SemanticMatchResult, SemanticMatcherConfig, SemanticSkillMatcher};
 pub use session::{Session, SessionConfig, SessionMessage, SessionMetadata};
 pub use skill_matcher::{AgentProfile, MatchResult, MatcherConfig, SkillMatcher};
 pub use state::{AgentRole, TaskStatus, TeamState};

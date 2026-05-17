@@ -16,6 +16,7 @@ use crate::AppState;
 /// Route layout:
 ///   /health            GET  — liveness probe (no auth)
 ///   /readyz            GET  — readiness probe (no auth)
+///   /.well-known/agent.json GET — A2A agent card discovery (no auth)
 ///   /api/v1/agents     GET  — list agents
 ///   /api/v1/agents     POST — create agent
 ///   /api/v1/agents/:id GET  — get agent
@@ -38,6 +39,15 @@ use crate::AppState;
 ///   /api/v1/workflows/:id GET — get workflow
 ///   /api/v1/workflows/:id DELETE — delete workflow
 ///   /api/v1/scheduler/status GET — scheduler status
+///   /a2a/v1/agents     GET  — list A2A agent cards
+///   /a2a/v1/agents/:id GET  — get specific A2A agent card
+///   /a2a/v1/tasks      GET  — list A2A tasks
+///   /a2a/v1/tasks      POST — send async A2A task
+///   /a2a/v1/tasks/:id  GET  — get A2A task status
+///   /a2a/v1/tasks/:id  DELETE — delete A2A task
+///   /a2a/v1/tasks/:id/cancel POST — cancel A2A task
+///   /a2a/v1/tasks/:id/stream GET — SSE stream for task updates
+///   /a2a/v1/fire       POST — synchronous fire-and-wait (Sembr-inspired)
 pub fn create_router(state: AppState) -> Router {
     // --- Rate limiter ---
     let rate_limiter = RateLimiter::new(RateLimiterConfig {
@@ -193,7 +203,9 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/a2a/v1/tasks/:id/stream",
             axum::routing::get(a2a::stream_task),
-        );
+        )
+        // Sembr-inspired synchronous fire-and-wait endpoint
+        .route("/a2a/v1/fire", axum::routing::post(a2a::fire_agent));
 
     // --- Natural Language command routes ---
     let nl_routes = Router::new()

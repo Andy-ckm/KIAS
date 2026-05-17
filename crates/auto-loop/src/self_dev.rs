@@ -295,6 +295,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // 集成测试，需手动运行: cargo test -p auto-loop -- --ignored
     fn test_self_dev_run_cycle() {
         let mut mgr = SelfDevManager::new("/workspace/kias");
         let result = mgr.run_cycle();
@@ -310,6 +311,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // 集成测试
     fn test_self_dev_learner_records() {
         let mut mgr = SelfDevManager::new("/workspace/kias");
         mgr.run_cycle();

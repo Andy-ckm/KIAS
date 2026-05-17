@@ -21,13 +21,111 @@ use std::sync::Arc;
 // ── Skill Definition ──────────────────────────────────────────────────
 
 /// Skill definition stored as JSON in the skills/ directory.
+///
+/// Extended with manifest metadata (inspired by skill-mcp).
+/// All new fields have defaults for backward compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SkillDef {
+    // ── 基础信息 ──────────────────────────────────────────────
+    /// 技能名称
     pub name: String,
+    /// 技能描述
     pub description: String,
+    /// 版本号（SemVer: "1.2.0"）
+    #[serde(default = "default_version")]
     pub version: String,
+    /// 标签（用于搜索和分类）
+    #[serde(default)]
     pub tags: Vec<String>,
+
+    // ── 依赖与权限 ──────────────────────────────────────────────
+    /// 依赖的其他技能
+    #[serde(default)]
+    pub dependencies: Vec<String>,
+    /// 所需权限（network, filesystem, gpu, etc）
+    #[serde(default)]
+    pub permissions: Vec<String>,
+
+    // ── 入口与内容 ──────────────────────────────────────────────
+    /// 入口文件路径
+    #[serde(default)]
+    pub entry: String,
+    /// 内容哈希（SHA-256，用于变更检测和版本回滚）
+    #[serde(default)]
+    pub content_hash: String,
+
+    // ── 时间戳 ──────────────────────────────────────────────
+    /// 创建时间（ISO 8601）
+    #[serde(default)]
+    pub created_at: String,
+    /// 更新时间（ISO 8601）
+    #[serde(default)]
+    pub updated_at: String,
+
+    // ── 参数 ──────────────────────────────────────────────
+    /// 参数定义（JSON Schema）
     pub parameters: Option<serde_json::Value>,
+}
+
+fn default_version() -> String {
+    "0.1.0".to_string()
+}
+
+impl SkillDef {
+    /// Create a new skill def with minimal required fields
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
+        let now = chrono::Utc::now().to_rfc3339();
+        Self {
+            name: name.into(),
+            description: description.into(),
+            version: default_version(),
+            tags: Vec::new(),
+            dependencies: Vec::new(),
+            permissions: Vec::new(),
+            entry: String::new(),
+            content_hash: String::new(),
+            created_at: now.clone(),
+            updated_at: now,
+            parameters: None,
+        }
+    }
+
+    /// Compute content hash from skill content
+    pub fn compute_hash(content: &str) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        content.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
+    }
+
+    /// Check if this skill has a specific permission
+    pub fn requires_permission(&self, perm: &str) -> bool {
+        self.permissions.iter().any(|p| p == perm)
+    }
+
+    /// Check if this skill depends on another
+    pub fn depends_on(&self, skill_name: &str) -> bool {
+        self.dependencies.iter().any(|d| d == skill_name)
+    }
+
+    /// Add a tag
+    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
+        self.tags.push(tag.into());
+        self
+    }
+
+    /// Add a dependency
+    pub fn with_dependency(mut self, dep: impl Into<String>) -> Self {
+        self.dependencies.push(dep.into());
+        self
+    }
+
+    /// Add a permission requirement
+    pub fn with_permission(mut self, perm: impl Into<String>) -> Self {
+        self.permissions.push(perm.into());
+        self
+    }
 }
 
 // ── Workspace Config ──────────────────────────────────────────────────
@@ -214,13 +312,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_skills_and_load() {
         let ws = test_workspace();
-        let skill = SkillDef {
-            name: "summarization".into(),
-            description: "Text summarization".into(),
-            version: "1.0.0".into(),
-            tags: vec!["nlp".into()],
-            parameters: None,
-        };
+        let skill = SkillDef::new("summarization", "Text summarization")
+            .with_tag("nlp");
         let json = serde_json::to_string(&skill).unwrap();
         ws.fs
             .write("skills/summarization.json", json.as_bytes())
@@ -291,13 +384,7 @@ mod tests {
     async fn test_list_skills_skips_non_json() {
         let ws = test_workspace();
         ws.fs.write("skills/README.md", b"# Skills").await.unwrap();
-        let skill = SkillDef {
-            name: "codegen".into(),
-            description: "Code gen".into(),
-            version: "0.1.0".into(),
-            tags: vec![],
-            parameters: None,
-        };
+        let skill = SkillDef::new("codegen", "Code gen");
         let json = serde_json::to_string(&skill).unwrap();
         ws.fs
             .write("skills/codegen.json", json.as_bytes())

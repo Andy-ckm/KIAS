@@ -677,6 +677,474 @@ impl Skill for DocAnalysisSkill {
     }
 }
 
+// ===== Finance Agent Skills =====
+
+/// 日记账技能
+pub struct JournalEntrySkill;
+
+impl JournalEntrySkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for JournalEntrySkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for JournalEntrySkill {
+    fn name(&self) -> &str {
+        "journal_entry"
+    }
+
+    fn description(&self) -> &str {
+        "Create and manage journal entries for accounting."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "finance".to_string(),
+            "accounting".to_string(),
+            "journal".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let entry_type = params
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("standard");
+
+        let amount = params
+            .get("amount")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+
+        let description = params
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        tracing::info!(entry_type = %entry_type, amount = amount, "Creating journal entry");
+
+        // TODO: 实际实现需要会计系统集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Journal entry skill requires accounting system integration",
+            "entry_type": entry_type,
+            "amount": amount,
+            "description": description,
+        }))
+    }
+}
+
+/// 对账技能
+pub struct ReconciliationSkill;
+
+impl ReconciliationSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for ReconciliationSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for ReconciliationSkill {
+    fn name(&self) -> &str {
+        "reconciliation"
+    }
+
+    fn description(&self) -> &str {
+        "Reconcile accounts and identify discrepancies."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "finance".to_string(),
+            "accounting".to_string(),
+            "reconciliation".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let account = params
+            .get("account")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                kias_common::KiasError::Validation("Missing 'account' parameter".to_string())
+            })?;
+
+        let period = params
+            .get("period")
+            .and_then(|v| v.as_str())
+            .unwrap_or("current");
+
+        tracing::info!(account = %account, period = %period, "Reconciling account");
+
+        // TODO: 实际实现需要会计系统集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Reconciliation skill requires accounting system integration",
+            "account": account,
+            "period": period,
+        }))
+    }
+}
+
+// ===== HR Agent Skills =====
+
+/// 简历筛选技能
+pub struct ResumeScreeningSkill;
+
+impl ResumeScreeningSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for ResumeScreeningSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for ResumeScreeningSkill {
+    fn name(&self) -> &str {
+        "resume_screening"
+    }
+
+    fn description(&self) -> &str {
+        "Screen resumes and match candidates to job requirements."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "hr".to_string(),
+            "recruitment".to_string(),
+            "resume".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let job_requirements = params
+            .get("job_requirements")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                kias_common::KiasError::Validation("Missing 'job_requirements' parameter".to_string())
+            })?;
+
+        let resume_text = params
+            .get("resume_text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        tracing::info!(job_requirements = %job_requirements, "Screening resume");
+
+        // TODO: 实际实现需要 LLM 集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Resume screening requires LLM integration",
+            "job_requirements": job_requirements,
+            "resume_length": resume_text.len(),
+        }))
+    }
+}
+
+/// 考勤跟踪技能
+pub struct AttendanceTrackingSkill;
+
+impl AttendanceTrackingSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for AttendanceTrackingSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for AttendanceTrackingSkill {
+    fn name(&self) -> &str {
+        "attendance_tracking"
+    }
+
+    fn description(&self) -> &str {
+        "Track employee attendance and generate reports."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "hr".to_string(),
+            "attendance".to_string(),
+            "tracking".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let employee_id = params
+            .get("employee_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        let action = params
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("check_in");
+
+        tracing::info!(employee_id = %employee_id, action = %action, "Tracking attendance");
+
+        // TODO: 实际实现需要考勤系统集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Attendance tracking requires HR system integration",
+            "employee_id": employee_id,
+            "action": action,
+        }))
+    }
+}
+
+// ===== Supply Chain Agent Skills =====
+
+/// 采购技能
+pub struct ProcurementSkill;
+
+impl ProcurementSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for ProcurementSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for ProcurementSkill {
+    fn name(&self) -> &str {
+        "procurement"
+    }
+
+    fn description(&self) -> &str {
+        "Manage procurement process: vendor selection, PO creation, delivery tracking."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "supply-chain".to_string(),
+            "procurement".to_string(),
+            "vendor".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let action = params
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("list_vendors");
+
+        let item = params
+            .get("item")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        tracing::info!(action = %action, item = %item, "Procurement action");
+
+        // TODO: 实际实现需要 ERP 系统集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Procurement skill requires ERP system integration",
+            "action": action,
+            "item": item,
+        }))
+    }
+}
+
+/// 库存管理技能
+pub struct InventoryManagementSkill;
+
+impl InventoryManagementSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for InventoryManagementSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for InventoryManagementSkill {
+    fn name(&self) -> &str {
+        "inventory_management"
+    }
+
+    fn description(&self) -> &str {
+        "Manage inventory: stock levels, reorder points, warehouse operations."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "supply-chain".to_string(),
+            "inventory".to_string(),
+            "warehouse".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let action = params
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("check_stock");
+
+        let sku = params
+            .get("sku")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        tracing::info!(action = %action, sku = %sku, "Inventory management");
+
+        // TODO: 实际实现需要 WMS 系统集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Inventory management requires WMS system integration",
+            "action": action,
+            "sku": sku,
+        }))
+    }
+}
+
+// ===== Consultant Agent Skills =====
+
+/// 演示文稿生成技能
+pub struct PresentationGenerationSkill;
+
+impl PresentationGenerationSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for PresentationGenerationSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for PresentationGenerationSkill {
+    fn name(&self) -> &str {
+        "presentation_generation"
+    }
+
+    fn description(&self) -> &str {
+        "Generate presentations with charts, data, and analysis."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "consulting".to_string(),
+            "presentation".to_string(),
+            "reporting".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let topic = params
+            .get("topic")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                kias_common::KiasError::Validation("Missing 'topic' parameter".to_string())
+            })?;
+
+        let audience = params
+            .get("audience")
+            .and_then(|v| v.as_str())
+            .unwrap_or("general");
+
+        tracing::info!(topic = %topic, audience = %audience, "Generating presentation");
+
+        // TODO: 实际实现需要 LLM + 图表库集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Presentation generation requires LLM + chart library integration",
+            "topic": topic,
+            "audience": audience,
+        }))
+    }
+}
+
+/// 业务分析技能
+pub struct BusinessAnalysisSkill;
+
+impl BusinessAnalysisSkill {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for BusinessAnalysisSkill {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Skill for BusinessAnalysisSkill {
+    fn name(&self) -> &str {
+        "business_analysis"
+    }
+
+    fn description(&self) -> &str {
+        "Perform business analysis: market research, competitive analysis, financial modeling."
+    }
+
+    fn config(&self) -> SkillConfig {
+        SkillConfig::new(self.name(), self.description()).with_tags(vec![
+            "consulting".to_string(),
+            "analysis".to_string(),
+            "business".to_string(),
+        ])
+    }
+
+    async fn execute(&self, params: Value) -> KiasResult<Value> {
+        let analysis_type = params
+            .get("analysis_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("market_research");
+
+        let target = params
+            .get("target")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        tracing::info!(analysis_type = %analysis_type, target = %target, "Performing business analysis");
+
+        // TODO: 实际实现需要 LLM + 数据源集成
+        Ok(serde_json::json!({
+            "status": "not_implemented",
+            "message": "Business analysis requires LLM + data source integration",
+            "analysis_type": analysis_type,
+            "target": target,
+        }))
+    }
+}
+
 /// 注册所有专业 Agent 技能到注册表
 pub fn register_builtin_skills(registry: &mut crate::registry::SkillRegistry) {
     // Data Agent
@@ -695,6 +1163,22 @@ pub fn register_builtin_skills(registry: &mut crate::registry::SkillRegistry) {
     // Research Agent
     registry.register(Box::new(PaperFetchSkill::new()));
     registry.register(Box::new(DocAnalysisSkill::new()));
+
+    // Finance Agent
+    registry.register(Box::new(JournalEntrySkill::new()));
+    registry.register(Box::new(ReconciliationSkill::new()));
+
+    // HR Agent
+    registry.register(Box::new(ResumeScreeningSkill::new()));
+    registry.register(Box::new(AttendanceTrackingSkill::new()));
+
+    // Supply Chain Agent
+    registry.register(Box::new(ProcurementSkill::new()));
+    registry.register(Box::new(InventoryManagementSkill::new()));
+
+    // Consultant Agent
+    registry.register(Box::new(PresentationGenerationSkill::new()));
+    registry.register(Box::new(BusinessAnalysisSkill::new()));
 }
 
 #[cfg(test)]
@@ -799,8 +1283,8 @@ mod tests {
         let mut registry = crate::registry::SkillRegistry::new();
         register_builtin_skills(&mut registry);
 
-        // Should have 9 builtin skills
-        assert_eq!(registry.count(), 9);
+        // Should have 17 builtin skills
+        assert_eq!(registry.count(), 17);
 
         // Verify all skills are registered
         assert!(registry.has("sql_query"));
@@ -812,6 +1296,14 @@ mod tests {
         assert!(registry.has("vuln_check"));
         assert!(registry.has("paper_fetch"));
         assert!(registry.has("doc_analysis"));
+        assert!(registry.has("journal_entry"));
+        assert!(registry.has("reconciliation"));
+        assert!(registry.has("resume_screening"));
+        assert!(registry.has("attendance_tracking"));
+        assert!(registry.has("procurement"));
+        assert!(registry.has("inventory_management"));
+        assert!(registry.has("presentation_generation"));
+        assert!(registry.has("business_analysis"));
     }
 
     #[test]

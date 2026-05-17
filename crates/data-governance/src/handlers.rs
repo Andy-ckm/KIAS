@@ -14,7 +14,7 @@ use kias_common::audit::AuditAction;
 use kias_data_store::SqliteAuditLog;
 
 use crate::datasource::DataSourceRegistry;
-use crate::policy::{PolicyEngine, PolicyEffect, ResourcePolicy};
+use crate::policy::{PolicyEffect, PolicyEngine, ResourcePolicy};
 
 /// Shared state for data governance handlers.
 #[derive(Clone)]
@@ -34,9 +34,7 @@ pub struct DataSourceInfo {
 }
 
 /// GET /api/v1/datasources
-pub async fn list_datasources(
-    State(state): State<GovernanceState>,
-) -> impl IntoResponse {
+pub async fn list_datasources(State(state): State<GovernanceState>) -> impl IntoResponse {
     let names = state.registry.list_names().await;
     let mut sources = Vec::new();
     for name in names {
@@ -51,9 +49,7 @@ pub async fn list_datasources(
 }
 
 /// GET /api/v1/datasources/health
-pub async fn datasources_health(
-    State(state): State<GovernanceState>,
-) -> impl IntoResponse {
+pub async fn datasources_health(State(state): State<GovernanceState>) -> impl IntoResponse {
     let results = state.registry.health_check_all().await;
     Json(results)
 }
@@ -90,9 +86,7 @@ pub async fn create_policy(
     }
     let effect = parse_policy_effect(&req.effect).ok_or(StatusCode::BAD_REQUEST)?;
 
-    let id = req
-        .id
-        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let policy = ResourcePolicy {
         id: id.clone(),
@@ -111,9 +105,7 @@ pub async fn create_policy(
 }
 
 /// GET /api/v1/policies
-pub async fn list_policies(
-    State(state): State<GovernanceState>,
-) -> impl IntoResponse {
+pub async fn list_policies(State(state): State<GovernanceState>) -> impl IntoResponse {
     let policies = state.policy_engine.list_policies().await;
     Json(policies)
 }
@@ -151,7 +143,10 @@ pub async fn query_audit(
     State(state): State<GovernanceState>,
     Query(params): Query<AuditQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let audit_log = state.audit_log.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let audit_log = state
+        .audit_log
+        .as_ref()
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
 
     let events = audit_log
         .query(
@@ -189,7 +184,10 @@ pub async fn query_audit(
 pub async fn audit_count(
     State(state): State<GovernanceState>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let audit_log = state.audit_log.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let audit_log = state
+        .audit_log
+        .as_ref()
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
 
     let count = audit_log
         .count()

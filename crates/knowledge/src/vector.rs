@@ -278,7 +278,10 @@ impl SiliconFlowEmbeddingEngine {
             if attempt > 0 {
                 let delay_ms = 200 * (1u64 << attempt);
                 tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
-                debug!(attempt = attempt + 1, "Retrying SiliconFlow embedding request");
+                debug!(
+                    attempt = attempt + 1,
+                    "Retrying SiliconFlow embedding request"
+                );
             }
 
             let resp = self
@@ -323,7 +326,11 @@ impl SiliconFlowEmbeddingEngine {
                         )));
                     }
 
-                    return Ok(embedding_resp.data.into_iter().map(|d| d.embedding).collect());
+                    return Ok(embedding_resp
+                        .data
+                        .into_iter()
+                        .map(|d| d.embedding)
+                        .collect());
                 }
                 Err(e) => {
                     last_err = Some(KiasError::ExternalService(format!(
@@ -334,7 +341,9 @@ impl SiliconFlowEmbeddingEngine {
             }
         }
 
-        Err(last_err.unwrap_or_else(|| KiasError::ExternalService("SiliconFlow embedding failed".to_string())))
+        Err(last_err.unwrap_or_else(|| {
+            KiasError::ExternalService("SiliconFlow embedding failed".to_string())
+        }))
     }
 }
 
@@ -555,29 +564,23 @@ mod tests {
 
     #[test]
     fn test_siliconflow_engine_construction() {
-        let engine = SiliconFlowEmbeddingEngine::new(
-            "sk-test-key".to_string(),
-            "BAAI/bge-m3".to_string(),
-        );
+        let engine =
+            SiliconFlowEmbeddingEngine::new("sk-test-key".to_string(), "BAAI/bge-m3".to_string());
         assert_eq!(engine.dimension(), BGE_M3_DIMENSION);
     }
 
     #[test]
     fn test_siliconflow_engine_custom_base_url() {
-        let engine = SiliconFlowEmbeddingEngine::new(
-            "sk-test-key".to_string(),
-            "BAAI/bge-m3".to_string(),
-        )
-        .with_base_url("https://proxy.example.com/v1".to_string());
+        let engine =
+            SiliconFlowEmbeddingEngine::new("sk-test-key".to_string(), "BAAI/bge-m3".to_string())
+                .with_base_url("https://proxy.example.com/v1".to_string());
         assert_eq!(engine.endpoint(), "https://proxy.example.com/v1/embeddings");
     }
 
     #[test]
     fn test_siliconflow_engine_default_endpoint() {
-        let engine = SiliconFlowEmbeddingEngine::new(
-            "sk-test-key".to_string(),
-            "BAAI/bge-m3".to_string(),
-        );
+        let engine =
+            SiliconFlowEmbeddingEngine::new("sk-test-key".to_string(), "BAAI/bge-m3".to_string());
         assert_eq!(
             engine.endpoint(),
             "https://api.siliconflow.cn/v1/embeddings"

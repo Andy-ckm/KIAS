@@ -289,10 +289,7 @@ impl AgentPool {
 
     /// Register an agent
     pub fn register(&mut self, agent: PooledAgent) {
-        self.agents
-            .entry(agent.tier)
-            .or_default()
-            .push(agent);
+        self.agents.entry(agent.tier).or_default().push(agent);
     }
 
     /// Get the least loaded agent of a given tier
@@ -301,7 +298,11 @@ impl AgentPool {
             .get(&tier)?
             .iter()
             .filter(|a| a.available && a.load < 0.9)
-            .min_by(|a, b| a.load.partial_cmp(&b.load).unwrap_or(std::cmp::Ordering::Equal))
+            .min_by(|a, b| {
+                a.load
+                    .partial_cmp(&b.load)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// Get agent counts by tier

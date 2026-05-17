@@ -312,8 +312,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_skills_and_load() {
         let ws = test_workspace();
-        let skill = SkillDef::new("summarization", "Text summarization")
-            .with_tag("nlp");
+        let skill = SkillDef::new("summarization", "Text summarization").with_tag("nlp");
         let json = serde_json::to_string(&skill).unwrap();
         ws.fs
             .write("skills/summarization.json", json.as_bytes())

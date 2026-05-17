@@ -15,10 +15,10 @@
 //! - 反馈控制：verifier→learner 闭环
 //! - 工程化：可测量、可重复、可验证
 
-use crate::analyzer::{AnalyzerManager, AnalysisResult};
+use crate::analyzer::{AnalysisResult, AnalyzerManager};
 use crate::learner::{Learner, LessonEntry, LessonType};
-use crate::verifier::{VerifierManager, VerificationResult};
-use crate::principles::{FourStepValidator, QualityGate, PrincipleCheckResult};
+use crate::principles::{FourStepValidator, PrincipleCheckResult, QualityGate};
+use crate::verifier::{VerificationResult, VerifierManager};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -79,8 +79,12 @@ impl SelfDevManager {
     /// 创建自开发管理器
     pub fn new(workspace_path: impl Into<PathBuf>) -> Self {
         let workspace_path = workspace_path.into();
-        let verifier_mgr = VerifierManager::with_standard_verifiers(workspace_path.to_str().unwrap_or("/workspace/kias"));
-        let analyzer_mgr = AnalyzerManager::with_standard_analyzers(workspace_path.to_str().unwrap_or("/workspace/kias"));
+        let verifier_mgr = VerifierManager::with_standard_verifiers(
+            workspace_path.to_str().unwrap_or("/workspace/kias"),
+        );
+        let analyzer_mgr = AnalyzerManager::with_standard_analyzers(
+            workspace_path.to_str().unwrap_or("/workspace/kias"),
+        );
         let learner_path = workspace_path.join(".kias").join("learner.json");
         let learner = Learner::with_persistence(learner_path);
 
@@ -122,7 +126,11 @@ impl SelfDevManager {
         if all_passed {
             result.status = SelfDevStatus::Completed;
             result.quality_gate = Some(QualityGate::from_verifier_results(
-                true, true, true, true, result.principle_checks.clone(),
+                true,
+                true,
+                true,
+                true,
+                result.principle_checks.clone(),
             ));
             result.details = "质量门禁全部通过，系统健康".to_string();
 
@@ -151,9 +159,17 @@ impl SelfDevManager {
 
         // Phase 3: 分析失败原因
         result.status = SelfDevStatus::Analyzing;
-        let failure_output: String = verification_results.iter()
+        let failure_output: String = verification_results
+            .iter()
             .filter(|r| !r.passed)
-            .map(|r| format!("{:?}: {}\nErrors: {}", r.verification_type, r.details, r.errors.join("\n")))
+            .map(|r| {
+                format!(
+                    "{:?}: {}\nErrors: {}",
+                    r.verification_type,
+                    r.details,
+                    r.errors.join("\n")
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n---\n");
 
@@ -161,7 +177,8 @@ impl SelfDevManager {
         result.analysis_results = analysis_results.clone();
 
         // Phase 4: 生成修复建议
-        let fix_suggestions: Vec<String> = analysis_results.iter()
+        let fix_suggestions: Vec<String> = analysis_results
+            .iter()
             .flat_map(|a| {
                 let mut suggestions = vec![];
                 if let Some(ref root_cause) = a.root_cause {
@@ -202,10 +219,18 @@ impl SelfDevManager {
         });
 
         result.quality_gate = Some(QualityGate::from_verifier_results(
-            verification_results.iter().any(|r| r.verification_type == crate::verifier::VerificationType::Compilation && r.passed),
-            verification_results.iter().any(|r| r.verification_type == crate::verifier::VerificationType::Test && r.passed),
-            verification_results.iter().any(|r| r.verification_type == crate::verifier::VerificationType::Clippy && r.passed),
-            verification_results.iter().any(|r| r.verification_type == crate::verifier::VerificationType::Format && r.passed),
+            verification_results.iter().any(|r| {
+                r.verification_type == crate::verifier::VerificationType::Compilation && r.passed
+            }),
+            verification_results.iter().any(|r| {
+                r.verification_type == crate::verifier::VerificationType::Test && r.passed
+            }),
+            verification_results.iter().any(|r| {
+                r.verification_type == crate::verifier::VerificationType::Clippy && r.passed
+            }),
+            verification_results.iter().any(|r| {
+                r.verification_type == crate::verifier::VerificationType::Format && r.passed
+            }),
             result.principle_checks.clone(),
         ));
 
@@ -227,7 +252,8 @@ impl SelfDevManager {
 
     /// 获取推荐修复方案
     pub fn get_recommendations(&self, category: &str) -> Vec<String> {
-        self.learner.get_recommendations(category, 5)
+        self.learner
+            .get_recommendations(category, 5)
             .iter()
             .map(|e| format!("{} (可信度: {:.2})", e.title, e.confidence))
             .collect()

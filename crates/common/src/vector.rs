@@ -39,19 +39,47 @@ pub fn hnsw_ml() -> f64 {
 // Distance Functions
 // ============================================================
 
-/// Compute cosine similarity between two vectors
+/// Compute cosine similarity between two vectors.
+/// Uses chunked f32x4-style accumulation for better ILP on modern CPUs.
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     assert_eq!(a.len(), b.len(), "Vector dimensions must match");
 
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let len = a.len();
+    let chunks = len / 4;
+    let remainder = len % 4;
+
+    let mut dot4 = [0.0f32; 4];
+    let mut na4 = [0.0f32; 4];
+    let mut nb4 = [0.0f32; 4];
+
+    for i in 0..chunks {
+        let off = i * 4;
+        for j in 0..4 {
+            let x = a[off + j];
+            let y = b[off + j];
+            dot4[j] += x * y;
+            na4[j] += x * x;
+            nb4[j] += y * y;
+        }
+    }
+
+    let mut dot = dot4[0] + dot4[1] + dot4[2] + dot4[3];
+    let mut norm_a = na4[0] + na4[1] + na4[2] + na4[3];
+    let mut norm_b = nb4[0] + nb4[1] + nb4[2] + nb4[3];
+
+    for i in (chunks * 4)..(chunks * 4 + remainder) {
+        let x = a[i];
+        let y = b[i];
+        dot += x * y;
+        norm_a += x * x;
+        norm_b += y * y;
+    }
 
     if norm_a == 0.0 || norm_b == 0.0 {
         return 0.0;
     }
 
-    (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
+    (dot / (norm_a.sqrt() * norm_b.sqrt())).clamp(-1.0, 1.0)
 }
 
 /// Compute cosine distance (1 - similarity) for HNSW search

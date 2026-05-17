@@ -11,7 +11,7 @@ pub mod provider;
 pub mod streaming;
 pub mod types;
 
-pub use cost::CostTracker;
+pub use cost::{AgentCostSummary, CostTracker};
 pub use provider::{LlmProvider, ProviderFactory};
 pub use streaming::StreamEvent;
 pub use types::{

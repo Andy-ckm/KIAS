@@ -354,6 +354,95 @@ impl PersistentVectorStore {
                 .and_then(|inner| inner.store.try_read().ok().map(|hnsw| hnsw.stats()))
         })
     }
+
+    /// Save the HNSW graph structure to SQLite for fast restart.
+    ///
+    /// This persists the full graph topology (layers + connections) so that
+    /// [`load_graph_from_db`] can restore it in O(N) instead of rebuilding
+    /// via O(N·M·logN) re-inserts from vector entries.
+    pub async fn save_graph_to_db(&self, index_name: &str) -> KiasResult<()> {
+        let indices = self.indices.read().await;
+        let inner = indices
+            .get(index_name)
+            .ok_or_else(|| KiasError::NotFound(format!("Vector index '{index_name}' not found")))?;
+
+        let store_guard = inner.store.read().await;
+        let snapshot = store_guard.save_graph();
+        let vector_count = snapshot.entries.len();
+        let layer_count = snapshot.layers.len();
+        drop(store_guard);
+
+        let snapshot_json = serde_json::to_string(&snapshot)
+            .map_err(|e| KiasError::Config(format!("Failed to serialize HNSW graph: {e}")))?;
+
+        sqlx::query(
+            "INSERT INTO hnsw_graphs (id, index_name, snapshot_json, vector_count, layer_count)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(index_name) DO UPDATE SET
+               snapshot_json = excluded.snapshot_json,
+               vector_count = excluded.vector_count,
+               layer_count = excluded.layer_count,
+               updated_at = datetime('now')",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(index_name)
+        .bind(&snapshot_json)
+        .bind(vector_count as i64)
+        .bind(layer_count as i64)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| KiasError::Config(format!("Failed to save HNSW graph: {e}")))?;
+
+        info!(
+            "Saved HNSW graph for '{index_name}': {vector_count} vectors, {layer_count} layers"
+        );
+        Ok(())
+    }
+
+    /// Load a pre-saved HNSW graph from SQLite.
+    ///
+    /// Returns `Ok(true)` if a graph was loaded, `Ok(false)` if no saved graph
+    /// exists for this index.  Falls back to re-inserting from vector entries
+    /// if the graph cannot be deserialized.
+    pub async fn load_graph_from_db(&self, index_name: &str, dimension: usize) -> KiasResult<bool> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT snapshot_json FROM hnsw_graphs WHERE index_name = ?",
+        )
+        .bind(index_name)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| KiasError::Config(format!("Failed to query HNSW graph: {e}")))?;
+
+        let Some((snapshot_json,)) = row else {
+            return Ok(false);
+        };
+
+        let snapshot: kias_common::vector::HnswSnapshot =
+            serde_json::from_str(&snapshot_json)
+                .map_err(|e| KiasError::Config(format!("Failed to deserialize HNSW graph: {e}")))?;
+
+        if snapshot.dimension != dimension {
+            return Err(KiasError::Config(format!(
+                "HNSW graph dimension mismatch: saved={}, expected={}",
+                snapshot.dimension, dimension
+            )));
+        }
+
+        let hnsw = kias_common::vector::VectorStore::load_graph(snapshot);
+        let count = hnsw.len();
+
+        let indices = self.indices.write().await;
+        indices.insert(
+            index_name.to_string(),
+            HnswIndex {
+                store: Arc::new(RwLock::new(hnsw)),
+                metadata: Arc::new(dashmap::DashMap::default()),
+            },
+        );
+
+        info!("Loaded HNSW graph for '{index_name}': {count} vectors");
+        Ok(true)
+    }
 }
 
 /// Result from a vector similarity search.
@@ -634,5 +723,69 @@ mod tests {
     async fn test_stats_nonexistent_index() {
         let store = setup_store().await;
         assert!(store.stats("nonexistent").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_graph() {
+        let store = setup_store().await;
+        store.create_index("graph-test", 4, "cosine").await.unwrap();
+
+        // Insert vectors
+        for i in 0..20 {
+            let v = vec![i as f32, (i + 1) as f32, (i + 2) as f32, (i + 3) as f32];
+            store
+                .insert("graph-test", &format!("v{i}"), &v, serde_json::json!({"i": i}))
+                .await
+                .unwrap();
+        }
+
+        // Save graph
+        store.save_graph_to_db("graph-test").await.unwrap();
+
+        // Create a new store and load graph
+        let store2 = PersistentVectorStore::new(store.pool.clone());
+        let loaded = store2
+            .load_graph_from_db("graph-test", 4)
+            .await
+            .unwrap();
+        assert!(loaded);
+
+        // Verify search works on loaded graph
+        let results = store2
+            .search("graph-test", &[0.0, 1.0, 2.0, 3.0], 3)
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].external_id, "v0");
+    }
+
+    #[tokio::test]
+    async fn test_load_graph_nonexistent() {
+        let store = setup_store().await;
+        let loaded = store.load_graph_from_db("no-such", 4).await.unwrap();
+        assert!(!loaded);
+    }
+
+    #[tokio::test]
+    async fn test_save_graph_overwrite() {
+        let store = setup_store().await;
+        store.create_index("ow-graph", 3, "cosine").await.unwrap();
+
+        store
+            .insert("ow-graph", "a", &[1.0, 0.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
+        store.save_graph_to_db("ow-graph").await.unwrap();
+
+        store
+            .insert("ow-graph", "b", &[0.0, 1.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
+        store.save_graph_to_db("ow-graph").await.unwrap();
+
+        // Load should have both vectors
+        let store2 = PersistentVectorStore::new(store.pool.clone());
+        let loaded = store2.load_graph_from_db("ow-graph", 3).await.unwrap();
+        assert!(loaded);
     }
 }

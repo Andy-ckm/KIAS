@@ -373,6 +373,7 @@ impl BuiltinAgents {
             Self::finance_agent(),
             Self::hr_agent(),
             Self::supply_chain_agent(),
+            Self::consultant_agent(),
         ]
     }
 

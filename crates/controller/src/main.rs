@@ -1,19 +1,20 @@
 use chrono::Utc;
 use kias_controller::{
-    AgentConfig, AgentInfo, AgentStatus, ControllerState, DefaultReconciler, DesiredState,
-    HealthCheckConfig, HealthChecker, NoOpSpawner, Reconciler, ResourceRequirements,
+    AgentConfig, AgentStatus, ControllerLoop, ControllerLoopConfig, ControllerState, DesiredState,
+    HealthCheckConfig, ResourceRequirements,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Controller");
+    tracing::info!("Starting KIAS Controller with Runtime Loop");
 
-    let reconciler = DefaultReconciler::new(NoOpSpawner);
-
-    let mut state = ControllerState {
+    // ── Build initial state ──
+    let state = Arc::new(Mutex::new(ControllerState {
         desired: DesiredState {
             replicas: 3,
             agent_config: AgentConfig {
@@ -31,55 +32,58 @@ async fn main() -> anyhow::Result<()> {
             last_updated: Utc::now(),
         },
         agents: HashMap::new(),
+    }));
+
+    // ── Configure and run the controller loop ──
+    let config = ControllerLoopConfig {
+        runtime: kias_controller::RuntimeLoopConfig {
+            max_rounds: 10,
+            loop_timeout: std::time::Duration::from_secs(120),
+            round_timeout: std::time::Duration::from_secs(30),
+            quality_threshold: 0.95,
+            stop_on_achieve: true,
+            cooldown: std::time::Duration::from_millis(500),
+        },
+        health: HealthCheckConfig::default(),
     };
 
-    // Initialize the health checker with default configuration.
-    let health_config = HealthCheckConfig::default();
-    let mut health_checker = HealthChecker::new(health_config.clone());
+    let controller = ControllerLoop::new(config, state.clone()).await?;
 
-    tracing::info!(
-        heartbeat_timeout_secs = health_config.heartbeat.timeout_secs,
-        max_recovery_retries = health_config.recovery.max_retries,
-        check_interval_ms = health_config.check_interval_ms,
-        "Health checker configured"
-    );
+    tracing::info!("Controller loop starting — execute→observe→adjust→re-execute");
 
-    // Simulate registering agents.
-    for i in 1..=state.desired.replicas {
-        let agent_id = format!("agent-{i}");
-        let mut agent = AgentInfo::new(
-            &agent_id,
-            format!("{}-{i}", state.desired.agent_config.name),
-        );
-        agent.status = AgentStatus::Running;
-        state.agents.insert(agent_id.clone(), agent);
-        health_checker.register_agent(&agent_id);
-    }
+    let metrics = controller.run().await?;
 
-    // Execute reconciliation.
-    reconciler.reconcile(&mut state).await?;
-
+    // ── Report results ──
+    println!("═══════════════════════════════════════════════════════");
+    println!("  Controller Loop Results");
+    println!("═══════════════════════════════════════════════════════");
+    println!("  Status:           {:?}", metrics.status);
+    println!("  Rounds executed:  {}", metrics.rounds_executed);
     println!(
-        "Controller state reconciled: {} replicas running",
-        state.actual.running_replicas
+        "  Achieved on:      {}",
+        metrics
+            .achieved_on_round
+            .map(|r| r.to_string())
+            .unwrap_or_else(|| "N/A".to_string())
     );
-
-    // Run a health check cycle.
-    let summary = health_checker.check(&mut state);
-
-    tracing::info!(
-        agents_checked = summary.agents_checked,
-        alive = summary.alive,
-        timed_out = summary.timed_out,
-        restarted = summary.restarted,
-        permanently_failed = summary.permanently_failed,
-        "Health check summary"
-    );
-
     println!(
-        "Health check: {} agents checked, {} alive, {} timed out, {} restarted",
-        summary.agents_checked, summary.alive, summary.timed_out, summary.restarted
+        "  Total duration:   {:.2}s",
+        metrics.total_duration.as_secs_f64()
     );
+    println!("  Quality scores:   {:?}", metrics.quality_scores);
+    println!(
+        "  Feedback chain:   {} entries",
+        metrics.feedback_chain.len()
+    );
+    println!("═══════════════════════════════════════════════════════");
+
+    // Show final state
+    let final_state = state.lock().await;
+    println!(
+        "  Final state:      {}/{} replicas running",
+        final_state.actual.running_replicas, final_state.desired.replicas
+    );
+    println!("  Agents tracked:   {}", final_state.agents.len());
 
     tracing::info!("KIAS Controller finished");
     Ok(())

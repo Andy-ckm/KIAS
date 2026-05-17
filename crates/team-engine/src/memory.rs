@@ -901,7 +901,10 @@ mod tests {
     #[test]
     fn test_mid_term_memory_add_and_search() {
         let mut mtm = MidTermMemory::new(100);
-        mtm.add(MemoryCategory::UserPreference, "User prefers concise responses");
+        mtm.add(
+            MemoryCategory::UserPreference,
+            "User prefers concise responses",
+        );
         mtm.add(MemoryCategory::EnvironmentFact, "OS: Ubuntu 22.04");
         mtm.add(MemoryCategory::Convention, "Always use main branch");
 

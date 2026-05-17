@@ -393,9 +393,7 @@ impl PersistentVectorStore {
         .await
         .map_err(|e| KiasError::Config(format!("Failed to save HNSW graph: {e}")))?;
 
-        info!(
-            "Saved HNSW graph for '{index_name}': {vector_count} vectors, {layer_count} layers"
-        );
+        info!("Saved HNSW graph for '{index_name}': {vector_count} vectors, {layer_count} layers");
         Ok(())
     }
 
@@ -405,21 +403,19 @@ impl PersistentVectorStore {
     /// exists for this index.  Falls back to re-inserting from vector entries
     /// if the graph cannot be deserialized.
     pub async fn load_graph_from_db(&self, index_name: &str, dimension: usize) -> KiasResult<bool> {
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT snapshot_json FROM hnsw_graphs WHERE index_name = ?",
-        )
-        .bind(index_name)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| KiasError::Config(format!("Failed to query HNSW graph: {e}")))?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT snapshot_json FROM hnsw_graphs WHERE index_name = ?")
+                .bind(index_name)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| KiasError::Config(format!("Failed to query HNSW graph: {e}")))?;
 
         let Some((snapshot_json,)) = row else {
             return Ok(false);
         };
 
-        let snapshot: kias_common::vector::HnswSnapshot =
-            serde_json::from_str(&snapshot_json)
-                .map_err(|e| KiasError::Config(format!("Failed to deserialize HNSW graph: {e}")))?;
+        let snapshot: kias_common::vector::HnswSnapshot = serde_json::from_str(&snapshot_json)
+            .map_err(|e| KiasError::Config(format!("Failed to deserialize HNSW graph: {e}")))?;
 
         if snapshot.dimension != dimension {
             return Err(KiasError::Config(format!(
@@ -734,7 +730,12 @@ mod tests {
         for i in 0..20 {
             let v = vec![i as f32, (i + 1) as f32, (i + 2) as f32, (i + 3) as f32];
             store
-                .insert("graph-test", &format!("v{i}"), &v, serde_json::json!({"i": i}))
+                .insert(
+                    "graph-test",
+                    &format!("v{i}"),
+                    &v,
+                    serde_json::json!({"i": i}),
+                )
                 .await
                 .unwrap();
         }
@@ -744,10 +745,7 @@ mod tests {
 
         // Create a new store and load graph
         let store2 = PersistentVectorStore::new(store.pool.clone());
-        let loaded = store2
-            .load_graph_from_db("graph-test", 4)
-            .await
-            .unwrap();
+        let loaded = store2.load_graph_from_db("graph-test", 4).await.unwrap();
         assert!(loaded);
 
         // Verify search works on loaded graph

@@ -2,13 +2,14 @@
 
 更新时间: 2026-05-18
 
-## 论文列表 (10 篇)
+## 论文列表 (11 篇)
 
 ### 已下载论文
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
 - ✅ 2605.14675.pdf (Agentic AI in Industry: Adoption Level and Deployment Barriers)
 - ✅ 2605.14968.pdf (GraphFlow: An Architecture for Formally Verifiable Visual Workflows)
+- ✅ 2605.15077.pdf (Concurrency without Model Changes: Future-based Asynchronous Function Calling for LLMs)
 
 ### 待下载论文
 - ⏳ 2605.15181 (From Plans to Pixels) — arXiv 超时，需重试
@@ -124,3 +125,9 @@
 - **[2605.15128]** MemEye: A Visual-Centric Evaluation Framework for Multimodal Agent Memory
   - 主题: agent+evaluation+benchmark
   - 链接: https://arxiv.org/abs/2605.15128
+
+## 新增论文 (第四批)
+
+- **[2605.15077]** Concurrency without Model Changes: Future-based Asynchronous Function Calling for LLMs
+  - 主题: agent+tool+use
+  - 链接: https://arxiv.org/abs/2605.15077

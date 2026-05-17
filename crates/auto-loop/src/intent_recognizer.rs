@@ -86,6 +86,13 @@ struct KeywordRule {
     base_confidence: f64,
 }
 
+impl RecognizedIntent {
+    /// 获取意图类型名称
+    pub fn intent_type_name(&self) -> &'static str {
+        self.intent_type.type_name()
+    }
+}
+
 impl IntentRecognizer {
     /// 创建默认识别器
     pub fn new() -> Self {

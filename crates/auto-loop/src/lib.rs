@@ -11,6 +11,7 @@ pub mod intent_recognizer;
 pub mod learner;
 pub mod llm_intent;
 pub mod planner;
+pub mod recursive_decomposer;
 pub mod task_decomposer;
 pub mod verifier;
 

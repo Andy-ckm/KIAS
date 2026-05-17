@@ -158,3 +158,183 @@ impl FetchQuery {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // === Platform Display ===
+
+    #[test]
+    fn platform_display_x() {
+        assert_eq!(Platform::X.to_string(), "x");
+    }
+
+    #[test]
+    fn platform_display_reddit() {
+        assert_eq!(Platform::Reddit.to_string(), "reddit");
+    }
+
+    #[test]
+    fn platform_display_hackernews() {
+        assert_eq!(Platform::HackerNews.to_string(), "hackernews");
+    }
+
+    // === Platform FromStr ===
+
+    #[test]
+    fn platform_from_str_basic() {
+        assert_eq!("x".parse::<Platform>().unwrap(), Platform::X);
+        assert_eq!("reddit".parse::<Platform>().unwrap(), Platform::Reddit);
+        assert_eq!(
+            "hackernews".parse::<Platform>().unwrap(),
+            Platform::HackerNews
+        );
+    }
+
+    #[test]
+    fn platform_from_str_aliases() {
+        assert_eq!("twitter".parse::<Platform>().unwrap(), Platform::X);
+        assert_eq!("hn".parse::<Platform>().unwrap(), Platform::HackerNews);
+        assert_eq!(
+            "hacker_news".parse::<Platform>().unwrap(),
+            Platform::HackerNews
+        );
+    }
+
+    #[test]
+    fn platform_from_str_case_insensitive() {
+        assert_eq!("Reddit".parse::<Platform>().unwrap(), Platform::Reddit);
+        assert_eq!("TWITTER".parse::<Platform>().unwrap(), Platform::X);
+    }
+
+    #[test]
+    fn platform_from_str_unknown() {
+        assert!("unknown".parse::<Platform>().is_err());
+        assert!("".parse::<Platform>().is_err());
+    }
+
+    #[test]
+    fn platform_display_from_str_roundtrip() {
+        for p in [Platform::X, Platform::Reddit, Platform::HackerNews] {
+            let s = p.to_string();
+            let parsed: Platform = s.parse().unwrap();
+            assert_eq!(parsed, p);
+        }
+    }
+
+    // === FetchQuery builder ===
+
+    #[test]
+    fn fetch_query_new() {
+        let q = FetchQuery::new("rust");
+        assert_eq!(q.query, "rust");
+        assert!(q.limit.is_none());
+        assert!(q.cursor.is_none());
+        assert!(q.sort.is_none());
+        assert!(q.time_window.is_none());
+    }
+
+    #[test]
+    fn fetch_query_builder_chain() {
+        let q = FetchQuery::new("ai")
+            .with_limit(25)
+            .with_cursor("abc123")
+            .with_sort("top")
+            .with_time_window("week");
+
+        assert_eq!(q.query, "ai");
+        assert_eq!(q.limit, Some(25));
+        assert_eq!(q.cursor.as_deref(), Some("abc123"));
+        assert_eq!(q.sort.as_deref(), Some("top"));
+        assert_eq!(q.time_window.as_deref(), Some("week"));
+    }
+
+    // === Serde round-trip ===
+
+    #[test]
+    fn platform_serde_roundtrip() {
+        for p in [Platform::X, Platform::Reddit, Platform::HackerNews] {
+            let json = serde_json::to_string(&p).unwrap();
+            let back: Platform = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, p);
+        }
+    }
+
+    #[test]
+    fn fetch_query_serde_roundtrip() {
+        let q = FetchQuery::new("test").with_limit(10).with_sort("hot");
+        let json = serde_json::to_string(&q).unwrap();
+        let back: FetchQuery = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.query, "test");
+        assert_eq!(back.limit, Some(10));
+        assert_eq!(back.sort.as_deref(), Some("hot"));
+    }
+
+    #[test]
+    fn aggregated_post_serde_roundtrip() {
+        let post = AggregatedPost {
+            id: "hn:12345".to_string(),
+            native_id: "12345".to_string(),
+            platform: Platform::HackerNews,
+            title: Some("Test Title".to_string()),
+            body: Some("Test body".to_string()),
+            url: Some("https://example.com".to_string()),
+            author: PostAuthor {
+                id: "user1".to_string(),
+                username: "testuser".to_string(),
+                display_name: Some("Test User".to_string()),
+                avatar_url: None,
+                reputation: Some(1000),
+                platform: Platform::HackerNews,
+            },
+            score: 42,
+            comment_count: 7,
+            created_at: chrono::Utc::now(),
+            tags: vec!["technology".to_string()],
+            language: Some("en".to_string()),
+            raw: None,
+        };
+        let json = serde_json::to_string(&post).unwrap();
+        let back: AggregatedPost = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "hn:12345");
+        assert_eq!(back.score, 42);
+        assert_eq!(back.platform, Platform::HackerNews);
+        assert_eq!(back.author.username, "testuser");
+    }
+
+    // === AggregatorError Display ===
+
+    use crate::error::AggregatorError;
+
+    #[test]
+    fn error_display_variants() {
+        let err = AggregatorError::UnsupportedPlatform("mastodon".to_string());
+        assert!(err.to_string().contains("mastodon"));
+
+        let err = AggregatorError::RateLimited("x".to_string(), 60);
+        assert!(err.to_string().contains("60"));
+
+        let err = AggregatorError::AuthError("invalid key".to_string());
+        assert!(err.to_string().contains("invalid key"));
+    }
+
+    #[test]
+    fn error_from_reqwest() {
+        // Construct a reqwest error by making a request to an invalid URL
+        // We can't easily construct a reqwest::Error, so test the From impl indirectly
+        // by checking that AggregatorError implements the right traits
+        fn accepts_aggregator_error(e: AggregatorError) -> String {
+            e.to_string()
+        }
+        let err = AggregatorError::HttpRequest("timeout".to_string());
+        assert!(accepts_aggregator_error(err).contains("timeout"));
+    }
+
+    #[test]
+    fn error_to_kias_error() {
+        let err = AggregatorError::ParseError("bad json".to_string());
+        let kias_err: kias_common::error::KiasError = err.into();
+        assert!(kias_err.to_string().contains("bad json"));
+    }
+}

@@ -89,10 +89,23 @@ pub fn create_router(state: AppState) -> Router {
         );
 
     // --- Knowledge routes ---
-    let knowledge_routes = Router::new().route(
-        "/api/v1/knowledge/search",
-        axum::routing::get(knowledge::search_knowledge),
-    );
+    let knowledge_routes = Router::new()
+        .route(
+            "/api/v1/knowledge/search",
+            axum::routing::get(knowledge::search_knowledge),
+        )
+        .route(
+            "/api/v1/knowledge/ingest",
+            axum::routing::post(knowledge::ingest_document),
+        )
+        .route(
+            "/api/v1/knowledge/ingest-file",
+            axum::routing::post(knowledge::ingest_file),
+        )
+        .route(
+            "/api/v1/knowledge/documents",
+            axum::routing::get(knowledge::list_documents),
+        );
 
     // --- Context Manager routes ---
     let context_routes = Router::new()

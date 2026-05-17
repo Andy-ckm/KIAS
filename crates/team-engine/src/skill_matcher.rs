@@ -18,6 +18,31 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// 沙箱类型 — 不同专业 Agent 需要不同的隔离级别
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SandboxType {
+    /// 无沙箱（完全信任）
+    None,
+    /// 文件系统隔离
+    Filesystem {
+        read_only_paths: Vec<String>,
+        writable_paths: Vec<String>,
+    },
+    /// 进程隔离（namespace/cgroup）
+    Process {
+        allow_network: bool,
+        allow_gpu: bool,
+        max_memory_mb: u64,
+        max_cpu_percent: f64,
+    },
+    /// 容器隔离
+    Container {
+        image: String,
+        volumes: Vec<String>,
+        network_mode: String,
+    },
+}
+
 /// Agent profile for skill matching
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentProfile {
@@ -37,6 +62,10 @@ pub struct AgentProfile {
     pub tasks_completed: u32,
     /// Specializations (high-level domains)
     pub specializations: Vec<String>,
+    /// 沙箱配置
+    pub sandbox: SandboxType,
+    /// 所需权限（如 root、network、gpu）
+    pub permissions: Vec<String>,
 }
 
 impl AgentProfile {
@@ -51,6 +80,8 @@ impl AgentProfile {
             success_rate: 1.0,
             tasks_completed: 0,
             specializations: Vec::new(),
+            sandbox: SandboxType::None,
+            permissions: Vec::new(),
         }
     }
 
@@ -82,6 +113,18 @@ impl AgentProfile {
     /// Set success rate
     pub fn with_success_rate(mut self, rate: f32) -> Self {
         self.success_rate = rate.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Set sandbox type
+    pub fn with_sandbox(mut self, sandbox: SandboxType) -> Self {
+        self.sandbox = sandbox;
+        self
+    }
+
+    /// Add a required permission
+    pub fn with_permission(mut self, perm: &str) -> Self {
+        self.permissions.push(perm.to_string());
         self
     }
 }
@@ -223,6 +266,111 @@ impl SkillMatcher {
             agent_load: agent.load,
             agent_success_rate: agent.success_rate,
         }
+    }
+}
+
+/// 预定义专业 Agent 工厂
+pub struct BuiltinAgents;
+
+impl BuiltinAgents {
+    /// Data Agent — 数据处理（ETL、分析、可视化）
+    pub fn data_agent() -> AgentProfile {
+        AgentProfile::new("data-agent", "Data Agent")
+            .with_capability("sql_query", 0.9)
+            .with_capability("csv_process", 0.95)
+            .with_capability("data_transform", 0.85)
+            .with_capability("chart_generate", 0.8)
+            .with_specialization("data-processing")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 4096,
+                max_cpu_percent: 80.0,
+            })
+            .with_permission("filesystem")
+            .with_permission("network")
+    }
+
+    /// Ops Agent — Linux 运维（部署、监控、自动化）
+    pub fn ops_agent() -> AgentProfile {
+        AgentProfile::new("ops-agent", "Ops Agent")
+            .with_capability("shell_exec", 0.95)
+            .with_capability("docker_manage", 0.9)
+            .with_capability("systemd_manage", 0.85)
+            .with_capability("log_analyze", 0.8)
+            .with_capability("monitor_check", 0.85)
+            .with_specialization("operations")
+            .with_sandbox(SandboxType::Container {
+                image: "kias-ops:latest".to_string(),
+                volumes: vec!["/var/run/docker.sock:/var/run/docker.sock".to_string()],
+                network_mode: "host".to_string(),
+            })
+            .with_permission("root")
+            .with_permission("filesystem")
+            .with_permission("network")
+    }
+
+    /// SecAgent — 安全防护（漏洞扫描、入侵检测）
+    pub fn sec_agent() -> AgentProfile {
+        AgentProfile::new("sec-agent", "Security Agent")
+            .with_capability("nmap_scan", 0.9)
+            .with_capability("vuln_check", 0.85)
+            .with_capability("firewall_manage", 0.8)
+            .with_capability("audit_log", 0.9)
+            .with_capability("intrusion_detect", 0.85)
+            .with_specialization("security")
+            .with_sandbox(SandboxType::Container {
+                image: "kias-sec:latest".to_string(),
+                volumes: vec![],
+                network_mode: "host".to_string(),
+            })
+            .with_permission("root")
+            .with_permission("network")
+            .with_permission("raw_socket")
+    }
+
+    /// Code Agent — 软件开发（编码、审查、测试）
+    pub fn code_agent() -> AgentProfile {
+        AgentProfile::new("code-agent", "Code Agent")
+            .with_capability("code_generation", 0.95)
+            .with_capability("code_review", 0.9)
+            .with_capability("testing", 0.85)
+            .with_capability("refactoring", 0.8)
+            .with_specialization("coding")
+            .with_sandbox(SandboxType::Filesystem {
+                read_only_paths: vec!["/usr".to_string(), "/etc".to_string()],
+                writable_paths: vec!["/workspace".to_string(), "/tmp".to_string()],
+            })
+            .with_permission("filesystem")
+    }
+
+    /// Research Agent — 研究助手（论文调研、知识整理）
+    pub fn research_agent() -> AgentProfile {
+        AgentProfile::new("research-agent", "Research Agent")
+            .with_capability("web_search", 0.9)
+            .with_capability("paper_fetch", 0.85)
+            .with_capability("document_analysis", 0.9)
+            .with_capability("summarization", 0.85)
+            .with_specialization("research")
+            .with_specialization("knowledge")
+            .with_sandbox(SandboxType::Process {
+                allow_network: true,
+                allow_gpu: false,
+                max_memory_mb: 2048,
+                max_cpu_percent: 50.0,
+            })
+            .with_permission("network")
+    }
+
+    /// 获取所有内置专业 Agent
+    pub fn all() -> Vec<AgentProfile> {
+        vec![
+            Self::data_agent(),
+            Self::ops_agent(),
+            Self::sec_agent(),
+            Self::code_agent(),
+            Self::research_agent(),
+        ]
     }
 }
 

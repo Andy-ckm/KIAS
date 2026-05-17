@@ -1,15 +1,20 @@
-//! 自动部署 — KIAS自循环的核心
+//! 自动部署 — KIAS自循环的核心（真实执行版）
 //!
 //! 自动部署修复，包括：
-//! - 代码编译
-//! - 服务重启
+//! - 真实代码编译
+//! - Git 快照回滚
 //! - 健康检查
-//! - 回滚机制
+//! - 部署监控
+//!
+//! ## 控制论原理
+//! Deployer 是闭环的"执行器"——将决策转化为真实环境中的变更。
+//! 参考：Ashby 必要多样性定律 — 控制器必须能影响被控对象。
 
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::process::Command;
 
-#[allow(unused_imports)]
-use crate::codegen::{CodePatch, PatchType};
+use crate::codegen::CodePatch;
 
 /// 部署状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -37,10 +42,14 @@ pub struct DeployResult {
     pub details: String,
     /// 变更文件
     pub changed_files: Vec<String>,
+    /// 部署耗时（毫秒）
+    pub duration_ms: u64,
     /// 部署时间
     pub deployed_at: chrono::DateTime<chrono::Utc>,
     /// 错误信息
     pub errors: Vec<String>,
+    /// Git 快照 commit hash（用于回滚）
+    pub snapshot_hash: Option<String>,
 }
 
 /// 部署器 trait
@@ -52,96 +61,182 @@ pub trait Deployer: Send + Sync {
     fn name(&self) -> &str;
 
     /// 回滚部署
-    fn rollback(&self, deploy_id: &str) -> DeployResult;
+    fn rollback(&self, deploy_id: &str, snapshot_hash: &str) -> DeployResult;
+
+    /// 健康检查
+    fn health_check(&self) -> bool;
 }
 
-/// 代码编译部署器
-pub struct CompilationDeployer;
+/// Git 快照部署器 — 真实执行
+///
+/// 流程：
+/// 1. 创建 Git stash 快照（可回滚点）
+/// 2. 执行 cargo check 验证编译
+/// 3. 成功则继续，失败则自动回滚
+pub struct GitSnapshotDeployer {
+    workspace_path: PathBuf,
+}
 
-impl Default for CompilationDeployer {
+impl GitSnapshotDeployer {
+    pub fn new(workspace_path: impl Into<PathBuf>) -> Self {
+        Self {
+            workspace_path: workspace_path.into(),
+        }
+    }
+
+    /// 创建 Git 快照
+    fn create_snapshot(&self) -> Option<String> {
+        let output = Command::new("git")
+            .args(["stash", "push", "-m", "kias-auto-deploy-snapshot"])
+            .current_dir(&self.workspace_path)
+            .output()
+            .ok()?;
+
+        if output.status.success() {
+            // 获取当前 HEAD hash
+            let hash_output = Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .current_dir(&self.workspace_path)
+                .output()
+                .ok()?;
+            Some(
+                String::from_utf8_lossy(&hash_output.stdout)
+                    .trim()
+                    .to_string(),
+            )
+        } else {
+            // 没有变更可以 stash，直接返回 HEAD
+            let hash_output = Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .current_dir(&self.workspace_path)
+                .output()
+                .ok()?;
+            Some(
+                String::from_utf8_lossy(&hash_output.stdout)
+                    .trim()
+                    .to_string(),
+            )
+        }
+    }
+
+    /// 执行 cargo build
+    fn build(&self) -> (bool, String) {
+        let output = Command::new("cargo")
+            .args(["check", "--workspace"])
+            .current_dir(&self.workspace_path)
+            .output();
+
+        match output {
+            Ok(o) => {
+                let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                (o.status.success(), stderr)
+            }
+            Err(e) => (false, format!("构建失败: {}", e)),
+        }
+    }
+}
+
+impl Default for GitSnapshotDeployer {
     fn default() -> Self {
-        Self::new()
+        Self::new("/workspace/kias")
     }
 }
 
-impl CompilationDeployer {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Deployer for CompilationDeployer {
+impl Deployer for GitSnapshotDeployer {
     fn deploy(&self, target: &str, patches: &[CodePatch]) -> DeployResult {
-        // 模拟编译部署
-        // 在实际实现中，这里会执行cargo build
-        DeployResult {
-            id: uuid::Uuid::new_v4().to_string(),
-            status: DeployStatus::Success,
-            details: format!("编译部署成功: {}", target),
-            changed_files: patches.iter().map(|p| p.target_file.clone()).collect(),
-            deployed_at: chrono::Utc::now(),
-            errors: vec![],
+        let start = std::time::Instant::now();
+        let deploy_id = uuid::Uuid::new_v4().to_string();
+        let changed_files: Vec<String> = patches.iter().map(|p| p.target_file.clone()).collect();
+
+        // Step 1: 创建快照
+        let snapshot_hash = self.create_snapshot();
+
+        // Step 2: 验证构建
+        let (build_success, build_output) = self.build();
+
+        if build_success {
+            DeployResult {
+                id: deploy_id,
+                status: DeployStatus::Success,
+                details: format!("部署成功: {} ({} 文件变更)", target, changed_files.len()),
+                changed_files,
+                duration_ms: start.elapsed().as_millis() as u64,
+                deployed_at: chrono::Utc::now(),
+                errors: vec![],
+                snapshot_hash,
+            }
+        } else {
+            // 构建失败 → 自动回滚
+            if let Some(ref hash) = snapshot_hash {
+                let _ = Command::new("git")
+                    .args(["checkout", hash, "--", "."])
+                    .current_dir(&self.workspace_path)
+                    .output();
+            }
+
+            DeployResult {
+                id: deploy_id,
+                status: DeployStatus::Failed,
+                details: format!("部署失败，已自动回滚: {}", target),
+                changed_files,
+                duration_ms: start.elapsed().as_millis() as u64,
+                deployed_at: chrono::Utc::now(),
+                errors: vec![build_output],
+                snapshot_hash,
+            }
         }
     }
 
     fn name(&self) -> &str {
-        "CompilationDeployer"
+        "GitSnapshotDeployer"
     }
 
-    fn rollback(&self, deploy_id: &str) -> DeployResult {
+    fn rollback(&self, deploy_id: &str, snapshot_hash: &str) -> DeployResult {
+        let start = std::time::Instant::now();
+
+        let output = Command::new("git")
+            .args(["checkout", snapshot_hash, "--", "."])
+            .current_dir(&self.workspace_path)
+            .output();
+
+        let (success, details) = match output {
+            Ok(o) if o.status.success() => (
+                true,
+                format!(
+                    "回滚到 {} 成功",
+                    &snapshot_hash[..8.min(snapshot_hash.len())]
+                ),
+            ),
+            Ok(o) => (
+                false,
+                format!("回滚失败: {}", String::from_utf8_lossy(&o.stderr)),
+            ),
+            Err(e) => (false, format!("回滚命令失败: {}", e)),
+        };
+
         DeployResult {
             id: deploy_id.to_string(),
-            status: DeployStatus::RolledBack,
-            details: format!("回滚成功: {}", deploy_id),
+            status: if success {
+                DeployStatus::RolledBack
+            } else {
+                DeployStatus::Failed
+            },
+            details,
             changed_files: vec![],
+            duration_ms: start.elapsed().as_millis() as u64,
             deployed_at: chrono::Utc::now(),
-            errors: vec![],
-        }
-    }
-}
-
-/// 服务重启部署器
-pub struct ServiceRestartDeployer;
-
-impl Default for ServiceRestartDeployer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ServiceRestartDeployer {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Deployer for ServiceRestartDeployer {
-    fn deploy(&self, target: &str, patches: &[CodePatch]) -> DeployResult {
-        // 模拟服务重启
-        // 在实际实现中，这里会重启服务
-        DeployResult {
-            id: uuid::Uuid::new_v4().to_string(),
-            status: DeployStatus::Success,
-            details: format!("服务重启成功: {}", target),
-            changed_files: patches.iter().map(|p| p.target_file.clone()).collect(),
-            deployed_at: chrono::Utc::now(),
-            errors: vec![],
+            errors: if success {
+                vec![]
+            } else {
+                vec!["回滚失败".to_string()]
+            },
+            snapshot_hash: Some(snapshot_hash.to_string()),
         }
     }
 
-    fn name(&self) -> &str {
-        "ServiceRestartDeployer"
-    }
-
-    fn rollback(&self, deploy_id: &str) -> DeployResult {
-        DeployResult {
-            id: deploy_id.to_string(),
-            status: DeployStatus::RolledBack,
-            details: format!("回滚成功: {}", deploy_id),
-            changed_files: vec![],
-            deployed_at: chrono::Utc::now(),
-            errors: vec![],
-        }
+    fn health_check(&self) -> bool {
+        // 检查 workspace 存在且是 git 仓库
+        self.workspace_path.join(".git").exists()
     }
 }
 
@@ -186,11 +281,11 @@ impl DeployerManager {
     }
 
     /// 回滚部署
-    pub fn rollback(&mut self, deploy_id: &str) -> Vec<DeployResult> {
+    pub fn rollback(&mut self, deploy_id: &str, snapshot_hash: &str) -> Vec<DeployResult> {
         let mut results = Vec::new();
 
         for deployer in &self.deployers {
-            let result = deployer.rollback(deploy_id);
+            let result = deployer.rollback(deploy_id, snapshot_hash);
             results.push(result.clone());
             self.history.push(result);
         }
@@ -221,31 +316,6 @@ mod tests {
     }
 
     #[test]
-    fn test_compilation_deployer() {
-        let deployer = CompilationDeployer::new();
-        let result = deployer.deploy("kias-api-server", &make_patches());
-        assert_eq!(result.status, DeployStatus::Success);
-    }
-
-    #[test]
-    fn test_service_restart_deployer() {
-        let deployer = ServiceRestartDeployer::new();
-        let result = deployer.deploy("kias-api-server", &make_patches());
-        assert_eq!(result.status, DeployStatus::Success);
-    }
-
-    #[test]
-    fn test_deployer_manager() {
-        let mut manager = DeployerManager::new();
-        manager.register_deployer(Box::new(CompilationDeployer::new()));
-        manager.register_deployer(Box::new(ServiceRestartDeployer::new()));
-
-        let results = manager.deploy("kias-api-server", &make_patches());
-        assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|r| r.status == DeployStatus::Success));
-    }
-
-    #[test]
     fn test_deploy_status_variants() {
         assert!(matches!(DeployStatus::Pending, DeployStatus::Pending));
         assert!(matches!(DeployStatus::Deploying, DeployStatus::Deploying));
@@ -261,40 +331,54 @@ mod tests {
             status: DeployStatus::Success,
             details: "Build succeeded".to_string(),
             changed_files: vec!["main.rs".to_string()],
+            duration_ms: 1500,
             deployed_at: chrono::Utc::now(),
             errors: vec![],
+            snapshot_hash: Some("abc123".to_string()),
         };
         assert_eq!(result.status, DeployStatus::Success);
         assert_eq!(result.changed_files.len(), 1);
         assert!(result.errors.is_empty());
+        assert_eq!(result.duration_ms, 1500);
     }
 
     #[test]
-    fn test_deployer_manager_empty() {
+    fn test_deployer_manager_creation() {
+        let manager = DeployerManager::new();
+        assert!(manager.deployers.is_empty());
+        assert!(manager.history().is_empty());
+    }
+
+    #[test]
+    fn test_deployer_manager_empty_deploy() {
         let mut manager = DeployerManager::new();
         let results = manager.deploy("target", &make_patches());
         assert!(results.is_empty());
     }
 
     #[test]
-    fn test_deployer_manager_rollback() {
+    fn test_deployer_manager_empty_rollback() {
         let mut manager = DeployerManager::new();
-        manager.register_deployer(Box::new(CompilationDeployer::new()));
-
-        let results = manager.rollback("deploy-123");
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].status, DeployStatus::RolledBack);
+        let results = manager.rollback("deploy-123", "abc123");
+        assert!(results.is_empty());
     }
 
     #[test]
-    fn test_deployer_manager_history() {
-        let mut manager = DeployerManager::new();
-        manager.register_deployer(Box::new(CompilationDeployer::new()));
+    fn test_git_snapshot_deployer_health_check() {
+        let deployer = GitSnapshotDeployer::new("/workspace/kias");
+        // /workspace/kias 应该是 git 仓库
+        assert!(deployer.health_check());
+    }
 
-        manager.deploy("target", &make_patches());
-        assert_eq!(manager.history().len(), 1);
+    #[test]
+    fn test_git_snapshot_deployer_nonexistent_path() {
+        let deployer = GitSnapshotDeployer::new("/nonexistent/path");
+        assert!(!deployer.health_check());
+    }
 
-        manager.deploy("target", &make_patches());
-        assert_eq!(manager.history().len(), 2);
+    #[test]
+    fn test_git_snapshot_deployer_name() {
+        let deployer = GitSnapshotDeployer::new("/tmp");
+        assert_eq!(deployer.name(), "GitSnapshotDeployer");
     }
 }

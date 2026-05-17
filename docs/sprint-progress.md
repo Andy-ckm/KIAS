@@ -999,3 +999,30 @@ Filesystem      Size  Used Avail Use% Mounted on
 ### 💾 磁盘状态
 - / (系统盘): 22G 可用 / 40G (45%)
 - /mnt (挂载盘): 6.5G 可用 / 30G (77%)
+
+---
+
+## 最新更新：2026-05-17 18:13 (Sprint 44 — 健康检查 + 测试扩展)
+
+### 🎯 Sprint 44 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,109 通过 / 0 失败 (+8) |
+
+### 🔧 本轮新增
+- **clippy 修复**: auto-loop 5 unused imports + llm-engine dead_code (prefix with `_`)
+- **fmt 修复**: api-server knowledge.rs formatting drift
+- **data-store 测试**: +4 tests (config get_by_namespace, experience_replay cleanup_older_than, prefix_cache get_lru_entries, prefix_cache evict_stale)
+- **skills 修复**: unused_mut in registry.rs test
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 106,289
+- **测试数量**: 2,109 (全部通过)
+- **Clippy 警告**: 0
+
+### 💾 磁盘状态
+- / (系统盘): 22G 可用 / 40G (43%)
+- /mnt (挂载盘): 3.6G 可用 / 30G (88%)

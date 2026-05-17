@@ -22,3 +22,4 @@ uuid.workspace = true
 chrono.workspace = true
 reqwest.workspace = true
 csv.workspace = true
+serde_yaml.workspace = true

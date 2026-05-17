@@ -1,3 +1,30 @@
+## 最新更新：2026-05-17 14:18 (Sprint 71 — ToolAwareRecognizer 集成 + clippy 修复)
+
+### 🎯 Sprint 71 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 1,985 通过 / 0 失败 |
+
+### 🔧 本轮新增
+- **ToolAwareRecognizer 集成**: NL API `/api/v1/intent/recognize` 端点现在返回工具推荐（之前是 `vec![]`）
+- **clippy 修复**: `context_aware_decomposer.rs` `overlap_threshold` dead_code 警告
+- **clippy 修复**: `tool_aware_intent.rs` `or_insert_with(Vec::new)` → `or_default()`
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 103,138
+- **测试数量**: 1,985 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+
+### 💾 磁盘状态
+- / (系统盘): 21G 可用 / 40G (45%)
+- /mnt (挂载盘): 7.0G 可用 / 30G (76%)
+
+---
+
 ## 最新更新：2026-05-17 12:45 (Sprint 70 — mcp-protocol sandbox compilation fix)
 
 ### 🎯 Sprint 70 质量门检查

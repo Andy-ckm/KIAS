@@ -249,6 +249,209 @@ impl PlanGeneratorManager {
     }
 }
 
+/// 错误驱动方案生成器 — 根据真实分析结果生成修复方案
+///
+/// 不再硬编码，而是根据 CargoOutputAnalyzer 的输出动态生成修复步骤。
+/// 这是控制论闭环的关键：决策器基于真实信号生成行动方案。
+pub struct ErrorDrivenPlanner;
+
+impl Default for ErrorDrivenPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ErrorDrivenPlanner {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// 根据分析结果生成修复方案
+    pub fn generate_from_analysis(
+        &self,
+        analysis: &crate::analyzer::AnalysisResult,
+    ) -> Option<GeneratedPlan> {
+        if !analysis.found_root_cause {
+            return None;
+        }
+
+        let error_category = analysis.error_category.as_ref()?;
+        let related_files = &analysis.related_files;
+
+        let (title, description, steps, risks) = match error_category {
+            crate::analyzer::ErrorCategory::Unused => {
+                let files = related_files
+                    .iter()
+                    .map(|f| PlanStep {
+                        order: 1,
+                        step_type: StepType::CodeChange,
+                        description: format!("移除 {} 中的未使用代码", f),
+                        files: vec![f.clone()],
+                        expected_changes: "删除未使用的变量/导入".to_string(),
+                        verification: "cargo clippy -- -D warnings 通过".to_string(),
+                    })
+                    .collect::<Vec<_>>();
+
+                (
+                    "修复未使用代码警告".to_string(),
+                    "移除未使用的变量、导入和死代码".to_string(),
+                    if steps_empty(&files) {
+                        vec![generic_step("运行 cargo fix 自动修复")]
+                    } else {
+                        files
+                    },
+                    vec!["可能删除了将来需要的代码".to_string()],
+                )
+            }
+            crate::analyzer::ErrorCategory::ClippyWarning => (
+                "修复 Clippy 警告".to_string(),
+                "按 Clippy 建议修改代码".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "运行 cargo clippy --fix 自动修复".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "按 Clippy 建议修改".to_string(),
+                    verification: "cargo clippy -- -D warnings 零警告".to_string(),
+                }],
+                vec![],
+            ),
+            crate::analyzer::ErrorCategory::TypeError => (
+                "修复类型错误".to_string(),
+                format!("修复 {} 中的类型不匹配", related_files.join(", ")),
+                vec![
+                    PlanStep {
+                        order: 1,
+                        step_type: StepType::CodeChange,
+                        description: "检查类型标注和实际值是否匹配".to_string(),
+                        files: related_files.clone(),
+                        expected_changes: "修正类型不匹配".to_string(),
+                        verification: "cargo check 通过".to_string(),
+                    },
+                    PlanStep {
+                        order: 2,
+                        step_type: StepType::TestAddition,
+                        description: "添加类型正确性测试".to_string(),
+                        files: related_files.clone(),
+                        expected_changes: "添加测试覆盖类型边界".to_string(),
+                        verification: "cargo test 通过".to_string(),
+                    },
+                ],
+                vec!["可能需要修改接口定义".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::BorrowError => (
+                "修复借用错误".to_string(),
+                "修复所有权和借用问题".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "重构代码解决借用冲突（clone/restructure/ref cell）".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "修复所有权转移".to_string(),
+                    verification: "cargo check 通过".to_string(),
+                }],
+                vec!["可能需要重构数据结构".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::NotFound => (
+                "修复未找到错误".to_string(),
+                "添加缺失的定义或修正拼写".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "添加缺失的函数/类型/模块定义".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "添加缺失定义".to_string(),
+                    verification: "cargo check 通过".to_string(),
+                }],
+                vec!["可能需要更新依赖".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::TestFailure => (
+                "修复测试失败".to_string(),
+                "修复失败的测试用例".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "分析测试失败原因并修复".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "修复测试逻辑或被测代码".to_string(),
+                    verification: "cargo test 通过".to_string(),
+                }],
+                vec!["可能需要更新测试期望".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::CompilationError => (
+                "修复编译错误".to_string(),
+                format!(
+                    "修复编译错误: {}",
+                    analysis.root_cause.as_deref().unwrap_or("")
+                ),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "根据编译错误信息修复代码".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "修复编译错误".to_string(),
+                    verification: "cargo check --workspace 通过".to_string(),
+                }],
+                vec!["可能影响其他模块".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::LifetimeError => (
+                "修复生命周期错误".to_string(),
+                "修复生命周期标注".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "添加或修正生命周期标注".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "修正生命周期".to_string(),
+                    verification: "cargo check 通过".to_string(),
+                }],
+                vec!["可能需要重构 API".to_string()],
+            ),
+            crate::analyzer::ErrorCategory::Unknown => (
+                "修复未知错误".to_string(),
+                "需要人工分析".to_string(),
+                vec![PlanStep {
+                    order: 1,
+                    step_type: StepType::CodeChange,
+                    description: "人工分析并修复".to_string(),
+                    files: related_files.clone(),
+                    expected_changes: "待定".to_string(),
+                    verification: "cargo check 通过".to_string(),
+                }],
+                vec!["需要人工介入".to_string()],
+            ),
+        };
+
+        let difficulty = analysis.difficulty.unwrap_or(5);
+        Some(GeneratedPlan {
+            id: uuid::Uuid::new_v4().to_string(),
+            plan_type: PlanType::CodeChange,
+            title,
+            description,
+            steps,
+            expected_outcome: "编译/测试/clippy 全部通过".to_string(),
+            risks,
+            requires_human: difficulty > 6,
+            generated_at: chrono::Utc::now(),
+        })
+    }
+}
+
+fn steps_empty(steps: &[PlanStep]) -> bool {
+    steps.is_empty()
+}
+
+fn generic_step(description: &str) -> PlanStep {
+    PlanStep {
+        order: 1,
+        step_type: StepType::CodeChange,
+        description: description.to_string(),
+        files: vec![],
+        expected_changes: "自动修复".to_string(),
+        verification: "cargo check 通过".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,5 +655,113 @@ mod tests {
             ConfigFixPlanGenerator::new().name(),
             "ConfigFixPlanGenerator"
         );
+    }
+
+    #[test]
+    fn test_error_driven_planner_type_error() {
+        let planner = ErrorDrivenPlanner::new();
+        let analysis = crate::analyzer::AnalysisResult {
+            found_root_cause: true,
+            root_cause: Some("mismatched types".to_string()),
+            error_category: Some(crate::analyzer::ErrorCategory::TypeError),
+            impact: None,
+            difficulty: Some(4),
+            estimated_hours: Some(2.0),
+            related_files: vec!["src/main.rs".to_string()],
+            details: Default::default(),
+            analyzed_at: chrono::Utc::now(),
+        };
+
+        let plan = planner.generate_from_analysis(&analysis);
+        assert!(plan.is_some());
+        let plan = plan.unwrap();
+        assert!(plan.title.contains("类型"));
+        assert_eq!(plan.steps.len(), 2); // code fix + test
+        assert!(!plan.requires_human); // difficulty 4 < 7
+    }
+
+    #[test]
+    fn test_error_driven_planner_borrow_error() {
+        let planner = ErrorDrivenPlanner::new();
+        let analysis = crate::analyzer::AnalysisResult {
+            found_root_cause: true,
+            root_cause: Some("use of moved value".to_string()),
+            error_category: Some(crate::analyzer::ErrorCategory::BorrowError),
+            impact: None,
+            difficulty: Some(7),
+            estimated_hours: Some(3.5),
+            related_files: vec!["src/lib.rs".to_string()],
+            details: Default::default(),
+            analyzed_at: chrono::Utc::now(),
+        };
+
+        let plan = planner.generate_from_analysis(&analysis);
+        assert!(plan.is_some());
+        let plan = plan.unwrap();
+        assert!(plan.title.contains("借用"));
+        assert!(plan.requires_human); // difficulty 7 > 6
+    }
+
+    #[test]
+    fn test_error_driven_planner_no_root_cause() {
+        let planner = ErrorDrivenPlanner::new();
+        let analysis = crate::analyzer::AnalysisResult {
+            found_root_cause: false,
+            root_cause: None,
+            error_category: None,
+            impact: None,
+            difficulty: None,
+            estimated_hours: None,
+            related_files: vec![],
+            details: Default::default(),
+            analyzed_at: chrono::Utc::now(),
+        };
+
+        let plan = planner.generate_from_analysis(&analysis);
+        assert!(plan.is_none());
+    }
+
+    #[test]
+    fn test_error_driven_planner_clippy_warning() {
+        let planner = ErrorDrivenPlanner::new();
+        let analysis = crate::analyzer::AnalysisResult {
+            found_root_cause: true,
+            root_cause: Some("unused variable".to_string()),
+            error_category: Some(crate::analyzer::ErrorCategory::ClippyWarning),
+            impact: None,
+            difficulty: Some(2),
+            estimated_hours: Some(0.5),
+            related_files: vec!["src/main.rs".to_string()],
+            details: Default::default(),
+            analyzed_at: chrono::Utc::now(),
+        };
+
+        let plan = planner.generate_from_analysis(&analysis);
+        assert!(plan.is_some());
+        let plan = plan.unwrap();
+        assert!(plan.title.contains("Clippy"));
+        assert!(!plan.requires_human);
+    }
+
+    #[test]
+    fn test_error_driven_planner_test_failure() {
+        let planner = ErrorDrivenPlanner::new();
+        let analysis = crate::analyzer::AnalysisResult {
+            found_root_cause: true,
+            root_cause: Some("assertion failed".to_string()),
+            error_category: Some(crate::analyzer::ErrorCategory::TestFailure),
+            impact: None,
+            difficulty: Some(5),
+            estimated_hours: Some(2.5),
+            related_files: vec!["tests/integration.rs".to_string()],
+            details: Default::default(),
+            analyzed_at: chrono::Utc::now(),
+        };
+
+        let plan = planner.generate_from_analysis(&analysis);
+        assert!(plan.is_some());
+        let plan = plan.unwrap();
+        assert!(plan.title.contains("测试"));
+        assert_eq!(plan.steps.len(), 1);
     }
 }

@@ -1144,9 +1144,15 @@ mod tests {
         assert_eq!(CredentialType::OAuthToken.to_string(), "oauth_token");
         assert_eq!(CredentialType::BearerToken.to_string(), "bearer_token");
         assert_eq!(CredentialType::SshKey.to_string(), "ssh_key");
-        assert_eq!(CredentialType::TlsCertificate.to_string(), "tls_certificate");
+        assert_eq!(
+            CredentialType::TlsCertificate.to_string(),
+            "tls_certificate"
+        );
         assert_eq!(CredentialType::BasicAuth.to_string(), "basic_auth");
-        assert_eq!(CredentialType::Custom("custom".to_string()).to_string(), "custom");
+        assert_eq!(
+            CredentialType::Custom("custom".to_string()).to_string(),
+            "custom"
+        );
     }
 
     #[tokio::test]
@@ -1193,11 +1199,29 @@ mod tests {
         );
 
         manager
-            .store("api-key", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "api-key",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
         manager
-            .store("oauth-token", CredentialType::OAuthToken, b"token", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "oauth-token",
+                CredentialType::OAuthToken,
+                b"token",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -1224,12 +1248,30 @@ mod tests {
         );
 
         let id = manager
-            .store("active-cred", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "active-cred",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
         manager
-            .store("another-cred", CredentialType::ApiKey, b"secret2", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "another-cred",
+                CredentialType::ApiKey,
+                b"secret2",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -1309,12 +1351,30 @@ mod tests {
         );
 
         manager
-            .store("admin-cred", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "admin-cred",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
         manager
-            .store("user-cred", CredentialType::ApiKey, b"secret2", "user-1", HashMap::new(), vec![], None, None)
+            .store(
+                "user-cred",
+                CredentialType::ApiKey,
+                b"secret2",
+                "user-1",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -1393,7 +1453,16 @@ mod tests {
 
         // Store via original
         manager
-            .store("clone-test", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "clone-test",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 
@@ -1451,7 +1520,16 @@ mod tests {
         );
 
         manager
-            .store("no-audit", CredentialType::ApiKey, b"secret", "admin", HashMap::new(), vec![], None, None)
+            .store(
+                "no-audit",
+                CredentialType::ApiKey,
+                b"secret",
+                "admin",
+                HashMap::new(),
+                vec![],
+                None,
+                None,
+            )
             .await
             .unwrap();
 

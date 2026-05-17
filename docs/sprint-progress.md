@@ -1,3 +1,36 @@
+## 最新更新：2026-05-17 20:37 (Sprint 76 — Per-Agent Cost Attribution)
+
+### 🎯 Sprint 76 质量门禁检查
+| 门禁 | 状态 |
+|------|------|
+| Build | ✅ 通过 |
+| Fmt | ✅ 通过 |
+| Clippy | ✅ 零警告 |
+| Tests | ✅ 2,144 通过 / 0 失败 (+5) |
+
+### 🔧 本轮新增
+- **Per-Agent Cost Attribution**: 扩展 `CostTracker` 支持按 Agent 追踪成本
+  - `AgentCostSummary` 结构体：agent_id, total_tokens, total_cost, total_requests, by_model, by_date
+  - `record_agent_usage()` — 同时更新每日成本和 Agent 成本
+  - `get_agent_cost()` — 查询指定 Agent 成本汇总
+  - `get_all_agent_costs()` — 查询所有 Agent 成本汇总
+  - `agent_count()` — 获取已追踪 Agent 数量
+- **Agent Runtime 集成**: `AgentExecutor::execute()` 自动按 Agent 名称追踪成本
+- **Clippy 修复**: `kias-skills` crate `trim_split_whitespace` lint
+- **依赖修复**: 添加 `csv` crate 到 workspace 和 skills crate
+
+### 📊 代码统计
+- **总 Rust 代码行数**: 107,696+
+- **测试数量**: 2,144 (全部通过)
+- **Clippy 警告**: 0
+- **创新点**: 121 个条目
+
+### 💾 磁盘状态
+- / (系统盘): 22G 可用 / 40G (44%)
+- /mnt (挂载盘): 16G 可用 / 30G (46%)
+
+---
+
 ## 最新更新：2026-05-17 20:18 (Sprint 75 — Quality Gate Verification + Paper Index Cleanup)
 
 ### 🎯 Sprint 75 质量门禁检查

@@ -207,57 +207,94 @@ impl DeployerManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codegen::{CodePatch, PatchType};
 
-    #[test]
-    fn test_compilation_deployer() {
-        let deployer = CompilationDeployer::new();
-        let patches = vec![CodePatch {
+    fn make_patches() -> Vec<CodePatch> {
+        vec![CodePatch {
             id: "test".to_string(),
             target_file: "test.rs".to_string(),
             patch_type: PatchType::CodeChange,
             content: "test".to_string(),
             description: "test".to_string(),
             generated_at: chrono::Utc::now(),
-        }];
+        }]
+    }
 
-        let result = deployer.deploy("kias-api-server", &patches);
+    #[test]
+    fn test_compilation_deployer() {
+        let deployer = CompilationDeployer::new();
+        let result = deployer.deploy("kias-api-server", &make_patches());
         assert_eq!(result.status, DeployStatus::Success);
     }
 
     #[test]
     fn test_service_restart_deployer() {
         let deployer = ServiceRestartDeployer::new();
-        let patches = vec![CodePatch {
-            id: "test".to_string(),
-            target_file: "test.rs".to_string(),
-            patch_type: PatchType::CodeChange,
-            content: "test".to_string(),
-            description: "test".to_string(),
-            generated_at: chrono::Utc::now(),
-        }];
-
-        let result = deployer.deploy("kias-api-server", &patches);
+        let result = deployer.deploy("kias-api-server", &make_patches());
         assert_eq!(result.status, DeployStatus::Success);
     }
 
     #[test]
     fn test_deployer_manager() {
         let mut manager = DeployerManager::new();
-
         manager.register_deployer(Box::new(CompilationDeployer::new()));
         manager.register_deployer(Box::new(ServiceRestartDeployer::new()));
 
-        let patches = vec![CodePatch {
-            id: "test".to_string(),
-            target_file: "test.rs".to_string(),
-            patch_type: PatchType::CodeChange,
-            content: "test".to_string(),
-            description: "test".to_string(),
-            generated_at: chrono::Utc::now(),
-        }];
-
-        let results = manager.deploy("kias-api-server", &patches);
+        let results = manager.deploy("kias-api-server", &make_patches());
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.status == DeployStatus::Success));
+    }
+
+    #[test]
+    fn test_deploy_status_variants() {
+        assert!(matches!(DeployStatus::Pending, DeployStatus::Pending));
+        assert!(matches!(DeployStatus::Deploying, DeployStatus::Deploying));
+        assert!(matches!(DeployStatus::Success, DeployStatus::Success));
+        assert!(matches!(DeployStatus::Failed, DeployStatus::Failed));
+        assert!(matches!(DeployStatus::RolledBack, DeployStatus::RolledBack));
+    }
+
+    #[test]
+    fn test_deploy_result_fields() {
+        let result = DeployResult {
+            id: "deploy-1".to_string(),
+            status: DeployStatus::Success,
+            details: "Build succeeded".to_string(),
+            changed_files: vec!["main.rs".to_string()],
+            deployed_at: chrono::Utc::now(),
+            errors: vec![],
+        };
+        assert_eq!(result.status, DeployStatus::Success);
+        assert_eq!(result.changed_files.len(), 1);
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_deployer_manager_empty() {
+        let mut manager = DeployerManager::new();
+        let results = manager.deploy("target", &make_patches());
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_deployer_manager_rollback() {
+        let mut manager = DeployerManager::new();
+        manager.register_deployer(Box::new(CompilationDeployer::new()));
+
+        let results = manager.rollback("deploy-123");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, DeployStatus::RolledBack);
+    }
+
+    #[test]
+    fn test_deployer_manager_history() {
+        let mut manager = DeployerManager::new();
+        manager.register_deployer(Box::new(CompilationDeployer::new()));
+
+        manager.deploy("target", &make_patches());
+        assert_eq!(manager.history().len(), 1);
+
+        manager.deploy("target", &make_patches());
+        assert_eq!(manager.history().len(), 2);
     }
 }

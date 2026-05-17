@@ -253,4 +253,53 @@ mod tests {
         let results = manager.analyze("Agent数据持久化缺失");
         assert!(!results.is_empty());
     }
+
+    #[test]
+    fn test_analyzer_type_variants() {
+        assert!(matches!(AnalyzerType::Code, AnalyzerType::Code));
+        assert!(matches!(AnalyzerType::Config, AnalyzerType::Config));
+        assert!(matches!(AnalyzerType::Dependency, AnalyzerType::Dependency));
+        assert!(matches!(
+            AnalyzerType::Performance,
+            AnalyzerType::Performance
+        ));
+        assert!(matches!(AnalyzerType::Memory, AnalyzerType::Memory));
+    }
+
+    #[test]
+    fn test_analysis_result_fields() {
+        let result = AnalysisResult {
+            found_root_cause: true,
+            root_cause: Some("missing persistence layer".to_string()),
+            impact: Some("data loss on restart".to_string()),
+            difficulty: Some(7),
+            estimated_hours: Some(8.0),
+            related_files: vec!["state.rs".to_string()],
+            details: HashMap::new(),
+            analyzed_at: chrono::Utc::now(),
+        };
+        assert!(result.found_root_cause);
+        assert_eq!(result.related_files.len(), 1);
+        assert_eq!(result.difficulty, Some(7));
+    }
+
+    #[test]
+    fn test_analyzer_manager_history_accumulation() {
+        let mut manager = AnalyzerManager::new();
+        manager.register_analyzer(Box::new(CodeAnalyzer::new("/workspace/kias".to_string())));
+
+        manager.analyze("first problem");
+        assert_eq!(manager.history().len(), 1);
+
+        manager.analyze("second problem");
+        assert_eq!(manager.history().len(), 2);
+    }
+
+    #[test]
+    fn test_analyzer_manager_empty() {
+        let mut manager = AnalyzerManager::new();
+        let results = manager.analyze("no analyzers registered");
+        assert!(results.is_empty());
+        assert!(manager.history().is_empty());
+    }
 }

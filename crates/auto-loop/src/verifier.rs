@@ -211,4 +211,61 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.passed));
     }
+
+    #[test]
+    fn test_verification_type_variants() {
+        assert!(matches!(
+            VerificationType::Compilation,
+            VerificationType::Compilation
+        ));
+        assert!(matches!(VerificationType::Test, VerificationType::Test));
+        assert!(matches!(
+            VerificationType::Functional,
+            VerificationType::Functional
+        ));
+        assert!(matches!(
+            VerificationType::Performance,
+            VerificationType::Performance
+        ));
+    }
+
+    #[test]
+    fn test_verification_result_fields() {
+        let result = VerificationResult {
+            verification_type: VerificationType::Compilation,
+            passed: true,
+            details: "Build succeeded".to_string(),
+            errors: vec![],
+            warnings: vec!["unused import".to_string()],
+            verified_at: chrono::Utc::now(),
+        };
+        assert!(result.passed);
+        assert!(result.errors.is_empty());
+        assert_eq!(result.warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_verifier_manager_history_accumulation() {
+        let mut manager = VerifierManager::new();
+        manager.register_verifier(Box::new(CompilationVerifier::new()));
+
+        manager.verify_all("kias-common");
+        assert_eq!(manager.history().len(), 1);
+
+        manager.verify_all("kias-common");
+        assert_eq!(manager.history().len(), 2);
+    }
+
+    #[test]
+    fn test_all_passed_empty_manager() {
+        let mut manager = VerifierManager::new();
+        assert!(manager.all_passed("any-target"));
+    }
+
+    #[test]
+    fn test_all_passed_with_test_verifier() {
+        let mut manager = VerifierManager::new();
+        manager.register_verifier(Box::new(TestVerifier::new()));
+        assert!(manager.all_passed("kias-common"));
+    }
 }

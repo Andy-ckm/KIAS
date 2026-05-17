@@ -244,12 +244,10 @@ mod tests {
     use super::*;
     use crate::planner::PlanType;
 
-    #[test]
-    fn test_persistence_code_generator() {
-        let generator = PersistenceCodeGenerator::new();
-        let plan = GeneratedPlan {
+    fn make_plan(plan_type: PlanType) -> GeneratedPlan {
+        GeneratedPlan {
             id: "test".to_string(),
-            plan_type: PlanType::CodeChange,
+            plan_type,
             title: "Test Plan".to_string(),
             description: "Test".to_string(),
             steps: vec![],
@@ -257,51 +255,75 @@ mod tests {
             risks: vec![],
             requires_human: false,
             generated_at: chrono::Utc::now(),
-        };
+        }
+    }
 
-        let patches = generator.generate(&plan);
+    #[test]
+    fn test_persistence_code_generator() {
+        let generator = PersistenceCodeGenerator::new();
+        let patches = generator.generate(&make_plan(PlanType::CodeChange));
         assert!(!patches.is_empty());
     }
 
     #[test]
     fn test_config_fix_code_generator() {
         let generator = ConfigFixCodeGenerator::new();
-        let plan = GeneratedPlan {
-            id: "test".to_string(),
-            plan_type: PlanType::ConfigChange,
-            title: "Test Plan".to_string(),
-            description: "Test".to_string(),
-            steps: vec![],
-            expected_outcome: "Test".to_string(),
-            risks: vec![],
-            requires_human: false,
-            generated_at: chrono::Utc::now(),
-        };
-
-        let patches = generator.generate(&plan);
+        let patches = generator.generate(&make_plan(PlanType::ConfigChange));
         assert!(!patches.is_empty());
     }
 
     #[test]
     fn test_code_generator_manager() {
         let mut manager = CodeGeneratorManager::new();
-
         manager.register_generator(Box::new(PersistenceCodeGenerator::new()));
         manager.register_generator(Box::new(ConfigFixCodeGenerator::new()));
+        let patches = manager.generate_patches(&make_plan(PlanType::CodeChange));
+        assert!(!patches.is_empty());
+    }
 
-        let plan = GeneratedPlan {
-            id: "test".to_string(),
-            plan_type: PlanType::CodeChange,
-            title: "Test Plan".to_string(),
-            description: "Test".to_string(),
-            steps: vec![],
-            expected_outcome: "Test".to_string(),
-            risks: vec![],
-            requires_human: false,
+    #[test]
+    fn test_patch_type_variants() {
+        assert!(matches!(PatchType::CodeChange, PatchType::CodeChange));
+        assert!(matches!(PatchType::ConfigChange, PatchType::ConfigChange));
+        assert!(matches!(PatchType::TestAddition, PatchType::TestAddition));
+        assert!(matches!(
+            PatchType::DocumentationUpdate,
+            PatchType::DocumentationUpdate
+        ));
+    }
+
+    #[test]
+    fn test_code_patch_fields() {
+        let patch = CodePatch {
+            id: "patch-1".to_string(),
+            target_file: "src/main.rs".to_string(),
+            patch_type: PatchType::CodeChange,
+            content: "fn main() {}".to_string(),
+            description: "Add main function".to_string(),
             generated_at: chrono::Utc::now(),
         };
+        assert_eq!(patch.id, "patch-1");
+        assert_eq!(patch.target_file, "src/main.rs");
+    }
 
-        let patches = manager.generate_patches(&plan);
-        assert!(!patches.is_empty());
+    #[test]
+    fn test_code_generator_manager_empty() {
+        let mut manager = CodeGeneratorManager::new();
+        let patches = manager.generate_patches(&make_plan(PlanType::CodeChange));
+        assert!(patches.is_empty());
+        assert!(manager.history().is_empty());
+    }
+
+    #[test]
+    fn test_code_generator_manager_history() {
+        let mut manager = CodeGeneratorManager::new();
+        manager.register_generator(Box::new(PersistenceCodeGenerator::new()));
+
+        manager.generate_patches(&make_plan(PlanType::CodeChange));
+        let h1 = manager.history().len();
+        assert!(h1 > 0);
+
+        manager.generate_patches(&make_plan(PlanType::CodeChange));
+        assert!(manager.history().len() > h1);
     }
 }

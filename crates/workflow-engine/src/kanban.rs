@@ -259,8 +259,14 @@ impl KanbanBoard {
             description: String::new(),
             tasks: Vec::new(),
             wip_limits: vec![
-                WipLimit { column: KanbanColumn::InProgress, max_tasks: 5 },
-                WipLimit { column: KanbanColumn::Ready, max_tasks: 10 },
+                WipLimit {
+                    column: KanbanColumn::InProgress,
+                    max_tasks: 5,
+                },
+                WipLimit {
+                    column: KanbanColumn::Ready,
+                    max_tasks: 10,
+                },
             ],
             created_at: SystemTime::now(),
         }
@@ -287,7 +293,10 @@ impl KanbanBoard {
 
         // Blocked must use unblock() explicitly
         if current == KanbanColumn::Blocked {
-            return Err(KanbanError::InvalidTransition { from: current, to: next });
+            return Err(KanbanError::InvalidTransition {
+                from: current,
+                to: next,
+            });
         }
 
         self.move_to(task_id, next, by, None)
@@ -310,23 +319,30 @@ impl KanbanBoard {
                 .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
 
             if !is_valid_transition(task.column, target) {
-                return Err(KanbanError::InvalidTransition { from: task.column, to: target });
+                return Err(KanbanError::InvalidTransition {
+                    from: task.column,
+                    to: target,
+                });
             }
 
             if let Some(limit) = self.wip_limits.iter().find(|l| l.column == target) {
                 let count = self.tasks.iter().filter(|t| t.column == target).count();
                 if count >= limit.max_tasks {
                     return Err(KanbanError::WipLimitExceeded {
-                        column: target, current: count, limit: limit.max_tasks,
+                        column: target,
+                        current: count,
+                        limit: limit.max_tasks,
                     });
                 }
             }
 
             // Todo→Ready: check dependencies
-            if task.column == KanbanColumn::Todo && target == KanbanColumn::Ready
-                && !task.all_blockers_resolved(self) {
-                    return Err(KanbanError::BlockedByDependency(task_id.to_string()));
-                }
+            if task.column == KanbanColumn::Todo
+                && target == KanbanColumn::Ready
+                && !task.all_blockers_resolved(self)
+            {
+                return Err(KanbanError::BlockedByDependency(task_id.to_string()));
+            }
         }
 
         let task = self
@@ -346,14 +362,20 @@ impl KanbanBoard {
             task.block_reason = None;
         }
         task.history.push(ColumnTransition {
-            from, to: target, at: now, by: by.to_string(), reason,
+            from,
+            to: target,
+            at: now,
+            by: by.to_string(),
+            reason,
         });
 
         Ok(())
     }
 
     pub fn assign(&mut self, task_id: &str, agent_id: &str) -> Result<(), KanbanError> {
-        let task = self.tasks.iter_mut()
+        let task = self
+            .tasks
+            .iter_mut()
             .find(|t| t.id == task_id)
             .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
         task.assigned_to = Some(agent_id.to_string());
@@ -362,7 +384,9 @@ impl KanbanBoard {
     }
 
     pub fn unassign(&mut self, task_id: &str) -> Result<(), KanbanError> {
-        let task = self.tasks.iter_mut()
+        let task = self
+            .tasks
+            .iter_mut()
             .find(|t| t.id == task_id)
             .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
         task.assigned_to = None;
@@ -376,7 +400,9 @@ impl KanbanBoard {
 
     /// Unassigned tasks in Ready, sorted by priority
     pub fn claimable_tasks(&self) -> Vec<&KanbanTask> {
-        let mut tasks: Vec<_> = self.tasks.iter()
+        let mut tasks: Vec<_> = self
+            .tasks
+            .iter()
             .filter(|t| t.column == KanbanColumn::Ready && t.assigned_to.is_none())
             .collect();
         tasks.sort_by_key(|t| t.priority);
@@ -386,13 +412,16 @@ impl KanbanBoard {
     /// Agent claims a task (Ready → InProgress)
     pub fn claim(&mut self, task_id: &str, agent_id: &str) -> Result<(), KanbanError> {
         {
-            let task = self.tasks.iter()
+            let task = self
+                .tasks
+                .iter()
                 .find(|t| t.id == task_id)
                 .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
 
             if task.column != KanbanColumn::Ready {
                 return Err(KanbanError::InvalidTransition {
-                    from: task.column, to: KanbanColumn::InProgress,
+                    from: task.column,
+                    to: KanbanColumn::InProgress,
                 });
             }
             if task.assigned_to.is_some() {
@@ -400,16 +429,28 @@ impl KanbanBoard {
             }
         }
 
-        if let Some(limit) = self.wip_limits.iter().find(|l| l.column == KanbanColumn::InProgress) {
-            let count = self.tasks.iter().filter(|t| t.column == KanbanColumn::InProgress).count();
+        if let Some(limit) = self
+            .wip_limits
+            .iter()
+            .find(|l| l.column == KanbanColumn::InProgress)
+        {
+            let count = self
+                .tasks
+                .iter()
+                .filter(|t| t.column == KanbanColumn::InProgress)
+                .count();
             if count >= limit.max_tasks {
                 return Err(KanbanError::WipLimitExceeded {
-                    column: KanbanColumn::InProgress, current: count, limit: limit.max_tasks,
+                    column: KanbanColumn::InProgress,
+                    current: count,
+                    limit: limit.max_tasks,
                 });
             }
         }
 
-        let task = self.tasks.iter_mut()
+        let task = self
+            .tasks
+            .iter_mut()
             .find(|t| t.id == task_id)
             .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
 
@@ -420,8 +461,11 @@ impl KanbanBoard {
         task.updated_at = now;
         task.column_entered_at = now;
         task.history.push(ColumnTransition {
-            from, to: KanbanColumn::InProgress, at: now,
-            by: agent_id.to_string(), reason: Some("Agent claimed task".to_string()),
+            from,
+            to: KanbanColumn::InProgress,
+            at: now,
+            by: agent_id.to_string(),
+            reason: Some("Agent claimed task".to_string()),
         });
         Ok(())
     }
@@ -434,15 +478,22 @@ impl KanbanBoard {
     /// Unblock a task (Blocked → Ready)
     pub fn unblock(&mut self, task_id: &str, by: &str) -> Result<(), KanbanError> {
         {
-            let task = self.tasks.iter()
+            let task = self
+                .tasks
+                .iter()
                 .find(|t| t.id == task_id)
                 .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
             if task.column != KanbanColumn::Blocked {
-                return Err(KanbanError::InvalidTransition { from: task.column, to: KanbanColumn::Ready });
+                return Err(KanbanError::InvalidTransition {
+                    from: task.column,
+                    to: KanbanColumn::Ready,
+                });
             }
         }
 
-        let task = self.tasks.iter_mut()
+        let task = self
+            .tasks
+            .iter_mut()
             .find(|t| t.id == task_id)
             .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
 
@@ -452,15 +503,23 @@ impl KanbanBoard {
         task.updated_at = now;
         task.column_entered_at = now;
         task.history.push(ColumnTransition {
-            from: KanbanColumn::Blocked, to: KanbanColumn::Ready, at: now,
-            by: by.to_string(), reason: Some("Unblocked".to_string()),
+            from: KanbanColumn::Blocked,
+            to: KanbanColumn::Ready,
+            at: now,
+            by: by.to_string(),
+            reason: Some("Unblocked".to_string()),
         });
         Ok(())
     }
 
     /// Reject from Done → InProgress
     pub fn reject(&mut self, task_id: &str, by: &str, reason: &str) -> Result<(), KanbanError> {
-        self.move_to(task_id, KanbanColumn::InProgress, by, Some(format!("Rejected: {}", reason)))
+        self.move_to(
+            task_id,
+            KanbanColumn::InProgress,
+            by,
+            Some(format!("Rejected: {}", reason)),
+        )
     }
 
     /// Add parent-child dependency
@@ -469,9 +528,15 @@ impl KanbanBoard {
             return Err(KanbanError::CircularDependency(child_id.to_string()));
         }
         // Verify both exist
-        let _ = self.tasks.iter().find(|t| t.id == child_id)
+        let _ = self
+            .tasks
+            .iter()
+            .find(|t| t.id == child_id)
             .ok_or_else(|| KanbanError::TaskNotFound(child_id.to_string()))?;
-        let _ = self.tasks.iter().find(|t| t.id == parent_id)
+        let _ = self
+            .tasks
+            .iter()
+            .find(|t| t.id == parent_id)
             .ok_or_else(|| KanbanError::TaskNotFound(parent_id.to_string()))?;
 
         // Mutate child
@@ -493,7 +558,10 @@ impl KanbanBoard {
 
     /// Get dependency tree
     pub fn task_tree(&self, task_id: &str) -> Result<String, KanbanError> {
-        let _ = self.tasks.iter().find(|t| t.id == task_id)
+        let _ = self
+            .tasks
+            .iter()
+            .find(|t| t.id == task_id)
             .ok_or_else(|| KanbanError::TaskNotFound(task_id.to_string()))?;
         let mut output = String::new();
         self.fmt_tree(task_id, &mut output, 0);
@@ -520,7 +588,8 @@ impl KanbanBoard {
         for &col in KanbanColumn::all() {
             let tasks_in_col: Vec<_> = self.tasks.iter().filter(|t| t.column == col).collect();
             let count = tasks_in_col.len();
-            let durations: Vec<Duration> = tasks_in_col.iter()
+            let durations: Vec<Duration> = tasks_in_col
+                .iter()
                 .filter_map(|t| now.duration_since(t.column_entered_at).ok())
                 .collect();
             let avg_duration = if durations.is_empty() {
@@ -533,59 +602,93 @@ impl KanbanBoard {
             for task in &tasks_in_col {
                 *by_priority.entry(task.priority.to_string()).or_insert(0) += 1;
             }
-            columns.push(ColumnStats { column: col, task_count: count, avg_duration, max_duration, by_priority });
+            columns.push(ColumnStats {
+                column: col,
+                task_count: count,
+                avg_duration,
+                max_duration,
+                by_priority,
+            });
         }
 
-        let done_tasks = self.tasks.iter()
+        let done_tasks = self
+            .tasks
+            .iter()
             .filter(|t| t.column == KanbanColumn::Done)
-            .filter(|t| t.history.iter().any(|h| {
-                h.to == KanbanColumn::Done
-                    && now.duration_since(h.at).unwrap_or(Duration::ZERO) < Duration::from_secs(86400)
-            }))
+            .filter(|t| {
+                t.history.iter().any(|h| {
+                    h.to == KanbanColumn::Done
+                        && now.duration_since(h.at).unwrap_or(Duration::ZERO)
+                            < Duration::from_secs(86400)
+                })
+            })
             .count();
         let throughput_per_hour = done_tasks as f64 / 24.0;
 
         let mut wip_violations = Vec::new();
         for limit in &self.wip_limits {
-            let count = self.tasks.iter().filter(|t| t.column == limit.column).count();
+            let count = self
+                .tasks
+                .iter()
+                .filter(|t| t.column == limit.column)
+                .count();
             if count > limit.max_tasks {
-                wip_violations.push(format!("{}: {}/{} tasks", limit.column, count, limit.max_tasks));
+                wip_violations.push(format!(
+                    "{}: {}/{} tasks",
+                    limit.column, count, limit.max_tasks
+                ));
             }
         }
 
-        BoardStats { total_tasks: self.tasks.len(), columns, throughput_per_hour, wip_violations }
+        BoardStats {
+            total_tasks: self.tasks.len(),
+            columns,
+            throughput_per_hour,
+            wip_violations,
+        }
     }
 
     /// Tasks that can be auto-advanced to Ready
     pub fn auto_advanceable(&self) -> Vec<&KanbanTask> {
-        self.tasks.iter()
-            .filter(|t| t.column == KanbanColumn::Todo && t.all_blockers_resolved(self) && t.all_parents_done(self))
+        self.tasks
+            .iter()
+            .filter(|t| {
+                t.column == KanbanColumn::Todo
+                    && t.all_blockers_resolved(self)
+                    && t.all_parents_done(self)
+            })
             .collect()
     }
 
     /// Tasks stuck in the same column for too long
     pub fn stale_tasks(&self, threshold: Duration) -> Vec<&KanbanTask> {
         let now = SystemTime::now();
-        self.tasks.iter()
-            .filter(|t| now.duration_since(t.column_entered_at).map(|d| d > threshold).unwrap_or(false))
+        self.tasks
+            .iter()
+            .filter(|t| {
+                now.duration_since(t.column_entered_at)
+                    .map(|d| d > threshold)
+                    .unwrap_or(false)
+            })
             .collect()
     }
 }
 
 /// Check if a column transition is valid
 fn is_valid_transition(from: KanbanColumn, to: KanbanColumn) -> bool {
-    matches!((from, to),
+    matches!(
+        (from, to),
         (KanbanColumn::Triage, KanbanColumn::Todo)
-        | (KanbanColumn::Todo, KanbanColumn::Ready)
-        | (KanbanColumn::Ready, KanbanColumn::InProgress)
-        | (KanbanColumn::InProgress, KanbanColumn::Done)
-        | (KanbanColumn::Ready, KanbanColumn::Blocked)
-        | (KanbanColumn::InProgress, KanbanColumn::Blocked)
-        | (KanbanColumn::Blocked, KanbanColumn::Ready)
-        | (KanbanColumn::Done, KanbanColumn::InProgress)
-        | (KanbanColumn::Todo, KanbanColumn::Triage)
-        | (KanbanColumn::Ready, KanbanColumn::Todo)
-        | (KanbanColumn::InProgress, KanbanColumn::Ready)
+            | (KanbanColumn::Todo, KanbanColumn::Ready)
+            | (KanbanColumn::Ready, KanbanColumn::InProgress)
+            | (KanbanColumn::InProgress, KanbanColumn::Done)
+            | (KanbanColumn::Ready, KanbanColumn::Blocked)
+            | (KanbanColumn::InProgress, KanbanColumn::Blocked)
+            | (KanbanColumn::Blocked, KanbanColumn::Ready)
+            | (KanbanColumn::Done, KanbanColumn::InProgress)
+            | (KanbanColumn::Todo, KanbanColumn::Triage)
+            | (KanbanColumn::Ready, KanbanColumn::Todo)
+            | (KanbanColumn::InProgress, KanbanColumn::Ready)
     )
 }
 
@@ -593,9 +696,16 @@ fn is_valid_transition(from: KanbanColumn, to: KanbanColumn) -> bool {
 pub enum KanbanError {
     DuplicateTaskId(String),
     TaskNotFound(String),
-    InvalidTransition { from: KanbanColumn, to: KanbanColumn },
+    InvalidTransition {
+        from: KanbanColumn,
+        to: KanbanColumn,
+    },
     AlreadyAtEnd,
-    WipLimitExceeded { column: KanbanColumn, current: usize, limit: usize },
+    WipLimitExceeded {
+        column: KanbanColumn,
+        current: usize,
+        limit: usize,
+    },
     AlreadyAssigned(String),
     BlockedByDependency(String),
     CircularDependency(String),
@@ -606,12 +716,22 @@ impl std::fmt::Display for KanbanError {
         match self {
             Self::DuplicateTaskId(id) => write!(f, "Duplicate task ID: {}", id),
             Self::TaskNotFound(id) => write!(f, "Task not found: {}", id),
-            Self::InvalidTransition { from, to } => write!(f, "Invalid transition: {} → {}", from, to),
+            Self::InvalidTransition { from, to } => {
+                write!(f, "Invalid transition: {} → {}", from, to)
+            }
             Self::AlreadyAtEnd => write!(f, "Task already at last column"),
-            Self::WipLimitExceeded { column, current, limit } => write!(f, "WIP limit exceeded on {}: {}/{}", column, current, limit),
+            Self::WipLimitExceeded {
+                column,
+                current,
+                limit,
+            } => write!(f, "WIP limit exceeded on {}: {}/{}", column, current, limit),
             Self::AlreadyAssigned(id) => write!(f, "Task already assigned: {}", id),
-            Self::BlockedByDependency(id) => write!(f, "Task {} blocked by unresolved dependency", id),
-            Self::CircularDependency(id) => write!(f, "Circular dependency detected involving task {}", id),
+            Self::BlockedByDependency(id) => {
+                write!(f, "Task {} blocked by unresolved dependency", id)
+            }
+            Self::CircularDependency(id) => {
+                write!(f, "Circular dependency detected involving task {}", id)
+            }
         }
     }
 }
@@ -676,29 +796,44 @@ mod tests {
     #[test]
     fn test_column_from_str() {
         assert_eq!(KanbanColumn::parse("triage"), Some(KanbanColumn::Triage));
-        assert_eq!(KanbanColumn::parse("InProgress"), Some(KanbanColumn::InProgress));
-        assert_eq!(KanbanColumn::parse("in_progress"), Some(KanbanColumn::InProgress));
+        assert_eq!(
+            KanbanColumn::parse("InProgress"),
+            Some(KanbanColumn::InProgress)
+        );
+        assert_eq!(
+            KanbanColumn::parse("in_progress"),
+            Some(KanbanColumn::InProgress)
+        );
         assert_eq!(KanbanColumn::parse("unknown"), None);
     }
 
     #[test]
     fn test_add_task() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Task", Priority::Medium)).unwrap();
+        board
+            .add_task(make_task("t1", "Task", Priority::Medium))
+            .unwrap();
         assert_eq!(board.tasks.len(), 1);
     }
 
     #[test]
     fn test_duplicate_task_id() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "A", Priority::Medium)).unwrap();
-        assert!(matches!(board.add_task(make_task("t1", "B", Priority::High)), Err(KanbanError::DuplicateTaskId(_))));
+        board
+            .add_task(make_task("t1", "A", Priority::Medium))
+            .unwrap();
+        assert!(matches!(
+            board.add_task(make_task("t1", "B", Priority::High)),
+            Err(KanbanError::DuplicateTaskId(_))
+        ));
     }
 
     #[test]
     fn test_full_flow() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Test", Priority::Medium)).unwrap();
+        board
+            .add_task(make_task("t1", "Test", Priority::Medium))
+            .unwrap();
 
         board.advance("t1", "sys").unwrap();
         assert_eq!(board.tasks[0].column, KanbanColumn::Todo);
@@ -722,7 +857,10 @@ mod tests {
 
         board.block("t1", "sys", "Waiting for API key").unwrap();
         assert_eq!(board.tasks[0].column, KanbanColumn::Blocked);
-        assert_eq!(board.tasks[0].block_reason, Some("Waiting for API key".to_string()));
+        assert_eq!(
+            board.tasks[0].block_reason,
+            Some("Waiting for API key".to_string())
+        );
 
         board.unblock("t1", "admin").unwrap();
         assert_eq!(board.tasks[0].column, KanbanColumn::Ready);
@@ -747,7 +885,10 @@ mod tests {
         let mut t = make_task("t1", "Test", Priority::Medium);
         t.column = KanbanColumn::Todo;
         board.add_task(t).unwrap();
-        assert!(matches!(board.claim("t1", "a1"), Err(KanbanError::InvalidTransition { .. })));
+        assert!(matches!(
+            board.claim("t1", "a1"),
+            Err(KanbanError::InvalidTransition { .. })
+        ));
     }
 
     #[test]
@@ -774,7 +915,10 @@ mod tests {
     #[test]
     fn test_wip_limit() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.wip_limits = vec![WipLimit { column: KanbanColumn::InProgress, max_tasks: 2 }];
+        board.wip_limits = vec![WipLimit {
+            column: KanbanColumn::InProgress,
+            max_tasks: 2,
+        }];
 
         for i in 0..3 {
             let mut t = make_task(&format!("t{}", i), "T", Priority::Medium);
@@ -784,7 +928,10 @@ mod tests {
 
         board.claim("t0", "a1").unwrap();
         board.claim("t1", "a2").unwrap();
-        assert!(matches!(board.claim("t2", "a3"), Err(KanbanError::WipLimitExceeded { .. })));
+        assert!(matches!(
+            board.claim("t2", "a3"),
+            Err(KanbanError::WipLimitExceeded { .. })
+        ));
     }
 
     #[test]
@@ -800,8 +947,12 @@ mod tests {
     #[test]
     fn test_parent_child_dependency() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Parent", Priority::Medium)).unwrap();
-        board.add_task(make_task("t2", "Child", Priority::Medium)).unwrap();
+        board
+            .add_task(make_task("t1", "Parent", Priority::Medium))
+            .unwrap();
+        board
+            .add_task(make_task("t2", "Child", Priority::Medium))
+            .unwrap();
 
         board.add_dependency("t2", "t1").unwrap();
 
@@ -816,8 +967,13 @@ mod tests {
     #[test]
     fn test_circular_dependency() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "A", Priority::Medium)).unwrap();
-        assert!(matches!(board.add_dependency("t1", "t1"), Err(KanbanError::CircularDependency(_))));
+        board
+            .add_task(make_task("t1", "A", Priority::Medium))
+            .unwrap();
+        assert!(matches!(
+            board.add_dependency("t1", "t1"),
+            Err(KanbanError::CircularDependency(_))
+        ));
     }
 
     #[test]
@@ -855,13 +1011,18 @@ mod tests {
     #[test]
     fn test_task_not_found() {
         let mut board = KanbanBoard::new("b1", "test");
-        assert!(matches!(board.advance("nope", "sys"), Err(KanbanError::TaskNotFound(_))));
+        assert!(matches!(
+            board.advance("nope", "sys"),
+            Err(KanbanError::TaskNotFound(_))
+        ));
     }
 
     #[test]
     fn test_assign_and_unassign() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Test", Priority::Medium)).unwrap();
+        board
+            .add_task(make_task("t1", "Test", Priority::Medium))
+            .unwrap();
         board.assign("t1", "a1").unwrap();
         assert_eq!(board.tasks[0].assigned_to, Some("a1".to_string()));
         board.unassign("t1").unwrap();
@@ -891,7 +1052,10 @@ mod tests {
         let mut t = make_task("t1", "Test", Priority::Medium);
         t.column = KanbanColumn::Done;
         board.add_task(t).unwrap();
-        assert!(matches!(board.advance("t1", "sys"), Err(KanbanError::AlreadyAtEnd)));
+        assert!(matches!(
+            board.advance("t1", "sys"),
+            Err(KanbanError::AlreadyAtEnd)
+        ));
     }
 
     #[test]
@@ -900,14 +1064,21 @@ mod tests {
         let mut t = make_task("t1", "Test", Priority::Medium);
         t.column = KanbanColumn::Blocked;
         board.add_task(t).unwrap();
-        assert!(matches!(board.advance("t1", "sys"), Err(KanbanError::InvalidTransition { .. })));
+        assert!(matches!(
+            board.advance("t1", "sys"),
+            Err(KanbanError::InvalidTransition { .. })
+        ));
     }
 
     #[test]
     fn test_move_to_specific() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Test", Priority::Medium)).unwrap();
-        board.move_to("t1", KanbanColumn::Todo, "admin", None).unwrap();
+        board
+            .add_task(make_task("t1", "Test", Priority::Medium))
+            .unwrap();
+        board
+            .move_to("t1", KanbanColumn::Todo, "admin", None)
+            .unwrap();
         assert_eq!(board.tasks[0].column, KanbanColumn::Todo);
     }
 
@@ -931,9 +1102,15 @@ mod tests {
     #[test]
     fn test_task_tree() {
         let mut board = KanbanBoard::new("b1", "test");
-        board.add_task(make_task("t1", "Root", Priority::High)).unwrap();
-        board.add_task(make_task("t2", "Child1", Priority::Medium)).unwrap();
-        board.add_task(make_task("t3", "Child2", Priority::Medium)).unwrap();
+        board
+            .add_task(make_task("t1", "Root", Priority::High))
+            .unwrap();
+        board
+            .add_task(make_task("t2", "Child1", Priority::Medium))
+            .unwrap();
+        board
+            .add_task(make_task("t3", "Child2", Priority::Medium))
+            .unwrap();
         board.add_dependency("t2", "t1").unwrap();
         board.add_dependency("t3", "t1").unwrap();
 

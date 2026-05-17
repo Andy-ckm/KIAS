@@ -165,4 +165,82 @@ mod tests {
         let active = cfg.active_profile().expect("should find prod");
         assert_eq!(active.api_endpoint, "https://prod.kias.io");
     }
+
+    #[test]
+    fn test_config_path_not_empty() {
+        let path = CliConfig::config_path();
+        assert!(path.to_string_lossy().contains(".kias"));
+        assert!(path.to_string_lossy().contains("config.json"));
+    }
+
+    #[test]
+    fn test_empty_profiles_no_active() {
+        let cfg = CliConfig {
+            profiles: vec![],
+            active_profile: "nonexistent".to_string(),
+        };
+        assert!(cfg.active_profile().is_none());
+    }
+
+    #[test]
+    fn test_profile_clone_debug() {
+        let profile = Profile {
+            name: "test".to_string(),
+            api_endpoint: "http://test".to_string(),
+            api_key: Some("key".to_string()),
+            namespace: Some("ns".to_string()),
+            output_format: Some("table".to_string()),
+        };
+        let cloned = profile.clone();
+        assert_eq!(cloned.name, "test");
+        assert_eq!(cloned.api_key, Some("key".to_string()));
+        let _debug = format!("{:?}", cloned);
+    }
+
+    #[test]
+    fn test_config_json_roundtrip_with_multiple_profiles() {
+        let cfg = CliConfig {
+            profiles: vec![
+                Profile {
+                    name: "dev".to_string(),
+                    api_endpoint: "http://localhost:8080".to_string(),
+                    api_key: None,
+                    namespace: None,
+                    output_format: None,
+                },
+                Profile {
+                    name: "staging".to_string(),
+                    api_endpoint: "https://staging.kias.io".to_string(),
+                    api_key: Some("staging-key".to_string()),
+                    namespace: Some("staging".to_string()),
+                    output_format: Some("yaml".to_string()),
+                },
+            ],
+            active_profile: "staging".to_string(),
+        };
+        let json = serde_json::to_string_pretty(&cfg).unwrap();
+        let loaded: CliConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(loaded.profiles.len(), 2);
+        assert_eq!(loaded.active_profile, "staging");
+        assert_eq!(loaded.profiles[1].api_key, Some("staging-key".to_string()));
+    }
+
+    #[test]
+    fn test_profile_all_none_optional_fields() {
+        let profile = Profile {
+            name: "minimal".to_string(),
+            api_endpoint: "http://minimal".to_string(),
+            api_key: None,
+            namespace: None,
+            output_format: None,
+        };
+        let cfg = CliConfig {
+            profiles: vec![profile],
+            active_profile: "minimal".to_string(),
+        };
+        let active = cfg.active_profile().unwrap();
+        assert!(active.api_key.is_none());
+        assert!(active.namespace.is_none());
+        assert!(active.output_format.is_none());
+    }
 }

@@ -9,9 +9,7 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, info};
 
-use super::kanban::{
-    KanbanBoard, KanbanColumn, KanbanTask, Priority, WipLimit,
-};
+use super::kanban::{KanbanBoard, KanbanColumn, KanbanTask, Priority, WipLimit};
 
 /// SQLite-backed Kanban store
 pub struct KanbanStore {
@@ -147,8 +145,11 @@ impl KanbanStore {
 
     pub fn delete_board(&self, board_id: &str) -> KiasResult<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM kanban_tasks WHERE board_id=?1", params![board_id])
-            .map_err(|e| KiasError::Config(format!("Delete tasks: {}", e)))?;
+        conn.execute(
+            "DELETE FROM kanban_tasks WHERE board_id=?1",
+            params![board_id],
+        )
+        .map_err(|e| KiasError::Config(format!("Delete tasks: {}", e)))?;
         conn.execute("DELETE FROM kanban_boards WHERE id=?1", params![board_id])
             .map_err(|e| KiasError::Config(format!("Delete board: {}", e)))?;
         Ok(())
@@ -262,7 +263,9 @@ impl KanbanStore {
             .map_err(|e| KiasError::Config(format!("Query: {}", e)))?;
         let mut tasks = Vec::new();
         for r in rows {
-            tasks.push(raw_to_task(r.map_err(|e| KiasError::Config(format!("Row: {}", e)))?)?);
+            tasks.push(raw_to_task(
+                r.map_err(|e| KiasError::Config(format!("Row: {}", e)))?,
+            )?);
         }
         Ok(tasks)
     }
@@ -435,8 +438,12 @@ mod tests {
     #[test]
     fn test_list_boards() {
         let store = KanbanStore::new_in_memory().unwrap();
-        store.save_board(&KanbanBoard::new("b1", "Board 1")).unwrap();
-        store.save_board(&KanbanBoard::new("b2", "Board 2")).unwrap();
+        store
+            .save_board(&KanbanBoard::new("b1", "Board 1"))
+            .unwrap();
+        store
+            .save_board(&KanbanBoard::new("b2", "Board 2"))
+            .unwrap();
         let boards = store.list_boards().unwrap();
         assert_eq!(boards.len(), 2);
     }

@@ -3,7 +3,7 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS/actions">
-    <img src="https://img.shields.io/badge/tests-2257%20passed-brightgreen.svg" alt="Tests">
+    <img src="https://img.shields.io/badge/tests-2307%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/badge/crates-26-purple.svg" alt="Crates">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/badge/LOC-108K%2B-blue.svg" alt="Lines of Code">
+    <img src="https://img.shields.io/badge/LOC-110K%2B-blue.svg" alt="Lines of Code">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
@@ -39,52 +39,52 @@
 
 ## Overview
 
-### 核心理念
+KIAS is a production-grade AI Agent cluster orchestration system built in Rust. It applies Kubernetes control-plane architecture to LLM agent management — treating agents as long-lived, schedulable, self-healing resources.
 
-KIAS 的核心是 **正向循环 + 自我进化**：
+**Core concept: Positive Loop + Self-Evolution**
 
 ```
-运行 → 观察 → 提取模式 → 生成 Skill → 验证 → 部署 → 再运行
+Run → Observe → Extract Patterns → Generate Skills → Validate → Deploy → Run Again
 ```
 
-每一轮循环都让系统更强——故障经验沉淀为 Skill，成功模式被复用，Agent 能力持续积累。
+Each cycle makes the system stronger — failure patterns become skills, successful strategies get reused, agent capabilities accumulate over time.
 
-> **KIAS = Long-running Agents 的基石。**
-> 详见 [`docs/strategy/two-core-scenarios.md`](docs/strategy/two-core-scenarios.md)
+### Two Core Scenarios
 
-### 两大核心场景
+**Scenario 1: Infrastructure Orchestration (Like K8s)**
 
-**场景一：基础设施编排（Like K8s）**
-把 Agent 当作"容器"来管理——声明式定义、自动调度、自愈恢复、弹性伸缩。
-- Agent 生命周期管理（创建/销毁/重启/自愈）
-- 集群调度（能力匹配/负载均衡/资源隔离）
-- 全链路可观测（Tracing/Metrics/Logging/审计）
-- 熔断限流 + 凭证管理 + RBAC + 多租户
-- 模型路由（成本/质量权衡 + fallback）
+Manage agents like containers — declarative definitions, automatic scheduling, self-healing, elastic scaling.
 
-**场景二：自循环开发（Self-cyclic Development）**
-用 Agent 开发 Agent——自创建、自编排、自测试、自部署、自进化。
-- 需求 → Agent（自然语言解析为 Agent 定义）
-- 任务 → Workflow（自动拆解为 DAG 编排）
-- 操作 → Skill（从历史中提取可复用模式）
-- 变更 → 部署（质量门禁 + 滚动发布）
+- Agent lifecycle management (create / destroy / restart / self-heal)
+- Cluster scheduling (capability matching / load balancing / resource isolation)
+- Full observability (tracing / metrics / logging / audit)
+- Circuit breaking + credential management + RBAC + multi-tenancy
+- Model routing (cost / quality tradeoffs + fallback)
 
-**两者关系：** 基础设施为开发提供运行环境，自循环开发为基础设施提供进化能力，形成正向增强循环。
+**Scenario 2: Self-Cyclic Development**
 
-**Key numbers:**
+Use agents to develop agents — self-create, self-orchestrate, self-test, self-deploy, self-evolve.
 
-<p align="center">
-  <img src="docs/stats.svg" alt="KIAS Statistics" width="780">
-</p>
+- Natural language → Agent definitions
+- Tasks → Workflow DAGs (auto-decomposed)
+- Repeated operations → Skills (auto-extracted from history)
+- Code changes → Deployed (quality gates + rolling updates)
+
+The two scenarios form a positive feedback loop: infrastructure provides the runtime environment for development, and development provides new capabilities for infrastructure.
+
+> See [`docs/strategy/two-core-scenarios.md`](docs/strategy/two-core-scenarios.md) for the full capability matrix.
+
+**Key Numbers:**
 
 | Metric | Value |
 |--------|-------|
-| Rust Crates | 26 |
-| Lines of Code | 108,000+ |
-| Tests | 2,257 passing |
+| Language | Rust 1.95 |
+| Crates | 26 |
+| Lines of Code | 110,000+ |
+| Tests | 2,307 passing |
+| Clippy Warnings | 0 |
 | Scheduling Algorithms | 7 (including GPU-Aware, Edge) |
 | MCP Sandbox Backends | 5 (Docker / Firecracker / gVisor / Wasm / Process) |
-| Test Coverage | `#[cfg(test)]` module in every crate |
 
 ---
 
@@ -116,65 +116,6 @@ L3: api-server, kias-main
 ```
 
 Strict unidirectional dependencies. No cross-layer imports.
-
----
-
-## Engineering Principles
-
-KIAS is grounded in **Qian Xuesen's Systems Engineering methodology** — treating AI Agent orchestration as an open complex giant system, not a toy prototype.
-
-**Seven Principles (from [Qian Xuesen Theory](docs/qian-xuesen-engineering-principles.md)):**
-
-> **开发必须遵守 [完整方法论](docs/METHODOLOGY.md)**：钱学森系统工程原理 + 马斯克第一性原则 + 论文+源码支撑。违反铁律 = 返工。
-
-| # | Principle | KIAS Implementation |
-|---|-----------|---------------------|
-| 1 | **Holistic Thinking** | Every feature evaluated against whole-system impact |
-| 2 | **Meta-Synthesis** | RAG + LLM + Human feedback integration |
-| 3 | **Feedback Control** | InspirationStream (positive) + QualityPipeline (negative) |
-| 4 | **Hierarchical Decomposition** | Shell → Agent → Workflow → Task layers |
-| 5 | **Robustness** | Circuit breakers, fallbacks, retries, timeouts |
-| 6 | **Observability** | Prometheus metrics, audit logs, deep health checks |
-| 7 | **Engineering Discipline** | Zero-tolerance quality gates, source-backed features |
-
-**"From Qualitative to Quantitative"** — KIAS evolves in three phases:
-
-```
-Phase 1: Rule-driven (keyword search, fixed workflows)        ← Current
-Phase 2: Hybrid-driven (vector+keyword, Shell scheduling)     ← Building
-Phase 3: Data-driven (AgenticRAG, learned workflows)          ← Target
-```
-
-## Recent Progress (Last 8 Hours)
-
-KIAS follows an **autonomous development loop** driven by Qian Xuesen's Systems Engineering methodology. Here's what was built:
-
-| Feature | Tests | Source Reference | Status |
-|---------|-------|------------------|--------|
-| **AgenticRAG** — 企业级检索层 | 41 tests | AgenticRAG论文 + Dify | ✅ |
-| **InspirationStream** — Builder-Thinker双流 | 21 tests | MiniMax Mavis + AgentScope | ✅ |
-| **QualityPipeline** — 数据质量管道 | 19 tests | DeepEval + Langfuse | ✅ |
-| **ContextManager** — 七层记忆压缩 | 18 tests | Claude Code memory | ✅ |
-| **Knowledge RAG API** — 文档注入+搜索 | — | RAG全链路 | ✅ |
-| **Agent Shell Scheduling** — Shell调度 | 5 tests | K8S Pod + Dify Agent | ✅ |
-| **Auto-loop Tests** — 检测器+规划器 | 32 tests | 自驱动开发 | ✅ |
-| **做减法** — 砍掉3个未使用crate | — | 第一性原则 | ✅ |
-| **方法论体系** — 钱学森+马斯克+论文源码 | — | 系统工程 | ✅ |
-| **IntentRecognizer** — 关键词意图识别 | 10 tests | DeepResearchAgent + Dify | ✅ |
-| **TaskDecomposer** — DAG任务拆解 | 11 tests | Graph of Thoughts | ✅ |
-| **LlmIntentClassifier** — LLM意图识别 | 8 tests | Self-Instruct + HuggingGPT | ✅ |
-| **RecursiveDecomposer** — 递归任务分解 | 10 tests | DeepResearchAgent | ✅ |
-| **ToolAwareRecognizer** — 工具感知意图 | 8 tests | Toolformer | ✅ |
-| **ContextAwareDecomposer** — 上下文感知分解 | 9 tests | Claude Multi-Agent Design | ✅ |
-| **IntentDrivenLoop** — 意图驱动循环 | 10 tests | Claude 五种编排模式 | ✅ |
-| **Intent API** — 意图识别端点 | — | REST API | ✅ |
-
-**做减法决策**（第一性原则）：
-- ❌ `data-generator` — 未被任何crate引用
-- ❌ `test-framework` — 未被任何crate引用
-- ❌ `web-playground` — 未被任何crate引用
-
-**四步开发法**：每个功能必须经过 评估→审视→方案→开发，必须有论文或源码支撑。
 
 ---
 
@@ -441,11 +382,11 @@ Traditional agent development follows a single-threaded execute → evaluate loo
 KIAS introduces a **Builder-Thinker dual-flow architecture** inspired by MiniMax Mavis's Worker-Verifier adversarial pattern, extended with a third **Thinker** role:
 
 ```
-Builder (构建) ──→ 产出代码
-    ↕ 正向循环
-Thinker (发现) ──→ 从外部知识源抓取相关洞察，注入工作区
+Builder ──→ Produces code
+    ↕ Positive feedback loop
+Thinker ──→ Discovers insights from external sources
     ↓
-Verifier (验证) ──→ 质量门禁
+Verifier ──→ Quality gate
 ```
 
 Three knowledge source types with **positive feedback weighting**:

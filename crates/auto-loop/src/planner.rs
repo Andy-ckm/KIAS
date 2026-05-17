@@ -286,4 +286,171 @@ mod tests {
         let plans = manager.generate_plans("Agent数据持久化缺失", "HashMap存储");
         assert!(!plans.is_empty());
     }
+
+    #[test]
+    fn test_persistence_generator_no_match() {
+        let generator = PersistencePlanGenerator::new();
+        let plan = generator.generate("网络连接超时", "DNS解析失败");
+        assert!(plan.is_none());
+    }
+
+    #[test]
+    fn test_persistence_generator_match_丢失() {
+        let generator = PersistencePlanGenerator::new();
+        let plan = generator.generate("数据丢失问题", "内存存储");
+        assert!(plan.is_some());
+        let plan = plan.unwrap();
+        assert!(matches!(plan.plan_type, PlanType::CodeChange));
+        assert!(!plan.requires_human);
+    }
+
+    #[test]
+    fn test_persistence_plan_structure() {
+        let generator = PersistencePlanGenerator::new();
+        let plan = generator
+            .generate("Agent数据持久化缺失", "HashMap存储")
+            .unwrap();
+
+        assert!(!plan.id.is_empty());
+        assert!(plan.title.contains("持久化"));
+        assert!(!plan.description.is_empty());
+        assert_eq!(plan.steps.len(), 3);
+        assert!(!plan.expected_outcome.is_empty());
+        assert!(!plan.risks.is_empty());
+
+        // Verify step ordering
+        for (i, step) in plan.steps.iter().enumerate() {
+            assert_eq!(step.order, (i + 1) as u8);
+            assert!(!step.description.is_empty());
+            assert!(!step.files.is_empty());
+            assert!(!step.verification.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_config_fix_generator_no_match() {
+        let generator = ConfigFixPlanGenerator::new();
+        let plan = generator.generate("数据库连接失败", "网络问题");
+        assert!(plan.is_none());
+    }
+
+    #[test]
+    fn test_config_fix_generator_requires_human() {
+        let generator = ConfigFixPlanGenerator::new();
+        let plan = generator.generate("配置是placeholder", "默认配置").unwrap();
+        assert!(plan.requires_human);
+        assert_eq!(plan.steps.len(), 1);
+    }
+
+    #[test]
+    fn test_config_fix_plan_structure() {
+        let generator = ConfigFixPlanGenerator::new();
+        let plan = generator.generate("配置错误", "placeholder").unwrap();
+
+        assert!(!plan.id.is_empty());
+        assert!(plan.title.contains("配置"));
+        assert!(matches!(plan.steps[0].step_type, StepType::ConfigChange));
+    }
+
+    #[test]
+    fn test_manager_empty() {
+        let mut manager = PlanGeneratorManager::new();
+        let plans = manager.generate_plans("任何问题", "任何原因");
+        assert!(plans.is_empty());
+        assert!(manager.history().is_empty());
+    }
+
+    #[test]
+    fn test_manager_history_tracking() {
+        let mut manager = PlanGeneratorManager::new();
+        manager.register_generator(Box::new(PersistencePlanGenerator::new()));
+
+        manager.generate_plans("Agent数据持久化缺失", "HashMap");
+        assert_eq!(manager.history().len(), 1);
+
+        manager.generate_plans("数据丢失", "内存");
+        assert_eq!(manager.history().len(), 2);
+    }
+
+    #[test]
+    fn test_manager_multiple_generators_different_problems() {
+        let mut manager = PlanGeneratorManager::new();
+        manager.register_generator(Box::new(PersistencePlanGenerator::new()));
+        manager.register_generator(Box::new(ConfigFixPlanGenerator::new()));
+
+        // Only persistence generator matches
+        let plans = manager.generate_plans("数据持久化缺失", "HashMap");
+        assert_eq!(plans.len(), 1);
+
+        // Only config generator matches
+        let plans = manager.generate_plans("配置是placeholder", "默认值");
+        assert_eq!(plans.len(), 1);
+
+        // Neither matches
+        let plans = manager.generate_plans("网络超时", "DNS");
+        assert!(plans.is_empty());
+    }
+
+    #[test]
+    fn test_generated_plan_serialization() {
+        let generator = PersistencePlanGenerator::new();
+        let plan = generator
+            .generate("Agent数据持久化缺失", "HashMap")
+            .unwrap();
+
+        let json = serde_json::to_string(&plan).unwrap();
+        let deserialized: GeneratedPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, plan.id);
+        assert_eq!(deserialized.title, plan.title);
+        assert_eq!(deserialized.steps.len(), plan.steps.len());
+    }
+
+    #[test]
+    fn test_plan_type_serialization() {
+        let types = vec![
+            PlanType::CodeChange,
+            PlanType::ConfigChange,
+            PlanType::DependencyUpdate,
+            PlanType::TestAddition,
+            PlanType::DocumentationUpdate,
+        ];
+        for pt in types {
+            let json = serde_json::to_string(&pt).unwrap();
+            let _: PlanType = serde_json::from_str(&json).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_step_type_serialization() {
+        let types = vec![
+            StepType::CodeChange,
+            StepType::ConfigChange,
+            StepType::TestAddition,
+            StepType::DocumentationUpdate,
+            StepType::DependencyUpdate,
+        ];
+        for st in types {
+            let json = serde_json::to_string(&st).unwrap();
+            let _: StepType = serde_json::from_str(&json).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_default_trait_implementations() {
+        let _ = PersistencePlanGenerator::default();
+        let _ = ConfigFixPlanGenerator::default();
+        let _ = PlanGeneratorManager::default();
+    }
+
+    #[test]
+    fn test_generator_names() {
+        assert_eq!(
+            PersistencePlanGenerator::new().name(),
+            "PersistencePlanGenerator"
+        );
+        assert_eq!(
+            ConfigFixPlanGenerator::new().name(),
+            "ConfigFixPlanGenerator"
+        );
+    }
 }

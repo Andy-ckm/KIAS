@@ -15,6 +15,7 @@ pub mod llm_intent;
 pub mod planner;
 pub mod principles;
 pub mod recursive_decomposer;
+pub mod self_dev;
 pub mod task_decomposer;
 pub mod tool_aware_intent;
 pub mod verifier;

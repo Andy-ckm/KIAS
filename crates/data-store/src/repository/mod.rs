@@ -1669,4 +1669,130 @@ mod tests {
         let stats = repo.pool_stats();
         assert!(stats.pool_size > 0);
     }
+
+    #[tokio::test]
+    async fn test_agent_get_by_node() {
+        let repo = test_repo().await;
+
+        let mut agent = AgentRow::new("node-agent");
+        agent.node_id = Some("node-1".to_string());
+        repo.agents.create(&agent).await.expect("create");
+
+        let mut agent2 = AgentRow::new("other-agent");
+        agent2.node_id = Some("node-2".to_string());
+        repo.agents.create(&agent2).await.expect("create2");
+
+        let node1_agents = repo
+            .agents
+            .get_by_node("node-1")
+            .await
+            .expect("get_by_node");
+        assert_eq!(node1_agents.len(), 1);
+        assert_eq!(node1_agents[0].name, "node-agent");
+
+        let node2_agents = repo
+            .agents
+            .get_by_node("node-2")
+            .await
+            .expect("get_by_node");
+        assert_eq!(node2_agents.len(), 1);
+        assert_eq!(node2_agents[0].name, "other-agent");
+
+        let none_agents = repo
+            .agents
+            .get_by_node("nonexistent")
+            .await
+            .expect("get_by_node");
+        assert_eq!(none_agents.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_task_get_by_workflow() {
+        let repo = test_repo().await;
+
+        let agent = AgentRow::new("wf-agent");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        let wf = WorkflowRow::new("test-wf");
+        repo.workflows.create(&wf).await.expect("create wf");
+
+        let mut task = TaskRow::new(&agent.id, "wf-task");
+        task.workflow_id = Some(wf.id.clone());
+        repo.tasks.create(&task).await.expect("create task");
+
+        let task2 = TaskRow::new(&agent.id, "standalone-task");
+        repo.tasks.create(&task2).await.expect("create task2");
+
+        let wf_tasks = repo
+            .tasks
+            .get_by_workflow(&wf.id)
+            .await
+            .expect("get_by_workflow");
+        assert_eq!(wf_tasks.len(), 1);
+        assert_eq!(wf_tasks[0].name, "wf-task");
+    }
+
+    #[tokio::test]
+    async fn test_task_get_by_status() {
+        let repo = test_repo().await;
+
+        let agent = AgentRow::new("status-agent");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        let mut task = TaskRow::new(&agent.id, "running-task");
+        task.status = "running".to_string();
+        repo.tasks.create(&task).await.expect("create task");
+
+        let task2 = TaskRow::new(&agent.id, "pending-task");
+        repo.tasks.create(&task2).await.expect("create task2");
+
+        let running = repo
+            .tasks
+            .get_by_status("running")
+            .await
+            .expect("get_by_status");
+        assert_eq!(running.len(), 1);
+        assert_eq!(running[0].name, "running-task");
+
+        let pending = repo
+            .tasks
+            .get_by_status("pending")
+            .await
+            .expect("get_by_status");
+        assert_eq!(pending.len(), 1);
+
+        let none = repo
+            .tasks
+            .get_by_status("completed")
+            .await
+            .expect("get_by_status");
+        assert_eq!(none.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_workflow_get_by_status() {
+        let repo = test_repo().await;
+
+        let mut wf = WorkflowRow::new("active-wf");
+        wf.status = "active".to_string();
+        repo.workflows.create(&wf).await.expect("create wf");
+
+        let wf2 = WorkflowRow::new("draft-wf");
+        repo.workflows.create(&wf2).await.expect("create wf2");
+
+        let active = repo
+            .workflows
+            .get_by_status("active")
+            .await
+            .expect("get_by_status");
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].name, "active-wf");
+
+        let draft = repo
+            .workflows
+            .get_by_status("draft")
+            .await
+            .expect("get_by_status");
+        assert_eq!(draft.len(), 1);
+    }
 }

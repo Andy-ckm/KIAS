@@ -533,4 +533,106 @@ mod tests {
         assert_eq!(stats.total_vectors, 10);
         assert_eq!(stats.dimension, 4);
     }
+
+    #[tokio::test]
+    async fn test_insert_into_nonexistent_index() {
+        let store = setup_store().await;
+        let result = store
+            .insert("nonexistent", "v1", &[1.0, 0.0, 0.0], serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_search_nonexistent_index() {
+        let store = setup_store().await;
+        let result = store.search("nonexistent", &[1.0, 0.0, 0.0], 5).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_duplicate_index_idempotent() {
+        let store = setup_store().await;
+        store.create_index("dup", 3, "cosine").await.unwrap();
+        store.create_index("dup", 3, "cosine").await.unwrap();
+        let indices = store.list_indices();
+        assert_eq!(indices.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_insert_overwrites_same_external_id() {
+        let store = setup_store().await;
+        store.create_index("ow", 3, "cosine").await.unwrap();
+        store
+            .insert("ow", "doc1", &[1.0, 0.0, 0.0], serde_json::json!({"v": 1}))
+            .await
+            .unwrap();
+        store
+            .insert("ow", "doc1", &[0.0, 1.0, 0.0], serde_json::json!({"v": 2}))
+            .await
+            .unwrap();
+        assert_eq!(store.count("ow"), 1);
+        let results = store.search("ow", &[0.0, 1.0, 0.0], 1).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].external_id, "doc1");
+        assert!(results[0].similarity > 0.99);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_indices() {
+        let store = setup_store().await;
+        store.create_index("idx-a", 3, "cosine").await.unwrap();
+        store.create_index("idx-b", 4, "cosine").await.unwrap();
+        store
+            .insert("idx-a", "a1", &[1.0, 0.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
+        store
+            .insert("idx-b", "b1", &[1.0, 0.0, 0.0, 0.0], serde_json::json!({}))
+            .await
+            .unwrap();
+        assert_eq!(store.count("idx-a"), 1);
+        assert_eq!(store.count("idx-b"), 1);
+        let indices = store.list_indices();
+        assert_eq!(indices.len(), 2);
+    }
+
+    #[test]
+    fn test_embedding_bytes_roundtrip() {
+        let original: Vec<f32> = vec![1.0, -0.5, 3.14, 0.0, 100.5];
+        let bytes = embedding_to_bytes(&original);
+        assert_eq!(bytes.len(), original.len() * 4);
+        let restored = bytes_to_embedding(&bytes);
+        assert_eq!(original.len(), restored.len());
+        for (a, b) in original.iter().zip(restored.iter()) {
+            assert!((a - b).abs() < 1e-6, "Mismatch: {a} vs {b}");
+        }
+    }
+
+    #[test]
+    fn test_embedding_bytes_empty() {
+        let empty: Vec<f32> = vec![];
+        let bytes = embedding_to_bytes(&empty);
+        assert!(bytes.is_empty());
+        let restored = bytes_to_embedding(&bytes);
+        assert!(restored.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_count_nonexistent_index() {
+        let store = setup_store().await;
+        assert_eq!(store.count("nonexistent"), 0);
+    }
+
+    #[tokio::test]
+    async fn test_list_indices_empty() {
+        let store = setup_store().await;
+        assert!(store.list_indices().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_stats_nonexistent_index() {
+        let store = setup_store().await;
+        assert!(store.stats("nonexistent").is_none());
+    }
 }

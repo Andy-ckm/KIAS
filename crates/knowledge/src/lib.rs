@@ -23,8 +23,4 @@ pub use vector::{
     VectorRetriever, VectorStore, VectorStoreStats,
 };
 
-pub mod context_expander;
-pub mod query_rewrite;
 
-pub use context_expander::{Chunk, ContextExpander, ExpandedContext};
-pub use query_rewrite::{QueryIntent, QueryRewriter, RewrittenQuery};

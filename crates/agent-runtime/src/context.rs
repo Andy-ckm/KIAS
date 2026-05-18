@@ -198,6 +198,45 @@ impl AgentContext {
     }
 }
 
+impl AgentContext {
+    /// 获取系统提示
+    pub fn get_system_prompt(&self, base_prompt: &str) -> String {
+        let mut prompt = base_prompt.to_string();
+
+        // 添加项目信息
+        prompt.push_str(&format!("\n\n## Project: {}", self.project));
+        prompt.push_str(&format!("\nWorking Directory: {}", self.working_dir));
+
+        if let Some(branch) = &self.branch {
+            prompt.push_str(&format!("\nGit Branch: {}", branch));
+        }
+
+        // 添加上下文文件内容
+        if let Some(ctx_file) = &self.context_file {
+            prompt.push_str(&format!("\n\n## Context File\n{}", ctx_file));
+        }
+
+        // 添加项目知识
+        if !self.project_knowledge.is_empty() {
+            prompt.push_str("\n\n## Project Knowledge");
+            for knowledge in &self.project_knowledge {
+                prompt.push_str(&format!("\n- {}", knowledge));
+            }
+        }
+
+        // 添加会话记忆摘要
+        if !self.session_memory.key_findings.is_empty() {
+            prompt.push_str("\n\n## Session Memory");
+            prompt.push_str(&format!(
+                "\nKey Findings: {}",
+                self.session_memory.key_findings.join(", ")
+            ));
+        }
+
+        prompt
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,44 +355,5 @@ mod tests {
         assert_eq!(ctx.session_memory.tool_stats.search_calls, 2);
         assert_eq!(ctx.session_memory.tool_stats.find_calls, 1);
         assert_eq!(ctx.session_memory.tool_stats.open_calls, 0);
-    }
-}
-
-impl AgentContext {
-    /// 获取系统提示
-    pub fn get_system_prompt(&self, base_prompt: &str) -> String {
-        let mut prompt = base_prompt.to_string();
-
-        // 添加项目信息
-        prompt.push_str(&format!("\n\n## Project: {}", self.project));
-        prompt.push_str(&format!("\nWorking Directory: {}", self.working_dir));
-
-        if let Some(branch) = &self.branch {
-            prompt.push_str(&format!("\nGit Branch: {}", branch));
-        }
-
-        // 添加上下文文件内容
-        if let Some(ctx_file) = &self.context_file {
-            prompt.push_str(&format!("\n\n## Context File\n{}", ctx_file));
-        }
-
-        // 添加项目知识
-        if !self.project_knowledge.is_empty() {
-            prompt.push_str("\n\n## Project Knowledge");
-            for knowledge in &self.project_knowledge {
-                prompt.push_str(&format!("\n- {}", knowledge));
-            }
-        }
-
-        // 添加会话记忆摘要
-        if !self.session_memory.key_findings.is_empty() {
-            prompt.push_str("\n\n## Session Memory");
-            prompt.push_str(&format!(
-                "\nKey Findings: {}",
-                self.session_memory.key_findings.join(", ")
-            ));
-        }
-
-        prompt
     }
 }

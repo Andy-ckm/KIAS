@@ -340,7 +340,7 @@ impl Dispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kanban::{Capability, KanbanBoard, KanbanTask, Priority, WipLimit};
+    use crate::kanban::{Capability, KanbanBoard, KanbanTask, Priority};
     use std::collections::HashMap;
     use std::time::SystemTime;
 

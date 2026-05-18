@@ -248,15 +248,24 @@ mod tests {
         let results = extractor.extract(text);
         assert_eq!(results.len(), 3);
 
-        let works_at = results.iter().find(|r| r.relation == RelationType::WorksAt).unwrap();
+        let works_at = results
+            .iter()
+            .find(|r| r.relation == RelationType::WorksAt)
+            .unwrap();
         assert_eq!(works_at.subject, "Alice");
         assert_eq!(works_at.object, "Google");
 
-        let founded = results.iter().find(|r| r.relation == RelationType::Founded).unwrap();
+        let founded = results
+            .iter()
+            .find(|r| r.relation == RelationType::Founded)
+            .unwrap();
         assert_eq!(founded.subject, "Bob");
         assert_eq!(founded.object, "Acme");
 
-        let invested = results.iter().find(|r| r.relation == RelationType::InvestedIn).unwrap();
+        let invested = results
+            .iter()
+            .find(|r| r.relation == RelationType::InvestedIn)
+            .unwrap();
         assert_eq!(invested.subject, "Carol");
         assert_eq!(invested.object, "Startup");
     }

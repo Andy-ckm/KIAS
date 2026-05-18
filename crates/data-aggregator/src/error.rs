@@ -51,3 +51,70 @@ impl From<serde_json::Error> for AggregatorError {
         AggregatorError::ParseError(err.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unsupported_platform_display() {
+        let err = AggregatorError::UnsupportedPlatform("TestPlatform".to_string());
+        assert_eq!(err.to_string(), "Unsupported platform: TestPlatform");
+    }
+
+    #[test]
+    fn test_http_request_display() {
+        let err = AggregatorError::HttpRequest("connection refused".to_string());
+        assert_eq!(err.to_string(), "HTTP request failed: connection refused");
+    }
+
+    #[test]
+    fn test_parse_error_display() {
+        let err = AggregatorError::ParseError("invalid JSON".to_string());
+        assert_eq!(err.to_string(), "Response parse error: invalid JSON");
+    }
+
+    #[test]
+    fn test_rate_limited_display() {
+        let err = AggregatorError::RateLimited("Twitter".to_string(), 60);
+        assert_eq!(err.to_string(), "Rate limited on Twitter, retry after 60s");
+    }
+
+    #[test]
+    fn test_auth_error_display() {
+        let err = AggregatorError::AuthError("invalid token".to_string());
+        assert_eq!(err.to_string(), "Authentication error: invalid token");
+    }
+
+    #[test]
+    fn test_config_error_display() {
+        let err = AggregatorError::ConfigError("missing API key".to_string());
+        assert_eq!(err.to_string(), "Provider config error: missing API key");
+    }
+
+    #[test]
+    fn test_internal_display() {
+        let err = AggregatorError::Internal("something went wrong".to_string());
+        assert_eq!(err.to_string(), "Internal error: something went wrong");
+    }
+
+    #[test]
+    fn test_from_aggregator_error_to_kias_error() {
+        let err = AggregatorError::HttpRequest("timeout".to_string());
+        let kias_err: KiasError = err.into();
+        assert!(kias_err.to_string().contains("timeout"));
+    }
+
+    #[test]
+    fn test_from_serde_json_error() {
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
+        let agg_err: AggregatorError = json_err.into();
+        assert!(matches!(agg_err, AggregatorError::ParseError(_)));
+    }
+
+    #[test]
+    fn test_error_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<AggregatorError>();
+    }
+}

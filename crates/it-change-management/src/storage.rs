@@ -1051,4 +1051,95 @@ mod tests {
         let violations = storage.get_sla_violations().unwrap();
         assert!(violations.is_empty());
     }
+
+    #[test]
+    fn test_save_change_with_all_optional_fields() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.submitted_at = Some(Utc::now());
+        change.approved_at = Some(Utc::now());
+        change.implemented_at = Some(Utc::now());
+        change.verified_at = Some(Utc::now());
+        change.sla_deadline = Some(Utc::now() + chrono::Duration::hours(24));
+        change.emergency_approval_deadline = Some(Utc::now() + chrono::Duration::hours(4));
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert!(loaded.submitted_at.is_some());
+        assert!(loaded.approved_at.is_some());
+        assert!(loaded.implemented_at.is_some());
+        assert!(loaded.verified_at.is_some());
+        assert!(loaded.sla_deadline.is_some());
+        assert!(loaded.emergency_approval_deadline.is_some());
+    }
+
+    #[test]
+    fn test_audit_chain_with_multiple_changes() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change1 = create_test_change();
+        let mut change2 = create_test_change();
+        change2.id = "change-2".to_string();
+        change2.change_number = "CHG-002".to_string();
+
+        storage.save_change(&change1).unwrap();
+        storage.save_change(&change2).unwrap();
+
+        let entry1 = AuditEntry {
+            id: "audit-1".to_string(),
+            change_id: change1.id.clone(),
+            actor: "user1".to_string(),
+            action: AuditAction::Created,
+            detail: "创建".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "hash1".to_string(),
+            ip_address: None,
+            user_agent: None,
+        };
+        let entry2 = AuditEntry {
+            id: "audit-2".to_string(),
+            change_id: change2.id.clone(),
+            actor: "user2".to_string(),
+            action: AuditAction::Created,
+            detail: "创建".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "hash2".to_string(),
+            ip_address: None,
+            user_agent: None,
+        };
+
+        storage.save_audit_entry(&entry1).unwrap();
+        storage.save_audit_entry(&entry2).unwrap();
+
+        let log1 = storage.get_audit_log(&change1.id).unwrap();
+        let log2 = storage.get_audit_log(&change2.id).unwrap();
+        assert_eq!(log1.len(), 1);
+        assert_eq!(log2.len(), 1);
+        assert_eq!(log1[0].change_id, change1.id);
+        assert_eq!(log2[0].change_id, change2.id);
+
+        let all = storage.get_all_audit_log().unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn test_list_changes_by_status_no_match() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        // change is Draft, query for Closed
+        let changes = storage
+            .list_changes_by_status(&ChangeStatus::Closed)
+            .unwrap();
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn test_verify_chain_integrity_empty() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let result = storage.verify_audit_chain_integrity().unwrap();
+        assert!(result); // empty chain is valid
+    }
 }

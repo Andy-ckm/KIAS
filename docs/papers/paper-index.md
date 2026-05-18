@@ -1,10 +1,29 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (02:00)
+更新时间: 2026-05-19 (03:20)
 
-## 论文列表 (72 篇)
+## 论文列表 (91 篇)
 
-### 已下载论文 (60 篇)
+### 已下载论文 (79 篇)
+- ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
+- ✅ 2605.14483.pdf (LEMON: Learning Executable Multi-Agent Orchestration via Counterfactual Reinforcement Learning)
+- ✅ 2605.14089.pdf (SkillFlow: Flow-Driven Recursive Skill Evolution for Agentic Orchestration)
+- ✅ 2605.13110.pdf (A Multi-Agent Orchestration Framework for Venture Capital Due Diligence)
+- ✅ 2605.00528.pdf (SAGA: Workflow-Atomic Scheduling for AI Agent Inference on GPU Clusters)
+- ✅ 2604.24026.pdf (From Skill Text to Skill Structure: Scheduling-Structural-Logical Representation for Agent Skills)
+- ✅ 2604.17400.pdf (Phase-Scheduled Multi-Agent Systems for Token-Efficient Coordination)
+- ✅ 2605.11376.pdf (LLM-X: A Scalable Negotiation-Oriented Exchange for Communication Among Personal LLM Agents)
+- ✅ 2605.11032.pdf (Portable Agent Memory: A Protocol for Cryptographically-Verified Memory Transfer)
+- ✅ 2605.09907.pdf (RADAR: Redundancy-Aware Diffusion for Multi-Agent Communication Structure Generation)
+- ✅ 2605.15338.pdf (Hidden in Memory: Sleeper Memory Poisoning in LLM Agents)
+- ✅ 2605.14421.pdf (MemLineage: Lineage-Guided Enforcement for LLM Agent Memory)
+- ✅ 2605.16079.pdf (VideoSeeker: Incentivizing Instance-level Video Understanding via Native Agentic Tool Invocation)
+- ✅ 2605.14556.pdf (TeachAnything: A Multimodal Crowdsourcing Platform for Training Embodied AI Agents)
+- ✅ 2605.14102.pdf (ChromaFlow: A Negative Ablation Study of Orchestration Overhead in Tool-Augmented Agent Environments)
+- ✅ 2605.12481.pdf (ToolCUA: Towards Optimal GUI-Tool Path Orchestration for Computer Use Agents)
+- ✅ 2605.13221.pdf (An Agentic AI Framework with LLMs and Chain-of-Thought for UAV-Assisted Networks)
+- ✅ 2605.11695.pdf (Emergent Communication between Heterogeneous Visual Agents through Decentralized Learning)
+- ✅ 2605.11453.pdf (Predictive Maps of Multi-Agent Reasoning: A Successor-Representation Spectrum for LLM Communication)
 - ✅ 2605.15315.pdf (Context Pruning for Coding Agents via Multi-Rubric Latent Reasoning)
 - ✅ 2605.15505.pdf (X-SYNTH: Beyond Retrieval — Enterprise Context Synthesis from Observed Human Attention)
 - ✅ 2605.15871.pdf (Agentic Discovery of Neural Architectures: AIRA-Compose and AIRA-Design)
@@ -75,6 +94,120 @@
 ---
 
 ## 全部论文清单
+
+0. **[2605.14866]** Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: multi-agent, root cause localization, microservices
+   - 链接: https://arxiv.org/abs/2605.14866
+   - 状态: ✅ 已下载 (584KB)
+
+0. **[2605.14483]** LEMON: Learning Executable Multi-Agent Orchestration via Counterfactual Reinforcement Learning
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: multi-agent orchestration, reinforcement learning, counterfactual
+   - 链接: https://arxiv.org/abs/2605.14483
+   - 状态: ✅ 已下载 (1.1MB)
+
+0. **[2605.14089]** SkillFlow: Flow-Driven Recursive Skill Evolution for Agentic Orchestration
+   - 日期: 2026-05-13 | 分类: cs.AI
+   - 主题: agentic orchestration, skill evolution, flow-driven
+   - 链接: https://arxiv.org/abs/2605.14089
+   - 状态: ✅ 已下载 (2.9MB)
+
+0. **[2605.13110]** A Multi-Agent Orchestration Framework for Venture Capital Due Diligence
+   - 日期: 2026-05-13 | 分类: cs.AI
+   - 主题: multi-agent orchestration, due diligence, venture capital
+   - 链接: https://arxiv.org/abs/2605.13110
+   - 状态: ✅ 已下载 (288KB)
+
+0. **[2605.00528]** SAGA: Workflow-Atomic Scheduling for AI Agent Inference on GPU Clusters
+   - 日期: 2026-05-01 | 分类: cs.DC, cs.AI
+   - 主题: agent scheduling, GPU clusters, workflow-atomic
+   - 链接: https://arxiv.org/abs/2605.00528
+   - 状态: ✅ 已下载 (928KB)
+
+0. **[2604.24026]** From Skill Text to Skill Structure: The Scheduling-Structural-Logical Representation for Agent Skills
+   - 日期: 2026-04-27 | 分类: cs.AI
+   - 主题: agent skills, scheduling, skill representation
+   - 链接: https://arxiv.org/abs/2604.24026
+   - 状态: ✅ 已下载 (532KB)
+
+0. **[2604.17400]** Phase-Scheduled Multi-Agent Systems for Token-Efficient Coordination
+   - 日期: 2026-04-19 | 分类: cs.AI
+   - 主题: multi-agent scheduling, token efficiency, coordination
+   - 链接: https://arxiv.org/abs/2604.17400
+   - 状态: ✅ 已下载 (576KB)
+
+0. **[2605.11376]** LLM-X: A Scalable Negotiation-Oriented Exchange for Communication Among Personal LLM Agents
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: agent communication, negotiation, A2A protocol
+   - 链接: https://arxiv.org/abs/2605.11376
+   - 状态: ✅ 已下载 (492KB)
+
+0. **[2605.11032]** Portable Agent Memory: A Protocol for Cryptographically-Verified Memory Transfer
+   - 日期: 2026-05-10 | 分类: cs.AI
+   - 主题: agent memory, portable memory, cryptographic verification
+   - 链接: https://arxiv.org/abs/2605.11032
+   - 状态: ✅ 已下载 (356KB)
+
+0. **[2605.09907]** RADAR: Redundancy-Aware Diffusion for Multi-Agent Communication Structure Generation
+   - 日期: 2026-05-11 | 分类: cs.AI
+   - 主题: multi-agent communication, diffusion, redundancy-aware
+   - 链接: https://arxiv.org/abs/2605.09907
+   - 状态: ✅ 已下载 (2.2MB)
+
+0. **[2605.15338]** Hidden in Memory: Sleeper Memory Poisoning in LLM Agents
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: agent memory security, memory poisoning, sleeper attacks
+   - 链接: https://arxiv.org/abs/2605.15338
+   - 状态: ✅ 已下载 (8.4MB)
+
+0. **[2605.14421]** MemLineage: Lineage-Guided Enforcement for LLM Agent Memory
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: agent memory, lineage enforcement, memory governance
+   - 链接: https://arxiv.org/abs/2605.14421
+   - 状态: ✅ 已下载 (1.1MB)
+
+0. **[2605.16079]** VideoSeeker: Incentivizing Instance-level Video Understanding via Native Agentic Tool Invocation
+   - 日期: 2026-05-15 | 分类: cs.CV, cs.AI
+   - 主题: agent tool use, video understanding, agentic invocation
+   - 链接: https://arxiv.org/abs/2605.16079
+   - 状态: ✅ 已下载 (1.2MB)
+
+0. **[2605.14556]** TeachAnything: A Multimodal Crowdsourcing Platform for Training Embodied AI Agents
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: agent tool use, embodied AI, crowdsourcing
+   - 链接: https://arxiv.org/abs/2605.14556
+   - 状态: ✅ 已下载 (2.3MB)
+
+0. **[2605.14102]** ChromaFlow: A Negative Ablation Study of Orchestration Overhead in Tool-Augmented Agent Environments
+   - 日期: 2026-05-13 | 分类: cs.AI
+   - 主题: agent orchestration, tool augmentation, ablation study
+   - 链接: https://arxiv.org/abs/2605.14102
+   - 状态: ✅ 已下载 (204KB)
+
+0. **[2605.12481]** ToolCUA: Towards Optimal GUI-Tool Path Orchestration for Computer Use Agents
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: agent tool use, GUI orchestration, computer use agents
+   - 链接: https://arxiv.org/abs/2605.12481
+   - 状态: ✅ 已下载 (2.4MB)
+
+0. **[2605.13221]** An Agentic AI Framework with Large Language Models and Chain-of-Thought for UAV-Assisted Networks
+   - 日期: 2026-05-13 | 分类: cs.AI
+   - 主题: agent scheduling, UAV networks, chain-of-thought
+   - 链接: https://arxiv.org/abs/2605.13221
+   - 状态: ✅ 已下载 (3.4MB)
+
+0. **[2605.11695]** Emergent Communication between Heterogeneous Visual Agents through Decentralized Learning
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: agent communication, emergent protocols, decentralized
+   - 链接: https://arxiv.org/abs/2605.11695
+   - 状态: ✅ 已下载 (15MB)
+
+0. **[2605.11453]** Predictive Maps of Multi-Agent Reasoning: A Successor-Representation Spectrum for LLM Communication
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: multi-agent reasoning, communication structure, successor representation
+   - 链接: https://arxiv.org/abs/2605.11453
+   - 状态: ✅ 已下载 (732KB)
 
 0. **[2605.15611]** TopoEvo: A Topology-Aware Self-Evolving Multi-Agent Framework for Root Cause Analysis in Microservices
    - 日期: 2026-05-15 | 分类: cs.AI

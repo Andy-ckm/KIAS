@@ -1279,3 +1279,15 @@ Source: GitHub API search 2026-05-16 21:34
 - **描述**: A Model Context Protocol (MCP) server that provides structured spec-driven development workflow tools
 - **KIAS 相关**: 规范驱动开发工作流 — 与 KIAS 的 workflow-engine + auto-loop 可对比
 - **创新点**: spec-driven 开发，MCP 作为开发工作流的标准化接口
+
+### 128. estreams/loong ⭐635 (Rust)
+- **URL**: https://github.com/estreams/loong
+- **描述**: Lightweight, clear, and fully extensible AI agent infrastructure — learn easily, customize anything
+- **KIAS 相关**: 轻量级 Agent 基础设施 — 与 KIAS 的 executor + agent-runtime 可对比
+- **创新点**: 强调"learn easily"的开发者体验，模块化可扩展设计
+
+### 129. 514-labs/moosestack ⭐578 (Rust)
+- **URL**: https://github.com/514-labs/moosestack
+- **描述**: The agent harness for building analytics into your app on top of ClickHouse, Redpanda and other high-performance analytics
+- **KIAS 相关**: Agent harness + 分析管道 — 与 KIAS 的 data-aggregator + monitor 可对比
+- **创新点**: Agent harness 概念，集成 ClickHouse/Redpanda 高性能分析栈

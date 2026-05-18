@@ -1,10 +1,13 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (21:50)
+更新时间: 2026-05-18 (23:22)
 
-## 论文列表 (57 篇)
+## 论文列表 (60 篇)
 
-### 已下载论文 (45 篇)
+### 已下载论文 (48 篇)
+- ✅ 2605.16233.pdf (FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast)
+- ✅ 2605.16217.pdf (Argus: Evidence Assembly for Scalable Deep Research Agents)
+- ✅ 2605.14498.pdf (GroupMemBench: Benchmarking LLM Agent Memory in Multi-Party Conversations)
 - ✅ 2605.14857.pdf (A Deterministic Agentic Workflow for HS Tariff Classification)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
@@ -60,6 +63,24 @@
 ---
 
 ## 全部论文清单
+
+0. **[2605.16233]** FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast
+   - 日期: 2026-05-15 | 分类: cs.AI
+   - 主题: agent memory, self-evolution, population-based learning
+   - 链接: https://arxiv.org/abs/2605.16233
+   - 状态: ✅ 已下载 (2.2MB)
+
+0. **[2605.16217]** Argus: Evidence Assembly for Scalable Deep Research Agents
+   - 日期: 2026-05-15 | 分类: cs.AI
+   - 主题: deep research, evidence assembly, multi-agent search
+   - 链接: https://arxiv.org/abs/2605.16217
+   - 状态: ✅ 已下载 (1.2MB)
+
+0. **[2605.14498]** GroupMemBench: Benchmarking LLM Agent Memory in Multi-Party Conversations
+   - 日期: 2026-05-14 | 分类: cs.CL, cs.AI
+   - 主题: agent memory, multi-party, benchmark
+   - 链接: https://arxiv.org/abs/2605.14498
+   - 状态: ✅ 已下载 (2.0MB)
 
 1. **[2605.15198]** ATLAS: Agentic or Latent Visual Reasoning? One Word is Enough for Both
    - 作者: Ziyu Guo, Rain Liu, Xinyan Chen, Pheng-Ann Heng

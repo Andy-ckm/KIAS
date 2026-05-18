@@ -600,4 +600,116 @@ mod tests {
         let strategy = RoutingStrategy::default();
         assert_eq!(strategy, RoutingStrategy::RoundRobin);
     }
+
+    #[test]
+    fn test_provider_config_new_defaults() {
+        let config = ProviderConfig::new(
+            "test",
+            "openai",
+            "https://example.com/v1",
+            vec!["gpt-4".to_string()],
+        );
+        assert_eq!(config.name, "test");
+        assert_eq!(config.provider_type, "openai");
+        assert!(config.api_key.is_none());
+        assert_eq!(config.models.len(), 1);
+        assert_eq!(config.max_concurrency, 10);
+        assert_eq!(config.timeout_secs, 30);
+        assert_eq!(config.priority, 0);
+        assert!((config.weight - 1.0).abs() < f64::EPSILON);
+        assert!(config.headers.is_empty());
+        assert!(config.rate_limit_rpm.is_none());
+        assert!(config.monthly_budget.is_none());
+    }
+
+    #[test]
+    fn test_provider_config_builder_chain() {
+        let config = ProviderConfig::new(
+            "test",
+            "custom",
+            "https://example.com",
+            vec!["m1".to_string()],
+        )
+        .with_api_key("sk-test-key")
+        .with_priority(10)
+        .with_weight(2.5)
+        .with_budget(100.0);
+        assert_eq!(config.api_key, Some("sk-test-key".to_string()));
+        assert_eq!(config.priority, 10);
+        assert!((config.weight - 2.5).abs() < f64::EPSILON);
+        assert_eq!(config.monthly_budget, Some(100.0));
+    }
+
+    #[test]
+    fn test_openai_config_defaults() {
+        let config = ProviderConfig::openai("oa", "sk-test", vec!["gpt-4o".to_string()]);
+        assert_eq!(config.endpoint, "https://api.openai.com/v1");
+        assert_eq!(config.timeout_secs, 60);
+        assert_eq!(config.rate_limit_rpm, Some(60));
+        assert_eq!(config.max_concurrency, 10);
+    }
+
+    #[test]
+    fn test_anthropic_config_defaults() {
+        let config = ProviderConfig::anthropic("ant", "sk-ant-test", vec!["claude-3".to_string()]);
+        assert_eq!(config.endpoint, "https://api.anthropic.com/v1");
+        assert_eq!(config.timeout_secs, 120);
+        assert_eq!(config.max_concurrency, 5);
+        assert_eq!(config.rate_limit_rpm, Some(50));
+    }
+
+    #[test]
+    fn test_ollama_config_no_api_key() {
+        let config =
+            ProviderConfig::ollama("local", "https://example.com", vec!["llama3".to_string()]);
+        assert!(config.api_key.is_none());
+        assert_eq!(config.timeout_secs, 300);
+        assert!(config.rate_limit_rpm.is_none());
+    }
+
+    #[test]
+    fn test_health_tracker_zero_requests_healthy() {
+        let tracker = HealthTracker::new();
+        assert!(tracker.is_healthy());
+        assert!((tracker.success_rate() - 1.0).abs() < f64::EPSILON);
+        assert_eq!(tracker.avg_latency_ms(), 0);
+    }
+
+    #[test]
+    fn test_health_tracker_below_threshold_unhealthy() {
+        let mut tracker = HealthTracker::new();
+        for _ in 0..4 {
+            tracker.record_failure("err".to_string());
+        }
+        tracker.record_success(100);
+        assert!(!tracker.is_healthy());
+        assert_eq!(tracker.total_requests, 5);
+        assert!((tracker.success_rate() - 0.2).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_health_tracker_four_requests_still_healthy() {
+        let mut tracker = HealthTracker::new();
+        for _ in 0..3 {
+            tracker.record_failure("err".to_string());
+        }
+        tracker.record_success(100);
+        assert!(tracker.is_healthy());
+    }
+
+    #[test]
+    fn test_provider_config_multiple_models() {
+        let config = ProviderConfig::new(
+            "multi",
+            "openai",
+            "https://example.com",
+            vec![
+                "gpt-4".to_string(),
+                "gpt-3.5-turbo".to_string(),
+                "gpt-4o".to_string(),
+            ],
+        );
+        assert_eq!(config.models.len(), 3);
+        assert!(config.models.contains(&"gpt-4o".to_string()));
+    }
 }

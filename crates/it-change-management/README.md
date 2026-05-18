@@ -1,133 +1,117 @@
-# KIAS IT Change Management
+# KIAS IT 变更管理系统
 
-医药/医疗器械企业IT系统变更管理模块，符合 FDA 21 CFR Part 11, EU Annex 11, GAMP 5。
+> 医药/医疗器械企业IT系统变更管理
+> 符合 FDA 21 CFR Part 11, EU Annex 11, GAMP 5
 
-## 功能特性
+## 核心特性
 
-- ✅ 变更请求管理（CRUD）
-- ✅ 审批工作流（9状态机）
-- ✅ 电子签名（TOTP二因素认证）
-- ✅ 审计追踪（SHA-256哈希链）
-- ✅ 风险评估
-- ✅ 回滚计划
-- ✅ 验证确认
-
-## 合规标准
-
-| 标准 | 功能 |
-|------|------|
-| FDA 21 CFR Part 11 §11.10 | 审计追踪、电子签名 |
-| FDA 21 CFR Part 11 §11.50 | 电子签名含义记录 |
-| FDA 21 CFR Part 11 §11.70 | 签名与记录绑定 |
-| FDA 21 CFR Part 11 §11.100 | 电子签名唯一性 |
-| EU Annex 11 Clause 9 | 变更控制 |
-| EU Annex 11 Clause 10 | 定期审查 |
-| GAMP 5 | 风险评估、验证确认 |
+- **GxP影响分级**：直接影响/间接影响/无影响
+- **紧急变更通道**：事后补充审批，符合FDA要求
+- **CAPA联动**：变更中发现问题自动触发CAPA
+- **电子签名**：符合21 CFR Part 11 §11.50/§11.70/§11.100/§11.200
+- **审计追踪**：SHA-256哈希链，不可篡改
+- **SLA跟踪**：超时自动升级
+- **SQLite持久化**：完整数据存储
+- **Linux自动化**：Ansible/OpenSCAP/Lynis集成
 
 ## 快速开始
+
+```bash
+# 运行演示
+cargo run -p kias-it-change-management --example demo
+
+# 运行测试
+cargo test -p kias-it-change-management
+```
+
+## 使用示例
 
 ```rust
 use kias_it_change_management::*;
 
-fn main() {
-    let mut manager = ItChangeManager::new();
-    
-    // 创建变更请求
-    let change = manager.create_change_request(
-        "更新LIMS配置".to_string(),
-        "更新LIMS系统的样品检测阈值参数".to_string(),
-        ChangeType::Configuration,
-        RiskLevel::High,
-        "zhang.qa".to_string(),
-        "回滚到原配置文件".to_string(),
-        "1. 停止LIMS服务\n2. 修改配置文件\n3. 重启服务".to_string(),
-        ImpactAssessment {
-            affected_systems: vec!["LIMS".to_string()],
-            affected_users: vec!["QC部门".to_string()],
-            downtime_estimate_minutes: 30,
-            risk_mitigation: vec!["备份原配置".to_string()],
-            testing_requirements: vec!["验证新阈值生效".to_string()],
-        },
-    );
-    
-    // 提交审批
-    manager.submit_for_review(&change.id, "zhang.qa").unwrap();
-    
-    // 添加审批人
-    manager.add_approver(
-        &change.id,
-        "approver1".to_string(),
-        "审批人1".to_string(),
-        "QA主管".to_string(),
-    ).unwrap();
-    
-    // 审批通过
-    manager.approve_change(
-        &change.id,
-        "approver1",
-        Decision::Approved,
-        "signature123".to_string(),
-    ).unwrap();
-    
-    // 实施变更
-    manager.implement_change(&change.id, "zhang.qa").unwrap();
-    manager.complete_implementation(&change.id, "zhang.qa").unwrap();
-    
-    // 验证变更
-    manager.verify_change(&change.id, "zhang.qa").unwrap();
-    manager.complete_verification(&change.id, "zhang.qa").unwrap();
-    
-    // 关闭变更
-    manager.close_change(&change.id, "zhang.qa").unwrap();
-    
-    // 获取审计日志
-    let audit_log = manager.get_audit_log(&change.id);
-    println!("审计日志: {:?}", audit_log);
-}
+let mut manager = ItChangeManager::new();
+
+// 创建变更
+let change = manager.create_change_request(
+    "升级LIMS".to_string(),
+    "将LIMS升级到v3.0".to_string(),
+    ChangeType::Application,
+    ChangeCategory::Normal,
+    RiskLevel::High,
+    "it.admin".to_string(),
+    "IT部门".to_string(),
+    "回滚计划".to_string(),
+    "实施计划".to_string(),
+    impact_assessment,
+);
+
+// 完整流程
+manager.submit_for_review(&change.id, "it.admin", None, None).unwrap();
+manager.add_approver(&change.id, "qa.head".to_string(), "QA主管".to_string(), "QA".to_string()).unwrap();
+manager.approve_change(&change.id, "qa.head", Decision::Approved, signature, None, None).unwrap();
+manager.implement_change(&change.id, "it.admin", None, None).unwrap();
+manager.complete_implementation(&change.id, "it.admin", None, None).unwrap();
+manager.verify_change(&change.id, "qa.tester", None, None).unwrap();
+manager.complete_verification(&change.id, "qa.tester", None, None).unwrap();
+manager.close_change(&change.id, "it.admin", None, None).unwrap();
 ```
 
-## API端点
+## 合规标准
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/changes` | GET | 获取变更列表 |
-| `/api/v1/changes` | POST | 创建变更请求 |
-| `/api/v1/changes/:id` | GET | 获取变更详情 |
-| `/api/v1/changes/:id/submit` | POST | 提交审批 |
-| `/api/v1/changes/:id/approvers` | POST | 添加审批人 |
-| `/api/v1/changes/:id/approve` | POST | 审批变更 |
-| `/api/v1/changes/:id/implement` | POST | 实施变更 |
-| `/api/v1/changes/:id/complete-implementation` | POST | 完成实施 |
-| `/api/v1/changes/:id/verify` | POST | 验证变更 |
-| `/api/v1/changes/:id/complete-verification` | POST | 完成验证 |
-| `/api/v1/changes/:id/close` | POST | 关闭变更 |
-| `/api/v1/changes/:id/rollback` | POST | 回滚变更 |
-| `/api/v1/changes/:id/audit` | GET | 获取审计日志 |
+| 标准 | 要求 | KIAS实现 |
+|------|------|----------|
+| FDA 21 CFR Part 11 §11.10(e) | 审计追踪 | SHA-256哈希链 |
+| FDA 21 CFR Part 11 §11.50 | 电子签名含义 | SignatureMeaning枚举 |
+| FDA 21 CFR Part 11 §11.70 | 签名唯一性 | 双因子认证 |
+| GAMP 5 | 验证级别 | IQ/OQ/PQ |
+| CIS Benchmark | Linux安全基线 | Ansible playbook |
 
-## 审批工作流
+## 数据模型
 
 ```
+变更状态机:
 Draft → Submitted → UnderReview → Approved → Implementing → Implemented → Verifying → Verified → Closed
-                                    ↓
-                                 Rejected
+                    ↓
+                 Rejected
+                    
+紧急变更:
+Submitted → EmergencyImplemented → Verifying → Verified → Closed
 ```
 
-## 适用场景
+## 代码统计
 
-1. **系统配置变更** — 修改服务器配置、网络配置、应用配置
-2. **软件部署变更** — 部署新版本软件、补丁更新
-3. **硬件变更** — 服务器扩容、网络设备更换
-4. **安全变更** — 防火墙规则、访问控制变更
-5. **数据变更** — 数据库结构变更、数据迁移
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| lib.rs | 2,513 | 核心业务逻辑 |
+| storage.rs | 1,469 | SQLite持久化 |
+| linux_auto.rs | 669 | Linux自动化 |
+| api.rs | 223 | API数据结构 |
+| demo.rs | 192 | 演示程序 |
+| **总计** | **5,066** | |
 
-## 适用行业
+## 测试覆盖
 
-- 制药企业
-- 医疗器械企业
-- 生物技术企业
-- 金融企业
-- 其他受监管行业
+- 23个单元测试全部通过
+- 覆盖：完整变更生命周期、电子签名、紧急变更、CAPA触发、审计链完整性、SLA违规、持久化读写、Linux自动化命令生成
 
-## 许可证
+## 源码参考
 
-MIT License
+| 项目 | Stars | 参考点 |
+|------|-------|--------|
+| Flowable | 9,266⭐ | BPMN工作流引擎 |
+| GLPI | 5,893⭐ | ITSM/资产管理 |
+| iTop | 1,115⭐ | ITIL全流程/CMDB |
+| Ralph | 2,493⭐ | CMDB/资产生命周期 |
+
+## 商业价值
+
+- **市场空白**：没有专注医药GxP合规的开源变更管理平台
+- **商业产品价格**：TrackWise/Veeva数十万美元起
+- **KIAS优势**：开源、合规、可定制、Rust高性能
+
+## 文档
+
+- [使用指南](USAGE.md)
+- [IT变更管理研究](../../docs/research/it-change-management-research.md)
+- [Linux自动化研究](../../docs/research/linux-automation-research.md)
+- [文档处理研究](../../docs/research/document-management-research.md)

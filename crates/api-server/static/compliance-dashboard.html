@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>KIAS 合规仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #0d1117; color: #c9d1d9; }
+        .container { padding: 20px; }
+        .header { background: #21262d; padding: 15px 20px; border-bottom: 1px solid #30363d; margin-bottom: 20px; }
+        .header h1 { margin: 0; color: #58a6ff; font-size: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+        .card h2 { margin-top: 0; color: #58a6ff; font-size: 18px; }
+        .score { font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; }
+        .score.good { color: #3fb950; }
+        .score.warning { color: #d29922; }
+        .score.danger { color: #f85149; }
+        .chart-container { position: relative; height: 200px; }
+        .status-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #30363d; }
+        .status-item:last-child { border-bottom: none; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-badge.pass { background: #238636; color: white; }
+        .status-badge.fail { background: #f85149; color: white; }
+        .progress-bar { width: 100%; height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .progress-fill.good { background: #3fb950; }
+        .progress-fill.warning { background: #d29922; }
+        .progress-fill.danger { background: #f85149; }
+        .timeline { position: relative; padding-left: 20px; }
+        .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #30363d; }
+        .timeline-item { position: relative; margin-bottom: 15px; padding-left: 20px; }
+        .timeline-item::before { content: ''; position: absolute; left: -12px; top: 5px; width: 10px; height: 10px; background: #58a6ff; border-radius: 50%; }
+        .timeline-time { font-size: 12px; color: #8b949e; }
+        .timeline-event { font-size: 14px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ KIAS 合规仪表盘</h1>
+        <p>实时合规状态监控</p>
+    </div>
+    <div class="container">
+        <div class="grid">
+            <div class="card">
+                <h2>总体合规分数</h2>
+                <div class="score good">92.5</div>
+                <p style="text-align: center; color: #8b949e;">满分 100</p>
+            </div>
+            <div class="card">
+                <h2>合规类别</h2>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2>检查项状态</h2>
+                <div class="status-item">
+                    <span>审计追踪</span>
+                    <span class="status-badge pass">19/20</span>
+                </div>
+                <div class="status-item">
+                    <span>电子签名</span>
+                    <span class="status-badge pass">15/15</span>
+                </div>
+                <div class="status-item">
+                    <span>审批流程</span>
+                    <span class="status-badge pass">9/10</span>
+                </div>
+                <div class="status-item">
+                    <span>预演机制</span>
+                    <span class="status-badge pass">7/8</span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>最近审计事件</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-time">2026-05-18 11:00</div>
+                        <div class="timeline-event">审批设计控制流程文档</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-time">2026-05-18 10:00</div>
+                        <div class="timeline-event">创建设计控制流程文档</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-time">2026-05-17 15:00</div>
+                        <div class="timeline-event">更新验证报告</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>合规趋势</h2>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2>风险项</h2>
+                <div class="status-item">
+                    <span>预演机制检查项 #8</span>
+                    <span class="status-badge fail">待修复</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill good" style="width: 87.5%;"></div>
+                </div>
+                <p style="font-size: 12px; color: #8b949e; margin-top: 5px;">87.5% 通过</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 合规类别雷达图
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(categoryCtx, {
+            type: 'radar',
+            data: {
+                labels: ['审计追踪', '电子签名', '审批流程', '预演机制'],
+                datasets: [{
+                    label: '合规分数',
+                    data: [95, 100, 90, 85],
+                    backgroundColor: 'rgba(88, 166, 255, 0.2)',
+                    borderColor: '#58a6ff',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#58a6ff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { color: '#8b949e', backdropColor: 'transparent' },
+                        grid: { color: '#30363d' },
+                        pointLabels: { color: '#c9d1d9' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 合规趋势折线图
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['1月', '2月', '3月', '4月', '5月'],
+                datasets: [{
+                    label: '合规分数',
+                    data: [85, 87, 89, 91, 92.5],
+                    borderColor: '#3fb950',
+                    backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                    y: { beginAtZero: false, min: 80, max: 100, ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

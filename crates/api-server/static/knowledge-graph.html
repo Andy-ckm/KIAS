@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>KIAS 知识图谱可视化</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #0d1117; color: #c9d1d9; }
+        .container { display: flex; height: 100vh; }
+        .sidebar { width: 300px; background: #161b22; padding: 20px; overflow-y: auto; border-right: 1px solid #30363d; }
+        .graph-area { flex: 1; position: relative; }
+        .header { background: #21262d; padding: 15px 20px; border-bottom: 1px solid #30363d; }
+        .header h1 { margin: 0; color: #58a6ff; font-size: 24px; }
+        .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
+        .stat { background: #21262d; padding: 10px; border-radius: 6px; border: 1px solid #30363d; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #58a6ff; }
+        .stat-label { font-size: 12px; color: #8b949e; }
+        .legend { margin-top: 20px; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .node { cursor: pointer; }
+        .node:hover { stroke: #58a6ff; stroke-width: 3px; }
+        .link { stroke: #30363d; stroke-opacity: 0.6; }
+        .link:hover { stroke: #58a6ff; stroke-opacity: 1; }
+        .tooltip { position: absolute; background: #21262d; border: 1px solid #30363d; padding: 10px; border-radius: 6px; font-size: 12px; pointer-events: none; }
+        .controls { position: absolute; top: 10px; right: 10px; background: #21262d; padding: 10px; border-radius: 6px; border: 1px solid #30363d; }
+        .controls button { background: #238636; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin: 2px; }
+        .controls button:hover { background: #2ea043; }
+        .search { margin: 15px 0; }
+        .search input { width: 100%; padding: 8px; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 4px; }
+        .search input:focus { border-color: #58a6ff; outline: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 KIAS 知识图谱可视化</h1>
+        <p>实时展示实体关系网络</p>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="nodeCount">0</div>
+                    <div class="stat-label">实体</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="edgeCount">0</div>
+                    <div class="stat-label">关系</div>
+                </div>
+            </div>
+            <div class="search">
+                <input type="text" id="searchInput" placeholder="搜索实体...">
+            </div>
+            <div class="legend">
+                <h3>图例</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #58a6ff;"></div>
+                    <span>人物</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3fb950;"></div>
+                    <span>公司</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #d29922;"></div>
+                    <span>概念</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f85149;"></div>
+                    <span>文档</span>
+                </div>
+            </div>
+            <div id="nodeInfo" style="margin-top: 20px;"></div>
+        </div>
+        <div class="graph-area">
+            <div class="controls">
+                <button onclick="zoomIn()">放大</button>
+                <button onclick="zoomOut()">缩小</button>
+                <button onclick="resetZoom()">重置</button>
+                <button onclick="togglePhysics()">物理引擎</button>
+            </div>
+            <svg id="graph"></svg>
+            <div class="tooltip" id="tooltip" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟数据 - 实际使用时从 API 获取
+        const graphData = {
+            nodes: [
+                { id: "1", label: "知识图谱", node_type: "concept", tier: 1 },
+                { id: "2", label: "实体提取", node_type: "concept", tier: 2 },
+                { id: "3", label: "GraphRAG", node_type: "concept", tier: 1 },
+                { id: "4", label: "GxP合规", node_type: "concept", tier: 1 },
+                { id: "5", label: "FDA审计", node_type: "concept", tier: 2 },
+                { id: "6", label: "Auto-loop", node_type: "concept", tier: 1 },
+                { id: "7", label: "Approval", node_type: "concept", tier: 2 },
+                { id: "8", label: "GxP Audit", node_type: "concept", tier: 2 },
+            ],
+            edges: [
+                { source: "1", target: "2", relation: "uses" },
+                { source: "1", target: "3", relation: "implements" },
+                { source: "4", target: "5", relation: "ensures_compliance" },
+                { source: "6", target: "1", relation: "evolves" },
+                { source: "7", target: "4", relation: "part_of" },
+                { source: "8", target: "4", relation: "part_of" },
+                { source: "3", target: "2", relation: "uses" },
+            ]
+        };
+
+        const width = window.innerWidth - 300;
+        const height = window.innerHeight - 80;
+
+        const svg = d3.select("#graph")
+            .attr("width", width)
+            .attr("height", height);
+
+        const g = svg.append("g");
+
+        // 缩放
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+
+        svg.call(zoom);
+
+        // 颜色映射
+        const colorMap = {
+            person: "#58a6ff",
+            company: "#3fb950",
+            concept: "#d29922",
+            document: "#f85149"
+        };
+
+        // 力导向布局
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(30));
+
+        // 绘制边
+        const link = g.append("g")
+            .selectAll("line")
+            .data(graphData.edges)
+            .enter().append("line")
+            .attr("class", "link")
+            .attr("stroke-width", 2);
+
+        // 绘制节点
+        const node = g.append("g")
+            .selectAll("circle")
+            .data(graphData.nodes)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", d => d.tier === 1 ? 20 : d.tier === 2 ? 15 : 10)
+            .attr("fill", d => colorMap[d.node_type] || "#8b949e")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // 节点标签
+        const label = g.append("g")
+            .selectAll("text")
+            .data(graphData.nodes)
+            .enter().append("text")
+            .text(d => d.label)
+            .attr("font-size", 12)
+            .attr("font-weight", "bold")
+            .attr("fill", "#c9d1d9")
+            .attr("text-anchor", "middle")
+            .attr("dy", 30);
+
+        // 边标签
+        const edgeLabel = g.append("g")
+            .selectAll("text")
+            .data(graphData.edges)
+            .enter().append("text")
+            .text(d => d.relation)
+            .attr("font-size", 10)
+            .attr("fill", "#8b949e")
+            .attr("text-anchor", "middle");
+
+        // 工具提示
+        const tooltip = d3.select("#tooltip");
+
+        node.on("mouseover", (event, d) => {
+            tooltip.style("display", "block")
+                .html(`<strong>${d.label}</strong><br>类型: ${d.node_type}<br>层级: Tier ${d.tier}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseout", () => tooltip.style("display", "none"))
+        .on("click", (event, d) => {
+            d3.select("#nodeInfo").html(`
+                <h3>${d.label}</h3>
+                <p><strong>类型:</strong> ${d.node_type}</p>
+                <p><strong>层级:</strong> Tier ${d.tier}</p>
+            `);
+        });
+
+        // 更新布局
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            label
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+
+            edgeLabel
+                .attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2);
+        });
+
+        // 拖拽函数
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // 控制函数
+        function zoomIn() {
+            svg.transition().duration(300).call(zoom.scaleBy, 1.5);
+        }
+
+        function zoomOut() {
+            svg.transition().duration(300).call(zoom.scaleBy, 0.67);
+        }
+
+        function resetZoom() {
+            svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+        }
+
+        let physicsEnabled = true;
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            if (physicsEnabled) {
+                simulation.alpha(0.3).restart();
+            } else {
+                simulation.stop();
+            }
+        }
+
+        // 搜索功能
+        d3.select("#searchInput").on("input", function() {
+            const query = this.value.toLowerCase();
+            node.attr("opacity", d => {
+                if (query === "") return 1;
+                return d.label.toLowerCase().includes(query) ? 1 : 0.2;
+            });
+            label.attr("opacity", d => {
+                if (query === "") return 1;
+                return d.label.toLowerCase().includes(query) ? 1 : 0.2;
+            });
+        });
+
+        // 更新统计
+        document.getElementById("nodeCount").textContent = graphData.nodes.length;
+        document.getElementById("edgeCount").textContent = graphData.edges.length;
+    </script>
+</body>
+</html>

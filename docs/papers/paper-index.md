@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (03:20)
+更新时间: 2026-05-19 (04:25)
 
-## 论文列表 (91 篇)
+## 论文列表 (102 篇)
 
-### 已下载论文 (79 篇)
+### 已下载论文 (90 篇)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
 - ✅ 2605.14483.pdf (LEMON: Learning Executable Multi-Agent Orchestration via Counterfactual Reinforcement Learning)
 - ✅ 2605.14089.pdf (SkillFlow: Flow-Driven Recursive Skill Evolution for Agentic Orchestration)
@@ -82,6 +82,17 @@
 - ✅ 2602.14295.pdf (MLAT: Integrating Statistical ML Models as Callable Tools in LLM Agent Workflows)
 - ✅ 2601.07504.pdf (FROAV: A Framework for RAG Observation and Agent Verification)
 - ✅ 2601.04554.pdf (Exploring Recommender System Evaluation: Multi-Modal LLM Agent Framework for A/B Testing)
+- ✅ 2605.15625.pdf (ColPackAgent: Agent-Skill-Guided Hard-Particle Monte Carlo Workflows for Colloidal Systems)
+- ✅ 2605.15565.pdf (AstraFlow: Dataflow-Oriented Reinforcement Learning for Agentic LLMs)
+- ✅ 2605.09366.pdf (Towards a Virtual Neuroscientist: Autonomous Neuroimaging Analysis via Multi-Agent Systems)
+- ⚠️ 2605.10813.pdf (NanoResearch: Co-Evolving Skills, Memory, and Policy for Personalized Research Agents) — 12MB 超出 git 限制，仅本地保留
+- ✅ 2504.11320.pdf (Optimizing LLM Inference: Fluid-Guided Online Scheduling with Memory Constraints)
+- ✅ 2512.19701.pdf (LASER: Language Model Regression for Semi-Structured Workflow Resource and Runtime Prediction)
+- ✅ 2605.14401.pdf (Agentic Recommender System with Hierarchical Belief-State Memory)
+- ✅ 2605.15400.pdf (Beyond Partner Diversity: An Influence-Based Team Steering Framework for Zero-Shot Human-Machine Teaming)
+- ✅ 2605.00424.pdf (Skills as Verifiable Artifacts: A Trust Schema and a Biconditional Correctness Criterion)
+- ✅ 2605.09033.pdf (ShadowMerge: A Novel Poisoning Attack on Graph-Based Agent Memory via Relation-Conflicting)
+- ✅ 2605.16035.pdf (Who Owns This Agent? Tracing AI Agents Back to Their Owners)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -622,6 +633,83 @@
     - 主题: LLM agent framework, recommender evaluation
     - 链接: https://arxiv.org/abs/2601.04554
     - 状态: ✅ 已下载 (1.3MB)
+
+58. **[2605.15625]** ColPackAgent: Agent-Skill-Guided Hard-Particle Monte Carlo Workflows for Colloidal Systems
+    - 作者: Yutong Wu, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: agent-skill, workflow, Monte Carlo, colloidal systems
+    - 链接: https://arxiv.org/abs/2605.15625
+    - 状态: ✅ 已下载 (3.2MB)
+
+59. **[2605.15565]** AstraFlow: Dataflow-Oriented Reinforcement Learning for Agentic LLMs
+    - 作者: Zhiwei Li, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: dataflow, reinforcement learning, agentic LLM
+    - 链接: https://arxiv.org/abs/2605.15565
+    - 状态: ✅ 已下载 (1.1MB)
+
+60. **[2605.09366]** Towards a Virtual Neuroscientist: Autonomous Neuroimaging Analysis via Multi-Agent Systems
+    - 作者: Yuxuan Li, et al.
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: multi-agent, neuroimaging, autonomous analysis
+    - 链接: https://arxiv.org/abs/2605.09366
+    - 状态: ✅ 已下载 (4.2MB)
+
+61. **[2605.10813]** NanoResearch: Co-Evolving Skills, Memory, and Policy for Personalized Research Agents
+    - 作者: Haotian Chen, et al.
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: skills, memory, policy evolution, research agents
+    - 链接: https://arxiv.org/abs/2605.10813
+    - 状态: ⚠️ 仅本地 (12MB 超出 git 限制)
+
+62. **[2504.11320]** Optimizing LLM Inference: Fluid-Guided Online Scheduling with Memory Constraints
+    - 作者: Jianyu Xu, et al.
+    - 日期: 2025-04-15 | 分类: cs.LG
+    - 主题: LLM inference, online scheduling, memory constraints
+    - 链接: https://arxiv.org/abs/2504.11320
+    - 状态: ✅ 已下载 (2.3MB)
+
+63. **[2512.19701]** LASER: Language Model Regression for Semi-Structured Workflow Resource and Runtime Prediction
+    - 作者: Daniel M. Dunlavy, et al.
+    - 日期: 2025-12-19 | 分类: cs.AI
+    - 主题: workflow, resource prediction, runtime estimation
+    - 链接: https://arxiv.org/abs/2512.19701
+    - 状态: ✅ 已下载 (1.8MB)
+
+64. **[2605.14401]** Agentic Recommender System with Hierarchical Belief-State Memory
+    - 作者: Rui Zhang, et al.
+    - 日期: 2026-05-16 | 分类: cs.AI
+    - 主题: agentic recommender, hierarchical memory, belief state
+    - 链接: https://arxiv.org/abs/2605.14401
+    - 状态: ✅ 已下载 (1.8MB)
+
+65. **[2605.15400]** Beyond Partner Diversity: An Influence-Based Team Steering Framework for Zero-Shot Human-Machine Teaming
+    - 作者: Siyu Zhou, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: team steering, human-machine teaming, multi-agent
+    - 链接: https://arxiv.org/abs/2605.15400
+    - 状态: ✅ 已下载 (2.0MB)
+
+66. **[2605.00424]** Skills as Verifiable Artifacts: A Trust Schema and a Biconditional Correctness Criterion
+    - 作者: Sahil Bhatia, et al.
+    - 日期: 2026-05-01 | 分类: cs.AI
+    - 主题: skills, verification, trust schema, correctness
+    - 链接: https://arxiv.org/abs/2605.00424
+    - 状态: ✅ 已下载 (0.5MB)
+
+67. **[2605.09033]** ShadowMerge: A Novel Poisoning Attack on Graph-Based Agent Memory via Relation-Conflicting
+    - 作者: Jiaqi Liu, et al.
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: agent memory, poisoning attack, graph-based memory
+    - 链接: https://arxiv.org/abs/2605.09033
+    - 状态: ✅ 已下载 (1.9MB)
+
+68. **[2605.16035]** Who Owns This Agent? Tracing AI Agents Back to Their Owners
+    - 作者: Xinyi Chen, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: agent tracing, ownership, provenance
+    - 链接: https://arxiv.org/abs/2605.16035
+    - 状态: ✅ 已下载 (1.6MB)
 
 ---
 

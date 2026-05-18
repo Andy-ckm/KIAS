@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::approval::{ApprovalWorkflow, ChangeType};
 use crate::entity_extractor::EntityExtractor;
 use crate::entity_tier::EntityTierManager;
 use std::sync::Mutex;
@@ -139,6 +140,8 @@ pub struct AgentMemoryStore {
     entity_extractor: EntityExtractor,
     /// 实体分层管理器（自动晋升 Tier3→Tier2→Tier1）
     entity_tier_manager: Mutex<EntityTierManager>,
+    /// 审批工作流管理器（高风险记忆需要审批）
+    approval_workflow: Mutex<ApprovalWorkflow>,
 }
 
 impl AgentMemoryStore {
@@ -154,10 +157,11 @@ impl AgentMemoryStore {
             max_per_agent,
             entity_extractor: EntityExtractor::new(),
             entity_tier_manager: Mutex::new(EntityTierManager::new()),
+            approval_workflow: Mutex::new(ApprovalWorkflow::new()),
         }
     }
 
-    /// Store a new memory (自动提取实体标签)
+    /// Store a new memory (自动提取实体标签 + 高风险记忆触发审批)
     pub async fn remember(&self, mut entry: MemoryEntry) -> MemoryId {
         // 零 LLM 实体提取：从内容中提取实体作为标签
         let relations = self.entity_extractor.extract(&entry.content);
@@ -177,6 +181,39 @@ impl AgentMemoryStore {
             if let Ok(mut tier_mgr) = self.entity_tier_manager.lock() {
                 tier_mgr.register_mention(&rel.subject, &entry.agent_id);
                 tier_mgr.register_mention(&rel.object, &entry.agent_id);
+            }
+        }
+
+        // 高风险记忆自动触发审批流
+        if entry.importance >= Importance::High {
+            if let Ok(mut workflow) = self.approval_workflow.lock() {
+                let change_type = if entry.importance >= Importance::Critical {
+                    ChangeType::CriticalUpdate
+                } else {
+                    ChangeType::HighRiskUpdate
+                };
+
+                if let Ok(cr) = workflow.create_change_request(
+                    format!("memory-{}", entry.id),
+                    "knowledge".to_string(),
+                    change_type,
+                    entry.content.clone(),
+                    format!(
+                        "高风险记忆存储: {}",
+                        &entry.content[..entry.content.len().min(100)]
+                    ),
+                    entry.agent_id.clone(),
+                ) {
+                    // 自动提交审批
+                    let _ = workflow.submit_for_review(&cr.id);
+
+                    // 记录版本
+                    workflow.create_version(
+                        &format!("memory-{}", entry.id),
+                        &entry.content,
+                        &entry.agent_id,
+                    );
+                }
             }
         }
 

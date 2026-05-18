@@ -15,10 +15,10 @@ pub mod llm_intent;
 pub mod planner;
 pub mod principles;
 pub mod recursive_decomposer;
-pub mod self_dev;
-pub mod task_decomposer;
-pub mod side_effect_gate;
 pub mod self_boundary;
+pub mod self_dev;
+pub mod side_effect_gate;
+pub mod task_decomposer;
 pub mod tool_aware_intent;
 pub mod verifier;
 

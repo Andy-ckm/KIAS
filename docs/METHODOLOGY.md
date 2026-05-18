@@ -180,7 +180,7 @@ RAG 注入：是
 
 ### 4. Harness Engineering（Agent 架构方法论）
 
-> "Agent = Model + Harness。Base model 很重要，但怎么把它用好，可能更重要。" —— 王云鹤
+> "Agent = Model + Harness。Base model 很重要，但怎么把它用好，可能更重要。"
 
 #### 4.1 核心公式
 
@@ -200,31 +200,67 @@ AGI_next = Model_Params ⊕ Harness_Params → 联合迭代优化
 1. **模型"七国八制"**：不同模型在不同任务上表现差异大，benchmark 与实际表现关联度低
 2. **任务会"打架"**：快慢思考、超分去模糊等任务本质上冲突，无法用单一模型统一
 3. **复杂任务需多模型协同**：多模态理解+生成、具身智能感知+决策+运控
+4. **Harness 拥有控制权**：模型被动执行，Harness 主动选择策略和路由
+5. **Harness 承载身份**：模型更新（GPT-4→5）Agent 身份不变，Harness 更新则身份演化
 
-#### 4.3 KIAS 的 Harness 架构映射
+#### 4.3 Harness 五层架构
 
-| Harness 要素 | KIAS 模块 | 说明 |
-|-------------|----------|------|
-| 模型选择 | model-router + tier_routing | 任务复杂度→最优模型 |
-| Prompt 优化 | skills + quality_pipeline | 技能文件 + 竞技场评估 |
-| RAG/知识 | knowledge + graphrag + entity_extractor | 混合检索 + 知识图谱 |
-| 记忆 | memory_layers + DreamConsolidator | 分层记忆 + 夜间巩固 |
-| 安全/审计 | gxp_audit + gxp_auth + approval | GxP 合规全链路 |
-| 工具调用 | tool-executor + mcp-protocol | 标准化工具协议 |
-| 自我进化 | auto-loop + learner | 用 KIAS 开发 KIAS |
+```
+Layer 5: Self-Evolution  → auto-loop + learner + feedback
+Layer 4: Safety          → approval + audit + policy
+Layer 3: Knowledge       → RAG + GraphRAG + memory_layers + context_manager
+Layer 2: Orchestration   → model-router + workflow-engine + team-engine + goal-engine
+Layer 1: Runtime         → tool-executor + mcp-protocol + sandbox + agent-runtime
+```
 
-#### 4.4 灵魂之争的答案
+#### 4.4 KIAS 的 Harness 架构映射
+
+| Harness 要素 | 理论来源 | KIAS 模块 | 状态 |
+|-------------|---------|----------|------|
+| 模型选择路由 | Harness 公式1 | model-router + tier_routing | ✅ |
+| Prompt/技能 | Harness 4.3 | skills + quality_pipeline | ✅ |
+| RAG/知识检索 | 2605.15184 (Grep) | knowledge + graphrag + entity_extractor | ✅ |
+| 分层记忆 | 2605.13438 (Cognifold) | memory_layers + DreamConsolidator | ✅ |
+| 安全/审计 | Harness + OpenClaw | gxp_audit + gxp_auth + approval | ✅ |
+| 工具调用 | 2605.15184 | tool-executor + mcp-protocol | ✅ |
+| 自我进化 | 2605.13821 (Evo) | auto-loop + learner | ⚠️ 闭环待完善 |
+| 轻量化 Harness | 2605.15218 (CAX) | scheduler 优化 | ⚠️ 延迟优化待做 |
+| 仿真测试 | harnesslabs/arbiter | N/A | ❌ 未实现 |
+| 执行防火墙 | OpenClaw | sandbox (容器级) | ⚠️ 非系统调用级 |
+
+#### 4.5 KIAS Harness 独特优势
+
+1. **集群级 Harness**：不仅单 Agent，而是集群调度 + Agent Harness 融合
+2. **声明式 API**：借鉴 K8S，Harness 配置即代码
+3. **GxP 合规**：内置审计/审批/合规全链路，适合制药/金融高合规场景
+4. **Rust 性能**：全 Rust 实现，零 GC 延迟
+5. **完全可观测**：Prometheus + 审计日志 + 健康检查
+
+#### 4.6 灵魂之争的答案
 
 > 如果 Harness 控制模型选择，甚至基于 Harness 数据增训模型，灵魂到底属于谁？
 
 **KIAS 的答案**：灵魂在 Harness。模型是可替换的执行器，Harness（skills + memory + approval + audit + knowledge）才是 Agent 的身份和能力。更换模型不影响 Agent 的本质；更换 Harness 则改变 Agent 的行为。
 
-#### 4.5 参考文献
+**实践证据**：
+- model-router：Harness 决定用哪个模型，模型不知道自己被选中
+- skills：Harness 定义 Agent 能力边界，模型只是执行器
+- memory_layers：Harness 管理记忆，模型无状态
+- auto-loop：Harness 驱动自我进化，模型不会自我改进
 
-1. 王云鹤, "Harness Engineering: Agent = Model + Harness", 知乎, 2026
-2. OpenClaw, 开源 Agent 框架, 2026
-3. Anthropic, Claude Code + Opus 迭代模式, 2025-2026
-4. Pretrained Image Processing Transformer (IPT), 2020
+#### 4.7 参考文献
+
+1. "Harness Engineering: Agent = Model + Harness", 知乎, 2026
+2. Sen et al., "Is Grep All You Need? How Agent Harnesses Reshape Agentic Search", 2605.15184, 2026
+3. Lin et al., "CAX-Agent: A Lightweight Agent Harness for Reliable APDL Automation", 2605.15218, 2026
+4. Zhang & Gu, "Harnessing Agentic Evolution", 2605.13821, 2026
+5. OpenClaw, Execution Firewall — Seccomp-locked Agent Sandbox, 2026
+6. harnesslabs/arbiter, Multi-Agent Framework for Design/Simulation/Auditing, 2026
+7. 1jehuang/jcode, Coding Agent Harness (Rust), 2026
+8. Anthropic, Claude Code + Opus 迭代模式, 2025-2026
+9. moosestack, Agent Harness for Analytics, 2026
+
+→ 详见 docs/research/harness-engineering-analysis.md
 
 ---
 

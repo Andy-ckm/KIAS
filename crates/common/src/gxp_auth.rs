@@ -783,6 +783,24 @@ impl GxpAuthManager {
     pub fn get_user(&self, user_id: &str) -> Option<&GxpUser> {
         self.users.get(user_id)
     }
+
+    /// Look up a user by username.
+    pub fn get_user_by_username(&self, username: &str) -> Option<&GxpUser> {
+        self.username_index
+            .get(username)
+            .and_then(|uid| self.users.get(uid))
+    }
+
+    /// Check if a user's password has expired (§11.300(b)).
+    pub fn is_password_expired(&self, user_id: &str) -> bool {
+        if let Some(user) = self.users.get(user_id) {
+            let expiry =
+                user.password_changed_at + chrono::Duration::days(self.policy.max_age_days as i64);
+            self.now() > expiry
+        } else {
+            false
+        }
+    }
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (05:40)
+更新时间: 2026-05-19 (06:55)
 
-## 论文列表 (105 篇)
+## 论文列表 (107 篇)
 
-### 已下载论文 (94 篇)
+### 已下载论文 (96 篇)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
+- ✅ 2605.15237.pdf (A3D: Agentic AI flow for autonomous Accelerator Design)
+- ✅ 2605.15206.pdf (AgentStop: Terminating Local AI Agents Early to Save Energy in Consumer Devices)
 - ✅ 2605.14483.pdf (LEMON: Learning Executable Multi-Agent Orchestration via Counterfactual Reinforcement Learning)
 - ✅ 2605.14089.pdf (SkillFlow: Flow-Driven Recursive Skill Evolution for Agentic Orchestration)
 - ✅ 2605.13110.pdf (A Multi-Agent Orchestration Framework for Venture Capital Due Diligence)
@@ -108,6 +110,18 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15237]** A3D: Agentic AI flow for autonomous Accelerator Design
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agentic AI, accelerator design, autonomous workflow
+   - 链接: https://arxiv.org/abs/2605.15237
+   - 状态: ✅ 已下载 (4.5MB)
+
+**[2605.15206]** AgentStop: Terminating Local AI Agents Early to Save Energy in Consumer Devices
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agent energy efficiency, early termination, consumer devices
+   - 链接: https://arxiv.org/abs/2605.15206
+   - 状态: ✅ 已下载 (1.4MB)
 
 **[2605.15573]** Response-Conditioned Parallel-to-Sequential Orchestration for Multi-Agent Systems
    - 日期: 2026-05-19 | 分类: cs.CL

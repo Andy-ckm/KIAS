@@ -339,4 +339,109 @@ mod tests {
         // DESC order — most recent first
         assert!(all[0].timestamp >= all[4].timestamp);
     }
+
+    #[tokio::test]
+    async fn test_query_no_filters() {
+        let pool = setup_db().await;
+        let log = SqliteAuditLog::new(pool);
+
+        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Success))
+            .await;
+        log.log_event(make_event("u2", AuditAction::Delete, AuditOutcome::Failure))
+            .await;
+
+        let all = log.query(None, None, None, 100).await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_query_combined_filters() {
+        let pool = setup_db().await;
+        let log = SqliteAuditLog::new(pool);
+
+        log.log_event(make_event(
+            "admin",
+            AuditAction::Create,
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(make_event(
+            "admin",
+            AuditAction::Delete,
+            AuditOutcome::Success,
+        ))
+        .await;
+        log.log_event(make_event(
+            "user",
+            AuditAction::Create,
+            AuditOutcome::Success,
+        ))
+        .await;
+
+        // Filter by actor + action
+        let results = log
+            .query(Some("admin"), Some("Create"), None, 100)
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].actor, "admin");
+        assert_eq!(results[0].action, AuditAction::Create);
+    }
+
+    #[tokio::test]
+    async fn test_query_limit() {
+        let pool = setup_db().await;
+        let log = SqliteAuditLog::new(pool);
+
+        for i in 0..10 {
+            log.log_event(make_event(
+                &format!("user-{i}"),
+                AuditAction::Execute,
+                AuditOutcome::Success,
+            ))
+            .await;
+        }
+
+        let limited = log.query(None, None, None, 3).await.unwrap();
+        assert_eq!(limited.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_purge_no_old_events() {
+        let pool = setup_db().await;
+        let log = SqliteAuditLog::new(pool);
+
+        // Insert recent event
+        log.log_event(make_event(
+            "admin",
+            AuditAction::Create,
+            AuditOutcome::Success,
+        ))
+        .await;
+
+        // Purge events older than 30 days (should delete nothing)
+        let purged = log.purge_older_than(30).await.unwrap();
+        assert_eq!(purged, 0);
+        assert_eq!(log.count().await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_outcomes() {
+        let pool = setup_db().await;
+        let log = SqliteAuditLog::new(pool);
+
+        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Success))
+            .await;
+        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Failure))
+            .await;
+        log.log_event(make_event("u1", AuditAction::Create, AuditOutcome::Success))
+            .await;
+
+        // All events should be stored regardless of outcome
+        let all = log.query(None, None, None, 100).await.unwrap();
+        assert_eq!(all.len(), 3);
+
+        // Count should reflect total
+        assert_eq!(log.count().await.unwrap(), 3);
+    }
 }

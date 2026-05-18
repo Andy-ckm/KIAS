@@ -143,6 +143,10 @@ pub enum ChangeType {
     Update,
     /// 删除实体
     Delete,
+    /// 高风险更新（需要审批）
+    HighRiskUpdate,
+    /// 关键更新（需要多级审批）
+    CriticalUpdate,
 }
 
 impl fmt::Display for ChangeType {
@@ -151,6 +155,8 @@ impl fmt::Display for ChangeType {
             Self::Create => write!(f, "Create"),
             Self::Update => write!(f, "Update"),
             Self::Delete => write!(f, "Delete"),
+            Self::HighRiskUpdate => write!(f, "HighRiskUpdate"),
+            Self::CriticalUpdate => write!(f, "CriticalUpdate"),
         }
     }
 }

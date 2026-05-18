@@ -15,6 +15,8 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
+use crate::AppState;
+
 use kias_scheduler::{
     AgentPool, AgentTier, ComplexityEvaluator, CompositeEvaluator, PooledAgent, RoutingDecision,
     SmartRouter, TaskComplexity, TaskDescriptor,
@@ -210,7 +212,7 @@ pub struct ErrorResponse {
 /// Evaluate a task's complexity and get a routing decision.
 /// Uses composite evaluation (heuristic + pattern-based) for accuracy.
 pub async fn evaluate_task(
-    State(state): State<TierRoutingState>,
+    State(state): State<AppState>,
     Json(req): Json<EvaluateRequest>,
 ) -> Result<Json<EvaluateResponse>, (StatusCode, Json<ErrorResponse>)> {
     let task_id = uuid::Uuid::new_v4().to_string();
@@ -227,7 +229,7 @@ pub async fn evaluate_task(
         metadata: req.metadata,
     };
 
-    let router = state.router.read().await;
+    let router = state.tier_routing.router.read().await;
     let decision = router.route(&task);
     let complexity = CompositeEvaluator::new().evaluate(&task);
 
@@ -243,10 +245,10 @@ pub async fn evaluate_task(
 ///
 /// Batch evaluate multiple tasks for routing.
 pub async fn batch_evaluate(
-    State(state): State<TierRoutingState>,
+    State(state): State<AppState>,
     Json(req): Json<BatchEvaluateRequest>,
 ) -> Result<Json<BatchEvaluateResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let router = state.router.read().await;
+    let router = state.tier_routing.router.read().await;
     let evaluator = CompositeEvaluator::new();
 
     let mut results = Vec::with_capacity(req.tasks.len());
@@ -308,8 +310,8 @@ pub async fn batch_evaluate(
 /// GET /api/v1/routing/tiers
 ///
 /// List available agent tiers with their properties and pool status.
-pub async fn list_tiers(State(state): State<TierRoutingState>) -> Json<TierListResponse> {
-    let pool = state.pool.read().await;
+pub async fn list_tiers(State(state): State<AppState>) -> Json<TierListResponse> {
+    let pool = state.tier_routing.pool.read().await;
 
     let tiers: Vec<TierInfo> = vec![AgentTier::Weak, AgentTier::Mid, AgentTier::Strong]
         .into_iter()
@@ -348,7 +350,7 @@ pub async fn list_tiers(State(state): State<TierRoutingState>) -> Json<TierListR
 ///
 /// Register an agent in the tier pool for smart routing.
 pub async fn register_agent(
-    State(state): State<TierRoutingState>,
+    State(state): State<AppState>,
     Json(req): Json<RegisterAgentRequest>,
 ) -> Result<Json<RegisterAgentResponse>, (StatusCode, Json<ErrorResponse>)> {
     let tier = match req.tier.to_lowercase().as_str() {
@@ -369,7 +371,7 @@ pub async fn register_agent(
     let mut agent = PooledAgent::new(&req.agent_id, tier);
     agent.weight = req.weight;
 
-    let mut pool = state.pool.write().await;
+    let mut pool = state.tier_routing.pool.write().await;
     pool.register(agent);
 
     Ok(Json(RegisterAgentResponse {
@@ -383,8 +385,8 @@ pub async fn register_agent(
 /// GET /api/v1/routing/pool/status
 ///
 /// Get detailed pool status including fallback metrics.
-pub async fn pool_status(State(state): State<TierRoutingState>) -> Json<PoolStatusResponse> {
-    let pool = state.pool.read().await;
+pub async fn pool_status(State(state): State<AppState>) -> Json<PoolStatusResponse> {
+    let pool = state.tier_routing.pool.read().await;
     let tier_counts = pool.tier_counts();
     let agents_by_tier: HashMap<String, usize> = tier_counts
         .into_iter()
@@ -404,10 +406,42 @@ pub async fn pool_status(State(state): State<TierRoutingState>) -> Json<PoolStat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: TierRoutingState::new(),
+        }
+    }
 
     #[tokio::test]
     async fn test_evaluate_simple_task() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
         let req = EvaluateRequest {
             description: "hello, what is 2+2?".to_string(),
             input_tokens: 10,
@@ -425,7 +459,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_evaluate_complex_task() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
         let req = EvaluateRequest {
             description: "Analyze and debug this code, then implement a refactor".to_string(),
             input_tokens: 5000,
@@ -443,7 +477,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_batch_evaluate() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
         let req = BatchEvaluateRequest {
             tasks: vec![
                 EvaluateRequest {
@@ -477,7 +511,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_register_and_status() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
 
         // Register an agent
         let reg_req = RegisterAgentRequest {
@@ -498,7 +532,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_tier_registration() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
         let req = RegisterAgentRequest {
             agent_id: "test-agent".to_string(),
             tier: "invalid".to_string(),
@@ -510,7 +544,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_tiers() {
-        let state = TierRoutingState::new();
+        let state = test_state().await;
         let result = list_tiers(State(state)).await;
         assert_eq!(result.tiers.len(), 3);
         assert!(result.tiers.iter().any(|t| t.name == "Weak"));

@@ -16,6 +16,7 @@
 - [sprint-progress.md](sprint-progress.md) - Sprint进度
 - [sprint-plan.md](sprint-plan.md) - Sprint计划
 - [innovation-points.md](innovation-points.md) - 创新点记录
+- [paper-index.md](paper-index.md) - 论文索引（67篇）
 - [test-report.md](test-report.md) - 测试报告
 - [performance-benchmarks.md](performance-benchmarks.md) - 性能基准
 - [local-model-comparison.md](local-model-comparison.md) - 本地大语言模型对比指南

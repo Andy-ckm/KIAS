@@ -28,6 +28,7 @@ members = [
     "crates/agent-runtime",
     "crates/im-integration",
     "crates/auto-loop",
+    "crates/it-change-management",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

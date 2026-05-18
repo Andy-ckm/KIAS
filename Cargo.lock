@@ -2029,6 +2029,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kias-it-change-management"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
 name = "kias-knowledge"
 version = "0.1.0"
 dependencies = [

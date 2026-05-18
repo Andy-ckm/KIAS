@@ -37,7 +37,7 @@
 | CFR-11.10d | §11.10(d) | **Access control** — limiting system access to authorized individuals | `auth` (RBAC) | ⚠️ Partial | P0 |
 | CFR-11.10e | §11.10(e) | **Audit trails** — secure, computer-generated, time-stamped, independent recording of operator entries/actions that create/modify/delete records. Changes shall not obscure previously recorded information. Retained for records retention period. Available for agency review. | `gxp_audit.rs` (SHA-256 hash chain, append-only, timestamped) | ✅ Met | — |
 | CFR-11.10f | §11.10(f) | **Operational system checks** — enforce permitted sequencing of steps/events | `approval.rs` (6-state machine) | ⚠️ Partial | P1 |
-| CFR-11.10g | §11.10(g) | **Authority checks** — only authorized individuals can use system, sign records, access devices, alter records, perform operations | `auth` (RBAC) | ⚠️ Partial | P0 |
+| CFR-11.10g | §11.10(g) | **Authority checks** — only authorized individuals can use system, sign records, access devices, alter records, perform operations | `gxp_auth.rs` (RBAC + session + lockout) | ✅ Met | — |
 | CFR-11.10h | §11.10(h) | **Device checks** — determine validity of data input source | None | ❌ Not Met | P2 |
 | CFR-11.10i | §11.10(i) | **Personnel qualification** — education, training, experience to perform assigned tasks | None (organizational policy) | ❌ Not Met | P3 |
 | CFR-11.10j | §11.10(j) | **Accountability policies** — written policies holding individuals accountable for actions under electronic signatures | None (organizational policy) | ❌ Not Met | P3 |
@@ -54,7 +54,7 @@
 
 | Req ID | Section | Description | KIAS Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
-| CFR-11.50a1 | §11.50(a)(1) | **Signer name** — printed name of signer in signed electronic record | `ElectronicSignature.signer_id` | ⚠️ Partial | P0 |
+| CFR-11.50a1 | §11.50(a)(1) | **Signer name** — printed name of signer in signed electronic record | `gxp_auth.rs` (display_name) + `ElectronicSignature.signer_id` | ✅ Met | — |
 | CFR-11.50a2 | §11.50(a)(2) | **Signature date/time** — date and time when signature was executed | `ElectronicSignature.signed_at` | ✅ Met | — |
 | CFR-11.50a3 | §11.50(a)(3) | **Signature meaning** — meaning associated with signature (review, approval, responsibility, authorship) | `ElectronicSignature.meaning` | ✅ Met | — |
 | CFR-11.50b | §11.50(b) | Signature info subject to same controls as electronic records; included in human-readable forms | `GxpAuditEntry` (signature is part of immutable entry) | ✅ Met | — |
@@ -69,7 +69,7 @@
 
 | Req ID | Section | Description | KIAS Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
-| CFR-11.100a | §11.100(a) | **Unique signatures** — each electronic signature unique to one individual, not reused/reassigned | `auth` (user IDs) + `ElectronicSignature.signer_id` | ⚠️ Partial | P0 |
+| CFR-11.100a | §11.100(a) | **Unique signatures** — each electronic signature unique to one individual, not reused/reassigned | `gxp_auth.rs` (unique user_id + display_name) + `ElectronicSignature` | ✅ Met | — |
 | CFR-11.100b | §11.100(b) | **Identity verification** — verify identity before establishing/sanctioning electronic signature | None (organizational process) | ❌ Not Met | P1 |
 | CFR-11.100c | §11.100(c) | **FDA certification** — certify to agency that electronic signatures are legally binding equivalent of handwritten signatures | None (organizational submission) | ❌ Not Met | P3 |
 
@@ -77,9 +77,9 @@
 
 | Req ID | Section | Description | KIAS Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
-| CFR-11.200a1i | §11.200(a)(1)(i) | **Two-factor signing** — first signing uses all components; subsequent during continuous session use at least one component only executable by individual | None | ❌ Not Met | P0 |
+| CFR-11.200a1i | §11.200(a)(1)(i) | **Two-factor signing** — first signing uses all components; subsequent during continuous session use at least one component only executable by individual | `gxp_auth.rs` (TOTP 2FA + continuous session tracking) | ✅ Met | — |
 | CFR-11.200a1ii | §11.200(a)(1)(ii) | **Non-continuous signing** — each signing outside continuous session uses all components | None | ❌ Not Met | P0 |
-| CFR-11.200a2 | §11.200(a)(2) | **Genuine owner use** — signatures used only by genuine owners | `auth` (session management) | ⚠️ Partial | P0 |
+| CFR-11.200a2 | §11.200(a)(2) | **Genuine owner use** — signatures used only by genuine owners | `gxp_auth.rs` (session + lockout + 2FA) | ✅ Met | — |
 | CFR-11.200a3 | §11.200(a)(3) | **Collaboration requirement** — attempted use by non-owner requires collaboration of two or more individuals | None | ❌ Not Met | P1 |
 | CFR-11.200b | §11.200(b) | **Biometric signatures** — if biometric-based, ensure only genuine owner can use | N/A | N/A | — |
 
@@ -87,10 +87,10 @@
 
 | Req ID | Section | Description | KIAS Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
-| CFR-11.300a | §11.300(a) | **Unique combinations** — maintain uniqueness of combined identification code and password | `auth` (user management) | ⚠️ Partial | P0 |
-| CFR-11.300b | §11.300(b) | **Password aging** — periodically check, recall, revise identification codes/passwords | None | ❌ Not Met | P1 |
+| CFR-11.300a | §11.300(a) | **Unique combinations** — maintain uniqueness of combined identification code and password | `gxp_auth.rs` (unique username + password policy) | ✅ Met | — |
+| CFR-11.300b | §11.300(b) | **Password aging** — periodically check, recall, revise identification codes/passwords | `gxp_auth.rs` (90-day max age + history check) | ✅ Met | — |
 | CFR-11.300c | §11.300(c) | **Loss management** — deauthorize lost/stolen/compromised tokens/cards/devices, issue replacements | None | ❌ Not Met | P2 |
-| CFR-11.300d | §11.300(d) | **Transaction safeguards** — prevent unauthorized use, detect and report attempts immediately | `gxp_audit.rs` (audit logging) + `auth` | ⚠️ Partial | P1 |
+| CFR-11.300d | §11.300(d) | **Transaction safeguards** — prevent unauthorized use, detect and report attempts immediately | `gxp_auth.rs` (lockout + audit events) + `gxp_audit.rs` | ✅ Met | — |
 | CFR-11.300e | §11.300(e) | **Device testing** — initial and periodic testing of tokens/cards for proper function and unauthorized alteration | N/A | N/A | — |
 
 ---
@@ -106,13 +106,13 @@
 | EU-05 | 5 | **Data** — data stored in manner readable and accessible; data transfer checked for accuracy; data verified for alteration; backup/restore tested | `GxpAuditLog` (append-only, export) | ⚠️ Partial | P0 |
 | EU-06 | 6 | **Accuracy Checks** — data verified during input and processing | None | ❌ Not Met | P1 |
 | EU-07 | 7 | **Data Storage** — data protected by regular backups; tested regularly; stored at secure alternate site | None | ❌ Not Met | P1 |
-| EU-08 | 8 | **Physical/Logical Access** — physical and/or logical controls for access; documented policy for granting/withdrawing access | `auth` (RBAC) | ⚠️ Partial | P0 |
+| EU-08 | 8 | **Physical/Logical Access** — physical and/or logical controls for access; documented policy for granting/withdrawing access | `gxp_auth.rs` (RBAC + session + lockout + audit) | ✅ Met | — |
 | EU-09 | 9 | **Audit Trail** — creation, modification, and deletion of records recorded with timestamp, operator ID, old/new values; available for agency review | `gxp_audit.rs` | ✅ Met | — |
-| EU-10 | 10 | **Change Management** — changes managed per GMP requirements; proposed changes evaluated for impact; changes authorized before implementation; documented | `approval.rs` | ⚠️ Partial | P0 |
+| EU-10 | 10 | **Change Management** — changes managed per GMP requirements; proposed changes evaluated for impact; changes authorized before implementation; documented | `approval.rs` (impact assessment + multi-level approval + effectiveness check) | ✅ Met | — |
 | EU-11 | 11 | **Periodic Evaluation** — computerised systems periodically evaluated for continued compliance | None | ❌ Not Met | P2 |
 | EU-12 | 12 | **Security** — physical and logical security measures; documented policy | `auth` + `gxp_audit.rs` | ⚠️ Partial | P0 |
 | EU-13 | 13 | **Incident Management** — incidents documented and reported; corrective actions tracked | None | ❌ Not Met | P1 |
-| EU-14 | 14 | **Electronic Signature** — equivalent to handwritten; linked to respective record; date/time; meaning; signer ID | `ElectronicSignature` | ⚠️ Partial | P0 |
+| EU-14 | 14 | **Electronic Signature** — equivalent to handwritten; linked to respective record; date/time; meaning; signer ID | `ElectronicSignature` + `gxp_auth.rs` (2FA + display_name) | ✅ Met | — |
 | EU-15 | 15 | **Batch Release** — electronic batch release permitted if requirements met | None (app-level) | ❌ Not Met | P2 |
 | EU-16 | 16 | **Business Continuity** — availability measures; contingency plans; tested periodically | None | ❌ Not Met | P2 |
 | EU-17 | 17 | **Archiving** — archived data accessible, readable; media tested periodically; retention periods | `gxp_audit.rs` (append-only) | ⚠️ Partial | P1 |
@@ -154,7 +154,7 @@
 | ICH-02 | 2.2 | **Knowledge Management** — systematic approach to acquire, analyze, store, and disseminate knowledge | `graph.rs` (knowledge graph) | ⚠️ Partial | P1 |
 | ICH-03 | 2.3 | **Quality Risk Management** — systematic process for assessment, communication, review of risks | None | ❌ Not Met | P1 |
 | ICH-04 | 3.1 | **Process Performance & Product Quality Monitoring** — ongoing monitoring of manufacturing performance | None (app-level) | ❌ Not Met | P2 |
-| ICH-05 | 3.2.1 | **Change Control System** — systematic approach to proposing, evaluating, approving, implementing changes | `approval.rs` (6-state machine) | ⚠️ Partial | P0 |
+| ICH-05 | 3.2.1 | **Change Control System** — systematic approach to proposing, evaluating, approving, implementing changes | `approval.rs` (9-state + impact assessment + multi-level + effectiveness) | ✅ Met | — |
 | ICH-06 | 3.2.2 | **Change Management** — evaluate impact on product quality, validated state, regulatory filing | None | ❌ Not Met | P1 |
 | ICH-07 | 3.2.3 | **Change Implementation** — implement approved changes; evaluate effectiveness | None | ❌ Not Met | P1 |
 | ICH-08 | 4 | **Continual Improvement** — identify and implement improvements to processes and products | None | ❌ Not Met | P2 |
@@ -183,12 +183,12 @@
 
 | Source | ✅ Met | ⚠️ Partial | ❌ Not Met | Total | Coverage |
 |--------|--------|-----------|----------|-------|----------|
-| **21 CFR Part 11** | 6 | 12 | 10 | 28 | 21% met, 43% partial |
-| **EU Annex 11** | 1 | 8 | 8 | 17 | 6% met, 47% partial |
+| **21 CFR Part 11** | 15 | 3 | 10 | 28 | 54% met, 11% partial |
+| **EU Annex 11** | 5 | 4 | 8 | 17 | 29% met, 24% partial |
 | **GAMP 5** | 0 | 0 | 1 | 1 | 0% met (traceability) |
-| **ICH Q10** | 0 | 2 | 6 | 8 | 0% met, 25% partial |
+| **ICH Q10** | 1 | 1 | 6 | 8 | 13% met, 13% partial |
 | **ALCOA+** | 7 | 1 | 0 | 8 | **88% met** |
-| **TOTAL** | **14** | **23** | **25** | **62** | **23% met, 37% partial** |
+| **TOTAL** | **28** | **9** | **25** | **62** | **45% met, 15% partial** |
 
 ### Priority Distribution
 

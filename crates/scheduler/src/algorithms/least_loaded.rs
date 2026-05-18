@@ -121,4 +121,51 @@ mod tests {
         let result = scheduler.schedule(&agent, &nodes).await.unwrap();
         assert_eq!(result.node_id, "node-1");
     }
+
+    #[tokio::test]
+    async fn test_no_available_nodes() {
+        let mut nodes = vec![make_node("node-0", 4.0, 4.0), make_node("node-1", 4.0, 4.0)];
+        nodes[0].status = NodeStatus::NotReady;
+        nodes[1].status = NodeStatus::NotReady;
+        let scheduler = LeastLoadedScheduler::new();
+        let agent = make_agent("a1");
+        let result = scheduler.schedule(&agent, &nodes).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_equal_load_factors() {
+        let nodes = vec![
+            make_node("node-0", 4.0, 2.0), // 50% loaded
+            make_node("node-1", 4.0, 2.0), // 50% loaded
+        ];
+        let scheduler = LeastLoadedScheduler::new();
+        let agent = make_agent("a1");
+        let result = scheduler.schedule(&agent, &nodes).await.unwrap();
+        // Should pick one of them (first encountered)
+        assert!(result.node_id == "node-0" || result.node_id == "node-1");
+    }
+
+    #[tokio::test]
+    async fn test_single_node() {
+        let nodes = vec![
+            make_node("node-0", 4.0, 1.0), // 75% loaded
+        ];
+        let scheduler = LeastLoadedScheduler::new();
+        let agent = make_agent("a1");
+        let result = scheduler.schedule(&agent, &nodes).await.unwrap();
+        assert_eq!(result.node_id, "node-0");
+        assert_eq!(result.algorithm, "least-loaded");
+    }
+
+    #[tokio::test]
+    async fn test_score_calculation() {
+        let nodes = vec![
+            make_node("node-0", 4.0, 3.0), // 25% loaded → score = 0.75
+        ];
+        let scheduler = LeastLoadedScheduler::new();
+        let agent = make_agent("a1");
+        let result = scheduler.schedule(&agent, &nodes).await.unwrap();
+        assert!((result.score - 0.75).abs() < 0.001);
+    }
 }

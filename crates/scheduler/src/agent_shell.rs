@@ -426,4 +426,71 @@ mod tests {
         let scheduler = AgentShellScheduler::new().with_strategy(SchedulingStrategy::RoundRobin);
         assert_eq!(scheduler.strategy, SchedulingStrategy::RoundRobin);
     }
+
+    #[test]
+    fn test_schedule_empty_shells() {
+        let scheduler = AgentShellScheduler::new();
+        let intent = create_test_intent();
+        let result = scheduler.schedule(&intent);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_schedule_multiple_shells_picks_first_match() {
+        let mut scheduler = AgentShellScheduler::new();
+        let shell1 = create_test_shell();
+        let shell2 = AgentShell {
+            id: "shell-2".to_string(),
+            name: "Test Generator".to_string(),
+            description: "Generates tests".to_string(),
+            capabilities: vec!["test-generation".to_string()],
+            constraints: vec![],
+            param_templates: vec![],
+            scheduling_strategy: SchedulingStrategy::RoundRobin,
+        };
+        scheduler.add_shell(shell1);
+        scheduler.add_shell(shell2);
+
+        let intent = create_test_intent();
+        let result = scheduler.schedule(&intent);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().shell.id, "shell-1");
+    }
+
+    #[test]
+    fn test_fill_params_with_default_value() {
+        let scheduler = AgentShellScheduler::new();
+        let shell = create_test_shell();
+        let intent = create_test_intent();
+
+        let params = scheduler.fill_params(&shell, &intent);
+        // ParamTemplate has default_value "rust" for "language"
+        assert_eq!(params.values.get("language").unwrap(), "rust");
+    }
+
+    #[test]
+    fn test_param_type_equality() {
+        assert_eq!(ParamType::String, ParamType::String);
+        assert_ne!(ParamType::String, ParamType::Number);
+        assert_ne!(ParamType::Boolean, ParamType::List);
+    }
+
+    #[test]
+    fn test_scheduling_strategy_all_variants() {
+        let strategies = vec![
+            SchedulingStrategy::RoundRobin,
+            SchedulingStrategy::LeastLoaded,
+            SchedulingStrategy::Affinity,
+            SchedulingStrategy::CacheAware,
+            SchedulingStrategy::GpuAware,
+            SchedulingStrategy::Priority,
+            SchedulingStrategy::ResourceAware,
+        ];
+        // All variants should be distinct
+        for i in 0..strategies.len() {
+            for j in (i + 1)..strategies.len() {
+                assert_ne!(strategies[i], strategies[j]);
+            }
+        }
+    }
 }

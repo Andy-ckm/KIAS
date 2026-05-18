@@ -664,4 +664,72 @@ mod tests {
         assert!(ab_pattern.is_some());
         assert_eq!(ab_pattern.unwrap().frequency, 2);
     }
+
+    #[test]
+    fn test_hash_sequence_deterministic() {
+        let seq1 = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let seq2 = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let seq3 = vec!["x".to_string(), "y".to_string()];
+
+        // Same sequence should produce same hash
+        assert_eq!(
+            DistillationEngine::hash_sequence(&seq1),
+            DistillationEngine::hash_sequence(&seq2)
+        );
+        // Different sequences should produce different hashes
+        assert_ne!(
+            DistillationEngine::hash_sequence(&seq1),
+            DistillationEngine::hash_sequence(&seq3)
+        );
+    }
+
+    #[test]
+    fn test_distill_filters_low_frequency() {
+        let engine = DistillationEngine::new(DistillationConfig {
+            min_frequency: 5,
+            min_success_rate: 0.5,
+            min_confidence: 0.1,
+            max_sequence_length: 5,
+            min_examples: 1,
+        });
+
+        // Pattern with frequency 3 should be filtered out (min_frequency is 5)
+        let pattern = ExecutionPattern {
+            id: "low-freq".to_string(),
+            sequence: vec!["a".to_string(), "b".to_string()],
+            frequency: 3,
+            success_rate: 0.9,
+            avg_duration_ms: 100,
+            examples: vec![],
+            data_flow: vec![],
+        };
+
+        let skills = engine.distill(&[pattern]);
+        assert!(skills.is_empty());
+    }
+
+    #[test]
+    fn test_distill_filters_low_success_rate() {
+        let engine = DistillationEngine::new(DistillationConfig {
+            min_frequency: 2,
+            min_success_rate: 0.8,
+            min_confidence: 0.1,
+            max_sequence_length: 5,
+            min_examples: 1,
+        });
+
+        // Pattern with success_rate 0.5 should be filtered out (min_success_rate is 0.8)
+        let pattern = ExecutionPattern {
+            id: "low-success".to_string(),
+            sequence: vec!["a".to_string(), "b".to_string()],
+            frequency: 10,
+            success_rate: 0.5,
+            avg_duration_ms: 100,
+            examples: vec![],
+            data_flow: vec![],
+        };
+
+        let skills = engine.distill(&[pattern]);
+        assert!(skills.is_empty());
+    }
 }

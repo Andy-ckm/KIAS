@@ -827,4 +827,192 @@ mod tests {
 
         assert!(storage.verify_audit_chain_integrity().unwrap());
     }
+
+    #[test]
+    fn test_verify_audit_chain_corrupted() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        let entry1 = AuditEntry {
+            id: "audit-1".to_string(),
+            change_id: change.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Created,
+            detail: "创建".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "hash1".to_string(),
+            ip_address: None,
+            user_agent: None,
+        };
+
+        // Corrupted: previous_hash doesn't match entry1.hash
+        let entry2 = AuditEntry {
+            id: "audit-2".to_string(),
+            change_id: change.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Submitted,
+            detail: "提交".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "WRONG_HASH".to_string(),
+            hash: "hash2".to_string(),
+            ip_address: None,
+            user_agent: None,
+        };
+
+        storage.save_audit_entry(&entry1).unwrap();
+        storage.save_audit_entry(&entry2).unwrap();
+
+        assert!(!storage.verify_audit_chain_integrity().unwrap());
+    }
+
+    #[test]
+    fn test_get_change_not_found() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let result = storage.get_change("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_changes_by_status() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut manager = ItChangeManager::new();
+
+        let change1 = manager.create_change_request(
+            "变更1".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            ImpactAssessment {
+                affected_systems: vec![],
+                affected_users: vec![],
+                downtime_estimate_minutes: 0,
+                risk_mitigation: vec![],
+                testing_requirements: vec![],
+                gxp_impact: GxpImpact::None,
+                requires_csv_validation: false,
+                affects_data_integrity: false,
+            },
+        );
+
+        let change2 = manager.create_change_request(
+            "变更2".to_string(),
+            "描述".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::High,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            ImpactAssessment {
+                affected_systems: vec![],
+                affected_users: vec![],
+                downtime_estimate_minutes: 0,
+                risk_mitigation: vec![],
+                testing_requirements: vec![],
+                gxp_impact: GxpImpact::None,
+                requires_csv_validation: false,
+                affects_data_integrity: false,
+            },
+        );
+
+        storage.save_change(&change1).unwrap();
+        storage.save_change(&change2).unwrap();
+
+        let drafts = storage
+            .list_changes_by_status(&ChangeStatus::Draft)
+            .unwrap();
+        assert_eq!(drafts.len(), 2);
+
+        let submitted = storage
+            .list_changes_by_status(&ChangeStatus::Submitted)
+            .unwrap();
+        assert_eq!(submitted.len(), 0);
+    }
+
+    #[test]
+    fn test_get_all_audit_log() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        let entry = AuditEntry {
+            id: "audit-1".to_string(),
+            change_id: change.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Created,
+            detail: "创建".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "hash1".to_string(),
+            ip_address: None,
+            user_agent: None,
+        };
+
+        storage.save_audit_entry(&entry).unwrap();
+
+        let all = storage.get_all_audit_log().unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].actor, "user");
+    }
+
+    #[test]
+    fn test_save_change_updates_existing() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        // Update the change
+        change.title = "更新后的标题".to_string();
+        change.status = ChangeStatus::Submitted;
+        storage.save_change(&change).unwrap();
+
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.title, "更新后的标题");
+        assert_eq!(loaded.status, ChangeStatus::Submitted);
+    }
+
+    #[test]
+    fn test_audit_entry_with_ip_and_user_agent() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        let entry = AuditEntry {
+            id: "audit-1".to_string(),
+            change_id: change.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Created,
+            detail: "创建".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "hash1".to_string(),
+            ip_address: Some("10.0.0.1".to_string()),
+            user_agent: Some("TestAgent/1.0".to_string()),
+        };
+
+        storage.save_audit_entry(&entry).unwrap();
+
+        let log = storage.get_audit_log(&change.id).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].ip_address, Some("10.0.0.1".to_string()));
+        assert_eq!(log[0].user_agent, Some("TestAgent/1.0".to_string()));
+    }
+
+    #[test]
+    fn test_empty_audit_log() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let log = storage.get_audit_log("nonexistent").unwrap();
+        assert!(log.is_empty());
+
+        let all = storage.get_all_audit_log().unwrap();
+        assert!(all.is_empty());
+    }
 }

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT变更管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        textarea { min-height: 100px; resize: vertical; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .status-draft { background: #6c757d; color: white; }
+        .status-submitted { background: #17a2b8; color: white; }
+        .status-approved { background: #28a745; color: white; }
+        .status-rejected { background: #dc3545; color: white; }
+        .status-implementing { background: #ffc107; color: #333; }
+        .status-implemented { background: #20c997; color: white; }
+        .status-verified { background: #6610f2; color: white; }
+        .status-closed { background: #343a40; color: white; }
+        .status-rolledback { background: #fd7e14; color: white; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-success { background: #28a745; }
+        .btn-danger { background: #dc3545; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-info { background: #17a2b8; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 50px auto; padding: 20px; width: 80%; max-width: 600px; border-radius: 8px; }
+        .close { float: right; font-size: 28px; cursor: pointer; }
+        .close:hover { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IT变更管理系统</h1>
+        
+        <div class="card">
+            <h2>创建变更请求</h2>
+            <form id="createForm">
+                <div class="form-group">
+                    <label>标题</label>
+                    <input type="text" id="title" required>
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>变更类型</label>
+                    <select id="changeType">
+                        <option value="Configuration">配置变更</option>
+                        <option value="Software">软件部署</option>
+                        <option value="Hardware">硬件变更</option>
+                        <option value="Security">安全变更</option>
+                        <option value="Data">数据变更</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>风险等级</label>
+                    <select id="riskLevel">
+                        <option value="Low">低风险</option>
+                        <option value="Medium">中风险</option>
+                        <option value="High">高风险</option>
+                        <option value="Critical">关键风险</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>请求人</label>
+                    <input type="text" id="requester" required>
+                </div>
+                <div class="form-group">
+                    <label>回滚计划</label>
+                    <textarea id="rollbackPlan" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>实施计划</label>
+                    <textarea id="implementationPlan" required></textarea>
+                </div>
+                <button type="submit">创建变更请求</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>变更列表</h2>
+            <button onclick="loadChanges()">刷新列表</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>编号</th>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>风险</th>
+                        <th>状态</th>
+                        <th>请求人</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="changeList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>变更详情</h2>
+            <div id="changeDetail"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1/changes';
+
+        // 创建变更请求
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                change_type: document.getElementById('changeType').value,
+                risk_level: document.getElementById('riskLevel').value,
+                requester: document.getElementById('requester').value,
+                rollback_plan: document.getElementById('rollbackPlan').value,
+                implementation_plan: document.getElementById('implementationPlan').value,
+                impact_assessment: {
+                    affected_systems: [],
+                    affected_users: [],
+                    downtime_estimate_minutes: 0,
+                    risk_mitigation: [],
+                    testing_requirements: []
+                }
+            };
+
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('变更请求创建成功');
+                    document.getElementById('createForm').reset();
+                    loadChanges();
+                } else {
+                    alert('创建失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        });
+
+        // 加载变更列表
+        async function loadChanges() {
+            try {
+                const response = await fetch(API_BASE);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderChanges(result.data);
+                }
+            } catch (error) {
+                alert('加载失败: ' + error.message);
+            }
+        }
+
+        // 渲染变更列表
+        function renderChanges(changes) {
+            const tbody = document.getElementById('changeList');
+            tbody.innerHTML = changes.map(change => `
+                <tr>
+                    <td>${change.id.substring(0, 8)}</td>
+                    <td>${change.title}</td>
+                    <td>${getChangeTypeText(change.change_type)}</td>
+                    <td>${getRiskLevelText(change.risk_level)}</td>
+                    <td><span class="status status-${change.status.toLowerCase()}">${getStatusText(change.status)}</span></td>
+                    <td>${change.requester}</td>
+                    <td>${new Date(change.created_at).toLocaleString()}</td>
+                    <td>
+                        <button onclick="viewDetail('${change.id}')">详情</button>
+                        ${getActionButtons(change)}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 获取操作按钮
+        function getActionButtons(change) {
+            const buttons = [];
+            
+            if (change.status === 'Draft') {
+                buttons.push(`<button onclick="submitChange('${change.id}')">提交审批</button>`);
+            }
+            if (change.status === 'Submitted' || change.status === 'UnderReview') {
+                buttons.push(`<button onclick="addApprover('${change.id}')">添加审批人</button>`);
+            }
+            if (change.status === 'UnderReview') {
+                buttons.push(`<button onclick="approveChange('${change.id}')">审批</button>`);
+            }
+            if (change.status === 'Approved') {
+                buttons.push(`<button onclick="implementChange('${change.id}')">实施</button>`);
+            }
+            if (change.status === 'Implementing') {
+                buttons.push(`<button onclick="completeImplementation('${change.id}')">完成实施</button>`);
+            }
+            if (change.status === 'Implemented') {
+                buttons.push(`<button onclick="verifyChange('${change.id}')">验证</button>`);
+            }
+            if (change.status === 'Verifying') {
+                buttons.push(`<button onclick="completeVerification('${change.id}')">完成验证</button>`);
+            }
+            if (change.status === 'Verified') {
+                buttons.push(`<button onclick="closeChange('${change.id}')">关闭</button>`);
+            }
+            if (['Implementing', 'Implemented', 'Verifying'].includes(change.status)) {
+                buttons.push(`<button onclick="rollbackChange('${change.id}')">回滚</button>`);
+            }
+            
+            return buttons.join(' ');
+        }
+
+        // 查看详情
+        async function viewDetail(id) {
+            try {
+                const response = await fetch(`${API_BASE}/${id}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderDetail(result.data);
+                    document.getElementById('detailModal').style.display = 'block';
+                }
+            } catch (error) {
+                alert('获取详情失败: ' + error.message);
+            }
+        }
+
+        // 渲染详情
+        function renderDetail(change) {
+            const detail = document.getElementById('changeDetail');
+            detail.innerHTML = `
+                <p><strong>编号:</strong> ${change.id}</p>
+                <p><strong>标题:</strong> ${change.title}</p>
+                <p><strong>描述:</strong> ${change.description}</p>
+                <p><strong>类型:</strong> ${getChangeTypeText(change.change_type)}</p>
+                <p><strong>风险:</strong> ${getRiskLevelText(change.risk_level)}</p>
+                <p><strong>状态:</strong> <span class="status status-${change.status.toLowerCase()}">${getStatusText(change.status)}</span></p>
+                <p><strong>请求人:</strong> ${change.requester}</p>
+                <p><strong>回滚计划:</strong> ${change.rollback_plan}</p>
+                <p><strong>实施计划:</strong> ${change.implementation_plan}</p>
+                <p><strong>创建时间:</strong> ${new Date(change.created_at).toLocaleString()}</p>
+                <p><strong>更新时间:</strong> ${new Date(change.updated_at).toLocaleString()}</p>
+                ${change.approved_at ? `<p><strong>批准时间:</strong> ${new Date(change.approved_at).toLocaleString()}</p>` : ''}
+                ${change.implemented_at ? `<p><strong>实施时间:</strong> ${new Date(change.implemented_at).toLocaleString()}</p>` : ''}
+                ${change.verified_at ? `<p><strong>验证时间:</strong> ${new Date(change.verified_at).toLocaleString()}</p>` : ''}
+                ${change.closed_at ? `<p><strong>关闭时间:</strong> ${new Date(change.closed_at).toLocaleString()}</p>` : ''}
+                <h3>审批人</h3>
+                <ul>
+                    ${change.approvers.map(a => `
+                        <li>${a.name} (${a.role}) - ${a.decision ? getDecisionText(a.decision) : '待审批'}</li>
+                    `).join('')}
+                </ul>
+                <button onclick="viewAuditLog('${change.id}')">查看审计日志</button>
+            `;
+        }
+
+        // 查看审计日志
+        async function viewAuditLog(id) {
+            try {
+                const response = await fetch(`${API_BASE}/${id}/audit`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderAuditLog(result.data);
+                }
+            } catch (error) {
+                alert('获取审计日志失败: ' + error.message);
+            }
+        }
+
+        // 渲染审计日志
+        function renderAuditLog(entries) {
+            const detail = document.getElementById('changeDetail');
+            detail.innerHTML = `
+                <h3>审计日志</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>操作者</th>
+                            <th>操作</th>
+                            <th>详情</th>
+                            <th>哈希</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${entries.map(e => `
+                            <tr>
+                                <td>${new Date(e.timestamp).toLocaleString()}</td>
+                                <td>${e.actor}</td>
+                                <td>${getAuditActionText(e.action)}</td>
+                                <td>${e.detail}</td>
+                                <td>${e.hash.substring(0, 16)}...</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <button onclick="viewDetail('${entries[0].change_id}')">返回详情</button>
+            `;
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // 提交审批
+        async function submitChange(id) {
+            const submitter = prompt('请输入提交人:');
+            if (!submitter) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(submitter)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('提交成功');
+                    loadChanges();
+                } else {
+                    alert('提交失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('提交失败: ' + error.message);
+            }
+        }
+
+        // 添加审批人
+        async function addApprover(id) {
+            const userId = prompt('请输入审批人ID:');
+            const name = prompt('请输入审批人姓名:');
+            const role = prompt('请输入审批人角色:');
+            
+            if (!userId || !name || !role) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/approvers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, name: name, role: role })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('添加成功');
+                    loadChanges();
+                } else {
+                    alert('添加失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('添加失败: ' + error.message);
+            }
+        }
+
+        // 审批变更
+        async function approveChange(id) {
+            const approverId = prompt('请输入审批人ID:');
+            const signature = prompt('请输入电子签名:');
+            
+            if (!approverId || !signature) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        approver_id: approverId, 
+                        decision: 'Approved', 
+                        signature: signature 
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('审批成功');
+                    loadChanges();
+                } else {
+                    alert('审批失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('审批失败: ' + error.message);
+            }
+        }
+
+        // 实施变更
+        async function implementChange(id) {
+            const implementer = prompt('请输入实施人:');
+            if (!implementer) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/implement`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(implementer)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('开始实施');
+                    loadChanges();
+                } else {
+                    alert('实施失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('实施失败: ' + error.message);
+            }
+        }
+
+        // 完成实施
+        async function completeImplementation(id) {
+            const implementer = prompt('请输入实施人:');
+            if (!implementer) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/complete-implementation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(implementer)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('实施完成');
+                    loadChanges();
+                } else {
+                    alert('完成失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('完成失败: ' + error.message);
+            }
+        }
+
+        // 验证变更
+        async function verifyChange(id) {
+            const verifier = prompt('请输入验证人:');
+            if (!verifier) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(verifier)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('开始验证');
+                    loadChanges();
+                } else {
+                    alert('验证失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('验证失败: ' + error.message);
+            }
+        }
+
+        // 完成验证
+        async function completeVerification(id) {
+            const verifier = prompt('请输入验证人:');
+            if (!verifier) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/complete-verification`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(verifier)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('验证完成');
+                    loadChanges();
+                } else {
+                    alert('完成失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('完成失败: ' + error.message);
+            }
+        }
+
+        // 关闭变更
+        async function closeChange(id) {
+            const closer = prompt('请输入关闭人:');
+            if (!closer) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/close`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(closer)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('变更已关闭');
+                    loadChanges();
+                } else {
+                    alert('关闭失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('关闭失败: ' + error.message);
+            }
+        }
+
+        // 回滚变更
+        async function rollbackChange(id) {
+            const rollbackBy = prompt('请输入回滚人:');
+            const reason = prompt('请输入回滚原因:');
+            
+            if (!rollbackBy || !reason) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${id}/rollback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rollback_by: rollbackBy, reason: reason })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('变更已回滚');
+                    loadChanges();
+                } else {
+                    alert('回滚失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('回滚失败: ' + error.message);
+            }
+        }
+
+        // 辅助函数
+        function getChangeTypeText(type) {
+            const types = {
+                'Configuration': '配置变更',
+                'Software': '软件部署',
+                'Hardware': '硬件变更',
+                'Security': '安全变更',
+                'Data': '数据变更'
+            };
+            return types[type] || type;
+        }
+
+        function getRiskLevelText(level) {
+            const levels = {
+                'Low': '低风险',
+                'Medium': '中风险',
+                'High': '高风险',
+                'Critical': '关键风险'
+            };
+            return levels[level] || level;
+        }
+
+        function getStatusText(status) {
+            const statuses = {
+                'Draft': '草稿',
+                'Submitted': '已提交',
+                'UnderReview': '审核中',
+                'Approved': '已批准',
+                'Rejected': '已拒绝',
+                'Implementing': '实施中',
+                'Implemented': '已实施',
+                'Verifying': '验证中',
+                'Verified': '已验证',
+                'Closed': '已关闭',
+                'RolledBack': '已回滚'
+            };
+            return statuses[status] || status;
+        }
+
+        function getDecisionText(decision) {
+            const decisions = {
+                'Approved': '已批准',
+                'Rejected': '已拒绝',
+                'RequestChanges': '要求修改'
+            };
+            return decisions[decision] || decision;
+        }
+
+        function getAuditActionText(action) {
+            const actions = {
+                'Created': '创建',
+                'Submitted': '提交',
+                'Reviewed': '审核',
+                'Approved': '批准',
+                'Rejected': '拒绝',
+                'Implemented': '实施',
+                'Verified': '验证',
+                'Closed': '关闭',
+                'RolledBack': '回滚',
+                'Signed': '签名'
+            };
+            return actions[action.Created] || action;
+        }
+
+        // 页面加载时获取变更列表
+        loadChanges();
+    </script>
+</body>
+</html>

@@ -1808,6 +1808,7 @@ dependencies = [
  "kias-data-store",
  "kias-executor",
  "kias-knowledge",
+ "kias-scheduler",
  "libc",
  "num_cpus",
  "once_cell",

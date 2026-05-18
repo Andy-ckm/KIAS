@@ -36,6 +36,8 @@ pub struct AppState {
     pub ingested_docs: Arc<RwLock<Vec<IngestedDoc>>>,
     /// Session context manager (7-layer memory architecture)
     pub context_manager: Option<Arc<kias_knowledge::context_manager::MultiSessionContextManager>>,
+    /// Tier routing state (PrfaaS-inspired intelligent task routing)
+    pub tier_routing: handlers::tier_routing::TierRoutingState,
 }
 
 /// An ingested document stored in memory
@@ -122,6 +124,7 @@ impl AppState {
             knowledge_retriever: Arc::new(knowledge_retriever),
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
+            tier_routing: handlers::tier_routing::TierRoutingState::new(),
         }
     }
 
@@ -209,6 +212,7 @@ impl AppState {
             knowledge_retriever: Arc::new(knowledge_retriever),
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
+            tier_routing: handlers::tier_routing::TierRoutingState::new(),
         }
     }
 }

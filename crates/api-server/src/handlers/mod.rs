@@ -9,5 +9,6 @@ pub mod metrics;
 pub mod nl_command;
 pub mod nodes;
 pub mod scheduler;
+pub mod tier_routing;
 pub mod tokens;
 pub mod workflows;

@@ -10,6 +10,12 @@ pub struct SkillDefinition {
     pub version: String,
     pub tags: Vec<String>,
     pub parameters: Option<serde_json::Value>,
+    /// Fine-grained permissions this skill requires.
+    #[serde(default)]
+    pub permissions: Vec<String>,
+    /// Dependencies on other skills.
+    #[serde(default)]
+    pub dependencies: Vec<serde_json::Value>,
 }
 
 #[cfg(test)]

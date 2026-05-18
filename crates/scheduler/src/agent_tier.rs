@@ -25,6 +25,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Agent capability tier
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -156,6 +157,141 @@ impl ComplexityEvaluator for HeuristicEvaluator {
     }
 }
 
+/// Pattern-based complexity evaluator using keyword matching.
+///
+/// Recognizes complex task patterns (code generation, multi-step reasoning, research)
+/// and simple patterns (greetings, basic queries) to provide more accurate classification
+/// than the pure numeric heuristic.
+pub struct PatternEvaluator;
+
+/// Keywords that indicate high complexity tasks
+const COMPLEX_KEYWORDS: &[&str] = &[
+    "analyze",
+    "research",
+    "debug",
+    "refactor",
+    "implement",
+    "architect",
+    "design",
+    "optimize",
+    "migrate",
+    "deploy",
+    "multi-step",
+    "chain of thought",
+    "reasoning",
+    "code review",
+    "security audit",
+    "performance analysis",
+    "write a program",
+    "generate code",
+    "create a system",
+    "build a",
+];
+
+/// Keywords that indicate low complexity tasks
+const SIMPLE_KEYWORDS: &[&str] = &[
+    "hello",
+    "what is",
+    "define",
+    "list",
+    "show me",
+    "tell me",
+    "translate",
+    "convert",
+    "format",
+    "summarize briefly",
+];
+
+impl PatternEvaluator {
+    /// Score complexity based on keyword patterns in the description
+    fn pattern_score(description: &str) -> f64 {
+        let lower = description.to_lowercase();
+        let mut score = 0.0;
+
+        for kw in COMPLEX_KEYWORDS {
+            if lower.contains(kw) {
+                score += 2.0;
+            }
+        }
+        for kw in SIMPLE_KEYWORDS {
+            if lower.contains(kw) {
+                score -= 1.0;
+            }
+        }
+
+        // Question-only tasks are typically simpler
+        if lower.chars().filter(|c| *c == '?').count() >= 3 {
+            score += 1.5;
+        }
+
+        // Code blocks suggest complexity
+        if lower.contains("```") || lower.contains("fn ") || lower.contains("def ") {
+            score += 2.0;
+        }
+
+        score
+    }
+}
+
+impl ComplexityEvaluator for PatternEvaluator {
+    fn evaluate(&self, task: &TaskDescriptor) -> TaskComplexity {
+        let pattern = Self::pattern_score(&task.description);
+        let base =
+            TaskComplexity::estimate(task.input_tokens, task.requires_tools, task.has_context);
+
+        // Combine: pattern score can upgrade or downgrade the base estimate
+        let combined = match base {
+            TaskComplexity::Simple => 1.0 + pattern,
+            TaskComplexity::Medium => 3.0 + pattern,
+            TaskComplexity::Complex => 6.0 + pattern,
+        };
+
+        if combined >= 5.0 {
+            TaskComplexity::Complex
+        } else if combined >= 2.0 {
+            TaskComplexity::Medium
+        } else {
+            TaskComplexity::Simple
+        }
+    }
+}
+
+/// Composite evaluator: combines multiple evaluators and takes the highest complexity.
+///
+/// This ensures we never underestimate task complexity — if any evaluator flags
+/// a task as complex, we treat it as complex.
+pub struct CompositeEvaluator {
+    evaluators: Vec<Box<dyn ComplexityEvaluator>>,
+}
+
+impl CompositeEvaluator {
+    pub fn new() -> Self {
+        Self {
+            evaluators: vec![Box::new(HeuristicEvaluator), Box::new(PatternEvaluator)],
+        }
+    }
+
+    pub fn with_evaluators(evaluators: Vec<Box<dyn ComplexityEvaluator>>) -> Self {
+        Self { evaluators }
+    }
+}
+
+impl Default for CompositeEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ComplexityEvaluator for CompositeEvaluator {
+    fn evaluate(&self, task: &TaskDescriptor) -> TaskComplexity {
+        self.evaluators
+            .iter()
+            .map(|e| e.evaluate(task))
+            .max()
+            .unwrap_or(TaskComplexity::Simple)
+    }
+}
+
 /// Smart router: routes tasks to appropriate agent tiers
 pub struct SmartRouter {
     /// Complexity evaluator
@@ -258,10 +394,17 @@ impl Default for SmartRouter {
     }
 }
 
-/// Agent pool: manages agents of different tiers
+/// Agent pool: manages agents of different tiers with fallback support.
+///
+/// When no agent is available in the requested tier, the pool automatically
+/// falls back to adjacent tiers (strong→mid→weak).
 pub struct AgentPool {
     /// Agents by tier
     agents: HashMap<AgentTier, Vec<PooledAgent>>,
+    /// Total routing decisions (for metrics)
+    total_routed: AtomicU64,
+    /// Fallback routing decisions
+    fallback_count: AtomicU64,
 }
 
 /// A pooled agent
@@ -277,6 +420,30 @@ pub struct PooledAgent {
     pub success_rate: f64,
     /// Whether agent is available
     pub available: bool,
+    /// Weight for weighted selection (higher = more likely to be selected)
+    pub weight: f64,
+}
+
+impl PooledAgent {
+    /// Create a new pooled agent with default weight
+    pub fn new(id: impl Into<String>, tier: AgentTier) -> Self {
+        Self {
+            id: id.into(),
+            tier,
+            load: 0.0,
+            success_rate: 1.0,
+            available: true,
+            weight: 1.0,
+        }
+    }
+
+    /// Effective score for weighted selection: weight × success_rate × (1 - load)
+    pub fn effective_score(&self) -> f64 {
+        if !self.available || self.load >= 0.95 {
+            return 0.0;
+        }
+        self.weight * self.success_rate * (1.0 - self.load)
+    }
 }
 
 impl AgentPool {
@@ -284,6 +451,8 @@ impl AgentPool {
     pub fn new() -> Self {
         Self {
             agents: HashMap::new(),
+            total_routed: AtomicU64::new(0),
+            fallback_count: AtomicU64::new(0),
         }
     }
 
@@ -305,6 +474,57 @@ impl AgentPool {
             })
     }
 
+    /// Get the best agent for a tier using weighted selection.
+    ///
+    /// Score = weight × success_rate × (1 - load)
+    /// Prefers agents with high success rate, low load, and high weight.
+    pub fn get_agent_weighted(&self, tier: AgentTier) -> Option<&PooledAgent> {
+        self.agents
+            .get(&tier)?
+            .iter()
+            .filter(|a| a.effective_score() > 0.0)
+            .max_by(|a, b| {
+                a.effective_score()
+                    .partial_cmp(&b.effective_score())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
+    /// Get an agent with tier fallback.
+    ///
+    /// Tries the requested tier first, then falls back to lower tiers:
+    /// Strong → Mid → Weak
+    pub fn get_agent_with_fallback(&self, tier: AgentTier) -> Option<(&PooledAgent, AgentTier)> {
+        self.total_routed.fetch_add(1, Ordering::Relaxed);
+
+        // Try requested tier first
+        if let Some(agent) = self.get_agent_weighted(tier) {
+            return Some((agent, tier));
+        }
+
+        // Fall back to lower tiers
+        let fallback_tiers: Vec<AgentTier> = match tier {
+            AgentTier::Strong => vec![AgentTier::Mid, AgentTier::Weak],
+            AgentTier::Mid => vec![AgentTier::Weak],
+            AgentTier::Weak => vec![],
+        };
+
+        for fallback_tier in fallback_tiers {
+            if let Some(agent) = self.get_agent_weighted(fallback_tier) {
+                self.fallback_count.fetch_add(1, Ordering::Relaxed);
+                tracing::debug!(
+                    requested = ?tier,
+                    fallback = ?fallback_tier,
+                    agent_id = %agent.id,
+                    "Tier fallback: using lower-tier agent"
+                );
+                return Some((agent, fallback_tier));
+            }
+        }
+
+        None
+    }
+
     /// Get agent counts by tier
     pub fn tier_counts(&self) -> HashMap<AgentTier, usize> {
         self.agents
@@ -320,6 +540,25 @@ impl AgentPool {
             .flat_map(|agents| agents.iter())
             .filter(|a| a.available)
             .count()
+    }
+
+    /// Total routing decisions
+    pub fn total_routed(&self) -> u64 {
+        self.total_routed.load(Ordering::Relaxed)
+    }
+
+    /// Fallback routing count
+    pub fn fallback_count(&self) -> u64 {
+        self.fallback_count.load(Ordering::Relaxed)
+    }
+
+    /// Fallback rate (0.0 - 1.0)
+    pub fn fallback_rate(&self) -> f64 {
+        let total = self.total_routed.load(Ordering::Relaxed);
+        if total == 0 {
+            return 0.0;
+        }
+        self.fallback_count.load(Ordering::Relaxed) as f64 / total as f64
     }
 }
 
@@ -428,20 +667,8 @@ mod tests {
     #[test]
     fn test_agent_pool() {
         let mut pool = AgentPool::new();
-        pool.register(PooledAgent {
-            id: "weak-1".to_string(),
-            tier: AgentTier::Weak,
-            load: 0.1,
-            success_rate: 0.95,
-            available: true,
-        });
-        pool.register(PooledAgent {
-            id: "strong-1".to_string(),
-            tier: AgentTier::Strong,
-            load: 0.5,
-            success_rate: 0.99,
-            available: true,
-        });
+        pool.register(PooledAgent::new("weak-1", AgentTier::Weak));
+        pool.register(PooledAgent::new("strong-1", AgentTier::Strong));
 
         assert_eq!(pool.available_count(), 2);
         let agent = pool.get_agent(AgentTier::Weak).unwrap();
@@ -451,22 +678,222 @@ mod tests {
     #[test]
     fn test_agent_pool_least_loaded() {
         let mut pool = AgentPool::new();
-        pool.register(PooledAgent {
-            id: "a1".to_string(),
-            tier: AgentTier::Weak,
-            load: 0.8,
-            success_rate: 0.95,
-            available: true,
-        });
-        pool.register(PooledAgent {
-            id: "a2".to_string(),
-            tier: AgentTier::Weak,
-            load: 0.2,
-            success_rate: 0.95,
-            available: true,
-        });
+        let mut a1 = PooledAgent::new("a1", AgentTier::Weak);
+        a1.load = 0.8;
+        pool.register(a1);
+
+        let mut a2 = PooledAgent::new("a2", AgentTier::Weak);
+        a2.load = 0.2;
+        pool.register(a2);
 
         let agent = pool.get_agent(AgentTier::Weak).unwrap();
         assert_eq!(agent.id, "a2"); // Less loaded
+    }
+
+    // ─── New tests for enhanced features ──────────────────────────────
+
+    #[test]
+    fn test_pattern_evaluator_complex() {
+        let evaluator = PatternEvaluator;
+        let task = TaskDescriptor {
+            id: "t1".to_string(),
+            description: "Analyze and debug this code, then implement a refactor".to_string(),
+            input_tokens: 100,
+            requires_tools: false,
+            has_context: false,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        // Pattern keywords should upgrade this to Complex
+        assert_eq!(evaluator.evaluate(&task), TaskComplexity::Complex);
+    }
+
+    #[test]
+    fn test_pattern_evaluator_simple() {
+        let evaluator = PatternEvaluator;
+        let task = TaskDescriptor {
+            id: "t1".to_string(),
+            description: "hello, what is the weather?".to_string(),
+            input_tokens: 10,
+            requires_tools: false,
+            has_context: false,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        // Simple keywords should keep this Simple
+        assert_eq!(evaluator.evaluate(&task), TaskComplexity::Simple);
+    }
+
+    #[test]
+    fn test_pattern_evaluator_code_blocks() {
+        let evaluator = PatternEvaluator;
+        let task = TaskDescriptor {
+            id: "t1".to_string(),
+            description: "Fix this code:\n```python\ndef foo():\n  pass\n```".to_string(),
+            input_tokens: 50,
+            requires_tools: false,
+            has_context: false,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        // Code blocks should upgrade complexity
+        let complexity = evaluator.evaluate(&task);
+        assert!(complexity >= TaskComplexity::Medium);
+    }
+
+    #[test]
+    fn test_composite_evaluator() {
+        let evaluator = CompositeEvaluator::new();
+        // A task that's simple by heuristic but complex by pattern
+        let task = TaskDescriptor {
+            id: "t1".to_string(),
+            description: "Implement a security audit for this system".to_string(),
+            input_tokens: 100, // Low token count → Simple by heuristic
+            requires_tools: false,
+            has_context: false,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        // Composite should pick the max (Complex from pattern evaluator)
+        assert_eq!(evaluator.evaluate(&task), TaskComplexity::Complex);
+    }
+
+    #[test]
+    fn test_pooled_agent_effective_score() {
+        let mut agent = PooledAgent::new("a1", AgentTier::Strong);
+        agent.weight = 2.0;
+        agent.success_rate = 0.9;
+        agent.load = 0.1;
+        // score = 2.0 × 0.9 × 0.9 = 1.62
+        assert!((agent.effective_score() - 1.62).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_pooled_agent_unavailable_score() {
+        let mut agent = PooledAgent::new("a1", AgentTier::Strong);
+        agent.available = false;
+        assert_eq!(agent.effective_score(), 0.0);
+    }
+
+    #[test]
+    fn test_pooled_agent_overloaded_score() {
+        let mut agent = PooledAgent::new("a1", AgentTier::Strong);
+        agent.load = 0.96;
+        assert_eq!(agent.effective_score(), 0.0);
+    }
+
+    #[test]
+    fn test_weighted_selection() {
+        let mut pool = AgentPool::new();
+
+        let mut a1 = PooledAgent::new("low-weight", AgentTier::Weak);
+        a1.weight = 1.0;
+        a1.load = 0.1;
+        pool.register(a1);
+
+        let mut a2 = PooledAgent::new("high-weight", AgentTier::Weak);
+        a2.weight = 5.0;
+        a2.load = 0.1;
+        pool.register(a2);
+
+        let agent = pool.get_agent_weighted(AgentTier::Weak).unwrap();
+        assert_eq!(agent.id, "high-weight"); // Higher weight wins
+    }
+
+    #[test]
+    fn test_tier_fallback_strong_to_mid() {
+        let mut pool = AgentPool::new();
+        // No strong agents, one mid agent
+        pool.register(PooledAgent::new("mid-1", AgentTier::Mid));
+
+        let (agent, tier) = pool.get_agent_with_fallback(AgentTier::Strong).unwrap();
+        assert_eq!(agent.id, "mid-1");
+        assert_eq!(tier, AgentTier::Mid);
+        assert_eq!(pool.fallback_count(), 1);
+        assert_eq!(pool.total_routed(), 1);
+    }
+
+    #[test]
+    fn test_tier_fallback_strong_to_weak() {
+        let mut pool = AgentPool::new();
+        // No strong or mid agents, one weak agent
+        pool.register(PooledAgent::new("weak-1", AgentTier::Weak));
+
+        let (agent, tier) = pool.get_agent_with_fallback(AgentTier::Strong).unwrap();
+        assert_eq!(agent.id, "weak-1");
+        assert_eq!(tier, AgentTier::Weak);
+        assert_eq!(pool.fallback_count(), 1);
+    }
+
+    #[test]
+    fn test_tier_fallback_none_available() {
+        let pool = AgentPool::new();
+        assert!(pool.get_agent_with_fallback(AgentTier::Strong).is_none());
+        assert_eq!(pool.total_routed(), 1);
+    }
+
+    #[test]
+    fn test_tier_fallback_preferred_tier_available() {
+        let mut pool = AgentPool::new();
+        pool.register(PooledAgent::new("strong-1", AgentTier::Strong));
+        pool.register(PooledAgent::new("weak-1", AgentTier::Weak));
+
+        let (agent, tier) = pool.get_agent_with_fallback(AgentTier::Strong).unwrap();
+        assert_eq!(agent.id, "strong-1");
+        assert_eq!(tier, AgentTier::Strong); // No fallback
+        assert_eq!(pool.fallback_count(), 0);
+    }
+
+    #[test]
+    fn test_fallback_rate() {
+        let mut pool = AgentPool::new();
+        pool.register(PooledAgent::new("weak-1", AgentTier::Weak));
+
+        // First call: fallback from Strong → Weak
+        pool.get_agent_with_fallback(AgentTier::Strong);
+        // Second call: direct Weak → Weak
+        pool.get_agent_with_fallback(AgentTier::Weak);
+
+        assert_eq!(pool.total_routed(), 2);
+        assert_eq!(pool.fallback_count(), 1);
+        assert!((pool.fallback_rate() - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_smart_router_with_composite_evaluator() {
+        let router = SmartRouter::with_evaluator(Box::new(CompositeEvaluator::new()));
+        let task = TaskDescriptor {
+            id: "t1".to_string(),
+            description: "Implement a security audit and debug this code".to_string(),
+            input_tokens: 100, // Low tokens, but complex patterns
+            requires_tools: false,
+            has_context: false,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let decision = router.route(&task);
+        // Composite evaluator should detect complexity from patterns
+        assert_eq!(decision.tier, AgentTier::Strong);
+    }
+
+    #[test]
+    fn test_routing_decision_fields() {
+        let router = SmartRouter::new();
+        let decision = router.route(&simple_task());
+        assert_eq!(decision.tier, AgentTier::Weak);
+        assert!(decision.estimated_cost > 0.0);
+        assert!(decision.estimated_latency > 0.0);
+        assert!(decision.confidence > 0.0);
+        assert!(!decision.reason.is_empty());
     }
 }

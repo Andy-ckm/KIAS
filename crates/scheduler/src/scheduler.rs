@@ -1095,4 +1095,136 @@ mod tests {
         assert_eq!(stats.active_agents, 20);
         assert_eq!(stats.schedules_rejected_quota, 0);
     }
+
+    #[tokio::test]
+    async fn test_schedule_batch_fair_interleaves_tenants() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        let mut agents = vec![
+            make_tenant_agent("a1", "t1", Priority::High),
+            make_tenant_agent("a2", "t1", Priority::Medium),
+            make_tenant_agent("a3", "t2", Priority::High),
+            make_tenant_agent("a4", "t2", Priority::Medium),
+        ];
+
+        let mut tenant_ctxs = HashMap::new();
+        tenant_ctxs.insert("t1".to_string(), TenantContext::new("t1"));
+        tenant_ctxs.insert("t2".to_string(), TenantContext::new("t2"));
+
+        let results = scheduler
+            .schedule_batch_fair(&mut agents, &nodes, &tenant_ctxs)
+            .await;
+
+        assert_eq!(results.len(), 4);
+        let successes = results.iter().filter(|r| r.is_ok()).count();
+        assert_eq!(successes, 4, "All agents should be scheduled");
+    }
+
+    #[tokio::test]
+    async fn test_schedule_batch_fair_unassigned_agents() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        let mut agents = vec![
+            make_agent("no-tenant", Priority::Medium),
+            make_tenant_agent("with-tenant", "t1", Priority::Medium),
+        ];
+
+        let mut tenant_ctxs = HashMap::new();
+        tenant_ctxs.insert("t1".to_string(), TenantContext::new("t1"));
+
+        let results = scheduler
+            .schedule_batch_fair(&mut agents, &nodes, &tenant_ctxs)
+            .await;
+
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.is_ok()));
+    }
+
+    #[tokio::test]
+    async fn test_get_tenant_stats_none_for_unknown() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+
+        let stats = scheduler.get_tenant_stats("nonexistent").await;
+        assert!(stats.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_all_tenant_stats() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // Schedule agents for two tenants
+        let ctx1 = TenantContext::new("t1");
+        let ctx2 = TenantContext::new("t2");
+        let a1 = make_tenant_agent("a1", "t1", Priority::Medium);
+        let a2 = make_tenant_agent("a2", "t2", Priority::Medium);
+
+        scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx1))
+            .await
+            .unwrap();
+        scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx2))
+            .await
+            .unwrap();
+
+        let all_stats = scheduler.get_all_tenant_stats().await;
+        assert_eq!(all_stats.len(), 2);
+        assert!(all_stats.contains_key("t1"));
+        assert!(all_stats.contains_key("t2"));
+        assert_eq!(all_stats["t1"].active_agents, 1);
+        assert_eq!(all_stats["t2"].active_agents, 1);
+    }
+
+    #[test]
+    fn test_cache_optimizer_accessor() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+
+        // Should return a reference to the cache optimizer
+        let _optimizer = scheduler.cache_optimizer();
+    }
+
+    #[test]
+    fn test_algorithm_name_accessor() {
+        let config = SchedulerConfig {
+            algorithm: "least-loaded".to_string(),
+            ..Default::default()
+        };
+        let scheduler = Scheduler::new(config);
+        assert_eq!(scheduler.algorithm_name(), "least-loaded");
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let config = SchedulerConfig {
+            algorithm: "round-robin".to_string(),
+            ..Default::default()
+        };
+        let scheduler = Scheduler::new(config);
+        assert_eq!(scheduler.config().algorithm, "round-robin");
+    }
+
+    #[test]
+    fn test_tenant_context_with_quota() {
+        let quota = ResourceQuota {
+            max_agents: 10,
+            max_nodes: 5,
+            cpu_limit: 4.0,
+            memory_limit_mb: 1024,
+        };
+        let ctx = TenantContext::new("t1").with_quota(quota);
+
+        assert_eq!(ctx.tenant_id, "t1");
+        assert_eq!(ctx.resource_quota.max_agents, 10);
+        assert_eq!(ctx.resource_quota.max_nodes, 5);
+        assert_eq!(ctx.resource_quota.cpu_limit, 4.0);
+        assert_eq!(ctx.resource_quota.memory_limit_mb, 1024);
+    }
 }

@@ -1,10 +1,11 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (16:05)
+更新时间: 2026-05-18 (17:40)
 
-## 论文列表 (33 篇)
+## 论文列表 (34 篇)
 
-### 已下载论文 (21 篇)
+### 已下载论文 (22 篇)
+- ✅ 2605.14857.pdf (A Deterministic Agentic Workflow for HS Tariff Classification)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
 - ✅ 2605.14675.pdf (Agentic AI in Industry: Adoption Level and Deployment Barriers)
@@ -229,6 +230,13 @@
     - 主题: agentic evolution, iterative improvement, workflow optimization
     - 链接: https://arxiv.org/abs/2605.13821
         - 状态: ✅ 已下载 (230KB)
+
+34. **[2605.14857]** A Deterministic Agentic Workflow for HS Tariff Classification: Multi-Dimensional Rule Reasoning with Interpretable Decisions
+    - 作者: Yu Zhang, Dongjiang Zhuang, Qu Zhou
+    - 日期: 2026-05-18 | 分类: cs.AI
+    - 主题: agentic workflow, deterministic reasoning, tariff classification
+    - 链接: https://arxiv.org/abs/2605.14857
+    - 状态: ✅ 已下载 (314KB)
 
 ---
 

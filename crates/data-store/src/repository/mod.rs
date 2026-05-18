@@ -2213,7 +2213,6 @@ mod tests {
         assert_eq!(enabled[0].name, "enabled-skill");
     }
 
-
     #[tokio::test]
     async fn test_open_file_backed() {
         let path = "/tmp/test_repo_open.db";
@@ -2225,11 +2224,7 @@ mod tests {
         let agent = AgentRow::new("file-agent");
         repo.agents.create(&agent).await.expect("create agent");
 
-        let fetched = repo
-            .agents
-            .get_by_id(&agent.id)
-            .await
-            .expect("get agent");
+        let fetched = repo.agents.get_by_id(&agent.id).await.expect("get agent");
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().name, "file-agent");
 
@@ -2261,7 +2256,10 @@ mod tests {
 
         // Should not appear in get_by_id
         let fetched = repo.agents.get_by_id(&agent.id).await.expect("get");
-        assert!(fetched.is_none(), "soft-deleted agent should not be returned");
+        assert!(
+            fetched.is_none(),
+            "soft-deleted agent should not be returned"
+        );
 
         // Should not appear in list
         let all = repo.agents.list(None, None).await.expect("list");

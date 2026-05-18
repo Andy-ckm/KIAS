@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (19:20)
+更新时间: 2026-05-18 (20:50)
 
-## 论文列表 (39 篇)
+## 论文列表 (57 篇)
 
-### 已下载论文 (27 篇)
+### 已下载论文 (45 篇)
 - ✅ 2605.14857.pdf (A Deterministic Agentic Workflow for HS Tariff Classification)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
@@ -31,6 +31,23 @@
 - ✅ 2605.15377.pdf (Ensemble Monitoring for AI Control: Diverse Signals Outweigh More Compute)
 - ✅ 2605.15333.pdf (Zero-Shot Goal Recognition with Large Language Models)
 - ✅ 2605.15308.pdf (SMCEvolve: Principled Scientific Discovery via Sequential Monte Carlo Evolution)
+- ✅ 2602.16873.pdf (AdaptOrch: Task-Adaptive Multi-Agent Orchestration)
+- ✅ 2603.11445.pdf (Verified Multi-Agent Orchestration: Plan-Execute-Verify-Replan)
+- ✅ 2604.09618.pdf (HearthNet: Edge Multi-Agent Orchestration for Smart Homes)
+- ✅ 2604.17111.pdf (HiveMind: OS-Inspired Scheduling for Concurrent LLM Agent Workloads)
+- ✅ 2601.01831.pdf (ARIES: Scalable Multi-Agent Orchestration for Epidemiological Surveillance)
+- ✅ 2604.19856.pdf (ChipCraftBrain: Validation-First RTL Generation via Multi-Agent Orchestration)
+- ✅ 2605.11781.pdf (Five Attacks on x402 Agentic Payment Protocol)
+- ✅ 2605.11442.pdf (AbO-DDoS Attacks through Targeted Mobius Injection on LLM Agents)
+- ✅ 2601.21714.pdf (E-mem: Multi-agent Episodic Context Reconstruction for LLM Agent Memory)
+- ✅ 2604.07798.pdf (Lightweight LLM Agent Memory with Small Language Models)
+- ✅ 2603.04428.pdf (Agent Memory Below the Prompt: Persistent Q4 KV Cache for Edge)
+- ✅ 2603.02473.pdf (Diagnosing Retrieval vs. Utilization Bottlenecks in LLM Agent Memory)
+- ✅ 2603.09022.pdf (MEMO: Memory-Augmented Model Context Optimization for Multi-Agent Games)
+- ✅ 2604.01599.pdf (ByteRover: Agent-Native Memory Through LLM-Curated Hierarchical Context)
+- ✅ 2602.14295.pdf (MLAT: Integrating Statistical ML Models as Callable Tools in LLM Agent Workflows)
+- ✅ 2601.07504.pdf (FROAV: A Framework for RAG Observation and Agent Verification)
+- ✅ 2601.04554.pdf (Exploring Recommender System Evaluation: Multi-Modal LLM Agent Framework for A/B Testing)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -277,6 +294,132 @@
     - 主题: scientific discovery, program evolution, Monte Carlo
     - 链接: https://arxiv.org/abs/2605.15308
     - 状态: ✅ 已下载 (73KB)
+
+40. **[2602.16873]** AdaptOrch: Task-Adaptive Multi-Agent Orchestration in the Era of LLM Performance Convergence
+    - 作者: Ge Yu
+    - 日期: 2026-02-18 | 分类: cs.AI
+    - 主题: multi-agent orchestration, task-adaptive
+    - 链接: https://arxiv.org/abs/2602.16873
+    - 状态: ✅ 已下载 (1.0MB)
+
+41. **[2603.11445]** Verified Multi-Agent Orchestration: A Plan-Execute-Verify-Replan Framework
+    - 作者: Xing Zhang, Ya Cui, Guanghui Wang, et al.
+    - 日期: 2026-03-12 | 分类: cs.AI
+    - 主题: multi-agent orchestration, verification-driven
+    - 链接: https://arxiv.org/abs/2603.11445
+    - 状态: ✅ 已下载 (373KB)
+
+42. **[2604.09618]** HearthNet: Edge Multi-Agent Orchestration for Smart Homes
+    - 作者: Zhonghao Zhan, Krinos Li, Yefan Zhang, et al.
+    - 日期: 2026-03-16 | 分类: cs.AI
+    - 主题: edge multi-agent, smart home orchestration
+    - 链接: https://arxiv.org/abs/2604.09618
+    - 状态: ✅ 已下载 (1.0MB)
+
+43. **[2604.17111]** HiveMind: OS-Inspired Scheduling for Concurrent LLM Agent Workloads
+    - 作者: J. O. Agyemang, J. J. Kponyo, Obed Kwasi Somuah, et al.
+    - 日期: 2026-04-18 | 分类: cs.AI
+    - 主题: agent scheduling, resource contention, OS-inspired
+    - 链接: https://arxiv.org/abs/2604.17111
+    - 状态: ✅ 已下载 (704KB)
+
+44. **[2601.01831]** ARIES: A Scalable Multi-Agent Orchestration Framework for Real-Time Epidemiological Surveillance
+    - 作者: Aniket Wattamwar, Sampson E. Akwafuo
+    - 日期: 2026-01-05 | 分类: cs.AI
+    - 主题: multi-agent orchestration, real-time surveillance
+    - 链接: https://arxiv.org/abs/2601.01831
+    - 状态: ✅ 已下载 (1.0MB)
+
+45. **[2604.19856]** ChipCraftBrain: Validation-First RTL Generation via Multi-Agent Orchestration
+    - 作者: Çagri Eryilmaz
+    - 日期: 2026-04-21 | 分类: cs.AI
+    - 主题: multi-agent orchestration, RTL generation
+    - 链接: https://arxiv.org/abs/2604.19856
+    - 状态: ✅ 已下载 (431KB)
+
+46. **[2605.11781]** Five Attacks on x402 Agentic Payment Protocol
+    - 作者: Zelin Li, Qin Wang, Zhipeng Wang
+    - 日期: 2026-05-12 | 分类: cs.CR
+    - 主题: agentic payment protocol, security attacks
+    - 链接: https://arxiv.org/abs/2605.11781
+    - 状态: ✅ 已下载 (1.4MB)
+
+47. **[2605.11442]** Can a Single Message Paralyze the AI Infrastructure? AbO-DDoS Attacks through Targeted Mobius Injection
+    - 作者: Zi Liang, Ronghua Li, Yanyun Wang, et al.
+    - 日期: 2026-05-12 | 分类: cs.CR
+    - 主题: LLM agent infrastructure, DDoS attacks
+    - 链接: https://arxiv.org/abs/2605.11442
+    - 状态: ✅ 已下载 (942KB)
+
+48. **[2601.21714]** E-mem: Multi-agent based Episodic Context Reconstruction for LLM Agent Memory
+    - 作者: Kaixiang Wang, Yidan Lin, Jiong Lou, et al.
+    - 日期: 2026-01-29 | 分类: cs.AI
+    - 主题: agent memory, episodic context, multi-agent
+    - 链接: https://arxiv.org/abs/2601.21714
+    - 状态: ✅ 已下载 (1.7MB)
+
+49. **[2604.07798]** Lightweight LLM Agent Memory with Small Language Models
+    - 作者: Jiaquan Zhang, Chaoning Zhang, Shuxu Chen, et al.
+    - 日期: 2026-04-09 | 分类: cs.AI
+    - 主题: agent memory, lightweight SLM
+    - 链接: https://arxiv.org/abs/2604.07798
+    - 状态: ✅ 已下载 (932KB)
+
+50. **[2603.04428]** Agent Memory Below the Prompt: Persistent Q4 KV Cache for Multi-Agent LLM Inference on Edge Devices
+    - 作者: Y. Shkolnikov
+    - 日期: 2026-02-17 | 分类: cs.AI
+    - 主题: agent memory, KV cache, edge inference
+    - 链接: https://arxiv.org/abs/2603.04428
+    - 状态: ✅ 已下载 (358KB)
+
+51. **[2603.02473]** Diagnosing Retrieval vs. Utilization Bottlenecks in LLM Agent Memory
+    - 作者: Boqin Yuan, Yue Su, Kun Yao
+    - 日期: 2026-03-02 | 分类: cs.AI
+    - 主题: agent memory, retrieval bottleneck, utilization
+    - 链接: https://arxiv.org/abs/2603.02473
+    - 状态: ✅ 已下载 (1.0MB)
+
+52. **[2603.09022]** MEMO: Memory-Augmented Model Context Optimization for Robust Multi-Turn Multi-Agent LLM Games
+    - 作者: Yunfei Xie, Kevin A. Wang, Bobby Cheng, et al.
+    - 日期: 2026-03-09 | 分类: cs.AI
+    - 主题: agent memory, context optimization, multi-agent games
+    - 链接: https://arxiv.org/abs/2603.09022
+    - 状态: ✅ 已下载 (2.1MB)
+
+53. **[2604.01599]** ByteRover: Agent-Native Memory Through LLM-Curated Hierarchical Context
+    - 作者: Andy Nguyen, D. Doan, Hoang Pham, et al.
+    - 日期: 2026-04-02 | 分类: cs.AI
+    - 主题: agent memory, hierarchical context, MAG
+    - 链接: https://arxiv.org/abs/2604.01599
+    - 状态: ✅ 已下载 (872KB)
+
+54. **[2602.14295]** Machine Learning as a Tool (MLAT): Integrating Statistical ML Models as Callable Tools in LLM Agent Workflows
+    - 作者: Edwin Chen, Zulekha Bibi
+    - 日期: 2026-02-15 | 分类: cs.AI
+    - 主题: agent tool use, ML models as tools, workflow integration
+    - 链接: https://arxiv.org/abs/2602.14295
+    - 状态: ✅ 已下载 (751KB)
+
+55. **[2601.07504]** FROAV: A Framework for RAG Observation and Agent Verification
+    - 作者: Tzu-Hsuan Lin, Chih-Hsuan Kao
+    - 日期: 2026-01-12 | 分类: cs.AI
+    - 主题: agent verification, RAG observation, evaluation
+    - 链接: https://arxiv.org/abs/2601.07504
+    - 状态: ✅ 已下载 (392KB)
+
+56. **[2604.25318]** Cutscene Agent: An LLM Agent Framework for Automated 3D Cutscene Generation
+    - 作者: Lanshan He, Haozhou Pang, Qi Gan, et al.
+    - 日期: 2026-04-28 | 分类: cs.AI
+    - 主题: LLM agent framework, 3D generation
+    - 链接: https://arxiv.org/abs/2604.25318
+    - 状态: ✅ 已下载 (100KB)
+
+57. **[2601.04554]** Exploring Recommender System Evaluation: A Multi-Modal LLM Agent Framework for A/B Testing
+    - 作者: Wenlin Zhang, Xiangyang Li, Qiyuan Ge, et al.
+    - 日期: 2026-01-08 | 分类: cs.AI
+    - 主题: LLM agent framework, recommender evaluation
+    - 链接: https://arxiv.org/abs/2601.04554
+    - 状态: ✅ 已下载 (1.3MB)
 
 ---
 

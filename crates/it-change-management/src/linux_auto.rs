@@ -525,4 +525,145 @@ mod tests {
         assert!(playbook.contains("Patch Installation"));
         assert!(playbook.contains("rollback"));
     }
+
+    fn make_test_config() -> LinuxAutomationConfig {
+        LinuxAutomationConfig {
+            playbook_dir: PathBuf::from("/playbooks"),
+            compliance_tool: ComplianceTool::OpenScap,
+            target_hosts: vec!["host1".to_string(), "host2".to_string()],
+            ssh_key_path: Some(PathBuf::from("/key.pem")),
+            log_dir: PathBuf::from("/logs"),
+        }
+    }
+
+    #[test]
+    fn test_ansible_command_security_update() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_ansible_command(&AutomationTask::SecurityUpdate {
+            hosts: vec!["srv1".to_string(), "srv2".to_string()],
+        });
+        assert!(cmd.contains("security-update.yml"));
+        assert!(cmd.contains("srv1,srv2"));
+    }
+
+    #[test]
+    fn test_ansible_command_log_collection() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_ansible_command(&AutomationTask::LogCollection {
+            hosts: vec!["srv1".to_string()],
+            log_paths: vec![
+                "/var/log/syslog".to_string(),
+                "/var/log/auth.log".to_string(),
+            ],
+        });
+        assert!(cmd.contains("log-collection.yml"));
+        assert!(cmd.contains("/var/log/syslog,/var/log/auth.log"));
+    }
+
+    #[test]
+    fn test_ansible_command_disk_cleanup() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_ansible_command(&AutomationTask::DiskCleanup {
+            hosts: vec!["srv1".to_string()],
+            targets: vec!["/tmp".to_string(), "/var/cache".to_string()],
+        });
+        assert!(cmd.contains("disk-cleanup.yml"));
+        assert!(cmd.contains("/tmp,/var/cache"));
+    }
+
+    #[test]
+    fn test_ansible_command_service_restart() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_ansible_command(&AutomationTask::ServiceRestart {
+            service: "nginx".to_string(),
+            hosts: vec!["web1".to_string()],
+        });
+        assert!(cmd.contains("service-restart.yml"));
+        assert!(cmd.contains("nginx"));
+        assert!(cmd.contains("web1"));
+    }
+
+    #[test]
+    fn test_ansible_command_config_deploy() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_ansible_command(&AutomationTask::ConfigDeploy {
+            playbook: "deploy.yml".to_string(),
+            hosts: vec!["srv1".to_string()],
+        });
+        assert!(cmd.contains("deploy.yml"));
+        assert!(cmd.contains("srv1"));
+    }
+
+    #[test]
+    fn test_ansible_command_no_ssh_key() {
+        let mut config = make_test_config();
+        config.ssh_key_path = None;
+        let manager = LinuxAutomationManager::new(config);
+        let cmd = manager.generate_ansible_command(&AutomationTask::SecurityUpdate {
+            hosts: vec!["srv1".to_string()],
+        });
+        assert!(cmd.contains("security-update.yml"));
+        // No --private-key when ssh_key_path is None
+        assert!(!cmd.contains("--private-key /"));
+    }
+
+    #[test]
+    fn test_task_history_mixed_statuses() {
+        let mut manager = LinuxAutomationManager::new(make_test_config());
+
+        manager.record_task(AutomationResult {
+            task_id: "t1".to_string(),
+            task_type: "Scan".to_string(),
+            status: TaskStatus::Success,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "ok".to_string(),
+        });
+        manager.record_task(AutomationResult {
+            task_id: "t2".to_string(),
+            task_type: "Patch".to_string(),
+            status: TaskStatus::Failed,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "fail".to_string(),
+        });
+        manager.record_task(AutomationResult {
+            task_id: "t3".to_string(),
+            task_type: "Deploy".to_string(),
+            status: TaskStatus::PartialSuccess,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "partial".to_string(),
+        });
+
+        assert_eq!(manager.get_task_history().len(), 3);
+        assert_eq!(manager.get_failed_tasks().len(), 1);
+        assert_eq!(manager.get_failed_tasks()[0].task_id, "t2");
+    }
+
+    #[test]
+    fn test_empty_task_history() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        assert!(manager.get_task_history().is_empty());
+        assert!(manager.get_failed_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_openscap_command_custom_profile() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_openscap_command("server1", "cis_level2");
+        assert!(cmd.contains("server1"));
+        assert!(cmd.contains("cis_level2"));
+    }
+
+    #[test]
+    fn test_lynis_command() {
+        let manager = LinuxAutomationManager::new(make_test_config());
+        let cmd = manager.generate_lynis_command("server1");
+        assert!(cmd.contains("server1"));
+        assert!(cmd.contains("lynis"));
+    }
 }

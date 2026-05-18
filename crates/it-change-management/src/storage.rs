@@ -1142,4 +1142,328 @@ mod tests {
         let result = storage.verify_audit_chain_integrity().unwrap();
         assert!(result); // empty chain is valid
     }
+
+    #[test]
+    fn test_save_change_with_approvers() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.approvers = vec![
+            Approver {
+                user_id: "user-1".to_string(),
+                name: "Alice".to_string(),
+                role: "Manager".to_string(),
+                decision: Some(Decision::Approved),
+                signed_at: Some(Utc::now()),
+                signature: None,
+            },
+            Approver {
+                user_id: "user-2".to_string(),
+                name: "Bob".to_string(),
+                role: "QA".to_string(),
+                decision: None,
+                signed_at: None,
+                signature: None,
+            },
+        ];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.approvers.len(), 2);
+        assert_eq!(loaded.approvers[0].user_id, "user-1");
+        assert_eq!(loaded.approvers[0].name, "Alice");
+        assert_eq!(loaded.approvers[1].user_id, "user-2");
+        assert!(loaded.approvers[1].decision.is_none());
+    }
+
+    #[test]
+    fn test_save_change_with_capa_records() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.capa_records = vec![CapaRecord {
+            id: "capa-1".to_string(),
+            change_id: change.id.clone(),
+            title: "Root Cause Analysis".to_string(),
+            description: "Investigate failure".to_string(),
+            root_cause: Some("Config drift".to_string()),
+            corrective_action: Some("Apply fix".to_string()),
+            preventive_action: Some("Add monitoring".to_string()),
+            status: CapaStatus::Open,
+            created_at: Utc::now(),
+            closed_at: None,
+        }];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.capa_records.len(), 1);
+        assert_eq!(loaded.capa_records[0].id, "capa-1");
+        assert_eq!(
+            loaded.capa_records[0].root_cause,
+            Some("Config drift".to_string())
+        );
+    }
+
+    #[test]
+    fn test_save_change_with_attachments() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.attachments = vec![Attachment {
+            id: "att-1".to_string(),
+            filename: "test_report.pdf".to_string(),
+            file_type: "application/pdf".to_string(),
+            file_size_bytes: 1024,
+            storage_path: "/storage/test_report.pdf".to_string(),
+            uploaded_by: "user-1".to_string(),
+            uploaded_at: Utc::now(),
+            hash_sha256: "abc123".to_string(),
+        }];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.attachments.len(), 1);
+        assert_eq!(loaded.attachments[0].filename, "test_report.pdf");
+        assert_eq!(loaded.attachments[0].file_size_bytes, 1024);
+    }
+
+    #[test]
+    fn test_save_change_with_comments() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.comments = vec![
+            Comment {
+                id: "comment-1".to_string(),
+                author: "user-1".to_string(),
+                content: "Looks good".to_string(),
+                created_at: Utc::now(),
+                is_internal: false,
+            },
+            Comment {
+                id: "comment-2".to_string(),
+                author: "user-2".to_string(),
+                content: "Internal note".to_string(),
+                created_at: Utc::now(),
+                is_internal: true,
+            },
+        ];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.comments.len(), 2);
+        assert!(!loaded.comments[0].is_internal);
+        assert!(loaded.comments[1].is_internal);
+    }
+
+    #[test]
+    fn test_save_change_with_all_relations() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.approvers = vec![Approver {
+            user_id: "u1".to_string(),
+            name: "A1".to_string(),
+            role: "R1".to_string(),
+            decision: None,
+            signed_at: None,
+            signature: None,
+        }];
+        change.capa_records = vec![CapaRecord {
+            id: "c1".to_string(),
+            change_id: change.id.clone(),
+            title: "T".to_string(),
+            description: "D".to_string(),
+            root_cause: None,
+            corrective_action: None,
+            preventive_action: None,
+            status: CapaStatus::Open,
+            created_at: Utc::now(),
+            closed_at: None,
+        }];
+        change.attachments = vec![Attachment {
+            id: "a1".to_string(),
+            filename: "f.txt".to_string(),
+            file_type: "text/plain".to_string(),
+            file_size_bytes: 100,
+            storage_path: "/f.txt".to_string(),
+            uploaded_by: "u1".to_string(),
+            uploaded_at: Utc::now(),
+            hash_sha256: "h".to_string(),
+        }];
+        change.comments = vec![Comment {
+            id: "cm1".to_string(),
+            author: "u1".to_string(),
+            content: "c".to_string(),
+            created_at: Utc::now(),
+            is_internal: false,
+        }];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.approvers.len(), 1);
+        assert_eq!(loaded.capa_records.len(), 1);
+        assert_eq!(loaded.attachments.len(), 1);
+        assert_eq!(loaded.comments.len(), 1);
+    }
+
+    #[test]
+    fn test_list_changes_multiple_statuses() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut manager = ItChangeManager::new();
+
+        for i in 0..3 {
+            let change = manager.create_change_request(
+                format!("变更 {i}"),
+                "描述".to_string(),
+                ChangeType::Configuration,
+                ChangeCategory::Normal,
+                RiskLevel::Low,
+                "user".to_string(),
+                "IT".to_string(),
+                "回滚".to_string(),
+                "实施".to_string(),
+                ImpactAssessment {
+                    affected_systems: vec![],
+                    affected_users: vec![],
+                    downtime_estimate_minutes: 0,
+                    risk_mitigation: vec![],
+                    testing_requirements: vec![],
+                    gxp_impact: GxpImpact::Indirect,
+                    requires_csv_validation: false,
+                    affects_data_integrity: false,
+                },
+            );
+            storage.save_change(&change).unwrap();
+        }
+
+        let all = storage.list_changes().unwrap();
+        assert_eq!(all.len(), 3);
+
+        let drafts = storage
+            .list_changes_by_status(&ChangeStatus::Draft)
+            .unwrap();
+        assert_eq!(drafts.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_chain_multiple_entries_integrity() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change = create_test_change();
+        storage.save_change(&change).unwrap();
+
+        let mut prev_hash = "0".repeat(64);
+        for i in 0..5 {
+            let entry = AuditEntry {
+                id: format!("audit-{i}"),
+                change_id: change.id.clone(),
+                actor: "user".to_string(),
+                action: AuditAction::Created,
+                detail: format!("Step {i}"),
+                timestamp: Utc::now(),
+                previous_hash: prev_hash.clone(),
+                hash: format!("{:0>64}", i + 1),
+                ip_address: None,
+                user_agent: None,
+            };
+            storage.save_audit_entry(&entry).unwrap();
+            prev_hash = entry.hash.clone();
+        }
+
+        let log = storage.get_audit_log(&change.id).unwrap();
+        assert_eq!(log.len(), 5);
+        assert!(storage.verify_audit_chain_integrity().unwrap());
+    }
+
+    #[test]
+    fn test_save_change_long_strings() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.title = "A".repeat(1000);
+        change.description = "B".repeat(5000);
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert_eq!(loaded.title.len(), 1000);
+        assert_eq!(loaded.description.len(), 5000);
+    }
+
+    #[test]
+    fn test_save_change_empty_approvers() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        change.approvers = vec![];
+
+        storage.save_change(&change).unwrap();
+        let loaded = storage.get_change(&change.id).unwrap().unwrap();
+        assert!(loaded.approvers.is_empty());
+    }
+
+    #[test]
+    fn test_sla_violations_boundary() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        // SLA deadline in the past — should be a violation
+        change.sla_deadline = Some(Utc::now() - chrono::Duration::hours(1));
+        storage.save_change(&change).unwrap();
+
+        let violations = storage.get_sla_violations().unwrap();
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].id, change.id);
+    }
+
+    #[test]
+    fn test_sla_violations_future_deadline() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let mut change = create_test_change();
+        // SLA deadline in the future — should NOT be a violation
+        change.sla_deadline = Some(Utc::now() + chrono::Duration::hours(48));
+        storage.save_change(&change).unwrap();
+
+        let violations = storage.get_sla_violations().unwrap();
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_get_all_audit_log_multiple_changes() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let change1 = create_test_change();
+        let mut change2 = create_test_change();
+        change2.id = "change-2".to_string();
+        change2.change_number = "CHG-002".to_string();
+
+        storage.save_change(&change1).unwrap();
+        storage.save_change(&change2).unwrap();
+
+        let entry1 = AuditEntry {
+            id: "a1".to_string(),
+            change_id: change1.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Created,
+            detail: "created 1".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "0".repeat(64),
+            hash: "1".repeat(64),
+            ip_address: None,
+            user_agent: None,
+        };
+        let entry2 = AuditEntry {
+            id: "a2".to_string(),
+            change_id: change2.id.clone(),
+            actor: "user".to_string(),
+            action: AuditAction::Created,
+            detail: "created 2".to_string(),
+            timestamp: Utc::now(),
+            previous_hash: "1".repeat(64),
+            hash: "2".repeat(64),
+            ip_address: None,
+            user_agent: None,
+        };
+
+        storage.save_audit_entry(&entry1).unwrap();
+        storage.save_audit_entry(&entry2).unwrap();
+
+        let all = storage.get_all_audit_log().unwrap();
+        assert_eq!(all.len(), 2);
+
+        let log1 = storage.get_audit_log(&change1.id).unwrap();
+        assert_eq!(log1.len(), 1);
+        let log2 = storage.get_audit_log(&change2.id).unwrap();
+        assert_eq!(log2.len(), 1);
+    }
 }

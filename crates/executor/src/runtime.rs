@@ -877,4 +877,95 @@ mod tests {
             Some(std::time::Duration::from_secs(10))
         );
     }
+
+    #[tokio::test]
+    async fn test_runtime_zero_retries() {
+        let runtime = TaskRuntime::with_retries(Box::new(MockExecutor::fail_always()), 0);
+        assert_eq!(runtime.max_retries(), 0);
+        let result = runtime.run_task(&make_task("t")).await.unwrap();
+        assert_eq!(result.status, TaskStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_run_tasks_empty_list() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
+        let results = runtime.run_tasks(&[], 5).await;
+        assert_eq!(results.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_run_tasks_single_task() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
+        let tasks = vec![make_task("solo")];
+        let results = runtime.run_tasks(&tasks, 1).await;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].as_ref().unwrap().status, TaskStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn test_run_tasks_with_failing_tasks() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::fail_always()));
+        let tasks = vec![make_task("f1"), make_task("f2")];
+        let results = runtime.run_tasks(&tasks, 2).await;
+        assert_eq!(results.len(), 2);
+        for result in results {
+            assert_eq!(result.unwrap().status, TaskStatus::Failed);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cancellable_runtime_cancel_and_check() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
+        let cancellable = CancellableRuntime::new(runtime);
+        assert!(!cancellable.is_cancelled());
+        cancellable.cancel();
+        assert!(cancellable.is_cancelled());
+    }
+
+    #[test]
+    fn test_shell_executor_default() {
+        let executor = ShellExecutor::default();
+        assert_eq!(
+            executor.default_timeout,
+            std::time::Duration::from_secs(300)
+        );
+    }
+
+    #[test]
+    fn test_shell_executor_custom_timeout() {
+        let executor = ShellExecutor::new(std::time::Duration::from_secs(60));
+        assert_eq!(executor.default_timeout, std::time::Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_http_executor_new() {
+        let executor = HttpExecutor::new();
+        // Should not panic
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_llm_executor_new() {
+        let executor = LlmExecutor::new("http://localhost:8080", "test-key", "gpt-4");
+        // Should not panic
+        let _ = executor;
+    }
+
+    #[tokio::test]
+    async fn test_cancellable_runtime_completed_task() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
+        let cancellable = CancellableRuntime::new(runtime);
+        let result = cancellable.run_task(&make_task("ok")).await.unwrap();
+        assert_eq!(result.status, TaskStatus::Completed);
+        assert_eq!(result.task_id, "ok");
+    }
+
+    #[tokio::test]
+    async fn test_run_task_preserves_output() {
+        let runtime = TaskRuntime::new(Box::new(MockExecutor::succeed()));
+        let result = runtime.run_task(&make_task("out")).await.unwrap();
+        assert!(result.output.is_some());
+        assert!(result.error.is_none());
+        assert_eq!(result.task_id, "out");
+    }
 }

@@ -353,4 +353,115 @@ mod tests {
         let result = executor.execute(&task).await.unwrap();
         assert_eq!(result.task_id, "task-2");
     }
+
+    #[test]
+    fn test_sandbox_executor_policy_accessor() {
+        let policy = SandboxPolicy {
+            timeout: Duration::from_secs(45),
+            max_memory_bytes: 256 * 1024 * 1024,
+            max_output_bytes: 512 * 1024,
+            env_whitelist: vec!["APP_".to_string()],
+            capture_stderr: true,
+            workdir: Some("/var/tmp".to_string()),
+            env_vars: HashMap::from([("K".to_string(), "V".to_string())]),
+        };
+        let executor = SandboxExecutor::with_policy(policy);
+        let p = executor.policy();
+        assert_eq!(p.timeout, Duration::from_secs(45));
+        assert_eq!(p.max_memory_bytes, 256 * 1024 * 1024);
+        assert!(p.env_whitelist.contains(&"APP_".to_string()));
+    }
+
+    #[test]
+    fn test_sandbox_policy_with_env_whitelist() {
+        let policy = SandboxPolicy {
+            env_whitelist: vec!["AWS_".to_string(), "DB_".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(policy.env_whitelist.len(), 2);
+        assert!(policy.env_whitelist.contains(&"AWS_".to_string()));
+        assert!(policy.env_whitelist.contains(&"DB_".to_string()));
+    }
+
+    #[test]
+    fn test_sandbox_policy_with_workdir() {
+        let policy = SandboxPolicy {
+            workdir: Some("/tmp/sandbox".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(policy.workdir, Some("/tmp/sandbox".to_string()));
+    }
+
+    #[test]
+    fn test_resource_usage_default() {
+        let usage = ResourceUsage::default();
+        assert_eq!(usage.peak_memory_bytes, 0);
+        assert_eq!(usage.cpu_time_ms, 0);
+        assert_eq!(usage.syscall_count, 0);
+    }
+
+    #[test]
+    fn test_sandbox_result_fields() {
+        let result = SandboxResult {
+            exit_code: 42,
+            stdout: "output".to_string(),
+            stderr: "err".to_string(),
+            duration_ms: 1500,
+            timed_out: false,
+            resource_usage: ResourceUsage {
+                peak_memory_bytes: 1024,
+                cpu_time_ms: 500,
+                syscall_count: 100,
+            },
+        };
+        assert_eq!(result.exit_code, 42);
+        assert_eq!(result.stdout, "output");
+        assert_eq!(result.stderr, "err");
+        assert_eq!(result.duration_ms, 1500);
+        assert!(!result.timed_out);
+        assert_eq!(result.resource_usage.peak_memory_bytes, 1024);
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_stderr_capture() {
+        let executor = SandboxExecutor::new();
+        let result = executor.execute_command("echo err >&2").await.unwrap();
+        assert!(result.stderr.contains("err"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_with_workdir() {
+        let policy = SandboxPolicy {
+            workdir: Some("/tmp".to_string()),
+            ..Default::default()
+        };
+        let executor = SandboxExecutor::with_policy(policy);
+        let result = executor.execute_command("pwd").await.unwrap();
+        assert_eq!(result.exit_code, 0);
+        assert!(result.stdout.trim().contains("/tmp"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_history_isolation() {
+        let executor = SandboxExecutor::new();
+        executor.execute_command("echo a").await.unwrap();
+        executor.execute_command("echo b").await.unwrap();
+        executor.execute_command("echo c").await.unwrap();
+
+        let history = executor.history().await;
+        assert_eq!(history.len(), 3);
+        // Verify each entry is distinct
+        assert!(history[0].stdout.contains("a"));
+        assert!(history[1].stdout.contains("b"));
+        assert!(history[2].stdout.contains("c"));
+    }
+
+    #[test]
+    fn test_sandbox_policy_max_output_bytes() {
+        let policy = SandboxPolicy {
+            max_output_bytes: 4096,
+            ..Default::default()
+        };
+        assert_eq!(policy.max_output_bytes, 4096);
+    }
 }

@@ -249,6 +249,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "kias-autonomy-controller",
+ "kias-common",
  "kias-controller",
  "serde",
  "serde_json",

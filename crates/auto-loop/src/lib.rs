@@ -22,10 +22,10 @@ pub mod task_decomposer;
 pub mod tool_aware_intent;
 pub mod verifier;
 
+use kias_common::gxp_audit::{ActorType, GxpAuditAction, GxpAuditEntryBuilder, GxpAuditLog};
+use self_boundary::{ResponseStrategy, SelfBoundaryReasoner, SelfModel};
 use serde::{Deserialize, Serialize};
 use side_effect_gate::{GatePolicy, GateResult, SideEffectAction, SideEffectGate};
-use kias_common::gxp_audit::{GxpAuditAction, GxpAuditEntry, GxpAuditLog, GxpAuditEntryBuilder, ActorType};
-use self_boundary::{SelfBoundaryReasoner, SelfModel, ResponseStrategy};
 
 /// 循环状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -270,6 +270,8 @@ pub struct AutoLoopManager {
     side_effect_gate: SideEffectGate,
     /// 元认知自我边界推理器
     self_boundary: SelfBoundaryReasoner,
+    /// GxP 不可变审计链（SHA-256 哈希）
+    gxp_audit: GxpAuditLog,
 }
 
 /// 自主权限检查结果
@@ -343,6 +345,7 @@ impl AutoLoopManager {
             autonomy_gate: AutonomyGate::new(),
             side_effect_gate: SideEffectGate::new(GatePolicy::AutoMedium),
             self_boundary: SelfBoundaryReasoner::new(SelfModel::kias_default()),
+            gxp_audit: GxpAuditLog::new(),
         }
     }
 
@@ -418,11 +421,19 @@ impl AutoLoopManager {
                 status: LoopStatus::WaitingForHuman,
                 started_at: chrono::Utc::now(),
                 completed_at: None,
-                lessons: vec![format!("元认知评估: 置信度 {:.0}%, 原因: {:?}",
-                    meta.confidence * 100.0, meta.strategy)],
+                lessons: vec![format!(
+                    "元认知评估: 置信度 {:.0}%, 原因: {:?}",
+                    meta.confidence * 100.0,
+                    meta.strategy
+                )],
             };
             self.records.push(record);
             self.current_status = LoopStatus::WaitingForHuman;
+            self.audit_log(
+                GxpAuditAction::Create,
+                &loop_id,
+                "元认知评估: escalate到人类",
+            );
             return loop_id;
         }
 
@@ -437,11 +448,15 @@ impl AutoLoopManager {
             status: LoopStatus::Discovering,
             started_at: chrono::Utc::now(),
             completed_at: None,
-            lessons: vec![format!("元认知评估: 置信度 {:.0}%, 策略: {:?}",
-                meta.confidence * 100.0, meta.strategy)],
+            lessons: vec![format!(
+                "元认知评估: 置信度 {:.0}%, 策略: {:?}",
+                meta.confidence * 100.0,
+                meta.strategy
+            )],
         };
         self.records.push(record);
         self.current_status = LoopStatus::Discovering;
+        self.audit_log(GxpAuditAction::Create, &loop_id, "循环启动");
         loop_id
     }
 
@@ -451,6 +466,7 @@ impl AutoLoopManager {
             record.analysis = Some(analysis);
             record.status = LoopStatus::Planning;
             self.current_status = LoopStatus::Planning;
+            self.audit_log(GxpAuditAction::Update, loop_id, "分析完成");
         }
     }
 
@@ -462,9 +478,11 @@ impl AutoLoopManager {
             if requires_human && self.config.require_human_confirmation {
                 record.status = LoopStatus::WaitingForHuman;
                 self.current_status = LoopStatus::WaitingForHuman;
+                self.audit_log(GxpAuditAction::Update, loop_id, "方案需要人类审批");
             } else {
                 record.status = LoopStatus::Implementing;
                 self.current_status = LoopStatus::Implementing;
+                self.audit_log(GxpAuditAction::Update, loop_id, "方案制定,开始实施");
             }
         }
     }
@@ -487,9 +505,10 @@ impl AutoLoopManager {
                     record.implementation = Some(result);
                     record.status = LoopStatus::WaitingForHuman;
                     self.current_status = LoopStatus::WaitingForHuman;
-                    record.lessons.push(format!(
-                        "副作用闸门: 文件 {} 需要人工审批", file
-                    ));
+                    record
+                        .lessons
+                        .push(format!("副作用闸门: 文件 {} 需要人工审批", file));
+                    self.audit_log(GxpAuditAction::Update, loop_id, "副作用闸门: 需要审批");
                 }
                 return;
             }
@@ -499,11 +518,14 @@ impl AutoLoopManager {
             record.implementation = Some(result);
             record.status = LoopStatus::Verifying;
             self.current_status = LoopStatus::Verifying;
+            self.audit_log(GxpAuditAction::Update, loop_id, "实施完成,开始验证");
         }
     }
 
     /// 验证修复
     pub fn verify_fix(&mut self, loop_id: &str, result: VerificationResult) {
+        let mut side_effects: Option<(bool, ResponseStrategy, Vec<String>, String)> = None;
+
         if let Some(record) = self.records.iter_mut().find(|r| r.id == loop_id) {
             let success = result.problem_resolved && !result.new_issues_introduced;
             record.verification = Some(result);
@@ -517,11 +539,12 @@ impl AutoLoopManager {
 
             // 更新自我模型：记录本次任务结果
             let strategy = if record.lessons.iter().any(|l| l.contains("元认知评估")) {
-                ResponseStrategy::ReasonDirectly // 简化：假设直接处理
+                ResponseStrategy::ReasonWithCaveat {
+                    caveat: "元认知评估".to_string(),
+                } // 元认知评估 → 启用反思策略
             } else {
-                ResponseStrategy::ReasonDirectly
+                ResponseStrategy::ReasonDirectly // 默认直接推理
             };
-            self.self_boundary.record_outcome(&strategy, success);
 
             // 提取经验教训
             if success {
@@ -535,11 +558,29 @@ impl AutoLoopManager {
                 ));
             }
 
+            let lessons = record.lessons.clone();
+            let problem_title = record.problem.title.clone();
+            side_effects = Some((success, strategy, lessons, problem_title));
+        }
+
+        // 执行副作用（在 if let 借用释放后）
+        if let Some((success, strategy, lessons, problem_title)) = side_effects {
+            self.audit_log(
+                GxpAuditAction::Update,
+                loop_id,
+                if success {
+                    "验证通过"
+                } else {
+                    "验证失败"
+                },
+            );
+            self.self_boundary.record_outcome(&strategy, success);
+
             // 积累知识
-            for lesson in &record.lessons {
+            for lesson in &lessons {
                 self.knowledge_base.push(KnowledgeEntry {
                     id: uuid::Uuid::new_v4().to_string(),
-                    title: format!("Lesson from {}", record.problem.title),
+                    title: format!("Lesson from {}", problem_title),
                     content: lesson.clone(),
                     tags: vec!["auto-loop".to_string()],
                     source_loop_id: Some(loop_id.to_string()),
@@ -624,6 +665,25 @@ impl AutoLoopManager {
     }
 
     /// 获取当前状态
+    /// 记录 GxP 审计事件
+    #[allow(dead_code)]
+    fn audit_log(&mut self, action: GxpAuditAction, target_id: &str, reason: &str) {
+        let builder = GxpAuditEntryBuilder::new(
+            "auto-loop".to_string(),
+            ActorType::System,
+            action,
+            "loop_cycle".to_string(),
+            target_id.to_string(),
+        )
+        .reason(reason);
+        let _ = builder.build(&mut self.gxp_audit);
+    }
+
+    /// 获取审计日志引用
+    pub fn gxp_audit_log(&self) -> &GxpAuditLog {
+        &self.gxp_audit
+    }
+
     pub fn current_status(&self) -> &LoopStatus {
         &self.current_status
     }

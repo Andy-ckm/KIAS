@@ -914,6 +914,84 @@ mod tests {
         let query = extract_query("搜索 rust async");
         assert_eq!(query, "rust async");
     }
+
+    #[test]
+    fn test_parse_intent_agent_run() {
+        let (intent, _) = parse_intent("运行 agent test-agent");
+        assert!(matches!(intent, Intent::AgentRun { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_workflow_create() {
+        let (intent, _) = parse_intent("创建工作流 my-workflow");
+        assert!(matches!(intent, Intent::WorkflowCreate { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_workflow_run() {
+        let (intent, _) = parse_intent("运行工作流 deploy");
+        assert!(matches!(intent, Intent::WorkflowRun { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_metrics() {
+        let (intent, _) = parse_intent("查看指标");
+        assert!(matches!(intent, Intent::Metrics));
+    }
+
+    #[test]
+    fn test_parse_intent_knowledge_search() {
+        let (intent, _) = parse_intent("搜索知识 rust async");
+        assert!(matches!(intent, Intent::KnowledgeSearch { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_problem_report() {
+        let (intent, _) = parse_intent("报告bug Agent无法启动");
+        assert!(matches!(intent, Intent::ProblemReport { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_config_get() {
+        let (intent, _) = parse_intent("查看配置");
+        assert!(matches!(intent, Intent::ConfigGet));
+    }
+
+    #[test]
+    fn test_parse_intent_auto_loop_start() {
+        let (intent, _) = parse_intent("启动自动循环");
+        assert!(matches!(intent, Intent::AutoLoopStart { .. }));
+    }
+
+    #[test]
+    fn test_extract_name_returns_none_for_no_match() {
+        let name = extract_name("hello world", &["hello", "world"]);
+        assert!(name.is_none());
+    }
+
+    #[test]
+    fn test_extract_problem_title() {
+        let title = extract_problem_title("报告问题：Agent无法启动");
+        assert!(!title.is_empty());
+    }
+
+    #[test]
+    fn test_parse_intent_english_agent_list() {
+        let (intent, _) = parse_intent("show all agents");
+        assert!(matches!(intent, Intent::AgentList));
+    }
+
+    #[test]
+    fn test_parse_intent_english_help() {
+        let (intent, _) = parse_intent("help");
+        assert!(matches!(intent, Intent::Help));
+    }
+
+    #[test]
+    fn test_parse_intent_english_status() {
+        let (intent, _) = parse_intent("server status");
+        assert!(matches!(intent, Intent::ServerStatus));
+    }
 }
 
 // ─── 公共接口（供 IM 模块调用）──────────────────────────

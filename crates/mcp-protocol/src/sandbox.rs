@@ -3506,7 +3506,11 @@ mod tests {
         let config = SandboxConfig::docker(
             "test-serde",
             "node:18",
-            vec!["node".to_string(), "-e".to_string(), "console.log(1)".to_string()],
+            vec![
+                "node".to_string(),
+                "-e".to_string(),
+                "console.log(1)".to_string(),
+            ],
         );
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: SandboxConfig = serde_json::from_str(&json).unwrap();
@@ -3532,8 +3536,12 @@ mod tests {
     #[test]
     fn test_sandbox_config_with_labels() {
         let mut config = SandboxConfig::process("label-test", vec!["echo".to_string()]);
-        config.labels.insert("team".to_string(), "backend".to_string());
-        config.labels.insert("env".to_string(), "staging".to_string());
+        config
+            .labels
+            .insert("team".to_string(), "backend".to_string());
+        config
+            .labels
+            .insert("env".to_string(), "staging".to_string());
         assert_eq!(config.labels.len(), 2);
         assert_eq!(config.labels.get("team").unwrap(), "backend");
     }
@@ -3634,10 +3642,12 @@ mod tests {
             ..Default::default()
         };
         let manager = SandboxManager::new(config);
-        manager.register_backend(
-            SandboxBackend::Process,
-            Arc::new(ProcessSandboxBackend::new()),
-        ).await;
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
 
         let sandbox_config = SandboxConfig::process("test", vec!["echo".to_string()]);
         let result = manager.execute(sandbox_config, "test-user").await;
@@ -3656,10 +3666,12 @@ mod tests {
     #[tokio::test]
     async fn test_sandbox_manager_audit_log_after_execute() {
         let manager = SandboxManager::new(SandboxManagerConfig::default());
-        manager.register_backend(
-            SandboxBackend::Process,
-            Arc::new(ProcessSandboxBackend::new()),
-        ).await;
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
 
         let config = SandboxConfig::process("audit-test", vec!["true".to_string()]);
         let _ = manager.execute(config, "audit-actor").await;
@@ -3667,7 +3679,9 @@ mod tests {
         let log = manager.audit_log().await;
         assert!(log.len() >= 2);
         assert!(log.iter().any(|e| e.actor == "audit-actor"));
-        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::Create)));
+        assert!(log
+            .iter()
+            .any(|e| matches!(e.action, SandboxAction::Create)));
     }
 
     #[tokio::test]
@@ -3677,10 +3691,12 @@ mod tests {
             ..Default::default()
         };
         let manager = SandboxManager::new(config);
-        manager.register_backend(
-            SandboxBackend::Process,
-            Arc::new(ProcessSandboxBackend::new()),
-        ).await;
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
 
         let sandbox_config = SandboxConfig::process("no-audit", vec!["true".to_string()]);
         let _ = manager.execute(sandbox_config, "test-user").await;
@@ -3706,10 +3722,12 @@ mod tests {
     #[tokio::test]
     async fn test_sandbox_manager_execute_echo_output() {
         let manager = SandboxManager::new(SandboxManagerConfig::default());
-        manager.register_backend(
-            SandboxBackend::Process,
-            Arc::new(ProcessSandboxBackend::new()),
-        ).await;
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
 
         let config = SandboxConfig::process(
             "echo-test",
@@ -3723,16 +3741,17 @@ mod tests {
     #[tokio::test]
     async fn test_sandbox_manager_execute_with_env() {
         let manager = SandboxManager::new(SandboxManagerConfig::default());
-        manager.register_backend(
-            SandboxBackend::Process,
-            Arc::new(ProcessSandboxBackend::new()),
-        ).await;
+        manager
+            .register_backend(
+                SandboxBackend::Process,
+                Arc::new(ProcessSandboxBackend::new()),
+            )
+            .await;
 
-        let mut config = SandboxConfig::process(
-            "env-echo",
-            vec!["env".to_string()],
-        );
-        config.env.insert("TEST_VAR".to_string(), "test_value".to_string());
+        let mut config = SandboxConfig::process("env-echo", vec!["env".to_string()]);
+        config
+            .env
+            .insert("TEST_VAR".to_string(), "test_value".to_string());
         let result = manager.execute(config, "test-user").await;
         assert!(result.is_ok());
     }
@@ -3755,18 +3774,14 @@ mod tests {
 
     #[test]
     fn test_wasm_sandbox_backend_custom_base_dir() {
-        let backend = WasmSandboxBackend::new()
-            .with_base_dir("/custom/wasm/dir");
+        let backend = WasmSandboxBackend::new().with_base_dir("/custom/wasm/dir");
         assert_eq!(backend.base_dir, PathBuf::from("/custom/wasm/dir"));
     }
 
     #[test]
     fn test_sandbox_config_gvisor_with_custom_limits() {
-        let mut config = SandboxConfig::gvisor(
-            "gvisor-limited",
-            "python:3.11",
-            vec!["python".to_string()],
-        );
+        let mut config =
+            SandboxConfig::gvisor("gvisor-limited", "python:3.11", vec!["python".to_string()]);
         config.limits.cpu_cores = Some(8.0);
         config.limits.memory_bytes = Some(4 * 1024 * 1024 * 1024);
         assert_eq!(config.limits.cpu_cores, Some(8.0));
@@ -3775,12 +3790,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_config_firecracker_with_labels() {
-        let mut config = SandboxConfig::firecracker(
-            "vm-test",
-            "/opt/vmlinux",
-            "/opt/rootfs.ext4",
-        );
-        config.labels.insert("region".to_string(), "us-east-1".to_string());
+        let mut config = SandboxConfig::firecracker("vm-test", "/opt/vmlinux", "/opt/rootfs.ext4");
+        config
+            .labels
+            .insert("region".to_string(), "us-east-1".to_string());
         assert_eq!(config.labels.get("kernel").unwrap(), "/opt/vmlinux");
         assert_eq!(config.labels.get("region").unwrap(), "us-east-1");
     }
@@ -3839,7 +3852,9 @@ mod tests {
         let mut snapshot = SandboxSnapshot::new("snap-1", IsolationLevel::Session);
         snapshot.add_file("main.py", b"print('hello')".to_vec());
         snapshot.add_file("config.json", b"{\"key\": \"value\"}".to_vec());
-        snapshot.env.insert("PYTHONPATH".to_string(), "/app".to_string());
+        snapshot
+            .env
+            .insert("PYTHONPATH".to_string(), "/app".to_string());
 
         let json = snapshot.to_json().unwrap();
         let restored = SandboxSnapshot::from_json(&json).unwrap();
@@ -3868,7 +3883,6 @@ mod tests {
         assert_eq!(snapshot.workdir, Some(PathBuf::from("/app")));
     }
 
-
     #[test]
     fn test_sandbox_config_wasm_network_disabled() {
         let config = SandboxConfig::wasm("wasm-net", "module.wasm");
@@ -3881,5 +3895,4 @@ mod tests {
         let config = SandboxConfig::gvisor("gvisor-net", "alpine", vec!["echo".to_string()]);
         assert!(!config.network.enabled);
     }
-
 }

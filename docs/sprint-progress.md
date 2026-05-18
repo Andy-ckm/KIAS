@@ -1,3 +1,41 @@
+## 最新更新：2026-05-19 01:00 (KIAS 自循环开发 — it-change-management 测试增强 + SQL 修复)
+
+### 📊 系统健康检查 (01:00)
+| 检查项 | 结果 |
+|--------|------|
+| 磁盘空间 (/) | 79% 已用 (8.0G 可用) ✅ |
+| 磁盘空间 (/mnt) | 55% 已用 (13G 可用) ✅ |
+| cargo test | **2740 passed**, 0 failed ✅ |
+| cargo clippy | 0 warnings ✅ |
+| cargo fmt | clean ✅ |
+| git status | clean ✅ |
+| 代码行数 | 137,707 lines |
+
+### 🔧 本轮开发 (01:00)
+
+**四步法评估**:
+1. **评估**: it-change-management 模块测试密度最低 (1.28)，新加入模块需加固
+2. **审视**: api.rs 0 测试, storage.rs 缺少 SLA 违规检测测试, SQL 查询有 JSON 引号 bug
+3. 方案**: +8 tests (storage 3 + api 5), 修复 SLA SQL 查询
+4. **开发**: 按方案执行
+
+**具体变更**:
+- `storage.rs`: +3 tests for `get_sla_violations` (检测、排除已关闭、空结果)
+- `api.rs`: +5 serde roundtrip tests (CreateChangeRequest, ApproveChangeRequest, ChangeResponse, ApiResponse, StatsResponse)
+- **Bug fix**: `get_sla_violations` SQL 使用 `TRIM(status, '"')` 处理 serde_json 序列化的 JSON 引号
+  - 根因: `serde_json::to_string(&ChangeStatus::Closed)` 产生 `"Closed"` (带引号)，但 SQL 比较 `NOT IN ('Closed', ...)` 不匹配
+  - 修复: `TRIM(status, '"') NOT IN ('Closed', 'Rejected', 'RolledBack')`
+
+### 📈 指标变化
+| 指标 | 变更前 | 变更后 |
+|------|--------|--------|
+| 总测试 | 2732 | **2740** (+8) |
+| it-change-management 测试 | 50 | **58** (+8) |
+| it-change-management 密度 | 1.28 | **1.48** (+16%) |
+| 代码行数 | ~133,647 | **137,707** |
+
+---
+
 ## 最新更新：2026-05-19 00:50 (KIAS 自循环开发 — 自动巡检+论文下载)
 
 ### 📊 系统健康检查 (00:50)

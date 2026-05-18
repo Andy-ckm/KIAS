@@ -2,6 +2,7 @@ pub mod agentic_rag;
 pub mod approval;
 pub mod context_manager;
 pub mod entity_extractor;
+pub mod entity_tier;
 pub mod graph;
 pub mod graphrag;
 pub mod inspiration_stream;

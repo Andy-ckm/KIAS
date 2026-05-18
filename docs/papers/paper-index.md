@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (17:40)
+更新时间: 2026-05-18 (19:20)
 
-## 论文列表 (34 篇)
+## 论文列表 (39 篇)
 
-### 已下载论文 (22 篇)
+### 已下载论文 (27 篇)
 - ✅ 2605.14857.pdf (A Deterministic Agentic Workflow for HS Tariff Classification)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
@@ -26,6 +26,11 @@
 - ✅ 2605.13438.pdf (Cognifold: Always-On Proactive Memory via Cognitive Folding)
 - ✅ 2605.13618.pdf (OpenAaaS: An Open Agent-as-a-Service Framework)
 - ✅ 2605.13821.pdf (Harnessing Agentic Evolution)
+- ✅ 2605.15301.pdf (Solvita: Enhancing LLMs for Competitive Programming via Agentic Evolution)
+- ✅ 2605.15343.pdf (Belief Engine: Configurable Stance Dynamics in Multi-Agent LLM Deliberation)
+- ✅ 2605.15377.pdf (Ensemble Monitoring for AI Control: Diverse Signals Outweigh More Compute)
+- ✅ 2605.15333.pdf (Zero-Shot Goal Recognition with Large Language Models)
+- ✅ 2605.15308.pdf (SMCEvolve: Principled Scientific Discovery via Sequential Monte Carlo Evolution)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -237,6 +242,41 @@
     - 主题: agentic workflow, deterministic reasoning, tariff classification
     - 链接: https://arxiv.org/abs/2605.14857
     - 状态: ✅ 已下载 (314KB)
+
+35. **[2605.15301]** Solvita: Enhancing Large Language Models for Competitive Programming via Agentic Evolution
+    - 作者: Han Li, Jinyu Tian, Rili Feng
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: agentic evolution, competitive programming, multi-agent
+    - 链接: https://arxiv.org/abs/2605.15301
+    - 状态: ✅ 已下载 (1.5MB)
+
+36. **[2605.15343]** Belief Engine: Configurable and Inspectable Stance Dynamics in Multi-Agent LLM Deliberation
+    - 作者: Joshua C. Yang, Maurice Flechtner, Damian Dailisan
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: multi-agent deliberation, stance dynamics, belief systems
+    - 链接: https://arxiv.org/abs/2605.15343
+    - 状态: ✅ 已下载 (152KB)
+
+37. **[2605.15377]** Ensemble Monitoring for AI Control: Diverse Signals Outweigh More Compute
+    - 作者: Eugene Koran, Yejun Yun, Samantha Tetef
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: AI safety, ensemble monitoring, agent control
+    - 链接: https://arxiv.org/abs/2605.15377
+    - 状态: ✅ 已下载 (1.6MB)
+
+38. **[2605.15333]** Zero-Shot Goal Recognition with Large Language Models
+    - 作者: Kin Max Piamolini Gusmão, Nathan Gavenski, Nir Oren
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: goal recognition, planning, LLM reasoning
+    - 链接: https://arxiv.org/abs/2605.15333
+    - 状态: ✅ 已下载 (460KB)
+
+39. **[2605.15308]** SMCEvolve: Principled Scientific Discovery via Sequential Monte Carlo Evolution
+    - 作者: Jiachen Jiang, Huminhao Zhu, Zhihui Zhu
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: scientific discovery, program evolution, Monte Carlo
+    - 链接: https://arxiv.org/abs/2605.15308
+    - 状态: ✅ 已下载 (73KB)
 
 ---
 

@@ -1,8 +1,8 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (03:00)
+更新时间: 2026-05-18 (13:30)
 
-## 论文列表 (18 篇)
+## 论文列表 (24 篇)
 
 ### 已下载论文 (10 篇)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
@@ -111,3 +111,52 @@
 
 18. **[2605.14625]** Digital Twin Synchronization Over Mobile Embodied AI Network With Agentic Intelligence
     - 链接: https://arxiv.org/abs/2605.14625
+
+---
+
+## 🔍 新发现论文 (2026-05-18 13:30 搜索)
+
+> 注: arXiv API 今日 429 限流严重，PDF 下载超时。以下论文仅记录元数据，待限流解除后下载。
+
+19. **[2605.15204]** SDOF: Taming the Alignment Tax in Multi-Agent Orchestration with State-Constrained Dispatch
+    - 作者: Zhantao Wang
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: multi-agent orchestration, state-constrained dispatch, LangChain/LangGraph/CrewAI
+    - 摘要: Multi-agent orchestration frameworks route tasks through graph-based pipelines but do not enforce stage constraints...
+    - 链接: https://arxiv.org/abs/2605.15204
+    - 状态: ⏳ 待下载 (arXiv 429 限流)
+
+20. **[2605.15215]** SkillSmith: Compiling Agent Skills into Boundary-Guided Runtime Interfaces
+    - 作者: Duling Xu, Zheng Chen, Zaifeng Pan, Jiawei Guan
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: agent skills, runtime interfaces, LLM agent systems
+    - 链接: https://arxiv.org/abs/2605.15215
+    - 状态: ⏳ 待下载
+
+21. **[2605.15227]** NIMO Controller: A Self-Driving Laboratory Orchestrator Based on Model Context Protocol
+    - 作者: Naruki Yoshikawa, Ryo Tamura
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: MCP orchestrator, self-driving lab, agent control
+    - 链接: https://arxiv.org/abs/2605.15227
+    - 状态: ⏳ 待下载
+
+22. **[2605.15228]** Verifiable Agentic Infrastructure: Proof-Derived Authorization for Sovereign AI Systems
+    - 作者: Jun He, Deying Yu
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: agentic authorization, proof-derived auth, autonomy control
+    - 链接: https://arxiv.org/abs/2605.15228
+    - 状态: ⏳ 待下载
+
+23. **[2605.15218]** CAX-Agent: A Lightweight Agent Harness for Reliable APDL Automation
+    - 作者: Chenying Lin, Yichen Hai, Yi He, Ran Wang
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: agent harness, reliable automation, structured execution
+    - 链接: https://arxiv.org/abs/2605.15218
+    - 状态: ⏳ 待下载
+
+24. **[2605.15224]** ICRL: Learning to Internalize Self-Critique with Reinforcement Learning
+    - 作者: Jianbo Lin, Xiaomin Yu, Yi Xin, Yifu Guo
+    - 日期: 2026-05-15 | 分类: cs.AI
+    - 主题: self-critique, reinforcement learning, agent self-improvement
+    - 链接: https://arxiv.org/abs/2605.15224
+    - 状态: ⏳ 待下载

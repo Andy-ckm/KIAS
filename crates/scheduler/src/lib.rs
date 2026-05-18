@@ -28,3 +28,9 @@ pub use edge::{
 };
 pub mod agent_shell;
 pub mod agent_tier;
+
+// Agent tiering & smart routing (PrfaaS-inspired)
+pub use agent_tier::{
+    AgentPool, AgentTier, ComplexityEvaluator, CompositeEvaluator, HeuristicEvaluator,
+    PatternEvaluator, PooledAgent, RoutingDecision, SmartRouter, TaskComplexity, TaskDescriptor,
+};

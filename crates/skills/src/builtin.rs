@@ -48,11 +48,13 @@ impl Skill for SqlQuerySkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "data".to_string(),
-            "sql".to_string(),
-            "database".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "data".to_string(),
+                "sql".to_string(),
+                "database".to_string(),
+            ])
+            .with_permissions(vec![crate::skill::SkillPermission::Network])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -126,11 +128,13 @@ impl Skill for CsvProcessSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "data".to_string(),
-            "csv".to_string(),
-            "file".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "data".to_string(),
+                "csv".to_string(),
+                "file".to_string(),
+            ])
+            .with_permissions(vec![crate::skill::SkillPermission::Filesystem])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -299,11 +303,16 @@ impl Skill for DockerManageSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "ops".to_string(),
-            "docker".to_string(),
-            "container".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "ops".to_string(),
+                "docker".to_string(),
+                "container".to_string(),
+            ])
+            .with_permissions(vec![
+                crate::skill::SkillPermission::Elevated,
+                crate::skill::SkillPermission::Network,
+            ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -386,11 +395,16 @@ impl Skill for SystemdManageSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "ops".to_string(),
-            "systemd".to_string(),
-            "service".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "ops".to_string(),
+                "systemd".to_string(),
+                "service".to_string(),
+            ])
+            .with_permissions(vec![
+                crate::skill::SkillPermission::Elevated,
+                crate::skill::SkillPermission::Filesystem,
+            ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {
@@ -476,11 +490,16 @@ impl Skill for NetworkScanSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "security".to_string(),
-            "network".to_string(),
-            "scan".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "security".to_string(),
+                "network".to_string(),
+                "scan".to_string(),
+            ])
+            .with_permissions(vec![
+                crate::skill::SkillPermission::Network,
+                crate::skill::SkillPermission::RawSocket,
+            ])
     }
 
     async fn execute(&self, params: Value) -> KiasResult<Value> {

@@ -16,7 +16,10 @@ pub use pipeline::{
     ErrorPolicy, InputMapping, PipelineBuilder, PipelineResult, PipelineStep, SkillPipeline,
 };
 pub use registry::SkillRegistry;
-pub use skill::{HttpCallSkill, JsonTransformSkill, ShellSkill, Skill, SkillConfig};
+pub use skill::{
+    HttpCallSkill, JsonTransformSkill, ShellSkill, Skill, SkillConfig, SkillDependency,
+    SkillPermission,
+};
 pub use web_recorder::{
     BrowserAction, BrowserRecording, BrowserWorkflowSkill, ParameterDefinition, ParameterType,
     RecorderConfig, RecordingStore, ScrollDirection, SkillGenerator, WebRecorder, WorkflowConfig,

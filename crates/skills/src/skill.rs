@@ -2,6 +2,76 @@ use async_trait::async_trait;
 use kias_common::KiasResult;
 use serde::{Deserialize, Serialize};
 
+/// Permission that a skill may require to execute.
+///
+/// Inspired by MCP capability declarations and KIAS agent sandbox types.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SkillPermission {
+    /// Outbound network access (HTTP, TCP, etc.)
+    Network,
+    /// Read/write access to the filesystem
+    Filesystem,
+    /// Elevated / root privileges
+    Elevated,
+    /// GPU device access
+    Gpu,
+    /// Raw socket access (e.g. nmap, packet capture)
+    RawSocket,
+    /// Custom permission with an arbitrary name
+    Custom(String),
+}
+
+impl std::fmt::Display for SkillPermission {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Network => write!(f, "network"),
+            Self::Filesystem => write!(f, "filesystem"),
+            Self::Elevated => write!(f, "elevated"),
+            Self::Gpu => write!(f, "gpu"),
+            Self::RawSocket => write!(f, "raw_socket"),
+            Self::Custom(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+/// A dependency declared by a skill on another skill.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillDependency {
+    /// Name of the required skill
+    pub name: String,
+    /// SemVer version requirement (e.g. ">=1.0", "^2.0.0").
+    /// Empty string means any version.
+    pub version_req: String,
+    /// If true, the skill can still execute when this dependency is missing
+    pub optional: bool,
+}
+
+impl SkillDependency {
+    /// Create a required dependency (any version).
+    pub fn required(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            version_req: String::new(),
+            optional: false,
+        }
+    }
+
+    /// Create an optional dependency (any version).
+    pub fn optional(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            version_req: String::new(),
+            optional: true,
+        }
+    }
+
+    /// Create a dependency with a version constraint.
+    pub fn with_version(mut self, version_req: impl Into<String>) -> Self {
+        self.version_req = version_req.into();
+        self
+    }
+}
+
 /// Skill configuration for declarative skill definitions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillConfig {
@@ -13,6 +83,14 @@ pub struct SkillConfig {
     pub tags: Vec<String>,
     /// Whether this skill requires elevated permissions
     pub requires_elevation: bool,
+    /// Fine-grained permissions this skill needs to operate.
+    /// When empty the skill requires no special permissions.
+    #[serde(default)]
+    pub permissions: Vec<SkillPermission>,
+    /// Other skills this skill depends on.
+    /// Used by the registry for dependency validation and resolution.
+    #[serde(default)]
+    pub dependencies: Vec<SkillDependency>,
 }
 
 impl SkillConfig {
@@ -24,6 +102,8 @@ impl SkillConfig {
             parameters: serde_json::json!({}),
             tags: Vec::new(),
             requires_elevation: false,
+            permissions: Vec::new(),
+            dependencies: Vec::new(),
         }
     }
 
@@ -35,6 +115,30 @@ impl SkillConfig {
     pub fn with_version(mut self, version: impl Into<String>) -> Self {
         self.version = version.into();
         self
+    }
+
+    /// Set the permissions this skill requires.
+    pub fn with_permissions(mut self, permissions: Vec<SkillPermission>) -> Self {
+        self.requires_elevation =
+            self.requires_elevation || permissions.contains(&SkillPermission::Elevated);
+        self.permissions = permissions;
+        self
+    }
+
+    /// Set the dependencies this skill requires.
+    pub fn with_dependencies(mut self, dependencies: Vec<SkillDependency>) -> Self {
+        self.dependencies = dependencies;
+        self
+    }
+
+    /// Returns `true` if this skill requires the given permission.
+    pub fn requires_permission(&self, perm: &SkillPermission) -> bool {
+        self.permissions.contains(perm)
+    }
+
+    /// Returns `true` if all declared dependencies are non-optional.
+    pub fn has_required_dependencies(&self) -> bool {
+        self.dependencies.iter().any(|d| !d.optional)
     }
 }
 
@@ -87,11 +191,13 @@ impl Skill for HttpCallSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "network".to_string(),
-            "api".to_string(),
-            "http".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "network".to_string(),
+                "api".to_string(),
+                "http".to_string(),
+            ])
+            .with_permissions(vec![crate::skill::SkillPermission::Network])
     }
 
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value> {
@@ -184,11 +290,16 @@ impl Skill for ShellSkill {
     }
 
     fn config(&self) -> SkillConfig {
-        SkillConfig::new(self.name(), self.description()).with_tags(vec![
-            "system".to_string(),
-            "shell".to_string(),
-            "command".to_string(),
-        ])
+        SkillConfig::new(self.name(), self.description())
+            .with_tags(vec![
+                "system".to_string(),
+                "shell".to_string(),
+                "command".to_string(),
+            ])
+            .with_permissions(vec![
+                crate::skill::SkillPermission::Filesystem,
+                crate::skill::SkillPermission::Elevated,
+            ])
     }
 
     async fn execute(&self, params: serde_json::Value) -> KiasResult<serde_json::Value> {
@@ -516,5 +627,153 @@ mod tests {
         assert_eq!(merged["a"], 1);
         assert_eq!(merged["b"], 3);
         assert_eq!(merged["c"], 4);
+    }
+
+    // ===== SkillPermission tests =====
+
+    #[test]
+    fn test_skill_permission_display() {
+        assert_eq!(SkillPermission::Network.to_string(), "network");
+        assert_eq!(SkillPermission::Filesystem.to_string(), "filesystem");
+        assert_eq!(SkillPermission::Elevated.to_string(), "elevated");
+        assert_eq!(SkillPermission::Gpu.to_string(), "gpu");
+        assert_eq!(SkillPermission::RawSocket.to_string(), "raw_socket");
+        assert_eq!(SkillPermission::Custom("db".into()).to_string(), "db");
+    }
+
+    #[test]
+    fn test_skill_permission_equality() {
+        assert_eq!(SkillPermission::Network, SkillPermission::Network);
+        assert_ne!(SkillPermission::Network, SkillPermission::Filesystem);
+        assert_eq!(
+            SkillPermission::Custom("x".into()),
+            SkillPermission::Custom("x".into())
+        );
+        assert_ne!(
+            SkillPermission::Custom("x".into()),
+            SkillPermission::Custom("y".into())
+        );
+    }
+
+    #[test]
+    fn test_skill_permission_serialization_roundtrip() {
+        let perm = SkillPermission::Network;
+        let json = serde_json::to_string(&perm).unwrap();
+        let deserialized: SkillPermission = serde_json::from_str(&json).unwrap();
+        assert_eq!(perm, deserialized);
+
+        let custom = SkillPermission::Custom("my_perm".into());
+        let json = serde_json::to_string(&custom).unwrap();
+        let deserialized: SkillPermission = serde_json::from_str(&json).unwrap();
+        assert_eq!(custom, deserialized);
+    }
+
+    // ===== SkillDependency tests =====
+
+    #[test]
+    fn test_skill_dependency_required() {
+        let dep = SkillDependency::required("http_call");
+        assert_eq!(dep.name, "http_call");
+        assert!(dep.version_req.is_empty());
+        assert!(!dep.optional);
+    }
+
+    #[test]
+    fn test_skill_dependency_optional() {
+        let dep = SkillDependency::optional("shell_command");
+        assert_eq!(dep.name, "shell_command");
+        assert!(dep.optional);
+    }
+
+    #[test]
+    fn test_skill_dependency_with_version() {
+        let dep = SkillDependency::required("http_call").with_version("^1.0.0");
+        assert_eq!(dep.version_req, "^1.0.0");
+        assert!(!dep.optional);
+    }
+
+    #[test]
+    fn test_skill_dependency_serialization() {
+        let dep = SkillDependency::required("test").with_version(">=2.0");
+        let json = serde_json::to_string(&dep).unwrap();
+        let deserialized: SkillDependency = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "test");
+        assert_eq!(deserialized.version_req, ">=2.0");
+        assert!(!deserialized.optional);
+    }
+
+    // ===== SkillConfig permissions/dependencies tests =====
+
+    #[test]
+    fn test_skill_config_with_permissions() {
+        let config = SkillConfig::new("test", "desc")
+            .with_permissions(vec![SkillPermission::Network, SkillPermission::Elevated]);
+        assert_eq!(config.permissions.len(), 2);
+        assert!(config.requires_permission(&SkillPermission::Network));
+        assert!(config.requires_permission(&SkillPermission::Elevated));
+        assert!(!config.requires_permission(&SkillPermission::Gpu));
+        // Elevated permission should set requires_elevation
+        assert!(config.requires_elevation);
+    }
+
+    #[test]
+    fn test_skill_config_with_dependencies() {
+        let config = SkillConfig::new("composite", "desc").with_dependencies(vec![
+            SkillDependency::required("http_call"),
+            SkillDependency::optional("shell_command"),
+        ]);
+        assert_eq!(config.dependencies.len(), 2);
+        assert!(config.has_required_dependencies());
+    }
+
+    #[test]
+    fn test_skill_config_no_dependencies() {
+        let config = SkillConfig::new("simple", "desc");
+        assert!(!config.has_required_dependencies());
+        assert!(config.permissions.is_empty());
+        assert!(config.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_skill_config_serde_default_fields() {
+        // Verify that old JSON without permissions/dependencies still deserializes
+        let json = r#"{"name":"old_skill","description":"legacy","version":"1.0.0","parameters":{},"tags":[],"requires_elevation":false}"#;
+        let config: SkillConfig = serde_json::from_str(json).unwrap();
+        assert!(config.permissions.is_empty());
+        assert!(config.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_skill_config_serialization_roundtrip() {
+        let config = SkillConfig::new("rt_test", "desc")
+            .with_tags(vec!["tag1".to_string()])
+            .with_permissions(vec![SkillPermission::Network])
+            .with_dependencies(vec![SkillDependency::required("dep1")]);
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: SkillConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "rt_test");
+        assert_eq!(deserialized.permissions.len(), 1);
+        assert_eq!(deserialized.dependencies.len(), 1);
+        assert_eq!(deserialized.dependencies[0].name, "dep1");
+    }
+
+    // ===== Built-in skill permission tests =====
+
+    #[test]
+    fn test_http_call_skill_has_network_permission() {
+        let skill = HttpCallSkill::new();
+        let config = skill.config();
+        assert!(config.requires_permission(&SkillPermission::Network));
+        assert!(!config.requires_permission(&SkillPermission::Filesystem));
+    }
+
+    #[test]
+    fn test_shell_skill_has_elevated_permission() {
+        let skill = ShellSkill::new();
+        let config = skill.config();
+        assert!(config.requires_permission(&SkillPermission::Filesystem));
+        assert!(config.requires_permission(&SkillPermission::Elevated));
+        assert!(config.requires_elevation);
     }
 }

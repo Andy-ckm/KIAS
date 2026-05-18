@@ -1,4 +1,5 @@
 use super::skill::{Skill, SkillConfig};
+use super::skill::{SkillDependency, SkillPermission};
 use std::collections::HashMap;
 
 pub struct SkillRegistry {
@@ -92,6 +93,80 @@ impl SkillRegistry {
             })
             .map(|s| s.as_ref())
             .collect()
+    }
+
+    /// Find skills that require a specific permission.
+    pub fn find_by_permission(&self, perm: &SkillPermission) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.config().requires_permission(perm))
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// Find skills that require any of the given permissions.
+    pub fn find_by_any_permission(&self, perms: &[SkillPermission]) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| {
+                let skill_perms = &s.config().permissions;
+                perms.iter().any(|p| skill_perms.contains(p))
+            })
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// List all unique permissions required by registered skills.
+    pub fn all_permissions(&self) -> Vec<SkillPermission> {
+        let mut perms: Vec<SkillPermission> = self
+            .skills
+            .values()
+            .flat_map(|s| s.config().permissions)
+            .collect();
+        perms.sort_by_cached_key(|p| p.to_string());
+        perms.dedup_by(|a, b| a == b);
+        perms
+    }
+
+    /// Find skills that depend on the given skill name.
+    pub fn find_dependents_of(&self, skill_name: &str) -> Vec<&dyn Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.config().dependencies.iter().any(|d| d.name == skill_name))
+            .map(|s| s.as_ref())
+            .collect()
+    }
+
+    /// Validate that all required dependencies of a skill are present in the registry.
+    /// Returns `Ok(())` if all non-optional dependencies are satisfied,
+    /// or `Err` with the list of missing required dependency names.
+    pub fn validate_dependencies(&self, skill_name: &str) -> Result<(), Vec<String>> {
+        let skill = match self.skills.get(skill_name) {
+            Some(s) => s,
+            None => return Err(vec![format!("Skill '{}' not found", skill_name)]),
+        };
+
+        let config = skill.config();
+        let missing: Vec<String> = config
+            .dependencies
+            .iter()
+            .filter(|d| !d.optional && !self.has(&d.name))
+            .map(|d| d.name.clone())
+            .collect();
+
+        if missing.is_empty() {
+            Ok(())
+        } else {
+            Err(missing)
+        }
+    }
+
+    /// Get all declared dependencies (including optional) for a skill.
+    pub fn get_dependencies(&self, skill_name: &str) -> Vec<SkillDependency> {
+        self.skills
+            .get(skill_name)
+            .map(|s| s.config().dependencies)
+            .unwrap_or_default()
     }
 
     /// List all unique tags
@@ -257,5 +332,49 @@ mod tests {
         let registry = SkillRegistry::new();
         let results = registry.find_by_all_tags(&["tag1", "tag2"]);
         assert!(results.is_empty());
+    }
+
+    // ===== Permission-based registry tests =====
+
+    #[test]
+    fn test_find_by_permission_empty() {
+        let registry = SkillRegistry::new();
+        let results = registry.find_by_permission(&SkillPermission::Network);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_find_by_any_permission_empty() {
+        let registry = SkillRegistry::new();
+        let results = registry.find_by_any_permission(&[SkillPermission::Network]);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_all_permissions_empty() {
+        let registry = SkillRegistry::new();
+        assert!(registry.all_permissions().is_empty());
+    }
+
+    #[test]
+    fn test_find_dependents_of_empty() {
+        let registry = SkillRegistry::new();
+        let results = registry.find_dependents_of("any");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_validate_dependencies_skill_not_found() {
+        let registry = SkillRegistry::new();
+        let result = registry.validate_dependencies("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("not found"));
+    }
+
+    #[test]
+    fn test_get_dependencies_empty() {
+        let registry = SkillRegistry::new();
+        let deps = registry.get_dependencies("nonexistent");
+        assert!(deps.is_empty());
     }
 }

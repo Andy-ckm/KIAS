@@ -1,5 +1,6 @@
 pub mod agentic_rag;
 pub mod context_manager;
+pub mod entity_extractor;
 pub mod graph;
 pub mod graphrag;
 pub mod inspiration_stream;

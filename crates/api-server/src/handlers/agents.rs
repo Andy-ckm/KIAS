@@ -396,7 +396,7 @@ mod handler_tests {
     #[tokio::test]
     async fn test_create_duplicate_agent_fails() {
         let state = test_state().await;
-        create_agent(State(state.clone()), Json(test_spec("dup")))
+        let _ = create_agent(State(state.clone()), Json(test_spec("dup")))
             .await
             .unwrap();
         let result = create_agent(State(state.clone()), Json(test_spec("dup"))).await;
@@ -425,10 +425,10 @@ mod handler_tests {
     #[tokio::test]
     async fn test_list_agents_with_items() {
         let state = test_state().await;
-        create_agent(State(state.clone()), Json(test_spec("a1")))
+        let _ = create_agent(State(state.clone()), Json(test_spec("a1")))
             .await
             .unwrap();
-        create_agent(State(state.clone()), Json(test_spec("a2")))
+        let _ = create_agent(State(state.clone()), Json(test_spec("a2")))
             .await
             .unwrap();
         let pagination = PaginationParams {

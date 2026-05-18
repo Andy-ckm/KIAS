@@ -542,4 +542,222 @@ mod tests {
         assert_eq!(gate.audit_history().len(), 1);
         assert_eq!(gate.audit_history()[0].action_id, action_id);
     }
+
+    #[test]
+    fn test_gate_threshold_policy() {
+        let mut gate = SideEffectGate::new(GatePolicy::Threshold {
+            max_auto_risk: RiskLevel::High,
+        });
+
+        // Low → auto
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        assert!(matches!(
+            gate.process(action),
+            GateResult::AutoApproved { .. }
+        ));
+
+        // Medium → auto
+        let action = SideEffectAction::new(
+            ActionType::GitPush,
+            "origin main".to_string(),
+            serde_json::json!({}),
+        );
+        assert!(matches!(
+            gate.process(action),
+            GateResult::AutoApproved { .. }
+        ));
+
+        // High → auto (equal to max_auto_risk, not greater)
+        let action = SideEffectAction::new(
+            ActionType::NetworkRequest,
+            "https://api.example.com".to_string(),
+            serde_json::json!({}),
+        );
+        assert!(matches!(
+            gate.process(action),
+            GateResult::AutoApproved { .. }
+        ));
+
+        // Critical → requires approval (greater than max_auto_risk)
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/production/config.yaml".to_string(),
+            serde_json::json!({}),
+        );
+        assert!(matches!(
+            gate.process(action),
+            GateResult::RequiresApproval { .. }
+        ));
+    }
+
+    #[test]
+    fn test_record_approval_updates_history() {
+        let mut gate = SideEffectGate::new(GatePolicy::Always);
+        let action = SideEffectAction::new(
+            ActionType::NetworkRequest,
+            "https://api.example.com".to_string(),
+            serde_json::json!({}),
+        );
+        let action_id = action.id;
+        gate.process(action);
+
+        // Initially no approval
+        assert!(gate.audit_history()[0].approval.is_none());
+
+        // Record approval
+        let decision = ApprovalDecision {
+            approver: "admin".to_string(),
+            decision: ApprovalOutcome::Approved,
+            reason: "safe endpoint".to_string(),
+            timestamp: Utc::now(),
+        };
+        gate.record_approval(action_id, decision);
+
+        // Now has approval
+        let entry = &gate.audit_history()[0];
+        assert!(entry.approval.is_some());
+        assert!(matches!(
+            entry.approval.as_ref().unwrap().decision,
+            ApprovalOutcome::Approved
+        ));
+    }
+
+    #[test]
+    fn test_record_approval_nonexistent_id() {
+        let mut gate = SideEffectGate::new(GatePolicy::Always);
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        gate.process(action);
+
+        // Try to record approval for a non-existent ID
+        let decision = ApprovalDecision {
+            approver: "admin".to_string(),
+            decision: ApprovalOutcome::Approved,
+            reason: "test".to_string(),
+            timestamp: Utc::now(),
+        };
+        gate.record_approval(Uuid::new_v4(), decision);
+
+        // History unchanged — no approval recorded
+        assert!(gate.audit_history()[0].approval.is_none());
+    }
+
+    #[test]
+    fn test_execution_mode_defaults_to_dry_run() {
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        assert_eq!(action.mode, ExecutionMode::DryRun);
+        assert!(action.preview_result.is_none());
+        assert!(action.actual_result.is_none());
+        assert!(action.approval.is_none());
+    }
+
+    #[test]
+    fn test_preview_reversible_field() {
+        let mut gate = SideEffectGate::new(GatePolicy::AutoLow);
+
+        // FileWrite → reversible
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        let result = gate.process(action);
+        if let GateResult::AutoApproved { preview, .. } = result {
+            assert!(preview.reversible);
+        } else {
+            panic!("Expected AutoApproved");
+        }
+
+        // FileDelete → not reversible
+        let action = SideEffectAction::new(
+            ActionType::FileDelete,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        let result = gate.process(action);
+        if let GateResult::RequiresApproval { preview, .. } = result {
+            assert!(!preview.reversible);
+        } else {
+            panic!("Expected RequiresApproval");
+        }
+    }
+
+    #[test]
+    fn test_stats_with_mixed_operations() {
+        let mut gate = SideEffectGate::new(GatePolicy::AutoMedium);
+
+        // 2 low (auto), 1 medium (auto), 1 high (requires)
+        gate.process(SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/a".to_string(),
+            serde_json::json!({}),
+        ));
+        gate.process(SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/b".to_string(),
+            serde_json::json!({}),
+        ));
+        gate.process(SideEffectAction::new(
+            ActionType::GitPush,
+            "origin main".to_string(),
+            serde_json::json!({}),
+        ));
+        gate.process(SideEffectAction::new(
+            ActionType::NetworkRequest,
+            "https://api.example.com".to_string(),
+            serde_json::json!({}),
+        ));
+
+        let stats = gate.stats();
+        assert_eq!(stats.total, 4);
+        assert_eq!(stats.auto_approved, 3);
+        assert_eq!(stats.requires_approval, 1);
+        assert_eq!(stats.approved, 0);
+        assert_eq!(stats.rejected, 0);
+    }
+
+    #[test]
+    fn test_prod_path_in_target() {
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/app/prod/config.json".to_string(),
+            serde_json::json!({}),
+        );
+        assert_eq!(action.risk_level(), RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_approval_outcome_rejected() {
+        let mut gate = SideEffectGate::new(GatePolicy::Always);
+        let action = SideEffectAction::new(
+            ActionType::DataMutation,
+            "users_table".to_string(),
+            serde_json::json!({"delete": true}),
+        );
+        let action_id = action.id;
+        gate.process(action);
+
+        let decision = ApprovalDecision {
+            approver: "security-team".to_string(),
+            decision: ApprovalOutcome::Rejected,
+            reason: "too risky".to_string(),
+            timestamp: Utc::now(),
+        };
+        gate.record_approval(action_id, decision);
+
+        let stats = gate.stats();
+        assert_eq!(stats.rejected, 1);
+        assert_eq!(stats.approved, 0);
+    }
 }

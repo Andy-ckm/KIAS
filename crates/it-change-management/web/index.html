@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIAS IT变更管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            text-align: center;
+            font-size: 2rem;
+        }
+        header p {
+            text-align: center;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c5282;
+        }
+        .stat-card .label {
+            color: #999;
+            font-size: 0.8rem;
+        }
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #1e3a5f;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        tr:hover {
+            background: #f7fafc;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-draft { background: #e2e8f0; color: #4a5568; }
+        .status-submitted { background: #bee3f8; color: #2b6cb0; }
+        .status-under-review { background: #fefcbf; color: #975a16; }
+        .status-approved { background: #c6f6d5; color: #276749; }
+        .status-implementing { background: #feebc8; color: #9c4221; }
+        .status-implemented { background: #c6f6d5; color: #276749; }
+        .status-verifying { background: #e9d8fd; color: #553c9a; }
+        .status-verified { background: #c6f6d5; color: #276749; }
+        .status-closed { background: #e2e8f0; color: #4a5568; }
+        .status-rejected { background: #fed7d7; color: #9b2c2c; }
+        .status-rolled-back { background: #fed7d7; color: #9b2c2c; }
+        .status-emergency { background: #fed7d7; color: #9b2c2c; }
+        .risk-low { color: #276749; }
+        .risk-medium { color: #975a16; }
+        .risk-high { color: #9c4221; }
+        .risk-critical { color: #9b2c2c; font-weight: bold; }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .btn-primary {
+            background: #2c5282;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2b6cb0;
+        }
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c53030;
+        }
+        .btn-success {
+            background: #38a169;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #2f855a;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .audit-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .audit-log .entry {
+            margin-bottom: 5px;
+        }
+        .audit-log .timestamp {
+            color: #569cd6;
+        }
+        .audit-log .action {
+            color: #4ec9b0;
+        }
+        .audit-log .actor {
+            color: #ce9178;
+        }
+        .audit-log .detail {
+            color: #d4d4d4;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 8px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .compliance-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        .badge-fda { background: #fed7d7; color: #9b2c2c; }
+        .badge-gamp { background: #e9d8fd; color: #553c9a; }
+        .badge-cis { background: #c6f6d5; color: #276749; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>KIAS IT变更管理系统</h1>
+            <p>医药/医疗器械企业IT系统变更管理 | 符合 FDA 21 CFR Part 11</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>总变更数</h3>
+                <div class="value" id="total-changes">0</div>
+                <div class="label">所有变更请求</div>
+            </div>
+            <div class="stat-card">
+                <h3>待审批</h3>
+                <div class="value" id="pending-approval">0</div>
+                <div class="label">等待审批</div>
+            </div>
+            <div class="stat-card">
+                <h3>实施中</h3>
+                <div class="value" id="implementing">0</div>
+                <div class="label">正在实施</div>
+            </div>
+            <div class="stat-card">
+                <h3>SLA违规</h3>
+                <div class="value" id="sla-violations">0</div>
+                <div class="label">超过截止时间</div>
+            </div>
+        </div>
+
+        <!-- 合规标准 -->
+        <div class="section">
+            <h2>合规标准</h2>
+            <p>
+                <span class="compliance-badge badge-fda">FDA 21 CFR Part 11</span>
+                <span class="compliance-badge badge-gamp">GAMP 5</span>
+                <span class="compliance-badge badge-cis">CIS Benchmark</span>
+            </p>
+        </div>
+
+        <!-- 变更列表 -->
+        <div class="section">
+            <h2>变更请求列表</h2>
+            <button class="btn btn-primary" onclick="showCreateModal()">+ 新建变更</button>
+            <table style="margin-top: 20px;">
+                <thead>
+                    <tr>
+                        <th>变更编号</th>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>风险等级</th>
+                        <th>状态</th>
+                        <th>申请人</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="changes-table">
+                    <tr>
+                        <td>CHG-202605-0001</td>
+                        <td>升级LIMS到v3.0</td>
+                        <td>应用系统</td>
+                        <td class="risk-high">高</td>
+                        <td><span class="status status-closed">已关闭</span></td>
+                        <td>zhang.it</td>
+                        <td>2026-05-18</td>
+                        <td class="actions">
+                            <button class="btn btn-primary" onclick="viewChange('1')">查看</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>CHG-202605-0002</td>
+                        <td>紧急修复CVE-2026-1234</td>
+                        <td>安全变更</td>
+                        <td class="risk-critical">关键</td>
+                        <td><span class="status status-emergency">紧急实施</span></td>
+                        <td>ops.lead</td>
+                        <td>2026-05-18</td>
+                        <td class="actions">
+                            <button class="btn btn-primary" onclick="viewChange('2')">查看</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>CHG-202605-0003</td>
+                        <td>更新检测阈值</td>
+                        <td>配置变更</td>
+                        <td class="risk-medium">中</td>
+                        <td><span class="status status-draft">草稿</span></td>
+                        <td>qa.engineer</td>
+                        <td>2026-05-18</td>
+                        <td class="actions">
+                            <button class="btn btn-primary" onclick="viewChange('3')">查看</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 审计日志 -->
+        <div class="section">
+            <h2>审计日志</h2>
+            <div class="audit-log" id="audit-log">
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:53:00]</span>
+                    <span class="action">[Created]</span>
+                    <span class="actor">zhang.it</span>
+                    <span class="detail">变更请求 CHG-202605-0001 已创建</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:53:05]</span>
+                    <span class="action">[Submitted]</span>
+                    <span class="actor">zhang.it</span>
+                    <span class="detail">变更已提交审批</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:54:00]</span>
+                    <span class="action">[Approved]</span>
+                    <span class="actor">qa.head</span>
+                    <span class="detail">变更已批准 - 电子签名: 李四/QA主管</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:55:00]</span>
+                    <span class="action">[Implemented]</span>
+                    <span class="actor">zhang.it</span>
+                    <span class="detail">变更实施完成</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:56:00]</span>
+                    <span class="action">[Verified]</span>
+                    <span class="actor">qa.tester</span>
+                    <span class="detail">变更验证完成</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 07:57:00]</span>
+                    <span class="action">[Closed]</span>
+                    <span class="actor">zhang.it</span>
+                    <span class="detail">变更已关闭</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 08:00:00]</span>
+                    <span class="action">[EmergencyApproved]</span>
+                    <span class="actor">ops.lead</span>
+                    <span class="detail">紧急变更已实施，原因: 高危漏洞，生产系统面临风险</span>
+                </div>
+                <div class="entry">
+                    <span class="timestamp">[2026-05-18 08:05:00]</span>
+                    <span class="action">[CapaTriggered]</span>
+                    <span class="actor">qa.inspector</span>
+                    <span class="detail">CAPA 8057a359 已触发 - 原因: 阈值超出验证范围</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Linux自动化 -->
+        <div class="section">
+            <h2>Linux自动化维护</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>任务类型</th>
+                        <th>目标主机</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>合规扫描</td>
+                        <td>192.168.1.10, 192.168.1.11</td>
+                        <td><span class="status status-approved">已完成</span></td>
+                        <td><button class="btn btn-primary" onclick="runScan()">执行</button></td>
+                    </tr>
+                    <tr>
+                        <td>安全补丁</td>
+                        <td>所有Linux服务器</td>
+                        <td><span class="status status-implementing">进行中</span></td>
+                        <td><button class="btn btn-primary" onclick="runPatch()">执行</button></td>
+                    </tr>
+                    <tr>
+                        <td>磁盘清理</td>
+                        <td>192.168.1.10</td>
+                        <td><span class="status status-draft">待执行</span></td>
+                        <td><button class="btn btn-primary" onclick="runCleanup()">执行</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新建变更模态框 -->
+    <div class="modal" id="create-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>新建变更请求</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form>
+                <div class="form-group">
+                    <label>变更标题</label>
+                    <input type="text" placeholder="输入变更标题">
+                </div>
+                <div class="form-group">
+                    <label>变更描述</label>
+                    <textarea placeholder="详细描述变更内容"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>变更类型</label>
+                    <select>
+                        <option>基础设施变更</option>
+                        <option>应用系统升级</option>
+                        <option>配置变更</option>
+                        <option>数据迁移</option>
+                        <option>接口变更</option>
+                        <option>安全变更</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>风险等级</label>
+                    <select>
+                        <option>低风险</option>
+                        <option>中风险</option>
+                        <option>高风险</option>
+                        <option>关键风险</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>GxP影响</label>
+                    <select>
+                        <option>无影响</option>
+                        <option>间接影响</option>
+                        <option>直接影响</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>回滚计划</label>
+                    <textarea placeholder="描述回滚步骤"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>实施计划</label>
+                    <textarea placeholder="描述实施步骤"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">提交</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 模拟数据
+        const stats = {
+            total: 3,
+            pending: 0,
+            implementing: 0,
+            slaViolations: 0
+        };
+
+        // 更新统计
+        document.getElementById('total-changes').textContent = stats.total;
+        document.getElementById('pending-approval').textContent = stats.pending;
+        document.getElementById('implementing').textContent = stats.implementing;
+        document.getElementById('sla-violations').textContent = stats.slaViolations;
+
+        // 显示模态框
+        function showCreateModal() {
+            document.getElementById('create-modal').style.display = 'block';
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('create-modal').style.display = 'none';
+        }
+
+        // 查看变更详情
+        function viewChange(id) {
+            alert('查看变更详情: ' + id);
+        }
+
+        // 执行Linux自动化任务
+        function runScan() {
+            alert('执行合规扫描...');
+        }
+
+        function runPatch() {
+            alert('执行安全补丁...');
+        }
+
+        function runCleanup() {
+            alert('执行磁盘清理...');
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('create-modal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

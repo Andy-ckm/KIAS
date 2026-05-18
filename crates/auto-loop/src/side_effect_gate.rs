@@ -194,22 +194,17 @@ pub enum ApprovalOutcome {
 // ─── Gate Policy ───────────────────────────────────────────────────────
 
 /// 闸门策略（决定是否需要审批）
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum GatePolicy {
     /// Low 风险自动通过，其余需要审批
     AutoLow,
     /// Low + Medium 自动通过，High/Critical 需要审批
+    #[default]
     AutoMedium,
     /// 所有都需要审批
     Always,
     /// 自定义阈值
     Threshold { max_auto_risk: RiskLevel },
-}
-
-impl Default for GatePolicy {
-    fn default() -> Self {
-        Self::AutoMedium
-    }
 }
 
 impl GatePolicy {
@@ -469,7 +464,10 @@ mod tests {
             "/tmp/test.txt".to_string(),
             serde_json::json!({}),
         );
-        assert!(matches!(gate.process(action), GateResult::AutoApproved { .. }));
+        assert!(matches!(
+            gate.process(action),
+            GateResult::AutoApproved { .. }
+        ));
 
         // Medium → auto
         let action = SideEffectAction::new(
@@ -477,7 +475,10 @@ mod tests {
             "origin main".to_string(),
             serde_json::json!({}),
         );
-        assert!(matches!(gate.process(action), GateResult::AutoApproved { .. }));
+        assert!(matches!(
+            gate.process(action),
+            GateResult::AutoApproved { .. }
+        ));
 
         // High → requires approval
         let action = SideEffectAction::new(

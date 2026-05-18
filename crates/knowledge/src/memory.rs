@@ -10,6 +10,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::entity_extractor::EntityExtractor;
+use crate::entity_tier::EntityTierManager;
+use std::sync::Mutex;
+
 /// Memory entry identifier
 pub type MemoryId = String;
 
@@ -131,6 +135,10 @@ pub struct AgentMemoryStore {
     stores: Arc<RwLock<HashMap<AgentId, Vec<MemoryEntry>>>>,
     /// Maximum memories per agent
     max_per_agent: usize,
+    /// 零 LLM 实体提取器（自动从记忆内容提取实体关系）
+    entity_extractor: EntityExtractor,
+    /// 实体分层管理器（自动晋升 Tier3→Tier2→Tier1）
+    entity_tier_manager: Mutex<EntityTierManager>,
 }
 
 impl AgentMemoryStore {
@@ -144,11 +152,34 @@ impl AgentMemoryStore {
         Self {
             stores: Arc::new(RwLock::new(HashMap::new())),
             max_per_agent,
+            entity_extractor: EntityExtractor::new(),
+            entity_tier_manager: Mutex::new(EntityTierManager::new()),
         }
     }
 
-    /// Store a new memory
-    pub async fn remember(&self, entry: MemoryEntry) -> MemoryId {
+    /// Store a new memory (自动提取实体标签)
+    pub async fn remember(&self, mut entry: MemoryEntry) -> MemoryId {
+        // 零 LLM 实体提取：从内容中提取实体作为标签
+        let relations = self.entity_extractor.extract(&entry.content);
+        for rel in &relations {
+            let tag = format!("{}:{:?}:{}", rel.subject, rel.relation, rel.object);
+            if !entry.tags.contains(&tag) {
+                entry.tags.push(tag);
+            }
+            // 实体名也作为标签（便于搜索）
+            if !entry.tags.contains(&rel.subject) {
+                entry.tags.push(rel.subject.clone());
+            }
+            if !entry.tags.contains(&rel.object) {
+                entry.tags.push(rel.object.clone());
+            }
+            // 实体分层：注册实体来源，自动晋升 Tier3→Tier2→Tier1
+            if let Ok(mut tier_mgr) = self.entity_tier_manager.lock() {
+                tier_mgr.register_mention(&rel.subject, &entry.agent_id);
+                tier_mgr.register_mention(&rel.object, &entry.agent_id);
+            }
+        }
+
         let id = entry.id.clone();
         let agent_id = entry.agent_id.clone();
         let mut stores = self.stores.write().await;

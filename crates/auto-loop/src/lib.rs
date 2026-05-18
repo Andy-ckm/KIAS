@@ -23,6 +23,9 @@ pub mod tool_aware_intent;
 pub mod verifier;
 
 use serde::{Deserialize, Serialize};
+use side_effect_gate::{GatePolicy, GateResult, SideEffectAction, SideEffectGate};
+use self_boundary::{SelfBoundaryReasoner, SelfModel, ResponseStrategy};
+
 /// 循环状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum LoopStatus {
@@ -262,6 +265,10 @@ pub struct AutoLoopManager {
     knowledge_base: Vec<KnowledgeEntry>,
     /// 自主权限门控
     autonomy_gate: AutonomyGate,
+    /// 副作用闸门（Dry-Run）
+    side_effect_gate: SideEffectGate,
+    /// 元认知自我边界推理器
+    self_boundary: SelfBoundaryReasoner,
 }
 
 /// 自主权限检查结果
@@ -333,6 +340,8 @@ impl AutoLoopManager {
             config,
             knowledge_base: Vec::new(),
             autonomy_gate: AutonomyGate::new(),
+            side_effect_gate: SideEffectGate::new(GatePolicy::AutoMedium),
+            self_boundary: SelfBoundaryReasoner::new(SelfModel::kias_default()),
         }
     }
 
@@ -391,7 +400,31 @@ impl AutoLoopManager {
     }
 
     /// 启动循环
+    /// 先做元认知评估：这个任务该不该做？
     pub fn start_loop(&mut self, problem: DiscoveredProblem) -> String {
+        // 元认知评估：检查任务是否在能力边界内
+        let meta = self.self_boundary.evaluate(&problem.description);
+        if matches!(meta.strategy, ResponseStrategy::Escalate { .. }) {
+            // 需要 escalate 的任务不自动处理，标记为等待人类
+            let loop_id = uuid::Uuid::new_v4().to_string();
+            let record = LoopRecord {
+                id: loop_id.clone(),
+                problem,
+                analysis: None,
+                plan: None,
+                implementation: None,
+                verification: None,
+                status: LoopStatus::WaitingForHuman,
+                started_at: chrono::Utc::now(),
+                completed_at: None,
+                lessons: vec![format!("元认知评估: 置信度 {:.0}%, 原因: {:?}",
+                    meta.confidence * 100.0, meta.strategy)],
+            };
+            self.records.push(record);
+            self.current_status = LoopStatus::WaitingForHuman;
+            return loop_id;
+        }
+
         let loop_id = uuid::Uuid::new_v4().to_string();
         let record = LoopRecord {
             id: loop_id.clone(),
@@ -403,7 +436,8 @@ impl AutoLoopManager {
             status: LoopStatus::Discovering,
             started_at: chrono::Utc::now(),
             completed_at: None,
-            lessons: Vec::new(),
+            lessons: vec![format!("元认知评估: 置信度 {:.0}%, 策略: {:?}",
+                meta.confidence * 100.0, meta.strategy)],
         };
         self.records.push(record);
         self.current_status = LoopStatus::Discovering;
@@ -435,7 +469,31 @@ impl AutoLoopManager {
     }
 
     /// 实施修复
+    /// 先过副作用闸门：有副作用的操作必须 dry-run 预演
     pub fn implement_fix(&mut self, loop_id: &str, result: ImplementationResult) {
+        // 副作用闸门检查：所有变更文件都经过 dry-run
+        let changed_files = result.changed_files.clone();
+        for file in &changed_files {
+            let action = SideEffectAction::new(
+                side_effect_gate::ActionType::FileWrite,
+                file.clone(),
+                serde_json::json!({"lines_changed": result.lines_changed}),
+            );
+            let gate_result = self.side_effect_gate.process(action);
+            if matches!(gate_result, GateResult::RequiresApproval { .. }) {
+                // 高风险操作需要审批，标记为等待人类
+                if let Some(record) = self.records.iter_mut().find(|r| r.id == loop_id) {
+                    record.implementation = Some(result);
+                    record.status = LoopStatus::WaitingForHuman;
+                    self.current_status = LoopStatus::WaitingForHuman;
+                    record.lessons.push(format!(
+                        "副作用闸门: 文件 {} 需要人工审批", file
+                    ));
+                }
+                return;
+            }
+        }
+
         if let Some(record) = self.records.iter_mut().find(|r| r.id == loop_id) {
             record.implementation = Some(result);
             record.status = LoopStatus::Verifying;
@@ -455,6 +513,14 @@ impl AutoLoopManager {
             };
             record.completed_at = Some(chrono::Utc::now());
             self.current_status = LoopStatus::Idle;
+
+            // 更新自我模型：记录本次任务结果
+            let strategy = if record.lessons.iter().any(|l| l.contains("元认知评估")) {
+                ResponseStrategy::ReasonDirectly // 简化：假设直接处理
+            } else {
+                ResponseStrategy::ReasonDirectly
+            };
+            self.self_boundary.record_outcome(&strategy, success);
 
             // 提取经验教训
             if success {
@@ -716,7 +782,7 @@ mod tests {
 
         assert_eq!(manager.current_status(), &LoopStatus::Idle);
         assert_eq!(manager.records()[0].status, LoopStatus::Completed);
-        assert_eq!(manager.knowledge_base().len(), 1);
+        assert_eq!(manager.knowledge_base().len(), 2);
     }
 
     #[test]

@@ -11,4 +11,5 @@ pub mod nodes;
 pub mod scheduler;
 pub mod tier_routing;
 pub mod tokens;
+pub mod visualization;
 pub mod workflows;

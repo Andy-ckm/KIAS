@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>KIAS 审计时间线</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #0d1117; color: #c9d1d9; }
+        .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .header { background: #21262d; padding: 15px 20px; border-bottom: 1px solid #30363d; margin-bottom: 20px; }
+        .header h1 { margin: 0; color: #58a6ff; font-size: 24px; }
+        .timeline { position: relative; padding: 20px 0; }
+        .timeline::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #30363d; transform: translateX(-50%); }
+        .event { position: relative; margin-bottom: 30px; display: flex; }
+        .event:nth-child(odd) { flex-direction: row; }
+        .event:nth-child(even) { flex-direction: row-reverse; }
+        .event-content { width: 45%; padding: 15px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        .event:nth-child(odd) .event-content { margin-right: 5%; }
+        .event:nth-child(even) .event-content { margin-left: 5%; }
+        .event-dot { position: absolute; left: 50%; top: 20px; width: 16px; height: 16px; background: #58a6ff; border-radius: 50%; transform: translateX(-50%); border: 3px solid #0d1117; }
+        .event-dot.create { background: #3fb950; }
+        .event-dot.update { background: #58a6ff; }
+        .event-dot.approve { background: #d29922; }
+        .event-dot.delete { background: #f85149; }
+        .event-time { font-size: 12px; color: #8b949e; margin-bottom: 5px; }
+        .event-title { font-size: 16px; font-weight: bold; color: #c9d1d9; margin-bottom: 5px; }
+        .event-details { font-size: 14px; color: #8b949e; }
+        .event-actor { font-size: 12px; color: #58a6ff; margin-top: 5px; }
+        .event-hash { font-size: 10px; color: #30363d; font-family: monospace; margin-top: 5px; }
+        .filter { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        .filter button:hover, .filter button.active { background: #58a6ff; color: white; border-color: #58a6ff; }
+        .search { margin-bottom: 20px; }
+        .search input { width: 100%; padding: 10px; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; border-radius: 4px; font-size: 14px; }
+        .search input:focus { border-color: #58a6ff; outline: none; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat { background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #58a6ff; }
+        .stat-label { font-size: 12px; color: #8b949e; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 KIAS 审计时间线</h1>
+        <p>完整的操作审计追踪</p>
+    </div>
+    <div class="container">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value">6</div>
+                <div class="stat-label">总事件数</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">2</div>
+                <div class="stat-label">创建事件</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">2</div>
+                <div class="stat-label">更新事件</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">1</div>
+                <div class="stat-label">审批事件</div>
+            </div>
+        </div>
+
+        <div class="search">
+            <input type="text" id="searchInput" placeholder="搜索事件...">
+        </div>
+
+        <div class="filter">
+            <button class="active" onclick="filterEvents('all')">全部</button>
+            <button onclick="filterEvents('create')">创建</button>
+            <button onclick="filterEvents('update')">更新</button>
+            <button onclick="filterEvents('approve')">审批</button>
+            <button onclick="filterEvents('delete')">删除</button>
+        </div>
+
+        <div class="timeline" id="timeline">
+            <div class="event" data-type="approve">
+                <div class="event-content">
+                    <div class="event-time">2026-05-18 11:00:00</div>
+                    <div class="event-title">审批设计控制流程文档</div>
+                    <div class="event-details">文档已通过审批，状态变更为 approved</div>
+                    <div class="event-actor">操作人: user-2 (质量经理)</div>
+                    <div class="event-hash">SHA-256: def456789...</div>
+                </div>
+                <div class="event-dot approve"></div>
+            </div>
+
+            <div class="event" data-type="create">
+                <div class="event-content">
+                    <div class="event-time">2026-05-18 10:00:00</div>
+                    <div class="event-title">创建设计控制流程文档</div>
+                    <div class="event-details">创建新的 SOP 文档，版本 2.1</div>
+                    <div class="event-actor">操作人: user-1 (工程师)</div>
+                    <div class="event-hash">SHA-256: abc123456...</div>
+                </div>
+                <div class="event-dot create"></div>
+            </div>
+
+            <div class="event" data-type="update">
+                <div class="event-content">
+                    <div class="event-time">2026-05-17 15:00:00</div>
+                    <div class="event-title">更新验证报告</div>
+                    <div class="event-details">更新验证报告内容，添加新的测试结果</div>
+                    <div class="event-actor">操作人: user-3 (验证工程师)</div>
+                    <div class="event-hash">SHA-256: ghi789012...</div>
+                </div>
+                <div class="event-dot update"></div>
+            </div>
+
+            <div class="event" data-type="create">
+                <div class="event-content">
+                    <div class="event-time">2026-05-17 10:00:00</div>
+                    <div class="event-title">创建验证报告</div>
+                    <div class="event-details">创建新的验证报告文档</div>
+                    <div class="event-actor">操作人: user-3 (验证工程师)</div>
+                    <div class="event-hash">SHA-256: jkl345678...</div>
+                </div>
+                <div class="event-dot create"></div>
+            </div>
+
+            <div class="event" data-type="update">
+                <div class="event-content">
+                    <div class="event-time">2026-05-16 16:00:00</div>
+                    <div class="event-title">更新 CAPA 记录</div>
+                    <div class="event-details">更新纠正预防措施记录，添加新的整改措施</div>
+                    <div class="event-actor">操作人: user-4 (质量工程师)</div>
+                    <div class="event-hash">SHA-256: mno901234...</div>
+                </div>
+                <div class="event-dot update"></div>
+            </div>
+
+            <div class="event" data-type="approve">
+                <div class="event-content">
+                    <div class="event-time">2026-05-16 14:00:00</div>
+                    <div class="event-title">审批 CAPA 记录</div>
+                    <div class="event-details">CAPA 记录已通过审批</div>
+                    <div class="event-actor">操作人: user-2 (质量经理)</div>
+                    <div class="event-hash">SHA-256: pqr567890...</div>
+                </div>
+                <div class="event-dot approve"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 筛选功能
+        function filterEvents(type) {
+            const events = document.querySelectorAll('.event');
+            const buttons = document.querySelectorAll('.filter button');
+            
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            events.forEach(event => {
+                if (type === 'all' || event.dataset.type === type) {
+                    event.style.display = 'flex';
+                } else {
+                    event.style.display = 'none';
+                }
+            });
+        }
+
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const events = document.querySelectorAll('.event');
+            
+            events.forEach(event => {
+                const text = event.textContent.toLowerCase();
+                if (query === '' || text.includes(query)) {
+                    event.style.display = 'flex';
+                } else {
+                    event.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

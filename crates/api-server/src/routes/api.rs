@@ -5,7 +5,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
     a2a, agents, config, context, health, im, knowledge, metrics, nl_command, nodes, scheduler,
-    tier_routing, tokens, workflows,
+    tier_routing, tokens, visualization, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -266,6 +266,37 @@ pub fn create_router(state: AppState) -> Router {
             axum::routing::get(im::list_platforms),
         );
 
+    // --- Visualization routes (GxP compliance dashboards) ---
+    let visualization_routes = Router::new()
+        .route(
+            "/api/v1/viz/knowledge-graph",
+            axum::routing::get(visualization::get_knowledge_graph),
+        )
+        .route(
+            "/api/v1/viz/document-relations",
+            axum::routing::get(visualization::get_document_relations),
+        )
+        .route(
+            "/api/v1/viz/audit-timeline",
+            axum::routing::get(visualization::get_audit_timeline),
+        )
+        .route(
+            "/api/v1/viz/compliance-status",
+            axum::routing::get(visualization::get_compliance_status),
+        )
+        .route(
+            "/viz/knowledge-graph",
+            axum::routing::get(visualization::knowledge_graph_html),
+        )
+        .route(
+            "/viz/compliance-dashboard",
+            axum::routing::get(visualization::compliance_dashboard_html),
+        )
+        .route(
+            "/viz/audit-timeline",
+            axum::routing::get(visualization::audit_timeline_html),
+        );
+
     // --- Combine API routes (rate-limit → auth-protected) ---
     let api_routes = agent_routes
         .merge(node_routes)
@@ -281,6 +312,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(nl_routes)
         .merge(intent_routes)
         .merge(im_routes)
+        .merge(visualization_routes)
         .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(
             rate_limiter,

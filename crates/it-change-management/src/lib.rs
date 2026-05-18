@@ -2,78 +2,111 @@
 //!
 //! 医药/医疗器械企业IT系统变更管理模块
 //! 符合 FDA 21 CFR Part 11, EU Annex 11, GAMP 5
+//!
+//! ## 核心特性
+//! - GxP 影响分级（直接影响/间接影响/无影响）
+//! - 紧急变更通道（事后补充审批）
+//! - CAPA 联动（变更中发现的问题触发 CAPA）
+//! - 验证管理（IQ/OQ/PQ）
+//! - 电子签名（21 CFR Part 11 合规）
+//! - SLA 跟踪与超时升级
+//! - 审计追踪哈希链（防篡改）
 
-use chrono::{DateTime, Utc};
+pub mod api;
+pub mod linux_auto;
+pub mod storage;
+
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// IT变更请求
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ItChangeRequest {
-    pub id: String,
-    pub title: String,
-    pub description: String,
-    pub change_type: ChangeType,
-    pub risk_level: RiskLevel,
-    pub status: ChangeStatus,
-    pub requester: String,
-    pub approvers: Vec<Approver>,
-    pub impact_assessment: ImpactAssessment,
-    pub rollback_plan: String,
-    pub implementation_plan: String,
-    pub verification_steps: Vec<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub approved_at: Option<DateTime<Utc>>,
-    pub implemented_at: Option<DateTime<Utc>>,
-    pub verified_at: Option<DateTime<Utc>>,
-    pub closed_at: Option<DateTime<Utc>>,
+/// GxP 影响分级
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum GxpImpact {
+    /// 直接影响：直接影响产品质量、患者安全
+    Direct,
+    /// 间接影响：间接影响 GxP 系统
+    Indirect,
+    /// 无影响：不影响 GxP 系统
+    None,
+}
+
+/// 变更分类（基于 ITIL + GxP）
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ChangeCategory {
+    /// 标准变更：预审批，低风险
+    Standard,
+    /// 普通变更：需要 CAB 审批
+    Normal,
+    /// 紧急变更：生产中断，事后补充文档
+    Emergency,
 }
 
 /// 变更类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChangeType {
-    Configuration, // 配置变更
-    Software,      // 软件部署
-    Hardware,      // 硬件变更
-    Security,      // 安全变更
-    Data,          // 数据变更
+    /// 基础设施变更：服务器、网络、存储
+    Infrastructure,
+    /// 应用系统升级：ERP/LIMS/MES
+    Application,
+    /// 配置变更：系统参数、权限
+    Configuration,
+    /// 数据迁移：数据库迁移、系统切换
+    DataMigration,
+    /// 接口变更：系统间集成接口
+    Interface,
+    /// 安全变更：补丁、防火墙规则
+    Security,
+    /// 软件部署
+    Software,
+    /// 硬件变更
+    Hardware,
+    /// 数据变更
+    Data,
 }
 
 /// 风险等级
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RiskLevel {
-    Low,      // 低风险
-    Medium,   // 中风险
-    High,     // 高风险
-    Critical, // 关键风险
+    /// 低风险：IV 级标准变更
+    Low,
+    /// 中风险：III 级一般变更
+    Medium,
+    /// 高风险：II 级重要变更
+    High,
+    /// 关键风险：I 级重大变更
+    Critical,
 }
 
 /// 变更状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChangeStatus {
-    Draft,        // 草稿
-    Submitted,    // 已提交
-    UnderReview,  // 审核中
-    Approved,     // 已批准
-    Rejected,     // 已拒绝
-    Implementing, // 实施中
-    Implemented,  // 已实施
-    Verifying,    // 验证中
-    Verified,     // 已验证
-    Closed,       // 已关闭
-    RolledBack,   // 已回滚
-}
-
-/// 审批人
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Approver {
-    pub user_id: String,
-    pub name: String,
-    pub role: String,
-    pub decision: Option<Decision>,
-    pub signed_at: Option<DateTime<Utc>>,
-    pub signature: Option<String>,
+    /// 草稿
+    Draft,
+    /// 已提交
+    Submitted,
+    /// 审核中
+    UnderReview,
+    /// 已批准
+    Approved,
+    /// 已拒绝
+    Rejected,
+    /// 实施中
+    Implementing,
+    /// 已实施
+    Implemented,
+    /// 验证中
+    Verifying,
+    /// 已验证
+    Verified,
+    /// 已关闭
+    Closed,
+    /// 已回滚
+    RolledBack,
+    /// 紧急实施（事后补充审批）
+    EmergencyImplemented,
+    /// 等待 CAPA
+    PendingCapa,
 }
 
 /// 审批决策
@@ -84,14 +117,158 @@ pub enum Decision {
     RequestChanges,
 }
 
+/// 审批人
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Approver {
+    pub user_id: String,
+    pub name: String,
+    pub role: String,
+    pub decision: Option<Decision>,
+    pub signed_at: Option<DateTime<Utc>>,
+    pub signature: Option<ElectronicSignature>,
+}
+
+/// 电子签名（21 CFR Part 11 §11.50/§11.70/§11.100/§11.200）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElectronicSignature {
+    /// 签名含义声明（§11.50）
+    pub meaning: SignatureMeaning,
+    /// 签名日期时间（§11.200）
+    pub signed_at: DateTime<Utc>,
+    /// 身份认证方式1：密码哈希
+    pub auth_factor1_hash: String,
+    /// 身份认证方式2：2FA 令牌哈希（§11.200 要求至少两种认证）
+    pub auth_factor2_hash: String,
+    /// 签名链接到的记录 ID
+    pub linked_record_id: String,
+    /// 签名者姓名（打印）
+    pub signer_name: String,
+    /// 签名者职务
+    pub signer_title: String,
+}
+
+/// 签名含义（§11.50）
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SignatureMeaning {
+    /// 审批：我审阅并批准此变更
+    Approval,
+    /// 拒绝：我审阅并拒绝此变更
+    Rejection,
+    /// 实施：我确认已按计划实施此变更
+    Implementation,
+    /// 验证：我确认此变更已通过验证
+    Verification,
+    /// 关闭：我确认此变更已完成
+    Closure,
+    /// 自定义含义
+    Custom(String),
+}
+
 /// 影响评估
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpactAssessment {
+    /// 受影响的系统
     pub affected_systems: Vec<String>,
+    /// 受影响的用户群
     pub affected_users: Vec<String>,
+    /// 预计停机时间（分钟）
     pub downtime_estimate_minutes: u32,
+    /// 风险缓解措施
     pub risk_mitigation: Vec<String>,
+    /// 测试要求
     pub testing_requirements: Vec<String>,
+    /// GxP 影响分级
+    pub gxp_impact: GxpImpact,
+    /// 是否需要 CSV 验证
+    pub requires_csv_validation: bool,
+    /// 是否影响数据完整性
+    pub affects_data_integrity: bool,
+}
+
+/// 验证级别（基于 GAMP 5）
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ValidationLevel {
+    /// IQ - 安装确认
+    InstallationQualification,
+    /// OQ - 运行确认
+    OperationalQualification,
+    /// PQ - 性能确认
+    PerformanceQualification,
+    /// 回归测试
+    RegressionTest,
+    /// 功能测试
+    FunctionalTest,
+}
+
+/// 验证计划
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationPlan {
+    pub id: String,
+    pub change_id: String,
+    pub validation_level: ValidationLevel,
+    pub test_cases: Vec<TestCase>,
+    pub status: ValidationStatus,
+    pub created_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+/// 验证状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ValidationStatus {
+    Planned,
+    InProgress,
+    Passed,
+    Failed,
+    Deviation,
+}
+
+/// 测试用例
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestCase {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub expected_result: String,
+    pub actual_result: Option<String>,
+    pub status: TestStatus,
+    pub executed_by: Option<String>,
+    pub executed_at: Option<DateTime<Utc>>,
+}
+
+/// 测试状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TestStatus {
+    NotStarted,
+    Passed,
+    Failed,
+    Blocked,
+    Skipped,
+}
+
+/// CAPA（纠正预防措施）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapaRecord {
+    pub id: String,
+    pub change_id: String,
+    pub title: String,
+    pub description: String,
+    pub root_cause: Option<String>,
+    pub corrective_action: Option<String>,
+    pub preventive_action: Option<String>,
+    pub status: CapaStatus,
+    pub created_at: DateTime<Utc>,
+    pub closed_at: Option<DateTime<Utc>>,
+}
+
+/// CAPA 状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CapaStatus {
+    Open,
+    Investigation,
+    ActionPlan,
+    Implementation,
+    Verification,
+    Closed,
 }
 
 /// 审计日志条目
@@ -103,8 +280,14 @@ pub struct AuditEntry {
     pub action: AuditAction,
     pub detail: String,
     pub timestamp: DateTime<Utc>,
+    /// 前一条审计记录的哈希
     pub previous_hash: String,
+    /// 当前记录的哈希
     pub hash: String,
+    /// IP 地址
+    pub ip_address: Option<String>,
+    /// 用户代理
+    pub user_agent: Option<String>,
 }
 
 /// 审计操作类型
@@ -120,12 +303,106 @@ pub enum AuditAction {
     Closed,
     RolledBack,
     Signed,
+    EmergencyApproved,
+    CapaTriggered,
+    ValidationCompleted,
+    SlaEscalated,
+    AttachmentAdded,
+    CommentAdded,
 }
 
-/// IT变更管理器
+/// IT 变更请求
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItChangeRequest {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub change_type: ChangeType,
+    pub change_category: ChangeCategory,
+    pub risk_level: RiskLevel,
+    pub status: ChangeStatus,
+    pub requester: String,
+    pub requester_department: String,
+    pub approvers: Vec<Approver>,
+    pub impact_assessment: ImpactAssessment,
+    pub rollback_plan: String,
+    pub implementation_plan: String,
+    pub verification_steps: Vec<String>,
+    pub validation_plan: Option<ValidationPlan>,
+    pub capa_records: Vec<CapaRecord>,
+    pub attachments: Vec<Attachment>,
+    pub comments: Vec<Comment>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub submitted_at: Option<DateTime<Utc>>,
+    pub approved_at: Option<DateTime<Utc>>,
+    pub implemented_at: Option<DateTime<Utc>>,
+    pub verified_at: Option<DateTime<Utc>>,
+    pub closed_at: Option<DateTime<Utc>>,
+    /// SLA 截止时间
+    pub sla_deadline: Option<DateTime<Utc>>,
+    /// 紧急变更：事后补充审批截止时间
+    pub emergency_approval_deadline: Option<DateTime<Utc>>,
+    /// 变更编号（人类可读）
+    pub change_number: String,
+}
+
+/// 附件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Attachment {
+    pub id: String,
+    pub filename: String,
+    pub file_type: String,
+    pub file_size_bytes: u64,
+    pub storage_path: String,
+    pub uploaded_by: String,
+    pub uploaded_at: DateTime<Utc>,
+    pub hash_sha256: String,
+}
+
+/// 评论
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Comment {
+    pub id: String,
+    pub author: String,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+    pub is_internal: bool,
+}
+
+/// SLA 配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlaConfig {
+    /// 关键变更 SLA（小时）
+    pub critical_hours: u32,
+    /// 高风险变更 SLA（小时）
+    pub high_hours: u32,
+    /// 中风险变更 SLA（小时）
+    pub medium_hours: u32,
+    /// 低风险变更 SLA（小时）
+    pub low_hours: u32,
+    /// 紧急变更事后补充审批期限（小时）
+    pub emergency_approval_hours: u32,
+}
+
+impl Default for SlaConfig {
+    fn default() -> Self {
+        Self {
+            critical_hours: 720,          // 30 天
+            high_hours: 336,              // 14 天
+            medium_hours: 168,            // 7 天
+            low_hours: 72,                // 3 天
+            emergency_approval_hours: 72, // 3 天内补充审批
+        }
+    }
+}
+
+/// IT 变更管理器
 pub struct ItChangeManager {
     changes: Vec<ItChangeRequest>,
     audit_log: Vec<AuditEntry>,
+    sla_config: SlaConfig,
+    change_counter: u64,
 }
 
 impl Default for ItChangeManager {
@@ -140,7 +417,37 @@ impl ItChangeManager {
         Self {
             changes: Vec::new(),
             audit_log: Vec::new(),
+            sla_config: SlaConfig::default(),
+            change_counter: 0,
         }
+    }
+
+    /// 使用自定义 SLA 配置创建
+    pub fn with_sla_config(sla_config: SlaConfig) -> Self {
+        Self {
+            changes: Vec::new(),
+            audit_log: Vec::new(),
+            sla_config,
+            change_counter: 0,
+        }
+    }
+
+    /// 生成变更编号
+    fn generate_change_number(&mut self) -> String {
+        self.change_counter += 1;
+        let now = Utc::now();
+        format!("CHG-{}-{:04}", now.format("%Y%m"), self.change_counter)
+    }
+
+    /// 计算 SLA 截止时间
+    fn calculate_sla_deadline(&self, risk_level: &RiskLevel) -> DateTime<Utc> {
+        let hours = match risk_level {
+            RiskLevel::Critical => self.sla_config.critical_hours,
+            RiskLevel::High => self.sla_config.high_hours,
+            RiskLevel::Medium => self.sla_config.medium_hours,
+            RiskLevel::Low => self.sla_config.low_hours,
+        };
+        Utc::now() + Duration::hours(hours as i64)
     }
 
     /// 创建变更请求
@@ -150,49 +457,71 @@ impl ItChangeManager {
         title: String,
         description: String,
         change_type: ChangeType,
+        change_category: ChangeCategory,
         risk_level: RiskLevel,
         requester: String,
+        requester_department: String,
         rollback_plan: String,
         implementation_plan: String,
         impact_assessment: ImpactAssessment,
     ) -> ItChangeRequest {
         let now = Utc::now();
         let id = Uuid::new_v4().to_string();
+        let change_number = self.generate_change_number();
+        let sla_deadline = self.calculate_sla_deadline(&risk_level);
 
         let change = ItChangeRequest {
             id: id.clone(),
             title,
             description,
             change_type,
+            change_category,
             risk_level,
             status: ChangeStatus::Draft,
-            requester,
+            requester: requester.clone(),
+            requester_department,
             approvers: Vec::new(),
             impact_assessment,
             rollback_plan,
             implementation_plan,
             verification_steps: Vec::new(),
+            validation_plan: None,
+            capa_records: Vec::new(),
+            attachments: Vec::new(),
+            comments: Vec::new(),
             created_at: now,
             updated_at: now,
+            submitted_at: None,
             approved_at: None,
             implemented_at: None,
             verified_at: None,
             closed_at: None,
+            sla_deadline: Some(sla_deadline),
+            emergency_approval_deadline: None,
+            change_number,
         };
 
         self.changes.push(change.clone());
         self.add_audit_entry(
             &id,
-            &change.requester,
+            &requester,
             AuditAction::Created,
-            "变更请求已创建",
+            &format!("变更请求 {} 已创建", change.change_number),
+            None,
+            None,
         );
 
         change
     }
 
     /// 提交审批
-    pub fn submit_for_review(&mut self, change_id: &str, submitter: &str) -> Result<(), String> {
+    pub fn submit_for_review(
+        &mut self,
+        change_id: &str,
+        submitter: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
         if change.status != ChangeStatus::Draft {
@@ -200,6 +529,7 @@ impl ItChangeManager {
         }
 
         change.status = ChangeStatus::Submitted;
+        change.submitted_at = Some(Utc::now());
         change.updated_at = Utc::now();
 
         self.add_audit_entry(
@@ -207,6 +537,8 @@ impl ItChangeManager {
             submitter,
             AuditAction::Submitted,
             "变更已提交审批",
+            ip_address,
+            user_agent,
         );
 
         Ok(())
@@ -241,15 +573,17 @@ impl ItChangeManager {
         Ok(())
     }
 
-    /// 审批变更
+    /// 审批变更（带电子签名）
+    #[allow(clippy::too_many_arguments)]
     pub fn approve_change(
         &mut self,
         change_id: &str,
         approver_id: &str,
         decision: Decision,
-        signature: String,
+        signature: ElectronicSignature,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
     ) -> Result<(), String> {
-        // 先检查状态和更新审批人
         let (should_reject, should_approve) = {
             let change = self.get_change_mut(change_id)?;
 
@@ -257,7 +591,6 @@ impl ItChangeManager {
                 return Err("只有审核中的变更才能审批".to_string());
             }
 
-            // 找到审批人并更新决策
             let approver = change
                 .approvers
                 .iter_mut()
@@ -265,10 +598,9 @@ impl ItChangeManager {
                 .ok_or("未找到该审批人")?;
 
             approver.decision = Some(decision.clone());
-            approver.signed_at = Some(Utc::now());
+            approver.signed_at = Some(signature.signed_at);
             approver.signature = Some(signature);
 
-            // 检查是否所有审批人都已审批
             let all_approved = change
                 .approvers
                 .iter()
@@ -282,7 +614,6 @@ impl ItChangeManager {
             (any_rejected, all_approved)
         };
 
-        // 根据结果更新状态和添加审计日志
         if should_reject {
             let change = self.get_change_mut(change_id)?;
             change.status = ChangeStatus::Rejected;
@@ -292,13 +623,22 @@ impl ItChangeManager {
                 approver_id,
                 AuditAction::Rejected,
                 "变更已被拒绝",
+                ip_address,
+                user_agent,
             );
         } else if should_approve {
             let change = self.get_change_mut(change_id)?;
             change.status = ChangeStatus::Approved;
             change.approved_at = Some(Utc::now());
             change.updated_at = Utc::now();
-            self.add_audit_entry(change_id, approver_id, AuditAction::Approved, "变更已批准");
+            self.add_audit_entry(
+                change_id,
+                approver_id,
+                AuditAction::Approved,
+                "变更已批准",
+                ip_address,
+                user_agent,
+            );
         } else {
             let change = self.get_change_mut(change_id)?;
             change.updated_at = Utc::now();
@@ -307,8 +647,56 @@ impl ItChangeManager {
         Ok(())
     }
 
+    /// 紧急变更实施（事后补充审批）
+    pub fn emergency_implement(
+        &mut self,
+        change_id: &str,
+        implementer: &str,
+        reason: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
+        let emergency_hours = self.sla_config.emergency_approval_hours;
+        let change = self.get_change_mut(change_id)?;
+
+        if change.change_category != ChangeCategory::Emergency {
+            return Err("只有紧急变更才能走紧急实施通道".to_string());
+        }
+
+        // 紧急变更可以跳过审批直接实施
+        if change.status != ChangeStatus::Submitted
+            && change.status != ChangeStatus::UnderReview
+            && change.status != ChangeStatus::Approved
+        {
+            return Err("变更状态不允许紧急实施".to_string());
+        }
+
+        change.status = ChangeStatus::EmergencyImplemented;
+        change.implemented_at = Some(Utc::now());
+        change.updated_at = Utc::now();
+        change.emergency_approval_deadline =
+            Some(Utc::now() + Duration::hours(emergency_hours as i64));
+
+        self.add_audit_entry(
+            change_id,
+            implementer,
+            AuditAction::EmergencyApproved,
+            &format!("紧急变更已实施，原因: {}", reason),
+            ip_address,
+            user_agent,
+        );
+
+        Ok(())
+    }
+
     /// 实施变更
-    pub fn implement_change(&mut self, change_id: &str, implementer: &str) -> Result<(), String> {
+    pub fn implement_change(
+        &mut self,
+        change_id: &str,
+        implementer: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
         if change.status != ChangeStatus::Approved {
@@ -323,6 +711,8 @@ impl ItChangeManager {
             implementer,
             AuditAction::Implemented,
             "变更开始实施",
+            ip_address,
+            user_agent,
         );
 
         Ok(())
@@ -333,6 +723,8 @@ impl ItChangeManager {
         &mut self,
         change_id: &str,
         implementer: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
     ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
@@ -349,29 +741,52 @@ impl ItChangeManager {
             implementer,
             AuditAction::Implemented,
             "变更实施完成",
+            ip_address,
+            user_agent,
         );
 
         Ok(())
     }
 
-    /// 验证变更
-    pub fn verify_change(&mut self, change_id: &str, verifier: &str) -> Result<(), String> {
+    /// 开始验证
+    pub fn verify_change(
+        &mut self,
+        change_id: &str,
+        verifier: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
-        if change.status != ChangeStatus::Implemented {
+        if change.status != ChangeStatus::Implemented
+            && change.status != ChangeStatus::EmergencyImplemented
+        {
             return Err("只有已实施的变更才能验证".to_string());
         }
 
         change.status = ChangeStatus::Verifying;
         change.updated_at = Utc::now();
 
-        self.add_audit_entry(change_id, verifier, AuditAction::Verified, "变更开始验证");
+        self.add_audit_entry(
+            change_id,
+            verifier,
+            AuditAction::Verified,
+            "变更开始验证",
+            ip_address,
+            user_agent,
+        );
 
         Ok(())
     }
 
     /// 完成验证
-    pub fn complete_verification(&mut self, change_id: &str, verifier: &str) -> Result<(), String> {
+    pub fn complete_verification(
+        &mut self,
+        change_id: &str,
+        verifier: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
         if change.status != ChangeStatus::Verifying {
@@ -382,13 +797,26 @@ impl ItChangeManager {
         change.verified_at = Some(Utc::now());
         change.updated_at = Utc::now();
 
-        self.add_audit_entry(change_id, verifier, AuditAction::Verified, "变更验证完成");
+        self.add_audit_entry(
+            change_id,
+            verifier,
+            AuditAction::Verified,
+            "变更验证完成",
+            ip_address,
+            user_agent,
+        );
 
         Ok(())
     }
 
     /// 关闭变更
-    pub fn close_change(&mut self, change_id: &str, closer: &str) -> Result<(), String> {
+    pub fn close_change(
+        &mut self,
+        change_id: &str,
+        closer: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
         if change.status != ChangeStatus::Verified {
@@ -399,7 +827,14 @@ impl ItChangeManager {
         change.closed_at = Some(Utc::now());
         change.updated_at = Utc::now();
 
-        self.add_audit_entry(change_id, closer, AuditAction::Closed, "变更已关闭");
+        self.add_audit_entry(
+            change_id,
+            closer,
+            AuditAction::Closed,
+            "变更已关闭",
+            ip_address,
+            user_agent,
+        );
 
         Ok(())
     }
@@ -410,6 +845,8 @@ impl ItChangeManager {
         change_id: &str,
         rollback_by: &str,
         reason: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
     ) -> Result<(), String> {
         let change = self.get_change_mut(change_id)?;
 
@@ -428,9 +865,130 @@ impl ItChangeManager {
             rollback_by,
             AuditAction::RolledBack,
             &format!("变更已回滚: {}", reason),
+            ip_address,
+            user_agent,
         );
 
         Ok(())
+    }
+
+    /// 触发 CAPA
+    pub fn trigger_capa(
+        &mut self,
+        change_id: &str,
+        triggered_by: &str,
+        title: String,
+        description: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<String, String> {
+        let change = self.get_change_mut(change_id)?;
+
+        let capa_id = Uuid::new_v4().to_string();
+        let capa = CapaRecord {
+            id: capa_id.clone(),
+            change_id: change_id.to_string(),
+            title,
+            description,
+            root_cause: None,
+            corrective_action: None,
+            preventive_action: None,
+            status: CapaStatus::Open,
+            created_at: Utc::now(),
+            closed_at: None,
+        };
+
+        change.capa_records.push(capa);
+        change.updated_at = Utc::now();
+
+        self.add_audit_entry(
+            change_id,
+            triggered_by,
+            AuditAction::CapaTriggered,
+            &format!("CAPA {} 已触发", capa_id),
+            ip_address,
+            user_agent,
+        );
+
+        Ok(capa_id)
+    }
+
+    /// 添加评论
+    pub fn add_comment(
+        &mut self,
+        change_id: &str,
+        author: &str,
+        content: String,
+        is_internal: bool,
+    ) -> Result<(), String> {
+        let change = self.get_change_mut(change_id)?;
+
+        change.comments.push(Comment {
+            id: Uuid::new_v4().to_string(),
+            author: author.to_string(),
+            content,
+            created_at: Utc::now(),
+            is_internal,
+        });
+
+        change.updated_at = Utc::now();
+        Ok(())
+    }
+
+    /// 添加附件
+    pub fn add_attachment(
+        &mut self,
+        change_id: &str,
+        filename: String,
+        file_type: String,
+        file_size_bytes: u64,
+        storage_path: String,
+        uploaded_by: &str,
+        hash_sha256: String,
+    ) -> Result<(), String> {
+        let change = self.get_change_mut(change_id)?;
+
+        change.attachments.push(Attachment {
+            id: Uuid::new_v4().to_string(),
+            filename,
+            file_type,
+            file_size_bytes,
+            storage_path,
+            uploaded_by: uploaded_by.to_string(),
+            uploaded_at: Utc::now(),
+            hash_sha256,
+        });
+
+        change.updated_at = Utc::now();
+
+        self.add_audit_entry(
+            change_id,
+            uploaded_by,
+            AuditAction::AttachmentAdded,
+            "附件已添加",
+            None,
+            None,
+        );
+
+        Ok(())
+    }
+
+    /// 检查 SLA 是否超期
+    pub fn check_sla_violations(&self) -> Vec<&ItChangeRequest> {
+        let now = Utc::now();
+        self.changes
+            .iter()
+            .filter(|c| {
+                if let Some(deadline) = c.sla_deadline {
+                    c.status != ChangeStatus::Closed
+                        && c.status != ChangeStatus::Rejected
+                        && c.status != ChangeStatus::RolledBack
+                        && now > deadline
+                } else {
+                    false
+                }
+            })
+            .collect()
     }
 
     /// 获取变更详情
@@ -454,12 +1012,60 @@ impl ItChangeManager {
             .collect()
     }
 
+    /// 按风险等级筛选变更
+    pub fn list_changes_by_risk(&self, risk_level: &RiskLevel) -> Vec<&ItChangeRequest> {
+        self.changes
+            .iter()
+            .filter(|c| c.risk_level == *risk_level)
+            .collect()
+    }
+
     /// 获取变更的审计日志
     pub fn get_audit_log(&self, change_id: &str) -> Vec<&AuditEntry> {
         self.audit_log
             .iter()
             .filter(|e| e.change_id == change_id)
             .collect()
+    }
+
+    /// 获取全部审计日志
+    pub fn get_all_audit_log(&self) -> &[AuditEntry] {
+        &self.audit_log
+    }
+
+    /// 获取统计数据
+    pub fn get_statistics(&self) -> ChangeStatistics {
+        let total = self.changes.len();
+        let by_status = |status: &ChangeStatus| -> usize {
+            self.changes.iter().filter(|c| c.status == *status).count()
+        };
+        let by_risk = |risk: &RiskLevel| -> usize {
+            self.changes
+                .iter()
+                .filter(|c| c.risk_level == *risk)
+                .count()
+        };
+
+        ChangeStatistics {
+            total,
+            draft: by_status(&ChangeStatus::Draft),
+            submitted: by_status(&ChangeStatus::Submitted),
+            under_review: by_status(&ChangeStatus::UnderReview),
+            approved: by_status(&ChangeStatus::Approved),
+            implementing: by_status(&ChangeStatus::Implementing),
+            implemented: by_status(&ChangeStatus::Implemented),
+            verifying: by_status(&ChangeStatus::Verifying),
+            verified: by_status(&ChangeStatus::Verified),
+            closed: by_status(&ChangeStatus::Closed),
+            rejected: by_status(&ChangeStatus::Rejected),
+            rolled_back: by_status(&ChangeStatus::RolledBack),
+            emergency_implemented: by_status(&ChangeStatus::EmergencyImplemented),
+            low_risk: by_risk(&RiskLevel::Low),
+            medium_risk: by_risk(&RiskLevel::Medium),
+            high_risk: by_risk(&RiskLevel::High),
+            critical_risk: by_risk(&RiskLevel::Critical),
+            sla_violations: self.check_sla_violations().len(),
+        }
     }
 
     // 内部方法
@@ -471,18 +1077,24 @@ impl ItChangeManager {
             .ok_or_else(|| format!("未找到变更请求: {}", change_id))
     }
 
-    fn add_audit_entry(&mut self, change_id: &str, actor: &str, action: AuditAction, detail: &str) {
+    fn add_audit_entry(
+        &mut self,
+        change_id: &str,
+        actor: &str,
+        action: AuditAction,
+        detail: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) {
         let now = Utc::now();
         let id = Uuid::new_v4().to_string();
 
-        // 计算前一个哈希
         let previous_hash = self
             .audit_log
             .last()
             .map(|e| e.hash.clone())
             .unwrap_or_else(|| "0".repeat(64));
 
-        // 计算当前哈希
         let hash_input = format!(
             "{}{}{}{}{}{}",
             id,
@@ -503,13 +1115,38 @@ impl ItChangeManager {
             timestamp: now,
             previous_hash,
             hash,
+            ip_address,
+            user_agent,
         };
 
         self.audit_log.push(entry);
     }
 }
 
-/// SHA-256哈希函数
+/// 变更统计数据
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChangeStatistics {
+    pub total: usize,
+    pub draft: usize,
+    pub submitted: usize,
+    pub under_review: usize,
+    pub approved: usize,
+    pub implementing: usize,
+    pub implemented: usize,
+    pub verifying: usize,
+    pub verified: usize,
+    pub closed: usize,
+    pub rejected: usize,
+    pub rolled_back: usize,
+    pub emergency_implemented: usize,
+    pub low_risk: usize,
+    pub medium_risk: usize,
+    pub high_risk: usize,
+    pub critical_risk: usize,
+    pub sla_violations: usize,
+}
+
+/// SHA-256 哈希函数
 fn sha256_hash(input: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -522,6 +1159,31 @@ fn sha256_hash(input: &str) -> String {
 mod tests {
     use super::*;
 
+    fn create_test_impact_assessment() -> ImpactAssessment {
+        ImpactAssessment {
+            affected_systems: vec!["LIMS".to_string()],
+            affected_users: vec!["QC部门".to_string()],
+            downtime_estimate_minutes: 30,
+            risk_mitigation: vec!["备份原配置".to_string()],
+            testing_requirements: vec!["验证新阈值生效".to_string()],
+            gxp_impact: GxpImpact::Direct,
+            requires_csv_validation: true,
+            affects_data_integrity: true,
+        }
+    }
+
+    fn create_test_signature(meaning: SignatureMeaning) -> ElectronicSignature {
+        ElectronicSignature {
+            meaning,
+            signed_at: Utc::now(),
+            auth_factor1_hash: sha256_hash("password123"),
+            auth_factor2_hash: sha256_hash("token456"),
+            linked_record_id: "test-record".to_string(),
+            signer_name: "张三".to_string(),
+            signer_title: "QA主管".to_string(),
+        }
+    }
+
     #[test]
     fn test_create_change_request() {
         let mut manager = ItChangeManager::new();
@@ -530,22 +1192,20 @@ mod tests {
             "更新LIMS配置".to_string(),
             "更新LIMS系统的样品检测阈值参数".to_string(),
             ChangeType::Configuration,
+            ChangeCategory::Normal,
             RiskLevel::High,
             "zhang.qa".to_string(),
+            "QA部门".to_string(),
             "回滚到原配置文件".to_string(),
             "1. 停止LIMS服务\n2. 修改配置文件\n3. 重启服务".to_string(),
-            ImpactAssessment {
-                affected_systems: vec!["LIMS".to_string()],
-                affected_users: vec!["QC部门".to_string()],
-                downtime_estimate_minutes: 30,
-                risk_mitigation: vec!["备份原配置".to_string()],
-                testing_requirements: vec!["验证新阈值生效".to_string()],
-            },
+            create_test_impact_assessment(),
         );
 
         assert_eq!(change.status, ChangeStatus::Draft);
         assert_eq!(change.change_type, ChangeType::Configuration);
         assert_eq!(change.risk_level, RiskLevel::High);
+        assert!(change.change_number.starts_with("CHG-"));
+        assert!(change.sla_deadline.is_some());
     }
 
     #[test]
@@ -556,51 +1216,49 @@ mod tests {
             "测试变更".to_string(),
             "测试描述".to_string(),
             ChangeType::Configuration,
+            ChangeCategory::Normal,
             RiskLevel::Low,
             "test.user".to_string(),
+            "IT部门".to_string(),
             "回滚计划".to_string(),
             "实施计划".to_string(),
-            ImpactAssessment {
-                affected_systems: vec![],
-                affected_users: vec![],
-                downtime_estimate_minutes: 0,
-                risk_mitigation: vec![],
-                testing_requirements: vec![],
-            },
+            create_test_impact_assessment(),
         );
 
-        let result = manager.submit_for_review(&change.id, "test.user");
+        let result = manager.submit_for_review(
+            &change.id,
+            "test.user",
+            Some("192.168.1.1".to_string()),
+            Some("Mozilla/5.0".to_string()),
+        );
         assert!(result.is_ok());
 
         let change = manager.get_change(&change.id).unwrap();
         assert_eq!(change.status, ChangeStatus::Submitted);
+        assert!(change.submitted_at.is_some());
     }
 
     #[test]
-    fn test_approval_workflow() {
+    fn test_approval_workflow_with_electronic_signature() {
         let mut manager = ItChangeManager::new();
 
         let change = manager.create_change_request(
             "测试变更".to_string(),
             "测试描述".to_string(),
             ChangeType::Configuration,
+            ChangeCategory::Normal,
             RiskLevel::Low,
             "test.user".to_string(),
+            "IT部门".to_string(),
             "回滚计划".to_string(),
             "实施计划".to_string(),
-            ImpactAssessment {
-                affected_systems: vec![],
-                affected_users: vec![],
-                downtime_estimate_minutes: 0,
-                risk_mitigation: vec![],
-                testing_requirements: vec![],
-            },
+            create_test_impact_assessment(),
         );
 
-        // 提交审批
-        manager.submit_for_review(&change.id, "test.user").unwrap();
+        manager
+            .submit_for_review(&change.id, "test.user", None, None)
+            .unwrap();
 
-        // 添加审批人
         manager
             .add_approver(
                 &change.id,
@@ -610,42 +1268,383 @@ mod tests {
             )
             .unwrap();
 
-        // 审批通过
+        let signature = create_test_signature(SignatureMeaning::Approval);
         let result = manager.approve_change(
             &change.id,
             "approver1",
             Decision::Approved,
-            "signature123".to_string(),
+            signature,
+            None,
+            None,
         );
         assert!(result.is_ok());
 
         let change = manager.get_change(&change.id).unwrap();
         assert_eq!(change.status, ChangeStatus::Approved);
+        assert!(change.approved_at.is_some());
+
+        // 验证审计日志
+        let audit_log = manager.get_audit_log(&change.id);
+        assert!(audit_log.iter().any(|e| e.action == AuditAction::Approved));
     }
 
     #[test]
-    fn test_audit_log() {
+    fn test_emergency_change_path() {
+        let mut manager = ItChangeManager::new();
+
+        let change = manager.create_change_request(
+            "紧急修复LIMS".to_string(),
+            "LIMS系统宕机，需要紧急修复".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Emergency,
+            RiskLevel::Critical,
+            "ops.lead".to_string(),
+            "运维部门".to_string(),
+            "恢复备份".to_string(),
+            "紧急修复步骤".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        manager
+            .submit_for_review(&change.id, "ops.lead", None, None)
+            .unwrap();
+
+        let result = manager.emergency_implement(
+            &change.id,
+            "ops.lead",
+            "生产系统宕机，需要立即修复",
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+
+        let change = manager.get_change(&change.id).unwrap();
+        assert_eq!(change.status, ChangeStatus::EmergencyImplemented);
+        assert!(change.emergency_approval_deadline.is_some());
+    }
+
+    #[test]
+    fn test_capa_trigger() {
         let mut manager = ItChangeManager::new();
 
         let change = manager.create_change_request(
             "测试变更".to_string(),
             "测试描述".to_string(),
             ChangeType::Configuration,
+            ChangeCategory::Normal,
             RiskLevel::Low,
             "test.user".to_string(),
+            "IT部门".to_string(),
             "回滚计划".to_string(),
             "实施计划".to_string(),
-            ImpactAssessment {
-                affected_systems: vec![],
-                affected_users: vec![],
-                downtime_estimate_minutes: 0,
-                risk_mitigation: vec![],
-                testing_requirements: vec![],
-            },
+            create_test_impact_assessment(),
         );
 
+        let capa_id = manager
+            .trigger_capa(
+                &change.id,
+                "qa.inspector",
+                "发现配置偏差".to_string(),
+                "验证过程中发现配置参数超出预期范围".to_string(),
+                None,
+                None,
+            )
+            .unwrap();
+
+        assert!(!capa_id.is_empty());
+
+        let change = manager.get_change(&change.id).unwrap();
+        assert_eq!(change.capa_records.len(), 1);
+        assert_eq!(change.capa_records[0].status, CapaStatus::Open);
+    }
+
+    #[test]
+    fn test_audit_log_hash_chain() {
+        let mut manager = ItChangeManager::new();
+
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "test.user".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        manager
+            .submit_for_review(&change.id, "test.user", None, None)
+            .unwrap();
+
         let audit_log = manager.get_audit_log(&change.id);
-        assert_eq!(audit_log.len(), 1);
-        assert_eq!(audit_log[0].action, AuditAction::Created);
+        assert_eq!(audit_log.len(), 2);
+
+        // 验证哈希链
+        for i in 1..audit_log.len() {
+            assert_eq!(audit_log[i].previous_hash, audit_log[i - 1].hash);
+        }
+    }
+
+    #[test]
+    fn test_sla_violations() {
+        let mut manager = ItChangeManager::new();
+
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "test.user".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        // 手动设置 SLA 截止时间为过去
+        let change = manager.get_change_mut(&change.id).unwrap();
+        change.sla_deadline = Some(Utc::now() - Duration::hours(1));
+
+        let violations = manager.check_sla_violations();
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_full_change_lifecycle() {
+        let mut manager = ItChangeManager::new();
+
+        // 1. 创建
+        let change = manager.create_change_request(
+            "升级LIMS到v3.0".to_string(),
+            "将LIMS系统从v2.5升级到v3.0".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::High,
+            "it.admin".to_string(),
+            "IT部门".to_string(),
+            "回滚到v2.5备份".to_string(),
+            "1. 备份数据\n2. 停止服务\n3. 安装v3.0\n4. 迁移数据\n5. 启动服务".to_string(),
+            ImpactAssessment {
+                affected_systems: vec!["LIMS".to_string(), "MES".to_string()],
+                affected_users: vec!["QC部门".to_string(), "生产部门".to_string()],
+                downtime_estimate_minutes: 120,
+                risk_mitigation: vec!["完整备份".to_string(), "回滚计划".to_string()],
+                testing_requirements: vec!["功能测试".to_string(), "性能测试".to_string()],
+                gxp_impact: GxpImpact::Direct,
+                requires_csv_validation: true,
+                affects_data_integrity: true,
+            },
+        );
+        assert_eq!(change.status, ChangeStatus::Draft);
+
+        // 2. 提交
+        manager
+            .submit_for_review(&change.id, "it.admin", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Submitted
+        );
+
+        // 3. 添加审批人
+        manager
+            .add_approver(
+                &change.id,
+                "qa.head".to_string(),
+                "QA主管".to_string(),
+                "QA审批".to_string(),
+            )
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::UnderReview
+        );
+
+        // 4. 审批通过
+        let sig = create_test_signature(SignatureMeaning::Approval);
+        manager
+            .approve_change(&change.id, "qa.head", Decision::Approved, sig, None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Approved
+        );
+
+        // 5. 实施
+        manager
+            .implement_change(&change.id, "it.admin", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Implementing
+        );
+
+        // 6. 完成实施
+        manager
+            .complete_implementation(&change.id, "it.admin", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Implemented
+        );
+
+        // 7. 验证
+        manager
+            .verify_change(&change.id, "qa.tester", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Verifying
+        );
+
+        // 8. 完成验证
+        manager
+            .complete_verification(&change.id, "qa.tester", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Verified
+        );
+
+        // 9. 关闭
+        manager
+            .close_change(&change.id, "it.admin", None, None)
+            .unwrap();
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Closed
+        );
+
+        // 验证审计日志完整
+        let audit_log = manager.get_audit_log(&change.id);
+        assert_eq!(audit_log.len(), 8); // created, submitted, approved, implementing, implemented, verifying, verified, closed
+    }
+
+    #[test]
+    fn test_statistics() {
+        let mut manager = ItChangeManager::new();
+
+        manager.create_change_request(
+            "变更1".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        manager.create_change_request(
+            "变更2".to_string(),
+            "描述".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::High,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        let stats = manager.get_statistics();
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.draft, 2);
+        assert_eq!(stats.low_risk, 1);
+        assert_eq!(stats.high_risk, 1);
+    }
+
+    #[test]
+    fn test_rejection() {
+        let mut manager = ItChangeManager::new();
+
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "test.user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        manager
+            .submit_for_review(&change.id, "test.user", None, None)
+            .unwrap();
+        manager
+            .add_approver(
+                &change.id,
+                "approver1".to_string(),
+                "审批人".to_string(),
+                "QA".to_string(),
+            )
+            .unwrap();
+
+        let sig = create_test_signature(SignatureMeaning::Rejection);
+        manager
+            .approve_change(&change.id, "approver1", Decision::Rejected, sig, None, None)
+            .unwrap();
+
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::Rejected
+        );
+    }
+
+    #[test]
+    fn test_rollback() {
+        let mut manager = ItChangeManager::new();
+
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "test.user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        manager
+            .submit_for_review(&change.id, "test.user", None, None)
+            .unwrap();
+        manager
+            .add_approver(
+                &change.id,
+                "approver1".to_string(),
+                "审批人".to_string(),
+                "QA".to_string(),
+            )
+            .unwrap();
+
+        let sig = create_test_signature(SignatureMeaning::Approval);
+        manager
+            .approve_change(&change.id, "approver1", Decision::Approved, sig, None, None)
+            .unwrap();
+
+        manager
+            .implement_change(&change.id, "test.user", None, None)
+            .unwrap();
+        manager
+            .rollback_change(&change.id, "test.user", "发现异常", None, None)
+            .unwrap();
+
+        assert_eq!(
+            manager.get_change(&change.id).unwrap().status,
+            ChangeStatus::RolledBack
+        );
     }
 }

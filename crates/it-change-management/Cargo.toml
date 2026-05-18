@@ -2,7 +2,11 @@
 name = "kias-it-change-management"
 version = "0.1.0"
 edition = "2021"
-description = "医药/医疗器械企业IT系统变更管理模块"
+description = "医药/医疗器械企业IT系统变更管理模块 - 符合FDA 21 CFR Part 11"
+license = "MIT"
+repository = "https://github.com/kias-ai/kias"
+keywords = ["pharma", "gxp", "change-management", "fda", "audit-trail"]
+categories = ["authentication", "database"]
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
@@ -11,3 +15,9 @@ serde_json = "1"
 sha2 = "0.10"
 hex = "0.4"
 uuid = { version = "1", features = ["v4"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "1"
+log = "0.4"
+
+[dev-dependencies]
+tempfile = "3"

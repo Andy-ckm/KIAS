@@ -161,6 +161,14 @@ mod tests {
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
             tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
         }
     }
 
@@ -215,6 +223,14 @@ mod tests {
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
             tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
         };
 
         let result = token_analytics(State(state)).await;

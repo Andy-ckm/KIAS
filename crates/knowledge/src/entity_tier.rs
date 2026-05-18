@@ -55,9 +55,7 @@ impl EntityTierManager {
     pub fn register_meeting(&mut self, entity_id: &str) -> EntityTier {
         self.meeting_participants.insert(entity_id.to_string());
         // Ensure the entity exists in source_counts as well.
-        self.source_counts
-            .entry(entity_id.to_string())
-            .or_default();
+        self.source_counts.entry(entity_id.to_string()).or_default();
         self.calculate_tier(entity_id)
     }
 
@@ -91,16 +89,8 @@ impl EntityTierManager {
                 continue;
             }
             match sources.len() {
-                3 => result.push((
-                    entity_id.clone(),
-                    EntityTier::Tier3,
-                    EntityTier::Tier2,
-                )),
-                8 => result.push((
-                    entity_id.clone(),
-                    EntityTier::Tier2,
-                    EntityTier::Tier1,
-                )),
+                3 => result.push((entity_id.clone(), EntityTier::Tier3, EntityTier::Tier2)),
+                8 => result.push((entity_id.clone(), EntityTier::Tier2, EntityTier::Tier1)),
                 _ => {}
             }
         }

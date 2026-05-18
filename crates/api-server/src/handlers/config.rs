@@ -285,3 +285,143 @@ pub async fn config_audit_log(State(state): State<AppState>) -> Json<Vec<AuditLo
 
     Json(entries)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::extract::State;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_config_returns_sanitized() {
+        let state = test_state().await;
+        let result = get_config(State(state)).await;
+        // Verify no secrets exposed
+        assert!(!result.api_server.host.is_empty());
+        assert!(result.api_server.port > 0);
+        // api_key_count should be 0 for default config
+        assert_eq!(result.api_server.api_key_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_config_default_values() {
+        let state = test_state().await;
+        let result = get_config(State(state)).await;
+        assert_eq!(result.logging.level, "info");
+        assert_eq!(result.scheduler.algorithm, "cache_aware");
+        assert_eq!(result.controller.max_retries, 3);
+    }
+
+    #[tokio::test]
+    async fn test_update_config_valid_logging_level() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: Some("debug".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_ok());
+        let (status, body) = result.unwrap();
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.get("message").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_invalid_logging_level() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: Some("invalid_level".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_valid_algorithm() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: Some("least_loaded".to_string()),
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_invalid_algorithm() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: Some("invalid_algo".to_string()),
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_zero_interval() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: None,
+            scheduler_interval_ms: Some(0),
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_no_changes() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_config_audit_log_empty() {
+        let state = test_state().await;
+        let result = config_audit_log(State(state)).await;
+        assert!(result.is_empty());
+    }
+}

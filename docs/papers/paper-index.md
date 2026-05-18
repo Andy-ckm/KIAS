@@ -1,10 +1,16 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (00:50)
+更新时间: 2026-05-19 (02:00)
 
-## 论文列表 (66 篇)
+## 论文列表 (72 篇)
 
-### 已下载论文 (54 篇)
+### 已下载论文 (60 篇)
+- ✅ 2605.15315.pdf (Context Pruning for Coding Agents via Multi-Rubric Latent Reasoning)
+- ✅ 2605.15505.pdf (X-SYNTH: Beyond Retrieval — Enterprise Context Synthesis from Observed Human Attention)
+- ✅ 2605.15871.pdf (Agentic Discovery of Neural Architectures: AIRA-Compose and AIRA-Design)
+- ✅ 2605.16045.pdf (RecMem: Recurrence-based Memory Consolidation for Efficient and Effective Long-Running LLM Agents)
+- ✅ 2605.16205.pdf (Context, Reasoning, and Hierarchy: A Cost-Performance Study of Compound LLM Agent Design)
+- ✅ 2605.16143.pdf (Look Before You Leap: Autonomous Exploration for LLM Agents)
 - ✅ 2605.16233.pdf (FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast)
 - ✅ 2605.15611.pdf (TopoEvo: A Topology-Aware Self-Evolving Multi-Agent Framework for Root Cause Analysis in Microservices)
 - ✅ 2605.15581.pdf (STAR: A Stage-attributed Triage and Repair framework for RCA Agents in Microservices)

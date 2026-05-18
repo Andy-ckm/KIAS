@@ -1,8 +1,8 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (14:00)
+更新时间: 2026-05-18 (14:45)
 
-## 论文列表 (29 篇)
+## 论文列表 (33 篇)
 
 ### 已下载论文 (15 篇)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
@@ -22,11 +22,11 @@
 - ✅ 2605.11487.pdf (Digital Identity for Agentic Systems: Portable Authorization Standard)
 - ✅ 2605.07161.pdf (SREGym: A Live Benchmark for AI SRE Agents)
 
-### 待下载论文 (6 篇 — arXiv 限流未下载)
-- ⏳ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
-- ⏳ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
-- ⏳ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
-- ⏳ 2605.15228 (Verifiable Agentic Infrastructure: Proof-Derived Authorization)
+### 待下载论文 (2 篇 — arXiv 限流未下载)
+- ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
+- ✅ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
+- ✅ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
+- ✅ 2605.15228 (Verifiable Agentic Infrastructure: Proof-Derived Authorization)
 - ⏳ 2605.15218 (CAX-Agent: Lightweight Agent Harness for Reliable APDL Automation)
 - ⏳ 2605.15224 (ICRL: Learning to Internalize Self-Critique with Reinforcement Learning)
 
@@ -161,28 +161,28 @@
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: multi-agent orchestration, state-constrained dispatch
     - 链接: https://arxiv.org/abs/2605.15204
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (1.5MB)
 
 25. **[2605.15215]** SkillSmith: Compiling Agent Skills into Boundary-Guided Runtime Interfaces
     - 作者: Duling Xu, Zheng Chen, Zaifeng Pan, Jiawei Guan
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: agent skills, runtime interfaces
     - 链接: https://arxiv.org/abs/2605.15215
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (1.6MB)
 
 26. **[2605.15227]** NIMO Controller: A Self-Driving Laboratory Orchestrator Based on Model Context Protocol
     - 作者: Naruki Yoshikawa, Ryo Tamura
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: MCP orchestrator, self-driving lab
     - 链接: https://arxiv.org/abs/2605.15227
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (3.0MB)
 
 27. **[2605.15228]** Verifiable Agentic Infrastructure: Proof-Derived Authorization for Sovereign AI Systems
     - 作者: Jun He, Deying Yu
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: agentic authorization, proof-derived auth
     - 链接: https://arxiv.org/abs/2605.15228
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (354KB)
 
 28. **[2605.15218]** CAX-Agent: A Lightweight Agent Harness for Reliable APDL Automation
     - 作者: Chenying Lin, Yichen Hai, Yi He, Ran Wang
@@ -197,3 +197,31 @@
     - 主题: self-critique, reinforcement learning
     - 链接: https://arxiv.org/abs/2605.15224
     - 状态: ⏳ 待下载
+
+30. **[2605.13438]** Cognifold: Always-On Proactive Memory via Cognitive Folding
+    - 作者: Suli Wang, Yiqun Duan
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: agent memory, proactive memory, cognitive folding
+    - 链接: https://arxiv.org/abs/2605.13438
+    - 状态: 🆕 新发现 (OpenAlex)
+
+31. **[2605.13618]** OpenAaaS: An Open Agent-as-a-Service Framework for Distributed Materials-Informatics Research
+    - 作者: Peng Kang, Bixuan Li
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: agent-as-a-service, distributed agent framework
+    - 链接: https://arxiv.org/abs/2605.13618
+    - 状态: 🆕 新发现 (OpenAlex)
+
+32. **[2605.13172]** When Does Hierarchy Help? Benchmarking Agent Coordination in Event-Driven Industrial Scheduling
+    - 作者: Ziqi Wang, Yuhao Yang
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: multi-agent coordination, industrial scheduling, benchmark
+    - 链接: https://arxiv.org/abs/2605.13172
+    - 状态: 🆕 新发现 (OpenAlex)
+
+33. **[2605.13821]** Harnessing Agentic Evolution
+    - 作者: Jiayi Zhang, Yongfeng Gu
+    - 日期: 2026-05-13 | 分类: cs.AI
+    - 主题: agentic evolution, iterative improvement, workflow optimization
+    - 链接: https://arxiv.org/abs/2605.13821
+    - 状态: 🆕 新发现 (OpenAlex)

@@ -2430,4 +2430,71 @@ mod tests {
             .expect("get_by_type");
         assert!(missing.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_task_get_by_agent_multiple() {
+        let repo = test_repo().await;
+
+        let agent1 = AgentRow::new("agent-a");
+        let agent2 = AgentRow::new("agent-b");
+        repo.agents.create(&agent1).await.unwrap();
+        repo.agents.create(&agent2).await.unwrap();
+
+        let t1 = TaskRow::new(&agent1.id, "task-1");
+        let t2 = TaskRow::new(&agent1.id, "task-2");
+        let t3 = TaskRow::new(&agent2.id, "task-3");
+        repo.tasks.create(&t1).await.unwrap();
+        repo.tasks.create(&t2).await.unwrap();
+        repo.tasks.create(&t3).await.unwrap();
+
+        let agent1_tasks = repo.tasks.get_by_agent(&agent1.id).await.unwrap();
+        assert_eq!(agent1_tasks.len(), 2);
+
+        let agent2_tasks = repo.tasks.get_by_agent(&agent2.id).await.unwrap();
+        assert_eq!(agent2_tasks.len(), 1);
+
+        let none_tasks = repo.tasks.get_by_agent("nonexistent").await.unwrap();
+        assert!(none_tasks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_skill_get_by_name_found_and_missing() {
+        let repo = test_repo().await;
+
+        let skill = SkillRow::new("code-review", "Review code");
+        repo.skills.create(&skill).await.unwrap();
+
+        let found = repo.skills.get_by_name("code-review").await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "code-review");
+
+        let missing = repo.skills.get_by_name("nonexistent").await.unwrap();
+        assert!(missing.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_component_get_by_name_found_and_missing() {
+        let repo = test_repo().await;
+
+        let comp = ComponentRow::new("gateway", "proxy");
+        repo.components.create(&comp).await.unwrap();
+
+        let found = repo.components.get_by_name("gateway").await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().component_type, "proxy");
+
+        let missing = repo.components.get_by_name("nonexistent").await.unwrap();
+        assert!(missing.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_task_get_by_agent_empty() {
+        let repo = test_repo().await;
+
+        let agent = AgentRow::new("empty-agent");
+        repo.agents.create(&agent).await.unwrap();
+
+        let tasks = repo.tasks.get_by_agent(&agent.id).await.unwrap();
+        assert!(tasks.is_empty());
+    }
 }

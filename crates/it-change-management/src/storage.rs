@@ -504,7 +504,7 @@ impl ChangeStorage {
         let mut stmt = conn.prepare(
             "SELECT id FROM change_requests
              WHERE sla_deadline < ?1
-             AND status NOT IN ('Closed', 'Rejected', 'RolledBack')
+             AND TRIM(status, '\"') NOT IN ('Closed', 'Rejected', 'RolledBack')
              ORDER BY sla_deadline ASC",
         )?;
 
@@ -1014,5 +1014,41 @@ mod tests {
 
         let all = storage.get_all_audit_log().unwrap();
         assert!(all.is_empty());
+    }
+
+    #[test]
+    fn test_get_sla_violations() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+
+        // Create a change with SLA deadline in the past (violation)
+        let mut change = create_test_change();
+        change.sla_deadline = Some(Utc::now() - chrono::Duration::hours(24));
+        change.status = ChangeStatus::Implementing;
+        storage.save_change(&change).unwrap();
+
+        let violations = storage.get_sla_violations().unwrap();
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].id, change.id);
+    }
+
+    #[test]
+    fn test_get_sla_violations_excludes_closed() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+
+        // Create a closed change with SLA deadline in the past — should NOT appear
+        let mut change = create_test_change();
+        change.sla_deadline = Some(Utc::now() - chrono::Duration::hours(24));
+        change.status = ChangeStatus::Closed;
+        storage.save_change(&change).unwrap();
+
+        let violations = storage.get_sla_violations().unwrap();
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_get_sla_violations_empty() {
+        let storage = ChangeStorage::new_in_memory().unwrap();
+        let violations = storage.get_sla_violations().unwrap();
+        assert!(violations.is_empty());
     }
 }

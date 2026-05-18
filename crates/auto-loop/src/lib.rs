@@ -24,6 +24,7 @@ pub mod verifier;
 
 use serde::{Deserialize, Serialize};
 use side_effect_gate::{GatePolicy, GateResult, SideEffectAction, SideEffectGate};
+use kias_common::gxp_audit::{GxpAuditAction, GxpAuditEntry, GxpAuditLog, GxpAuditEntryBuilder, ActorType};
 use self_boundary::{SelfBoundaryReasoner, SelfModel, ResponseStrategy};
 
 /// 循环状态

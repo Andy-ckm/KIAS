@@ -38,6 +38,10 @@ pub struct AppState {
     pub context_manager: Option<Arc<kias_knowledge::context_manager::MultiSessionContextManager>>,
     /// Tier routing state (PrfaaS-inspired intelligent task routing)
     pub tier_routing: handlers::tier_routing::TierRoutingState,
+    /// GxP-compliant authentication manager (§11.200, §11.300)
+    pub gxp_auth: handlers::auth_gxp::GxpAuthState,
+    /// JWT configuration for token generation
+    pub jwt_config: auth::JwtConfig,
 }
 
 /// An ingested document stored in memory
@@ -125,6 +129,10 @@ impl AppState {
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
             tier_routing: handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
         }
     }
 
@@ -213,6 +221,10 @@ impl AppState {
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
             tier_routing: handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
         }
     }
 }

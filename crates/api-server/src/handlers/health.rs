@@ -346,3 +346,88 @@ mod tests {
         assert!(info.cpu_cores > 0, "Should detect at least 1 CPU core");
     }
 }
+
+#[cfg(test)]
+mod handler_tests {
+    use super::*;
+    use crate::AppState;
+    use axum::extract::State;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_liveness_returns_ok() {
+        let result = liveness().await;
+        assert_eq!(result["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_readiness_returns_healthy() {
+        let state = test_state().await;
+        let result = readiness(State(state)).await;
+        assert_eq!(result.status, "healthy");
+        assert_eq!(result.components.len(), 2);
+        assert!(result.components.iter().all(|c| c.status == "healthy"));
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_returns_system_info() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        assert_eq!(result.status, "healthy");
+        assert!(result.uptime_secs < 60); // just started
+        assert!(result.system.memory_total_mb > 0);
+        assert!(result.system.cpu_cores > 0);
+        assert!(result.system.load_average.one_min >= 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_components_include_all_stores() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        let names: Vec<&str> = result.components.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"agents_store"));
+        assert!(names.contains(&"nodes_store"));
+        assert!(names.contains(&"workflows_store"));
+        assert!(names.contains(&"event_bus"));
+    }
+}

@@ -455,3 +455,281 @@ pub async fn list_platforms() -> Json<serde_json::Value> {
         "docs": "https://github.com/Andy-ckm/KIAS/blob/main/docs/im-integration.md",
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // === WebhookRequest serialization ===
+
+    #[test]
+    fn test_webhook_request_deserialize_minimal() {
+        let json = json!({
+            "platform": "wechat",
+            "sender_id": "user123",
+            "message": "hello"
+        });
+        let req: WebhookRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.platform, "wechat");
+        assert_eq!(req.sender_id, "user123");
+        assert_eq!(req.message, "hello");
+        assert_eq!(req.message_type, "text"); // default
+        assert!(req.sender_name.is_none());
+        assert!(req.conversation_id.is_none());
+    }
+
+    #[test]
+    fn test_webhook_request_deserialize_full() {
+        let json = json!({
+            "platform": "telegram",
+            "sender_id": "456",
+            "sender_name": "Alice",
+            "message": "/status",
+            "message_type": "command",
+            "conversation_id": "789",
+            "metadata": {"key": "value"},
+            "timestamp": "1234567890"
+        });
+        let req: WebhookRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.platform, "telegram");
+        assert_eq!(req.sender_name, Some("Alice".to_string()));
+        assert_eq!(req.message_type, "command");
+        assert_eq!(req.conversation_id, Some("789".to_string()));
+        assert!(req.metadata.is_some());
+    }
+
+    #[test]
+    fn test_webhook_response_serialize() {
+        let resp = WebhookResponse {
+            success: true,
+            reply: "done".to_string(),
+            reply_type: "text".to_string(),
+            extra: None,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["success"], true);
+        assert_eq!(json["reply"], "done");
+        assert!(json.get("extra").is_none()); // skip_serializing_if
+    }
+
+    #[test]
+    fn test_webhook_response_with_extra() {
+        let resp = WebhookResponse {
+            success: true,
+            reply: "ok".to_string(),
+            reply_type: "markdown".to_string(),
+            extra: Some(json!({"platform": "slack"})),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["extra"]["platform"], "slack");
+    }
+
+    #[test]
+    fn test_default_message_type_value() {
+        assert_eq!(default_message_type(), "text");
+    }
+
+    // === WechatAdapter ===
+
+    #[test]
+    fn test_wechat_parse_message() {
+        let adapter = WechatAdapter;
+        let raw = json!({
+            "FromUserName": "wx_user_001",
+            "Content": "查看状态",
+            "ToUserName": "wx_bot",
+            "CreateTime": "1700000000"
+        });
+        let req = adapter.parse_message(&raw).unwrap();
+        assert_eq!(req.platform, "wechat");
+        assert_eq!(req.sender_id, "wx_user_001");
+        assert_eq!(req.message, "查看状态");
+        assert_eq!(req.conversation_id, Some("wx_bot".to_string()));
+        assert_eq!(req.timestamp, Some("1700000000".to_string()));
+    }
+
+    #[test]
+    fn test_wechat_parse_missing_fields() {
+        let adapter = WechatAdapter;
+        let raw = json!({}); // empty
+        let req = adapter.parse_message(&raw).unwrap();
+        assert_eq!(req.sender_id, "unknown");
+        assert_eq!(req.message, "");
+    }
+
+    #[test]
+    fn test_wechat_format_response() {
+        let adapter = WechatAdapter;
+        let resp = WebhookResponse {
+            success: true,
+            reply: "OK".to_string(),
+            reply_type: "text".to_string(),
+            extra: None,
+        };
+        let val = adapter.format_response(&resp);
+        assert_eq!(val["MsgType"], "text");
+        assert_eq!(val["Content"], "OK");
+    }
+
+    #[test]
+    fn test_wechat_verify_signature_always_true() {
+        let adapter = WechatAdapter;
+        assert!(adapter.verify_signature(&std::collections::HashMap::new(), b"body"));
+    }
+
+    // === TelegramAdapter ===
+
+    #[test]
+    fn test_telegram_parse_message() {
+        let adapter = TelegramAdapter;
+        let raw = json!({
+            "message": {
+                "from": {"id": 12345, "first_name": "Bob"},
+                "text": "help me",
+                "chat": {"id": -100123},
+                "date": 1700000000
+            }
+        });
+        let req = adapter.parse_message(&raw).unwrap();
+        assert_eq!(req.platform, "telegram");
+        assert_eq!(req.sender_id, "12345");
+        assert_eq!(req.sender_name, Some("Bob".to_string()));
+        assert_eq!(req.message, "help me");
+        assert_eq!(req.conversation_id, Some("-100123".to_string()));
+    }
+
+    #[test]
+    fn test_telegram_parse_missing_message() {
+        let adapter = TelegramAdapter;
+        let raw = json!({});
+        let result = adapter.parse_message(&raw);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("missing message"));
+    }
+
+    #[test]
+    fn test_telegram_format_response_html() {
+        let adapter = TelegramAdapter;
+        let resp = WebhookResponse {
+            success: true,
+            reply: "hello".to_string(),
+            reply_type: "text".to_string(),
+            extra: None,
+        };
+        let val = adapter.format_response(&resp);
+        assert_eq!(val["text"], "hello");
+        assert_eq!(val["parse_mode"], "HTML");
+    }
+
+    #[test]
+    fn test_telegram_format_response_markdown() {
+        let adapter = TelegramAdapter;
+        let resp = WebhookResponse {
+            success: true,
+            reply: "*bold*".to_string(),
+            reply_type: "markdown".to_string(),
+            extra: None,
+        };
+        let val = adapter.format_response(&resp);
+        assert_eq!(val["parse_mode"], "Markdown");
+    }
+
+    // === SlackAdapter ===
+
+    #[test]
+    fn test_slack_parse_message() {
+        let adapter = SlackAdapter;
+        let raw = json!({
+            "user": "U123",
+            "text": "deploy staging",
+            "channel": "C456",
+            "ts": "1700000000.000100"
+        });
+        let req = adapter.parse_message(&raw).unwrap();
+        assert_eq!(req.platform, "slack");
+        assert_eq!(req.sender_id, "U123");
+        assert_eq!(req.message, "deploy staging");
+        assert_eq!(req.conversation_id, Some("C456".to_string()));
+    }
+
+    #[test]
+    fn test_slack_format_response() {
+        let adapter = SlackAdapter;
+        let resp = WebhookResponse {
+            success: true,
+            reply: "done".to_string(),
+            reply_type: "markdown".to_string(),
+            extra: None,
+        };
+        let val = adapter.format_response(&resp);
+        assert_eq!(val["text"], "done");
+        assert_eq!(val["mrkdwn"], true);
+    }
+
+    // === FeishuAdapter ===
+
+    #[test]
+    fn test_feishu_parse_message() {
+        let adapter = FeishuAdapter;
+        let raw = json!({
+            "event": {
+                "sender": {"sender_id": {"open_id": "ou_abc"}},
+                "message": {
+                    "content": r#"{"text":"查 agent"}"#,
+                    "message_type": "text",
+                    "chat_id": "oc_xyz"
+                }
+            }
+        });
+        let req = adapter.parse_message(&raw).unwrap();
+        assert_eq!(req.platform, "feishu");
+        assert_eq!(req.sender_id, "ou_abc");
+        assert_eq!(req.conversation_id, Some("oc_xyz".to_string()));
+    }
+
+    #[test]
+    fn test_feishu_parse_missing_event() {
+        let adapter = FeishuAdapter;
+        let raw = json!({});
+        let result = adapter.parse_message(&raw);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("missing event"));
+    }
+
+    // === get_adapter ===
+
+    #[test]
+    fn test_get_adapter_all_platforms() {
+        assert!(get_adapter("wechat").is_some());
+        assert!(get_adapter("weixin").is_some()); // alias
+        assert!(get_adapter("telegram").is_some());
+        assert!(get_adapter("slack").is_some());
+        assert!(get_adapter("feishu").is_some());
+        assert!(get_adapter("lark").is_some()); // alias
+    }
+
+    #[test]
+    fn test_get_adapter_unknown() {
+        assert!(get_adapter("discord").is_none());
+        assert!(get_adapter("").is_none());
+        assert!(get_adapter("WECHAT").is_none()); // case-sensitive
+    }
+
+    // === list_platforms ===
+
+    #[tokio::test]
+    async fn test_list_platforms_returns_all() {
+        let result = list_platforms().await;
+        let platforms = result["platforms"].as_array().unwrap();
+        assert_eq!(platforms.len(), 4);
+        let ids: Vec<&str> = platforms
+            .iter()
+            .map(|p| p["id"].as_str().unwrap())
+            .collect();
+        assert!(ids.contains(&"wechat"));
+        assert!(ids.contains(&"telegram"));
+        assert!(ids.contains(&"slack"));
+        assert!(ids.contains(&"feishu"));
+    }
+}

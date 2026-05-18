@@ -178,6 +178,56 @@ RAG 注入：是
 
 ---
 
+### 4. Harness Engineering（Agent 架构方法论）
+
+> "Agent = Model + Harness。Base model 很重要，但怎么把它用好，可能更重要。" —— 王云鹤
+
+#### 4.1 核心公式
+
+**公式 1**：给定任务 T 和模型集 M，对每个步骤选最优模型 m* 和最优 Harness 参数 h*
+```
+Agent(T, M) = Σᵢ [Select(m*, h*) | Step_i]
+目标：min Loss / min TokenCost
+```
+
+**公式 2**：Model Parameters + Harness Parameters 联合优化
+```
+AGI_next = Model_Params ⊕ Harness_Params → 联合迭代优化
+```
+
+#### 4.2 为什么 Harness 不会被模型吃掉
+
+1. **模型"七国八制"**：不同模型在不同任务上表现差异大，benchmark 与实际表现关联度低
+2. **任务会"打架"**：快慢思考、超分去模糊等任务本质上冲突，无法用单一模型统一
+3. **复杂任务需多模型协同**：多模态理解+生成、具身智能感知+决策+运控
+
+#### 4.3 KIAS 的 Harness 架构映射
+
+| Harness 要素 | KIAS 模块 | 说明 |
+|-------------|----------|------|
+| 模型选择 | model-router + tier_routing | 任务复杂度→最优模型 |
+| Prompt 优化 | skills + quality_pipeline | 技能文件 + 竞技场评估 |
+| RAG/知识 | knowledge + graphrag + entity_extractor | 混合检索 + 知识图谱 |
+| 记忆 | memory_layers + DreamConsolidator | 分层记忆 + 夜间巩固 |
+| 安全/审计 | gxp_audit + gxp_auth + approval | GxP 合规全链路 |
+| 工具调用 | tool-executor + mcp-protocol | 标准化工具协议 |
+| 自我进化 | auto-loop + learner | 用 KIAS 开发 KIAS |
+
+#### 4.4 灵魂之争的答案
+
+> 如果 Harness 控制模型选择，甚至基于 Harness 数据增训模型，灵魂到底属于谁？
+
+**KIAS 的答案**：灵魂在 Harness。模型是可替换的执行器，Harness（skills + memory + approval + audit + knowledge）才是 Agent 的身份和能力。更换模型不影响 Agent 的本质；更换 Harness 则改变 Agent 的行为。
+
+#### 4.5 参考文献
+
+1. 王云鹤, "Harness Engineering: Agent = Model + Harness", 知乎, 2026
+2. OpenClaw, 开源 Agent 框架, 2026
+3. Anthropic, Claude Code + Opus 迭代模式, 2025-2026
+4. Pretrained Image Processing Transformer (IPT), 2020
+
+---
+
 ## 二、四步开发法（强制流程）
 
 ```

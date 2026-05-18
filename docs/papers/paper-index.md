@@ -1,11 +1,17 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (23:22)
+更新时间: 2026-05-19 (00:50)
 
-## 论文列表 (60 篇)
+## 论文列表 (66 篇)
 
-### 已下载论文 (48 篇)
+### 已下载论文 (54 篇)
 - ✅ 2605.16233.pdf (FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast)
+- ✅ 2605.15611.pdf (TopoEvo: A Topology-Aware Self-Evolving Multi-Agent Framework for Root Cause Analysis in Microservices)
+- ✅ 2605.15581.pdf (STAR: A Stage-attributed Triage and Repair framework for RCA Agents in Microservices)
+- ✅ 2605.15701.pdf (H-Mem: A Novel Memory Mechanism for Evolving and Retrieving Agent Memory via a Hybrid Structure)
+- ✅ 2605.14892.pdf (Beyond Individual Intelligence: Surveying Collaboration, Failure Attribution, and Self-Evolution in MAS)
+- ✅ 2605.10052.pdf (Swarm Skills: A Portable, Self-Evolving Multi-Agent System Specification for Coordination Engineering)
+- ✅ 2605.01970.pdf (Trojan Hippo: Weaponizing Agent Memory for Data Exfiltration)
 - ✅ 2605.16217.pdf (Argus: Evidence Assembly for Scalable Deep Research Agents)
 - ✅ 2605.14498.pdf (GroupMemBench: Benchmarking LLM Agent Memory in Multi-Party Conversations)
 - ✅ 2605.14857.pdf (A Deterministic Agentic Workflow for HS Tariff Classification)
@@ -63,6 +69,42 @@
 ---
 
 ## 全部论文清单
+
+0. **[2605.15611]** TopoEvo: A Topology-Aware Self-Evolving Multi-Agent Framework for Root Cause Analysis in Microservices
+   - 日期: 2026-05-15 | 分类: cs.AI
+   - 主题: multi-agent framework, self-evolving, root cause analysis, microservices
+   - 链接: https://arxiv.org/abs/2605.15611
+   - 状态: ✅ 已下载 (709KB)
+
+0. **[2605.15581]** STAR: A Stage-attributed Triage and Repair framework for RCA Agents in Microservices
+   - 日期: 2026-05-15 | 分类: cs.AI
+   - 主题: RCA agent, triage and repair, microservices, incident management
+   - 链接: https://arxiv.org/abs/2605.15581
+   - 状态: ✅ 已下载 (4.7MB)
+
+0. **[2605.15701]** H-Mem: A Novel Memory Mechanism for Evolving and Retrieving Agent Memory via a Hybrid Structure
+   - 日期: 2026-05-15 | 分类: cs.AI
+   - 主题: agent memory, hybrid memory structure, evolving memory, retrieval
+   - 链接: https://arxiv.org/abs/2605.15701
+   - 状态: ✅ 已下载 (1.3MB)
+
+0. **[2605.14892]** Beyond Individual Intelligence: Surveying Collaboration, Failure Attribution, and Self-Evolution in LLM-based Multi-Agent Systems
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: multi-agent systems survey, collaboration, failure attribution, self-evolution
+   - 链接: https://arxiv.org/abs/2605.14892
+   - 状态: ✅ 已下载 (1.2MB)
+
+0. **[2605.10052]** Swarm Skills: A Portable, Self-Evolving Multi-Agent System Specification for Coordination Engineering
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: multi-agent coordination, self-evolving, swarm skills, portable specification
+   - 链接: https://arxiv.org/abs/2605.10052
+   - 状态: ✅ 已下载 (1.8MB)
+
+0. **[2605.01970]** Trojan Hippo: Weaponizing Agent Memory for Data Exfiltration
+   - 日期: 2026-05-08 | 分类: cs.CR, cs.AI
+   - 主题: agent memory security, data exfiltration, adversarial attacks
+   - 链接: https://arxiv.org/abs/2605.01970
+   - 状态: ✅ 已下载 (2.3MB)
 
 0. **[2605.16233]** FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast
    - 日期: 2026-05-15 | 分类: cs.AI

@@ -147,4 +147,98 @@ mod tests {
         assert!(output.contains("kias_agent_create_total"));
         assert!(output.contains("kias_cache_operations_total"));
     }
+
+    #[test]
+    fn test_agent_create_total_increments() {
+        let before = AGENT_CREATE_TOTAL.get();
+        AGENT_CREATE_TOTAL.inc();
+        let after = AGENT_CREATE_TOTAL.get();
+        assert_eq!(after, before + 1);
+    }
+
+    #[test]
+    fn test_agents_running_gauge() {
+        AGENTS_RUNNING.with_label_values(&["node-1"]).set(5);
+        assert_eq!(AGENTS_RUNNING.with_label_values(&["node-1"]).get(), 5);
+        AGENTS_RUNNING.with_label_values(&["node-1"]).inc();
+        assert_eq!(AGENTS_RUNNING.with_label_values(&["node-1"]).get(), 6);
+    }
+
+    #[test]
+    fn test_scheduler_decisions_counter() {
+        SCHEDULER_DECISIONS.with_label_values(&["success"]).inc();
+        SCHEDULER_DECISIONS.with_label_values(&["success"]).inc();
+        SCHEDULER_DECISIONS.with_label_values(&["no_node"]).inc();
+        assert_eq!(SCHEDULER_DECISIONS.with_label_values(&["success"]).get(), 2);
+        assert_eq!(SCHEDULER_DECISIONS.with_label_values(&["no_node"]).get(), 1);
+    }
+
+    #[test]
+    fn test_scheduler_latency_histogram() {
+        SCHEDULER_LATENCY.observe(0.01);
+        SCHEDULER_LATENCY.observe(0.05);
+        let metric_families = REGISTRY.gather();
+        let histogram = metric_families
+            .iter()
+            .find(|mf| mf.get_name() == "kias_scheduler_latency_seconds")
+            .expect("histogram not found");
+        assert_eq!(histogram.get_metric().len(), 1);
+    }
+
+    #[test]
+    fn test_tokens_total_counter() {
+        TOKENS_TOTAL.with_label_values(&["input"]).inc_by(100);
+        TOKENS_TOTAL.with_label_values(&["output"]).inc_by(50);
+        assert_eq!(TOKENS_TOTAL.with_label_values(&["input"]).get(), 100);
+        assert_eq!(TOKENS_TOTAL.with_label_values(&["output"]).get(), 50);
+    }
+
+    #[test]
+    fn test_cost_total_cents() {
+        COST_TOTAL_CENTS.inc_by(25);
+        assert!(COST_TOTAL_CENTS.get() >= 25);
+    }
+
+    #[test]
+    fn test_node_utilisation_gauge() {
+        NODE_UTILISATION
+            .with_label_values(&["node-1", "cpu"])
+            .set(75);
+        NODE_UTILISATION
+            .with_label_values(&["node-1", "memory"])
+            .set(60);
+        assert_eq!(
+            NODE_UTILISATION.with_label_values(&["node-1", "cpu"]).get(),
+            75
+        );
+        assert_eq!(
+            NODE_UTILISATION
+                .with_label_values(&["node-1", "memory"])
+                .get(),
+            60
+        );
+    }
+
+    #[test]
+    fn test_encode_metrics_contains_all_types() {
+        // Touch all metric types
+        AGENT_CREATE_TOTAL.inc();
+        AGENTS_RUNNING.with_label_values(&["test"]).set(1);
+        SCHEDULER_DECISIONS.with_label_values(&["test"]).inc();
+        SCHEDULER_LATENCY.observe(0.1);
+        CACHE_OPERATIONS.with_label_values(&["test", "test"]).inc();
+        TOKENS_TOTAL.with_label_values(&["test"]).inc();
+        COST_TOTAL_CENTS.inc();
+        NODE_UTILISATION.with_label_values(&["test", "test"]).set(1);
+
+        let output = encode_metrics();
+        assert!(output.contains("kias_agent_create_total"));
+        assert!(output.contains("kias_agents_running"));
+        assert!(output.contains("kias_scheduler_decisions_total"));
+        assert!(output.contains("kias_scheduler_latency_seconds"));
+        assert!(output.contains("kias_cache_operations_total"));
+        assert!(output.contains("kias_tokens_total"));
+        assert!(output.contains("kias_cost_total_cents"));
+        assert!(output.contains("kias_node_utilisation_percent"));
+    }
 }

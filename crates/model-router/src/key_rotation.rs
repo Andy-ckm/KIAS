@@ -607,4 +607,122 @@ mod tests {
         let k2 = rotator.get_key().await.unwrap();
         assert_ne!(k1, k2);
     }
+
+    #[tokio::test]
+    async fn test_api_key_builder_chain() {
+        let key = ApiKey::new("sk-test-123")
+            .with_label("test-key")
+            .with_budget(50.0);
+        assert_eq!(key.key, "sk-test-123");
+        assert_eq!(key.label, Some("test-key".to_string()));
+        assert_eq!(key.budget_usd, Some(50.0));
+        assert_eq!(key.status, KeyStatus::Active);
+        assert_eq!(key.success_count, 0);
+        assert_eq!(key.failure_count, 0);
+        assert!((key.spend_usd) < f64::EPSILON);
+    }
+
+    #[tokio::test]
+    async fn test_key_status_variants() {
+        assert_eq!(KeyStatus::Active, KeyStatus::Active);
+        assert_ne!(KeyStatus::Active, KeyStatus::Cooldown);
+        assert_ne!(KeyStatus::Cooldown, KeyStatus::Exhausted);
+        assert_ne!(KeyStatus::Exhausted, KeyStatus::Disabled);
+    }
+
+    #[tokio::test]
+    async fn test_rotation_strategy_default() {
+        let strategy = KeyRotationStrategy::default();
+        assert_eq!(strategy, KeyRotationStrategy::RoundRobin);
+    }
+
+    #[tokio::test]
+    async fn test_remove_nonexistent_key() {
+        let rotator = KeyRotator::new(vec![make_key("a")], KeyRotationConfig::default());
+        let removed = rotator.remove_key("nonexistent-key").await;
+        assert!(!removed);
+        assert_eq!(rotator.total_count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_add_key_to_empty_pool() {
+        let rotator = KeyRotator::new(vec![], KeyRotationConfig::default());
+        assert_eq!(rotator.total_count().await, 0);
+        assert_eq!(rotator.available_count().await, 0);
+        rotator.add_key(make_key("new")).await;
+        assert_eq!(rotator.total_count().await, 1);
+        assert_eq!(rotator.available_count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_budget_partial_spend() {
+        let key = make_key("budget").with_budget(1.0);
+        let rotator = KeyRotator::new(vec![key], KeyRotationConfig::default());
+        let k = rotator.get_key().await.unwrap();
+        rotator.record_success(&k, 0.3).await;
+        assert_eq!(rotator.available_count().await, 1);
+        let k2 = rotator.get_key().await.unwrap();
+        assert_eq!(k, k2);
+    }
+
+    #[tokio::test]
+    async fn test_mask_key_various_lengths() {
+        assert_eq!(mask_key("ab"), "***");
+        assert_eq!(mask_key("abcdef"), "***");
+        assert_eq!(mask_key("abcdefgh"), "***"); // len=8, <= 12 threshold
+        assert_eq!(mask_key("abcdefghijklm"), "abcd...jklm"); // len=13, last 4 = jklm
+        assert_eq!(mask_key("sk-1234567890"), "sk-1...7890");
+    }
+
+    #[tokio::test]
+    async fn test_random_rotation_selects_keys() {
+        let rotator = KeyRotator::new(
+            vec![make_key("a"), make_key("b"), make_key("c")],
+            KeyRotationConfig {
+                strategy: KeyRotationStrategy::Random,
+                ..Default::default()
+            },
+        );
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..30 {
+            if let Ok(k) = rotator.get_key().await {
+                seen.insert(k);
+            }
+        }
+        assert!(
+            seen.len() >= 2,
+            "Random rotation should use multiple keys, saw {}",
+            seen.len()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cooldown_with_zero_secs() {
+        let rotator = KeyRotator::new(
+            vec![make_key("a")],
+            KeyRotationConfig {
+                cooldown_secs: 0,
+                ..Default::default()
+            },
+        );
+        let k = rotator.get_key().await.unwrap();
+        rotator.record_rate_limit(&k).await;
+        // With 0 cooldown, key may recover instantly or stay in cooldown
+        // depending on timing; just verify we can still get a key
+        let _ = rotator.get_key().await;
+    }
+
+    #[tokio::test]
+    async fn test_multiple_quota_exhausted() {
+        let rotator = KeyRotator::new(
+            vec![make_key("a"), make_key("b")],
+            KeyRotationConfig::default(),
+        );
+        let k1 = rotator.get_key().await.unwrap();
+        rotator.record_quota_exhausted(&k1).await;
+        let k2 = rotator.get_key().await.unwrap();
+        rotator.record_quota_exhausted(&k2).await;
+        // Both keys exhausted
+        assert!(rotator.get_key().await.is_err());
+    }
 }

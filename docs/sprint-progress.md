@@ -2631,3 +2631,55 @@ Sprint 100 更新 (2026-05-18):
 ### 💾 磁盘状态
 - / (系统盘): 78% 使用率 (8.3G free)
 - /mnt (挂载盘): 62% 使用率 (11G free)
+
+## Sprint 115: 2026-05-19 05:35 (KIAS Auto Loop - Test Density Push)
+
+### Quality Gates (05:35)
+| Check | Result |
+|--------|------|
+| cargo build | Pass |
+| cargo fmt | Pass |
+| cargo clippy | Zero warnings |
+| cargo test | **2859 passed**, 0 failed (+22 from Sprint 113) |
+| Disk (/) | ~78% used |
+
+### Test Density Improvements
+| Crate/File | Before | After | Tests Added |
+|-----------|--------|-------|-------------|
+| mcp-protocol/sandbox.rs | 1.15 | **2.06** | +41 (39→80) |
+| data-store/repository/mod.rs | 1.99 | **2.04** | +4 (115→119) |
+| kias-cli/client.rs | 1.96 | **2.09** | +5 (84→89) |
+
+### New Tests (50 total)
+**sandbox.rs (41 tests)**:
+- SandboxManager execute/audit/list/get/terminate paths (8 tests)
+- ProcessSandboxBackend with resource limits, workspace projection, isolation levels (7 tests)
+- SandboxSnapshot save/load/roundtrip/delete/add_file (5 tests)
+- SandboxConfig serialization roundtrip + builder pattern (4 tests)
+- ResourceLimits/NetworkPolicy construction + serialization (4 tests)
+- IsolationLevel/SandboxBackend Display + parse (4 tests)
+- GVisorConfig + DockerSandboxBackend construction (3 tests)
+- SandboxResource + SandboxAuditLog + workspace projection (6 tests)
+
+**data-store (4 tests)**:
+- test_task_get_by_agent_multiple: multi-agent task filtering
+- test_skill_get_by_name_found_and_missing: found + missing cases
+- test_component_get_by_name_found_and_missing: found + missing cases
+- test_task_get_by_agent_empty: empty result path
+
+**kias-cli (5 tests)**:
+- WorkflowInfo, NodeInfo, MetricsSummary, AgentSpecInfo deserialization
+- AgentSpecInfo default field handling
+
+### Commits
+- `eef59f9` test(mcp-protocol): +41 sandbox tests, density 1.15→2.06
+- `a8bdaf7` test(data-store): +4 repository tests, density 1.99→2.04
+- `fa65370` test(kias-cli): +5 client deserialization tests, density 1.96→2.09
+
+### Remaining Low-Density Crates
+| Crate | Density | Lines | Tests | Gap to 2.0 |
+|-------|---------|-------|-------|------------|
+| api-server | 1.96 | 11,338 | 222 | +5 tests |
+| auto-loop | 1.97 | 10,025 | 197 | +7 tests |
+| scheduler | 1.97 | 7,966 | 157 | +3 tests |
+| skills | 1.97 | 8,364 | 165 | +3 tests |

@@ -244,6 +244,7 @@
 
 | 论文 | 分析报告 | KIAS 映射 |
 |------|----------|-----------|
+| Harness Engineering 综合 | [harness-engineering-analysis.md](../research/harness-engineering-analysis.md) | Harness 五层架构、灵魂之争、全模块映射 |
 | Cognifold (2605.13438) | [cognifold-analysis.md](../research/cognifold-analysis.md) | 记忆层架构、主动折叠 |
 | OpenAaaS (2605.13618) | [openaaas-analysis.md](../research/openaaas-analysis.md) | AaaS 架构、跨机构编排 |
 | Agent Coordination (2605.13172) | [agent-coordination-benchmark.md](../research/agent-coordination-benchmark.md) | 调度基准、层级协调 |

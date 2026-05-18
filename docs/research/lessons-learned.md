@@ -125,12 +125,14 @@ Agent = Model + Harness
 | Token 性价比 | model-router + token analytics | ✅ |
 | Harness 参数学习 | auto-loop + learner | ✅ |
 
-## 六、待接入模块清单
+## 六、接入状态追踪
 
-| 模块 | 行数 | 接入点 | 优先级 |
-|------|------|--------|--------|
-| entity_extractor | 390 | knowledge memory.remember | P1 |
-| entity_tier | 237 | entity_extractor 之后 | P1 |
-| knowledge/approval | 1566 | knowledge document workflow | P2 |
-| gxp_audit (common) | 820 | auto-loop 审计日志 | P1 |
-| gxp_auth (common) | 1286 | 认证流程 | P2 |
+| 模块 | 行数 | 接入点 | 状态 |
+|------|------|--------|------|
+| side_effect_gate | 545 | auto-loop implement_fix | ✅ 已接入 |
+| self_boundary | 525 | auto-loop start_loop | ✅ 已接入 |
+| entity_extractor | 390 | knowledge memory.remember | ✅ 已接入 |
+| entity_tier | 237 | knowledge memory.remember | ✅ 已接入 |
+| knowledge/approval | 1566 | knowledge document workflow | ⚠️ 待接入 |
+| gxp_audit (common) | 820 | auto-loop 审计日志 | ⚠️ 待接入 |
+| gxp_auth (common) | 1286 | 认证流程 | ⚠️ 待接入 |

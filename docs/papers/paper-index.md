@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (14:45)
+更新时间: 2026-05-18 (16:05)
 
 ## 论文列表 (33 篇)
 
-### 已下载论文 (15 篇)
+### 已下载论文 (21 篇)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
 - ✅ 2605.14675.pdf (Agentic AI in Industry: Adoption Level and Deployment Barriers)
@@ -21,14 +21,18 @@
 - ✅ 2605.12364.pdf (Attacks and Mitigations for Distributed Governance of Agentic AI)
 - ✅ 2605.11487.pdf (Digital Identity for Agentic Systems: Portable Authorization Standard)
 - ✅ 2605.07161.pdf (SREGym: A Live Benchmark for AI SRE Agents)
+- ✅ 2605.13172.pdf (When Does Hierarchy Help? Benchmarking Agent Coordination)
+- ✅ 2605.13438.pdf (Cognifold: Always-On Proactive Memory via Cognitive Folding)
+- ✅ 2605.13618.pdf (OpenAaaS: An Open Agent-as-a-Service Framework)
+- ✅ 2605.13821.pdf (Harnessing Agentic Evolution)
 
-### 待下载论文 (2 篇 — arXiv 限流未下载)
+### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
 - ✅ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
 - ✅ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
 - ✅ 2605.15228 (Verifiable Agentic Infrastructure: Proof-Derived Authorization)
-- ⏳ 2605.15218 (CAX-Agent: Lightweight Agent Harness for Reliable APDL Automation)
-- ⏳ 2605.15224 (ICRL: Learning to Internalize Self-Critique with Reinforcement Learning)
+- ✅ 2605.15218 (CAX-Agent: Lightweight Agent Harness for Reliable APDL Automation)
+- ✅ 2605.15224 (ICRL: Learning to Internalize Self-Critique with Reinforcement Learning)
 
 ---
 
@@ -189,39 +193,50 @@
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: agent harness, reliable automation
     - 链接: https://arxiv.org/abs/2605.15218
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (2.0MB)
 
 29. **[2605.15224]** ICRL: Learning to Internalize Self-Critique with Reinforcement Learning
     - 作者: Jianbo Lin, Xiaomin Yu, Yi Xin, Yifu Guo
     - 日期: 2026-05-15 | 分类: cs.AI
     - 主题: self-critique, reinforcement learning
     - 链接: https://arxiv.org/abs/2605.15224
-    - 状态: ⏳ 待下载
+    - 状态: ✅ 已下载 (1.4MB)
 
 30. **[2605.13438]** Cognifold: Always-On Proactive Memory via Cognitive Folding
     - 作者: Suli Wang, Yiqun Duan
     - 日期: 2026-05-13 | 分类: cs.AI
     - 主题: agent memory, proactive memory, cognitive folding
     - 链接: https://arxiv.org/abs/2605.13438
-    - 状态: 🆕 新发现 (OpenAlex)
+        - 状态: ✅ 已下载 (734KB)
 
 31. **[2605.13618]** OpenAaaS: An Open Agent-as-a-Service Framework for Distributed Materials-Informatics Research
     - 作者: Peng Kang, Bixuan Li
     - 日期: 2026-05-13 | 分类: cs.AI
     - 主题: agent-as-a-service, distributed agent framework
     - 链接: https://arxiv.org/abs/2605.13618
-    - 状态: 🆕 新发现 (OpenAlex)
+        - 状态: ✅ 已下载 (462KB)
 
 32. **[2605.13172]** When Does Hierarchy Help? Benchmarking Agent Coordination in Event-Driven Industrial Scheduling
     - 作者: Ziqi Wang, Yuhao Yang
     - 日期: 2026-05-13 | 分类: cs.AI
     - 主题: multi-agent coordination, industrial scheduling, benchmark
     - 链接: https://arxiv.org/abs/2605.13172
-    - 状态: 🆕 新发现 (OpenAlex)
+        - 状态: ✅ 已下载 (537KB)
 
 33. **[2605.13821]** Harnessing Agentic Evolution
     - 作者: Jiayi Zhang, Yongfeng Gu
     - 日期: 2026-05-13 | 分类: cs.AI
     - 主题: agentic evolution, iterative improvement, workflow optimization
     - 链接: https://arxiv.org/abs/2605.13821
-    - 状态: 🆕 新发现 (OpenAlex)
+        - 状态: ✅ 已下载 (230KB)
+
+---
+
+## 研究分析报告
+
+| 论文 | 分析报告 | KIAS 映射 |
+|------|----------|-----------|
+| Cognifold (2605.13438) | [cognifold-analysis.md](../research/cognifold-analysis.md) | 记忆层架构、主动折叠 |
+| OpenAaaS (2605.13618) | [openaaas-analysis.md](../research/openaaas-analysis.md) | AaaS 架构、跨机构编排 |
+| Agent Coordination (2605.13172) | [agent-coordination-benchmark.md](../research/agent-coordination-benchmark.md) | 调度基准、层级协调 |
+| Agentic Evolution (2605.13821) | [agentic-evolution-analysis.md](../research/agentic-evolution-analysis.md) | 工作流优化、目标驱动 |

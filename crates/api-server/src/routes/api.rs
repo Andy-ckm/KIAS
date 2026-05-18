@@ -5,7 +5,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
     a2a, agents, config, context, health, im, knowledge, metrics, nl_command, nodes, scheduler,
-    tokens, workflows,
+    tier_routing, tokens, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -181,6 +181,29 @@ pub fn create_router(state: AppState) -> Router {
         axum::routing::get(scheduler::scheduler_status),
     );
 
+    // --- Tier routing routes (PrfaaS-inspired intelligent task routing) ---
+    let tier_routing_routes = Router::new()
+        .route(
+            "/api/v1/routing/evaluate",
+            axum::routing::post(tier_routing::evaluate_task),
+        )
+        .route(
+            "/api/v1/routing/batch",
+            axum::routing::post(tier_routing::batch_evaluate),
+        )
+        .route(
+            "/api/v1/routing/tiers",
+            axum::routing::get(tier_routing::list_tiers),
+        )
+        .route(
+            "/api/v1/routing/pool/register",
+            axum::routing::post(tier_routing::register_agent),
+        )
+        .route(
+            "/api/v1/routing/pool/status",
+            axum::routing::get(tier_routing::pool_status),
+        );
+
     // --- A2A (Agent-to-Agent) protocol routes ---
     let a2a_routes = Router::new()
         .route("/a2a/v1/agents", axum::routing::get(a2a::list_agent_cards))
@@ -253,6 +276,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(token_routes)
         .merge(workflow_routes)
         .merge(scheduler_routes)
+        .merge(tier_routing_routes)
         .merge(a2a_routes)
         .merge(nl_routes)
         .merge(intent_routes)

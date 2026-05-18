@@ -32,6 +32,8 @@ pub enum ResponseStrategy {
     Escalate { reason: String },
     /// 置信度中等 + 有部分知识 → 回答但标注不确定性
     ReasonWithCaveat { caveat: String },
+    /// 元认知评估 → 启用反思策略（自我审视后决定）
+    MetacognitiveReview,
 }
 
 // ─── Metacognitive Analysis ────────────────────────────────────────────
@@ -289,6 +291,13 @@ impl SelfBoundaryReasoner {
             }
             ResponseStrategy::ReasonWithCaveat { .. } => {
                 // 与 ReasonDirectly 相同的处理
+                let stats = &mut self.self_model.performance_stats;
+                let n = stats.total_tasks as f64;
+                stats.direct_success_rate =
+                    (stats.direct_success_rate * (n - 1.0) + if success { 1.0 } else { 0.0 }) / n;
+            }
+            ResponseStrategy::MetacognitiveReview => {
+                // 元认知反思策略 — 跟踪反思成功率
                 let stats = &mut self.self_model.performance_stats;
                 let n = stats.total_tasks as f64;
                 stats.direct_success_rate =

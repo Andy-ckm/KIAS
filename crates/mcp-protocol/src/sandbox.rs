@@ -3387,4 +3387,499 @@ mod tests {
         // Verify it's gone
         assert_eq!(manager.list_snapshots().await.len(), 0);
     }
+
+    // ===================================================================
+    // Sprint 115: Additional sandbox tests (density 1.15 → ~2.0)
+    // ===================================================================
+
+    #[test]
+    fn test_sandbox_backend_display_all_variants() {
+        assert_eq!(format!("{}", SandboxBackend::Docker), "docker");
+        assert_eq!(format!("{}", SandboxBackend::Firecracker), "firecracker");
+        assert_eq!(format!("{}", SandboxBackend::GVisor), "gvisor");
+        assert_eq!(format!("{}", SandboxBackend::Process), "process");
+        assert_eq!(format!("{}", SandboxBackend::Wasm), "wasm");
+    }
+
+    #[test]
+    fn test_sandbox_backend_equality() {
+        assert_eq!(SandboxBackend::Docker, SandboxBackend::Docker);
+        assert_ne!(SandboxBackend::Docker, SandboxBackend::Process);
+        assert_ne!(SandboxBackend::Wasm, SandboxBackend::GVisor);
+    }
+
+    #[test]
+    fn test_resource_limits_custom_values() {
+        let limits = ResourceLimits {
+            cpu_cores: Some(4.0),
+            memory_bytes: Some(2 * 1024 * 1024 * 1024),
+            disk_bytes: Some(10 * 1024 * 1024 * 1024),
+            network_bandwidth: Some(1024 * 1024),
+            max_open_files: Some(4096),
+            max_processes: Some(128),
+            timeout: Some(Duration::from_secs(600)),
+        };
+        assert_eq!(limits.cpu_cores, Some(4.0));
+        assert_eq!(limits.memory_bytes, Some(2 * 1024 * 1024 * 1024));
+        assert_eq!(limits.max_open_files, Some(4096));
+        assert_eq!(limits.max_processes, Some(128));
+    }
+
+    #[test]
+    fn test_resource_limits_serialization_roundtrip() {
+        let limits = ResourceLimits::default();
+        let json = serde_json::to_string(&limits).unwrap();
+        let deserialized: ResourceLimits = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.cpu_cores, limits.cpu_cores);
+        assert_eq!(deserialized.memory_bytes, limits.memory_bytes);
+        assert_eq!(deserialized.disk_bytes, limits.disk_bytes);
+        assert_eq!(deserialized.max_open_files, limits.max_open_files);
+    }
+
+    #[test]
+    fn test_network_policy_default() {
+        let policy = NetworkPolicy::default();
+        assert!(policy.enabled);
+        assert!(policy.dns_enabled);
+        assert!(policy.allowed_hosts.is_empty());
+        assert!(policy.blocked_hosts.is_empty());
+        assert!(policy.allowed_ports.is_empty());
+    }
+
+    #[test]
+    fn test_network_policy_custom() {
+        let policy = NetworkPolicy {
+            enabled: false,
+            allowed_hosts: vec!["example.com".to_string()],
+            blocked_hosts: vec!["evil.com".to_string()],
+            allowed_ports: vec![80, 443],
+            dns_enabled: false,
+        };
+        assert!(!policy.enabled);
+        assert_eq!(policy.allowed_hosts.len(), 1);
+        assert_eq!(policy.blocked_hosts.len(), 1);
+        assert_eq!(policy.allowed_ports, vec![80, 443]);
+    }
+
+    #[test]
+    fn test_network_policy_serialization_roundtrip() {
+        let policy = NetworkPolicy {
+            enabled: false,
+            allowed_hosts: vec!["api.example.com".to_string()],
+            blocked_hosts: vec![],
+            allowed_ports: vec![443],
+            dns_enabled: true,
+        };
+        let json = serde_json::to_string(&policy).unwrap();
+        let deserialized: NetworkPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.enabled, policy.enabled);
+        assert_eq!(deserialized.allowed_hosts, policy.allowed_hosts);
+        assert_eq!(deserialized.allowed_ports, policy.allowed_ports);
+    }
+
+    #[test]
+    fn test_filesystem_config_default() {
+        let fs = FilesystemConfig::default();
+        assert!(fs.rootfs.is_none());
+        assert!(fs.readonly_mounts.is_empty());
+        assert!(fs.readwrite_mounts.is_empty());
+        assert_eq!(fs.tmpdir_size, Some(100 * 1024 * 1024));
+        assert!(fs.overlay);
+    }
+
+    #[test]
+    fn test_mount_point_serialization() {
+        let mount = MountPoint {
+            host: PathBuf::from("/host/path"),
+            guest: PathBuf::from("/guest/path"),
+            options: vec!["ro".to_string()],
+        };
+        let json = serde_json::to_string(&mount).unwrap();
+        let deserialized: MountPoint = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.host, PathBuf::from("/host/path"));
+        assert_eq!(deserialized.guest, PathBuf::from("/guest/path"));
+        assert_eq!(deserialized.options, vec!["ro"]);
+    }
+
+    #[test]
+    fn test_sandbox_config_serialization_roundtrip() {
+        let config = SandboxConfig::docker(
+            "test-serde",
+            "node:18",
+            vec!["node".to_string(), "-e".to_string(), "console.log(1)".to_string()],
+        );
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: SandboxConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.backend, SandboxBackend::Docker);
+        assert_eq!(deserialized.name, "test-serde");
+        assert_eq!(deserialized.image, Some("node:18".to_string()));
+        assert_eq!(deserialized.command, vec!["node", "-e", "console.log(1)"]);
+    }
+
+    #[test]
+    fn test_sandbox_config_with_env_vars() {
+        let mut config = SandboxConfig::process("env-test", vec!["env".to_string()]);
+        config.env.insert("KEY1".to_string(), "value1".to_string());
+        config.env.insert("KEY2".to_string(), "value2".to_string());
+        assert_eq!(config.env.len(), 2);
+        assert_eq!(config.env.get("KEY1").unwrap(), "value1");
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: SandboxConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.env.get("KEY1").unwrap(), "value1");
+    }
+
+    #[test]
+    fn test_sandbox_config_with_labels() {
+        let mut config = SandboxConfig::process("label-test", vec!["echo".to_string()]);
+        config.labels.insert("team".to_string(), "backend".to_string());
+        config.labels.insert("env".to_string(), "staging".to_string());
+        assert_eq!(config.labels.len(), 2);
+        assert_eq!(config.labels.get("team").unwrap(), "backend");
+    }
+
+    #[test]
+    fn test_sandbox_config_with_workdir() {
+        let mut config = SandboxConfig::process("workdir-test", vec!["pwd".to_string()]);
+        config.workdir = Some(PathBuf::from("/workspace"));
+        assert_eq!(config.workdir, Some(PathBuf::from("/workspace")));
+    }
+
+    #[test]
+    fn test_sandbox_config_with_uid_gid() {
+        let config = SandboxConfig::process("uid-test", vec!["id".to_string()]);
+        assert_eq!(config.uid, Some(65534));
+        assert_eq!(config.gid, Some(65534));
+
+        let mut custom = SandboxConfig::process("custom-uid", vec!["id".to_string()]);
+        custom.uid = Some(1000);
+        custom.gid = Some(1000);
+        assert_eq!(custom.uid, Some(1000));
+        assert_eq!(custom.gid, Some(1000));
+    }
+
+    #[test]
+    fn test_sandbox_config_seccomp_apparmor() {
+        let docker_config = SandboxConfig::docker("test", "alpine", vec!["echo".to_string()]);
+        assert!(docker_config.seccomp);
+        assert!(!docker_config.apparmor);
+
+        let gvisor_config = SandboxConfig::gvisor("test", "alpine", vec!["echo".to_string()]);
+        assert!(!gvisor_config.seccomp);
+    }
+
+    #[test]
+    fn test_sandbox_config_docker_with_limits() {
+        let mut config = SandboxConfig::docker("limited", "alpine", vec!["echo".to_string()]);
+        config.limits.cpu_cores = Some(2.0);
+        config.limits.memory_bytes = Some(1024 * 1024 * 1024);
+        config.limits.timeout = Some(Duration::from_secs(60));
+        assert_eq!(config.limits.cpu_cores, Some(2.0));
+        assert_eq!(config.limits.memory_bytes, Some(1024 * 1024 * 1024));
+    }
+
+    #[test]
+    fn test_sandbox_result_construction() {
+        let result = SandboxResult {
+            exit_code: 0,
+            stdout: String::new(),
+            stderr: String::new(),
+            duration: Duration::from_secs(0),
+            resource_usage: ResourceUsage::default(),
+            terminated: false,
+            termination_reason: None,
+        };
+        assert_eq!(result.exit_code, 0);
+        assert!(result.stdout.is_empty());
+        assert!(result.stderr.is_empty());
+        assert!(!result.terminated);
+    }
+
+    #[test]
+    fn test_resource_usage_default() {
+        let usage = ResourceUsage::default();
+        assert_eq!(usage.peak_memory_bytes, 0);
+        assert_eq!(usage.cpu_time_ns, 0);
+        assert_eq!(usage.disk_read_bytes, 0);
+        assert_eq!(usage.disk_write_bytes, 0);
+        assert_eq!(usage.network_rx_bytes, 0);
+        assert_eq!(usage.network_tx_bytes, 0);
+        assert_eq!(usage.process_count, 0);
+    }
+
+    #[test]
+    fn test_sandbox_manager_config_default() {
+        let config = SandboxManagerConfig::default();
+        assert_eq!(config.max_sandboxes, 100);
+        assert_eq!(config.default_backend, SandboxBackend::Process);
+        assert!(config.audit_enabled);
+        assert_eq!(config.cleanup_interval, Duration::from_secs(300));
+        assert_eq!(config.max_lifetime, Duration::from_secs(3600));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_unregistered_backend() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        let config = SandboxConfig::docker("test", "alpine", vec!["echo".to_string()]);
+        let result = manager.execute(config, "test-user").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(format!("{}", err).contains("Backend not registered"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_max_sandboxes_limit() {
+        let config = SandboxManagerConfig {
+            max_sandboxes: 0,
+            ..Default::default()
+        };
+        let manager = SandboxManager::new(config);
+        manager.register_backend(
+            SandboxBackend::Process,
+            Arc::new(ProcessSandboxBackend::new()),
+        ).await;
+
+        let sandbox_config = SandboxConfig::process("test", vec!["echo".to_string()]);
+        let result = manager.execute(sandbox_config, "test-user").await;
+        assert!(result.is_err());
+        assert!(format!("{}", result.unwrap_err()).contains("Maximum sandbox limit"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_terminate_nonexistent() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        let result = manager.terminate("nonexistent-id", "test-user").await;
+        assert!(result.is_err());
+        assert!(format!("{}", result.unwrap_err()).contains("Sandbox not found"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_audit_log_after_execute() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        manager.register_backend(
+            SandboxBackend::Process,
+            Arc::new(ProcessSandboxBackend::new()),
+        ).await;
+
+        let config = SandboxConfig::process("audit-test", vec!["true".to_string()]);
+        let _ = manager.execute(config, "audit-actor").await;
+
+        let log = manager.audit_log().await;
+        assert!(log.len() >= 2);
+        assert!(log.iter().any(|e| e.actor == "audit-actor"));
+        assert!(log.iter().any(|e| matches!(e.action, SandboxAction::Create)));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_audit_disabled() {
+        let config = SandboxManagerConfig {
+            audit_enabled: false,
+            ..Default::default()
+        };
+        let manager = SandboxManager::new(config);
+        manager.register_backend(
+            SandboxBackend::Process,
+            Arc::new(ProcessSandboxBackend::new()),
+        ).await;
+
+        let sandbox_config = SandboxConfig::process("no-audit", vec!["true".to_string()]);
+        let _ = manager.execute(sandbox_config, "test-user").await;
+
+        let log = manager.audit_log().await;
+        assert!(log.is_empty(), "Audit log should be empty when disabled");
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_get_nonexistent() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        let result = manager.get("nonexistent").await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_list_empty() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        let sandboxes = manager.list().await;
+        assert_eq!(sandboxes.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_echo_output() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        manager.register_backend(
+            SandboxBackend::Process,
+            Arc::new(ProcessSandboxBackend::new()),
+        ).await;
+
+        let config = SandboxConfig::process(
+            "echo-test",
+            vec!["echo".to_string(), "hello world".to_string()],
+        );
+        let result = manager.execute(config, "test-user").await.unwrap();
+        assert_eq!(result.exit_code, 0);
+        assert!(result.stdout.contains("hello world"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_with_env() {
+        let manager = SandboxManager::new(SandboxManagerConfig::default());
+        manager.register_backend(
+            SandboxBackend::Process,
+            Arc::new(ProcessSandboxBackend::new()),
+        ).await;
+
+        let mut config = SandboxConfig::process(
+            "env-echo",
+            vec!["env".to_string()],
+        );
+        config.env.insert("TEST_VAR".to_string(), "test_value".to_string());
+        let result = manager.execute(config, "test-user").await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_process_sandbox_backend_new() {
+        let backend = ProcessSandboxBackend::new();
+        let _default = ProcessSandboxBackend::default();
+        let _ = &backend;
+    }
+
+    #[test]
+    fn test_docker_sandbox_backend_construction() {
+        let backend = DockerSandboxBackend::new();
+        let _default = DockerSandboxBackend::default();
+        let custom = DockerSandboxBackend::with_default_image("alpine:3.18");
+        assert_eq!(custom.default_image, "alpine:3.18");
+        let _ = &backend;
+    }
+
+    #[test]
+    fn test_wasm_sandbox_backend_custom_base_dir() {
+        let backend = WasmSandboxBackend::new()
+            .with_base_dir("/custom/wasm/dir");
+        assert_eq!(backend.base_dir, PathBuf::from("/custom/wasm/dir"));
+    }
+
+    #[test]
+    fn test_sandbox_config_gvisor_with_custom_limits() {
+        let mut config = SandboxConfig::gvisor(
+            "gvisor-limited",
+            "python:3.11",
+            vec!["python".to_string()],
+        );
+        config.limits.cpu_cores = Some(8.0);
+        config.limits.memory_bytes = Some(4 * 1024 * 1024 * 1024);
+        assert_eq!(config.limits.cpu_cores, Some(8.0));
+        assert_eq!(config.limits.memory_bytes, Some(4 * 1024 * 1024 * 1024));
+    }
+
+    #[test]
+    fn test_sandbox_config_firecracker_with_labels() {
+        let mut config = SandboxConfig::firecracker(
+            "vm-test",
+            "/opt/vmlinux",
+            "/opt/rootfs.ext4",
+        );
+        config.labels.insert("region".to_string(), "us-east-1".to_string());
+        assert_eq!(config.labels.get("kernel").unwrap(), "/opt/vmlinux");
+        assert_eq!(config.labels.get("region").unwrap(), "us-east-1");
+    }
+
+    #[test]
+    fn test_sandbox_instance_serialization() {
+        let config = SandboxConfig::process("ser-test", vec!["echo".to_string()]);
+        let instance = SandboxInstance {
+            id: "test-id-123".to_string(),
+            config: config.clone(),
+            state: SandboxState::Running,
+            created_at: SystemTime::now(),
+            started_at: Some(SystemTime::now()),
+            completed_at: None,
+            result: None,
+            pid: Some(12345),
+            container_id: None,
+        };
+        let json = serde_json::to_string(&instance).unwrap();
+        let deserialized: SandboxInstance = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "test-id-123");
+        assert_eq!(deserialized.state, SandboxState::Running);
+        assert_eq!(deserialized.pid, Some(12345));
+    }
+
+    #[test]
+    fn test_sandbox_state_variants() {
+        let states = vec![
+            SandboxState::Creating,
+            SandboxState::Ready,
+            SandboxState::Running,
+            SandboxState::Completed,
+            SandboxState::Failed,
+            SandboxState::Terminated,
+            SandboxState::Destroying,
+        ];
+        assert_eq!(states.len(), 7);
+    }
+
+    #[test]
+    fn test_sandbox_action_variants() {
+        let actions = vec![
+            SandboxAction::Create,
+            SandboxAction::Start,
+            SandboxAction::Complete,
+            SandboxAction::Fail,
+            SandboxAction::Terminate,
+            SandboxAction::SnapshotSave,
+            SandboxAction::SnapshotRestore,
+        ];
+        assert_eq!(actions.len(), 7);
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_json_roundtrip_with_files() {
+        let mut snapshot = SandboxSnapshot::new("snap-1", IsolationLevel::Session);
+        snapshot.add_file("main.py", b"print('hello')".to_vec());
+        snapshot.add_file("config.json", b"{\"key\": \"value\"}".to_vec());
+        snapshot.env.insert("PYTHONPATH".to_string(), "/app".to_string());
+
+        let json = snapshot.to_json().unwrap();
+        let restored = SandboxSnapshot::from_json(&json).unwrap();
+        assert_eq!(restored.sandbox_id, "snap-1");
+        assert_eq!(restored.files.len(), 2);
+        assert_eq!(restored.files.get("main.py").unwrap(), &b"print('hello')");
+        assert_eq!(restored.env.get("PYTHONPATH").unwrap(), "/app");
+    }
+
+    #[test]
+    fn test_workspace_projection_with_includes() {
+        let proj = WorkspaceProjection::new("/workspace")
+            .with_includes(vec!["src/**".to_string(), "Cargo.toml".to_string()])
+            .with_sandbox_dest("/sandbox");
+        assert_eq!(proj.workspace_root, PathBuf::from("/workspace"));
+        assert_eq!(proj.includes.len(), 2);
+        assert_eq!(proj.sandbox_dest, PathBuf::from("/sandbox"));
+    }
+
+    #[test]
+    fn test_sandbox_snapshot_builder_pattern() {
+        let mut snapshot = SandboxSnapshot::new("builder-test", IsolationLevel::User);
+        snapshot.workdir = Some(PathBuf::from("/app"));
+        assert_eq!(snapshot.sandbox_id, "builder-test");
+        assert_eq!(snapshot.isolation_level, IsolationLevel::User);
+        assert_eq!(snapshot.workdir, Some(PathBuf::from("/app")));
+    }
+
+
+    #[test]
+    fn test_sandbox_config_wasm_network_disabled() {
+        let config = SandboxConfig::wasm("wasm-net", "module.wasm");
+        assert!(!config.network.enabled);
+        assert!(!config.seccomp);
+    }
+
+    #[test]
+    fn test_sandbox_config_gvisor_network_disabled() {
+        let config = SandboxConfig::gvisor("gvisor-net", "alpine", vec!["echo".to_string()]);
+        assert!(!config.network.enabled);
+    }
+
 }

@@ -357,4 +357,85 @@ mod tests {
         cache.evict("a").await.unwrap();
         assert_eq!(cache.size().await.unwrap(), 1);
     }
+
+    #[tokio::test]
+    async fn test_evict_nonexistent() {
+        let cache = setup_cache().await;
+        // Evicting a non-existent key should succeed (no error)
+        cache.evict("nonexistent").await.unwrap();
+        assert_eq!(cache.size().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_entry_creation() {
+        let entry = CacheEntry::with_ttl(
+            "ttl-key",
+            b"val".to_vec(),
+            std::time::Duration::from_secs(60),
+        );
+        assert_eq!(entry.key, "ttl-key");
+        assert!(entry.ttl.is_some());
+        assert_eq!(entry.ttl.unwrap(), std::time::Duration::from_secs(60));
+
+        let no_ttl = CacheEntry::new("no-ttl", b"val".to_vec());
+        assert!(no_ttl.ttl.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_multiple_keys_same_namespace() {
+        let cache = setup_cache().await;
+
+        for i in 0..20 {
+            cache
+                .set(CacheEntry::new(format!("key-{i}"), vec![i as u8]))
+                .await
+                .unwrap();
+        }
+
+        assert_eq!(cache.size().await.unwrap(), 20);
+
+        // Verify each key is independent
+        for i in 0..20 {
+            let entry = cache.get(&format!("key-{i}")).await.unwrap().unwrap();
+            assert_eq!(entry.value, vec![i as u8]);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_special_characters_in_key() {
+        let cache = setup_cache().await;
+
+        let keys = vec![
+            "key:with:colons",
+            "key with spaces",
+            "key/with/slashes",
+            "key@special!",
+        ];
+        for key in &keys {
+            cache
+                .set(CacheEntry::new(*key, b"value".to_vec()))
+                .await
+                .unwrap();
+        }
+
+        for key in &keys {
+            let entry = cache.get(key).await.unwrap();
+            assert!(entry.is_some(), "Key '{key}' should exist");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_large_value() {
+        let cache = setup_cache().await;
+
+        let large_value = vec![42u8; 100_000]; // 100KB
+        cache
+            .set(CacheEntry::new("large", large_value.clone()))
+            .await
+            .unwrap();
+
+        let entry = cache.get("large").await.unwrap().unwrap();
+        assert_eq!(entry.value.len(), 100_000);
+        assert_eq!(entry.value, large_value);
+    }
 }

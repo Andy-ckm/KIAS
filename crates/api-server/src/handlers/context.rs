@@ -132,3 +132,94 @@ pub async fn get_context_stats(
         compression_count: 0,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::extract::State;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_message_user_role() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "user".to_string(),
+            content: "Hello world".to_string(),
+        };
+        let result = add_message(State(state), Path("session-1".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "session-1");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_system_role() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "system".to_string(),
+            content: "System prompt".to_string(),
+        };
+        let result = add_message(State(state), Path("session-2".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "session-2");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_unknown_role_defaults_to_user() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "unknown_role".to_string(),
+            content: "test".to_string(),
+        };
+        let result = add_message(State(state), Path("session-3".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "session-3");
+    }
+
+    #[tokio::test]
+    async fn test_compress_session_no_context_manager() {
+        let state = test_state().await;
+        let result = compress_session(State(state), Path("session-1".to_string())).await;
+        assert_eq!(result.session_id, "session-1");
+        assert_eq!(result.compression_level, "none");
+        assert_eq!(result.message_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_context_stats_no_context_manager() {
+        let state = test_state().await;
+        let result = get_context_stats(State(state), Path("session-1".to_string())).await;
+        assert_eq!(result.session_id, "session-1");
+        assert_eq!(result.total_messages, 0);
+        assert_eq!(result.total_tokens, 0);
+        assert_eq!(result.utilization, 0.0);
+        assert_eq!(result.compression_count, 0);
+    }
+}

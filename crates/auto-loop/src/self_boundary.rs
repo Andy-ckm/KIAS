@@ -17,7 +17,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+// HashMap not needed — using direct struct access
 
 // ─── Response Strategy ─────────────────────────────────────────────────
 
@@ -285,8 +285,7 @@ impl SelfBoundaryReasoner {
             ResponseStrategy::Escalate { .. } => {
                 let stats = &mut self.self_model.performance_stats;
                 let n = stats.total_tasks as f64;
-                stats.escalation_rate =
-                    (stats.escalation_rate * (n - 1.0) + 1.0) / n;
+                stats.escalation_rate = (stats.escalation_rate * (n - 1.0) + 1.0) / n;
             }
             ResponseStrategy::ReasonWithCaveat { .. } => {
                 // 与 ReasonDirectly 相同的处理
@@ -408,7 +407,12 @@ impl SelfModel {
                 ToolCapability {
                     name: "web_search".into(),
                     description: "Search the web".into(),
-                    applicable_domains: vec!["research".into(), "reference".into(), "search".into(), "benchmark".into()],
+                    applicable_domains: vec![
+                        "research".into(),
+                        "reference".into(),
+                        "search".into(),
+                        "benchmark".into(),
+                    ],
                     reliability: 0.85,
                 },
             ],

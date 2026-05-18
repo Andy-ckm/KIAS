@@ -2213,6 +2213,193 @@ mod tests {
         assert_eq!(enabled[0].name, "enabled-skill");
     }
 
+
+    #[tokio::test]
+    async fn test_open_file_backed() {
+        let path = "/tmp/test_repo_open.db";
+        let _ = std::fs::remove_file(path);
+        let repo = SqliteRepository::open(path)
+            .await
+            .expect("Failed to open file-backed repo");
+
+        let agent = AgentRow::new("file-agent");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        let fetched = repo
+            .agents
+            .get_by_id(&agent.id)
+            .await
+            .expect("get agent");
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().name, "file-agent");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn test_open_with_pool_config() {
+        let path = "/tmp/test_repo_pool_config.db";
+        let _ = std::fs::remove_file(path);
+        let repo = SqliteRepository::open_with_pool_config(path, 5, 1)
+            .await
+            .expect("Failed to open with pool config");
+
+        let stats = repo.pool_stats();
+        assert!(stats.pool_size >= 1);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn test_agent_soft_delete() {
+        let repo = test_repo().await;
+        let agent = AgentRow::new("delete-me");
+        repo.agents.create(&agent).await.expect("create");
+
+        // Delete (soft)
+        repo.agents.delete(&agent.id).await.expect("delete");
+
+        // Should not appear in get_by_id
+        let fetched = repo.agents.get_by_id(&agent.id).await.expect("get");
+        assert!(fetched.is_none(), "soft-deleted agent should not be returned");
+
+        // Should not appear in list
+        let all = repo.agents.list(None, None).await.expect("list");
+        assert!(all.iter().all(|a| a.id != agent.id));
+
+        // Count should be 0
+        let count = repo.agents.count().await.expect("count");
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_agent_delete_nonexistent() {
+        let repo = test_repo().await;
+        let result = repo.agents.delete("nonexistent-id").await;
+        assert!(result.is_err(), "deleting nonexistent agent should error");
+    }
+
+    #[tokio::test]
+    async fn test_agent_update_nonexistent() {
+        let repo = test_repo().await;
+        let mut agent = AgentRow::new("ghost");
+        agent.id = "nonexistent-id".to_string();
+        let result = repo.agents.update(&agent).await;
+        assert!(result.is_err(), "updating nonexistent agent should error");
+    }
+
+    #[tokio::test]
+    async fn test_agent_count() {
+        let repo = test_repo().await;
+        assert_eq!(repo.agents.count().await.expect("count"), 0);
+
+        let a1 = AgentRow::new("a1");
+        repo.agents.create(&a1).await.expect("create a1");
+        assert_eq!(repo.agents.count().await.expect("count"), 1);
+
+        let a2 = AgentRow::new("a2");
+        repo.agents.create(&a2).await.expect("create a2");
+        assert_eq!(repo.agents.count().await.expect("count"), 2);
+
+        // Soft delete a1, count should decrease
+        repo.agents.delete(&a1.id).await.expect("delete a1");
+        assert_eq!(repo.agents.count().await.expect("count"), 1);
+    }
+
+    #[tokio::test]
+    async fn test_task_count() {
+        let repo = test_repo().await;
+        assert_eq!(repo.tasks.count().await.expect("count"), 0);
+
+        let agent = AgentRow::new("task-owner");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        let task = TaskRow::new(&agent.id, "task-1");
+        repo.tasks.create(&task).await.expect("create task");
+        assert_eq!(repo.tasks.count().await.expect("count"), 1);
+
+        let task2 = TaskRow::new(&agent.id, "task-2");
+        repo.tasks.create(&task2).await.expect("create task2");
+        assert_eq!(repo.tasks.count().await.expect("count"), 2);
+    }
+
+    #[tokio::test]
+    async fn test_config_upsert_overwrite() {
+        let repo = test_repo().await;
+
+        let mut config = ConfigRow::new("ns1", "key1", "value1");
+        repo.configs.upsert(&config).await.expect("first upsert");
+
+        // Overwrite with new value
+        config.value = "value2".to_string();
+        repo.configs.upsert(&config).await.expect("second upsert");
+
+        let fetched = repo
+            .configs
+            .get_by_key("ns1", "key1")
+            .await
+            .expect("get by key");
+        assert!(fetched.is_some());
+        assert_eq!(fetched.unwrap().value, "value2");
+
+        // Only one entry, not two
+        let all = repo
+            .configs
+            .get_by_namespace("ns1")
+            .await
+            .expect("get by namespace");
+        assert_eq!(all.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_experience_replay_total_count() {
+        let repo = test_repo().await;
+        assert_eq!(
+            repo.experience_replay.total_count().await.expect("count"),
+            0
+        );
+
+        // Create agent first (FK constraint)
+        let agent = AgentRow::new("er-owner");
+        repo.agents.create(&agent).await.expect("create agent");
+
+        let entries = vec![
+            ExperienceReplayRow::new(&agent.id, "state1", "action1", 1.0),
+            ExperienceReplayRow::new(&agent.id, "state2", "action2", 0.5),
+        ];
+        repo.experience_replay
+            .batch_insert(&entries)
+            .await
+            .expect("batch insert");
+
+        assert_eq!(
+            repo.experience_replay.total_count().await.expect("count"),
+            2
+        );
+    }
+
+    #[tokio::test]
+    async fn test_prefix_cache_evict_stale_empty() {
+        let repo = test_repo().await;
+        let evicted = repo
+            .prefix_cache
+            .evict_stale(30)
+            .await
+            .expect("evict stale");
+        assert_eq!(evicted, 0);
+    }
+
+    #[tokio::test]
+    async fn test_experience_replay_cleanup_empty() {
+        let repo = test_repo().await;
+        let cleaned = repo
+            .experience_replay
+            .cleanup_older_than(0)
+            .await
+            .expect("cleanup");
+        assert_eq!(cleaned, 0);
+    }
+
     #[tokio::test]
     async fn test_component_get_by_type() {
         let repo = test_repo().await;

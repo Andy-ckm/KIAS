@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (04:25)
+更新时间: 2026-05-19 (05:40)
 
-## 论文列表 (102 篇)
+## 论文列表 (105 篇)
 
-### 已下载论文 (90 篇)
+### 已下载论文 (94 篇)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
 - ✅ 2605.14483.pdf (LEMON: Learning Executable Multi-Agent Orchestration via Counterfactual Reinforcement Learning)
 - ✅ 2605.14089.pdf (SkillFlow: Flow-Driven Recursive Skill Evolution for Agentic Orchestration)
@@ -93,6 +93,9 @@
 - ✅ 2605.00424.pdf (Skills as Verifiable Artifacts: A Trust Schema and a Biconditional Correctness Criterion)
 - ✅ 2605.09033.pdf (ShadowMerge: A Novel Poisoning Attack on Graph-Based Agent Memory via Relation-Conflicting)
 - ✅ 2605.16035.pdf (Who Owns This Agent? Tracing AI Agents Back to Their Owners)
+- ✅ 2605.15573.pdf (Response-Conditioned Parallel-to-Sequential Orchestration for Multi-Agent Systems)
+- ✅ 2605.16144.pdf (MAxLM: Multi-Agent Language Model-Based Scheduling and Resource Allocation)
+- ✅ 2605.15486.pdf (Hybrid LLM-based Intelligent Framework for Robot Task Scheduling)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -105,6 +108,24 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15573]** Response-Conditioned Parallel-to-Sequential Orchestration for Multi-Agent Systems
+   - 日期: 2026-05-19 | 分类: cs.CL
+   - 主题: multi-agent orchestration, parallel-to-sequential, response-conditioned
+   - 链接: https://arxiv.org/abs/2605.15573
+   - 状态: ✅ 已下载
+
+**[2605.16144]** MAxLM: Multi-Agent Language Model-Based Scheduling and Resource Allocation in MU-MIMO-OFDMA Networks
+   - 日期: 2026-05-19 | 分类: cs.MA
+   - 主题: multi-agent scheduling, resource allocation, LLM-based
+   - 链接: https://arxiv.org/abs/2605.16144
+   - 状态: ✅ 已下载
+
+**[2605.15486]** Hybrid LLM-based Intelligent Framework for Robot Task Scheduling
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: LLM scheduling, robot task scheduling, hybrid framework
+   - 链接: https://arxiv.org/abs/2605.15486
+   - 状态: ✅ 已下载
 
 0. **[2605.14866]** Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought
    - 日期: 2026-05-14 | 分类: cs.AI

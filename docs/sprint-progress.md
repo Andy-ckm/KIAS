@@ -1,3 +1,69 @@
+## Latest: 2026-05-19 06:10 (KIAS Auto Loop - Sprint 115)
+
+### Quality Gates (06:10)
+| Check | Result |
+|--------|------|
+| cargo build | Pass |
+| cargo fmt | Pass |
+| cargo clippy | Zero warnings |
+| cargo test | **2904 passed**, 0 failed |
+| Disk (/) | 86% used (5.5G free) |
+| Disk (/mnt) | 62% used (11G free) |
+| Code lines | ~139,955 lines (Rust) |
+
+### Four-Step Eval: api-server handler test density
+- Step 1: api-server handlers/ lowest density (1.40), core API layer needs coverage
+- Step 2: handlers/ has 7132 lines, 100 tests = 1.40 density. im.rs has 0 tests, agents.rs only 3 serialization tests
+- Step 3: +45 tests across im.rs (+20), agents.rs (+8 handler tests), health.rs (+4 handler tests), nl_command.rs (+13 intent tests)
+- Step 4: Done, handlers density 1.40 → 2.03 (+45%)
+
+### Changes
+| Metric | Before | After | Change |
+|------|--------|-------|--------|
+| api-server unit tests | 222 | 267 | +45 |
+| handlers/ density | 1.40 | 2.03 | +45% |
+| im.rs tests | 0 | 20 | +20 |
+| agents.rs handler tests | 3 | 11 | +8 |
+| health.rs handler tests | 4 | 8 | +4 |
+| nl_command.rs tests | 13 | 26 | +13 |
+| Total workspace tests | 2,859 | 2,904 | +45 |
+
+### New Tests Detail
+**im.rs (+20 tests)**:
+- WebhookRequest deserialization (minimal, full)
+- WebhookResponse serialization (basic, with extra)
+- default_message_type value
+- WechatAdapter: parse, missing fields, format, signature
+- TelegramAdapter: parse, missing message, format HTML, format Markdown
+- SlackAdapter: parse, format
+- FeishuAdapter: parse, missing event
+- get_adapter: all platforms + aliases, unknown platform
+- list_platforms: returns all 4 platforms
+
+**agents.rs (+8 handler tests)**:
+- create_agent + get_agent roundtrip
+- duplicate agent creation fails
+- nonexistent agent get fails
+- list agents empty + with items
+- delete agent + verify deletion
+- delete nonexistent fails
+- update agent status
+
+**health.rs (+4 handler tests)**:
+- liveness returns ok
+- readiness returns healthy
+- deep_health returns system info
+- deep_health components include all stores
+
+**nl_command.rs (+13 intent tests)**:
+- AgentRun, WorkflowCreate, WorkflowRun, Metrics
+- KnowledgeSearch, ProblemReport, ConfigGet, AutoLoopStart
+- extract_name returns None for no match
+- extract_problem_title
+- English: agent list, help, status
+
+---
+
 ## Latest: 2026-05-19 05:40 (KIAS Auto Loop - Sprint 114)
 
 ### Quality Gates (05:40)

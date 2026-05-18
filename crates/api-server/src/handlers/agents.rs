@@ -316,3 +316,161 @@ mod tests {
         assert!(json.contains("Hello!"));
     }
 }
+
+#[cfg(test)]
+mod handler_tests {
+    use super::*;
+    use crate::AppState;
+    use axum::extract::{Path, Query, State};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        }
+    }
+
+    fn test_spec(name: &str) -> AgentSpec {
+        AgentSpec {
+            name: name.to_string(),
+            image: "python:3.11".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "medium".to_string(),
+            env: HashMap::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_agent() {
+        let state = test_state().await;
+        let spec = test_spec("test-agent");
+        let result = create_agent(State(state.clone()), Json(spec)).await;
+        assert!(result.is_ok());
+        let (status, json) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+        let agent = &json.data;
+        assert_eq!(agent.spec.name, "test-agent");
+
+        // Get by ID
+        let result = get_agent(State(state.clone()), Path(agent.id.clone())).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().data.spec.name, "test-agent");
+    }
+
+    #[tokio::test]
+    async fn test_create_duplicate_agent_fails() {
+        let state = test_state().await;
+        create_agent(State(state.clone()), Json(test_spec("dup")))
+            .await
+            .unwrap();
+        let result = create_agent(State(state.clone()), Json(test_spec("dup"))).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_agent_fails() {
+        let state = test_state().await;
+        let result = get_agent(State(state), Path("nonexistent".to_string())).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_agents_empty() {
+        let state = test_state().await;
+        let pagination = PaginationParams {
+            page: Some(1),
+            per_page: Some(10),
+        };
+        let result = list_agents(State(state), Query(pagination)).await;
+        assert_eq!(result.total, 0);
+        assert!(result.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_agents_with_items() {
+        let state = test_state().await;
+        create_agent(State(state.clone()), Json(test_spec("a1")))
+            .await
+            .unwrap();
+        create_agent(State(state.clone()), Json(test_spec("a2")))
+            .await
+            .unwrap();
+        let pagination = PaginationParams {
+            page: Some(1),
+            per_page: Some(10),
+        };
+        let result = list_agents(State(state), Query(pagination)).await;
+        assert_eq!(result.total, 2);
+        assert_eq!(result.items.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_delete_agent() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("to-delete")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        let result = delete_agent(State(state.clone()), Path(id.clone())).await;
+        assert!(result.is_ok());
+        // Verify deleted
+        let result = get_agent(State(state), Path(id)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_agent_fails() {
+        let state = test_state().await;
+        let result = delete_agent(State(state), Path("nonexistent".to_string())).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_agent_status() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("status-test")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        let result =
+            update_agent_status(State(state.clone()), Path(id), Json(AgentStatus::Running)).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().data.status, AgentStatus::Running);
+    }
+}

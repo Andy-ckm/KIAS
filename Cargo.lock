@@ -2035,6 +2035,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "kias-common",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

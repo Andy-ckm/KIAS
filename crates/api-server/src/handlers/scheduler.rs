@@ -241,6 +241,7 @@ mod tests {
             knowledge_retriever: Arc::new(knowledge_retriever),
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
         }
     }
 
@@ -301,6 +302,7 @@ mod tests {
             )),
             ingested_docs: Arc::new(RwLock::new(Vec::new())),
             context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
         };
 
         let result = scheduler_status(State(state)).await;

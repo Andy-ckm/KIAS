@@ -13,6 +13,7 @@
 pub mod a2a;
 pub mod audit;
 pub mod gxp_audit;
+pub mod gxp_auth;
 pub mod config;
 pub mod data_mask;
 pub mod error;

@@ -112,6 +112,9 @@ async-trait = "0.1"
 # Random
 rand = "0.8"
 
+# Regex
+regex = "1"
+
 # JWT
 jsonwebtoken = "9"
 

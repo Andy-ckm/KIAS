@@ -1240,3 +1240,42 @@ Source: GitHub API search 2026-05-16 21:34
 - MCP 生态从通用框架向垂直领域扩展（生物医学、基础设施、IDE、调试）
 - Rust MCP SDK (⭐3425) 持续增长，成为官方推荐实现
 - KIAS 的 MCP 实现已走在前列（双向客户端/服务端、JSON-RPC 2.0、多传输层）
+
+
+## 2026-05-18: Rust Agent 生态新发现
+
+### 122. mkurman/zorai ⭐309 (Rust)
+- **URL**: https://github.com/mkurman/zorai
+- **描述**: Zorai is a persistent, multi-agent, auditable, learning execution platform where the daemon owns workspace state
+- **KIAS 相关**: 与 KIAS 的 data-store 持久化 + team-engine 多 Agent 高度重合，可对比架构差异
+- **创新点**: daemon 拥有工作区状态（非进程级），持久化+可审计+可学习的执行平台
+
+### 123. MagicCube/agentara ⭐413 (TypeScript)
+- **URL**: https://github.com/MagicCube/agentara
+- **描述**: Your 24/7 personal assistant powered by Claude Code and OpenAI Codex. Multi-channel messaging, long-running tasks
+- **KIAS 相关**: 24/7 长运行 Agent — 与 KIAS 的 autonomy-controller + goal-engine 直接相关
+- **创新点**: 多渠道消息集成（微信/飞书/钉钉），长任务自动恢复
+
+### 124. kawayiYokami/P-ai ⭐48 (Rust)
+- **URL**: https://github.com/kawayiYokami/P-ai
+- **描述**: A ready-to-use self-growing desktop AI assistant for long-running tasks, memory, agents, tool review
+- **KIAS 相关**: 自增长桌面 AI — 与 KIAS 的 auto-loop 自改进循环理念一致
+- **创新点**: 自增长（self-growing）概念，工具审查机制
+
+### 125. bug-ops/zeph ⭐33 (Rust)
+- **URL**: https://github.com/bug-ops/zeph
+- **描述**: Memory-first Rust AI agent for long-running work. Temporal graph memory, self-learning skills, multi-agent
+- **KIAS 相关**: 时序图记忆 — 与 KIAS 的 knowledge graph + memory_layers 直接可对比
+- **创新点**: Temporal graph memory（时序图记忆），自学习技能系统
+
+### 126. modelcontextprotocol/go-sdk ⭐4557 (Go)
+- **URL**: https://github.com/modelcontextprotocol/go-sdk
+- **描述**: The official Go SDK for Model Context Protocol servers and clients
+- **KIAS 相关**: MCP 官方 SDK — KIAS 的 mcp-protocol 可参考其 API 设计
+- **创新点**: 官方 Go SDK，展示 MCP 协议标准化进程
+
+### 127. Pimzino/spec-workflow-mcp ⭐4182 (TypeScript)
+- **URL**: https://github.com/Pimzino/spec-workflow-mcp
+- **描述**: A Model Context Protocol (MCP) server that provides structured spec-driven development workflow tools
+- **KIAS 相关**: 规范驱动开发工作流 — 与 KIAS 的 workflow-engine + auto-loop 可对比
+- **创新点**: spec-driven 开发，MCP 作为开发工作流的标准化接口

@@ -374,4 +374,94 @@ mod tests {
         assert_eq!(LocalServerType::Vllm.to_string(), "vllm");
         assert_eq!(LocalServerType::LlamaCpp.to_string(), "llama.cpp");
     }
+
+    #[test]
+    fn test_local_model_config_with_display_name() {
+        let config =
+            LocalModelConfig::ollama("https://example.com", "llama3").with_display_name("My Llama");
+        assert_eq!(config.display_name, Some("My Llama".to_string()));
+    }
+
+    #[test]
+    fn test_local_model_config_with_api_key() {
+        let config =
+            LocalModelConfig::vllm("https://example.com", "model").with_api_key("sk-local-key");
+        assert_eq!(config.api_key, Some("sk-local-key".to_string()));
+    }
+
+    #[test]
+    fn test_local_model_config_with_concurrency() {
+        let config = LocalModelConfig::ollama("https://example.com", "llama3").with_concurrency(8);
+        assert_eq!(config.max_concurrency, 8);
+    }
+
+    #[test]
+    fn test_local_model_config_with_timeout() {
+        let config = LocalModelConfig::ollama("https://example.com", "llama3").with_timeout(120);
+        assert_eq!(config.timeout_secs, 120);
+    }
+
+    #[test]
+    fn test_local_model_config_with_system_prompt() {
+        let config = LocalModelConfig::ollama("https://example.com", "llama3")
+            .with_system_prompt("You are a helpful assistant.");
+        assert_eq!(
+            config.model_params.system_prompt,
+            Some("You are a helpful assistant.".to_string())
+        );
+    }
+
+    #[test]
+    fn test_local_model_config_builder_chain() {
+        let config = LocalModelConfig::vllm("https://example.com", "model")
+            .with_display_name("Test Model")
+            .with_api_key("sk-key")
+            .with_concurrency(4)
+            .with_timeout(60)
+            .with_temperature(0.3)
+            .with_max_tokens(8192)
+            .with_system_prompt("Be concise.");
+        assert_eq!(config.display_name, Some("Test Model".to_string()));
+        assert_eq!(config.api_key, Some("sk-key".to_string()));
+        assert_eq!(config.max_concurrency, 4);
+        assert_eq!(config.timeout_secs, 60);
+        assert_eq!(config.model_params.temperature, Some(0.3));
+        assert_eq!(config.model_params.max_tokens, Some(8192));
+        assert_eq!(
+            config.model_params.system_prompt,
+            Some("Be concise.".to_string())
+        );
+    }
+
+    #[test]
+    fn test_local_model_config_default_params() {
+        let config = LocalModelConfig::ollama("https://example.com", "llama3");
+        assert!(config.stream);
+        assert_eq!(config.max_concurrency, 4);
+        assert_eq!(config.timeout_secs, 300);
+        assert!(config.api_key.is_none());
+        // ollama() sets display_name to "Ollama/{model}"
+        assert_eq!(config.display_name, Some("Ollama/llama3".to_string()));
+    }
+
+    #[test]
+    fn test_localai_config() {
+        let config = LocalModelConfig::localai("https://example.com", "gpt-3.5-turbo");
+        assert_eq!(config.server_type, LocalServerType::LocalAi);
+        assert_eq!(config.model, "gpt-3.5-turbo");
+    }
+
+    #[test]
+    fn test_tgi_config() {
+        let config = LocalModelConfig::tgi("https://example.com", "llama-3.1-8b");
+        assert_eq!(config.server_type, LocalServerType::Tgi);
+        assert_eq!(config.model, "llama-3.1-8b");
+    }
+
+    #[test]
+    fn test_custom_config() {
+        let config = LocalModelConfig::custom("https://example.com", "my-model");
+        assert_eq!(config.server_type, LocalServerType::Custom);
+        assert_eq!(config.endpoint, "https://example.com");
+    }
 }

@@ -55,6 +55,18 @@ pub enum ApprovalError {
     /// 变更请求未关联实体
     #[error("change request {0} not linked to entity version")]
     NotLinked(String),
+    /// GxP: 审批级别未满足
+    #[error("approval level {level} not yet approved")]
+    ApprovalLevelNotMet { level: u32 },
+    /// GxP: 影响评估缺失
+    #[error("impact assessment required before approval")]
+    ImpactAssessmentRequired,
+    /// GxP: 有效性检查已存在
+    #[error("effectiveness check already recorded")]
+    EffectivenessCheckExists,
+    /// GxP: 影响评估已存在
+    #[error("impact assessment already submitted")]
+    ImpactAssessmentExists,
 }
 
 // ─── Approval State Machine ────────────────────────────────────────────
@@ -74,6 +86,12 @@ pub enum ApprovalState {
     Published,
     /// 已归档 — 历史版本
     Archived,
+    /// 已实施 — 变更已实施，待验证 (GxP: EU Annex 11 Clause 10)
+    Implemented,
+    /// 已验证 — 实施后验证有效性 (GxP: ICH Q10 §3.2.1)
+    Verified,
+    /// 已关闭 — 变更生命周期结束 (GxP: EU Annex 11 Clause 10)
+    Closed,
 }
 
 impl fmt::Display for ApprovalState {
@@ -85,6 +103,9 @@ impl fmt::Display for ApprovalState {
             Self::Rejected => write!(f, "Rejected"),
             Self::Published => write!(f, "Published"),
             Self::Archived => write!(f, "Archived"),
+            Self::Implemented => write!(f, "Implemented"),
+            Self::Verified => write!(f, "Verified"),
+            Self::Closed => write!(f, "Closed"),
         }
     }
 }
@@ -98,8 +119,13 @@ impl ApprovalState {
                 | (Self::Reviewing, Self::Approved)
                 | (Self::Reviewing, Self::Rejected)
                 | (Self::Rejected, Self::Draft)
-                | (Self::Approved, Self::Published)
+                |            (Self::Approved, Self::Published)
                 | (Self::Published, Self::Archived)
+                // GxP: Extended lifecycle
+                | (Self::Approved, Self::Implemented)
+                | (Self::Implemented, Self::Verified)
+                | (Self::Verified, Self::Published)
+                | (Self::Published, Self::Closed)
                 // reset to Draft from any state
                 | (_, Self::Draft)
         )
@@ -127,6 +153,58 @@ impl fmt::Display for ChangeType {
             Self::Delete => write!(f, "Delete"),
         }
     }
+}
+
+// ─── GxP: Impact Assessment & Multi-Level Approval ──────────────────
+
+/// Impact assessment for change requests (ICH Q10 §3.2.1)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImpactAssessment {
+    pub assessed_by: String,
+    pub assessed_at: DateTime<Utc>,
+    pub quality_impact: ImpactLevel,
+    pub regulatory_impact: ImpactLevel,
+    pub validated_state_impact: ImpactLevel,
+    pub affected_systems: Vec<String>,
+    pub mitigation_actions: Vec<String>,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ImpactLevel {
+    None,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Effectiveness monitoring (ICH Q10 §3.2.3)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EffectivenessCheck {
+    pub checked_by: String,
+    pub checked_at: DateTime<Utc>,
+    pub is_effective: bool,
+    pub evidence: String,
+    pub follow_up_actions: Vec<String>,
+}
+
+/// Multi-level approval chain
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApprovalLevel {
+    pub level: u32, // 1=peer, 2=manager, 3=quality, 4=regulatory
+    pub approver_id: String,
+    pub approver_role: String,
+    pub approved_at: Option<DateTime<Utc>>,
+    pub decision: Option<ApprovalDecision>,
+    pub comments: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ApprovalDecision {
+    Approved,
+    Rejected,
+    RequiresRevision,
 }
 
 // ─── Audit Entry ───────────────────────────────────────────────────────
@@ -171,6 +249,18 @@ pub struct ChangeRequest {
     pub updated_at: DateTime<Utc>,
     /// 审计轨迹（反馈控制）
     pub audit_trail: Vec<AuditEntry>,
+    /// GxP: 影响评估 (ICH Q10 §3.2.1)
+    pub impact_assessment: Option<ImpactAssessment>,
+    /// GxP: 多级审批链
+    pub approval_chain: Vec<ApprovalLevel>,
+    /// GxP: 有效性检查 (ICH Q10 §3.2.3)
+    pub effectiveness_check: Option<EffectivenessCheck>,
+    /// GxP: 验证时间
+    pub verified_at: Option<DateTime<Utc>>,
+    /// GxP: 验证人
+    pub verified_by: Option<String>,
+    /// GxP: 关闭时间
+    pub closed_at: Option<DateTime<Utc>>,
 }
 
 impl ChangeRequest {
@@ -195,6 +285,12 @@ impl ChangeRequest {
             created_at: now,
             updated_at: now,
             audit_trail: Vec::new(),
+            impact_assessment: None,
+            approval_chain: Vec::new(),
+            effectiveness_check: None,
+            verified_at: None,
+            verified_by: None,
+            closed_at: None,
         }
     }
 
@@ -505,6 +601,9 @@ impl ApprovalWorkflow {
                         ApprovalState::Approved
                             | ApprovalState::Published
                             | ApprovalState::Archived
+                            | ApprovalState::Implemented
+                            | ApprovalState::Verified
+                            | ApprovalState::Closed
                     ) {
                         return Ok(ev);
                     }
@@ -531,6 +630,244 @@ impl ApprovalWorkflow {
             .values()
             .filter(|cr| cr.entity_id == entity_id)
             .collect()
+    }
+
+    // ─── GxP: Impact Assessment & Multi-Level Approval ──────────────
+
+    /// 提交影响评估 (ICH Q10 §3.2.1)
+    pub fn submit_impact_assessment(
+        &mut self,
+        change_request_id: &str,
+        assessment: ImpactAssessment,
+    ) -> Result<(), ApprovalError> {
+        let cr = self
+            .requests
+            .get_mut(change_request_id)
+            .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+        if cr.impact_assessment.is_some() {
+            return Err(ApprovalError::ImpactAssessmentExists);
+        }
+
+        info!(
+            change_request_id = change_request_id,
+            assessed_by = assessment.assessed_by.as_str(),
+            "Impact assessment submitted"
+        );
+
+        cr.impact_assessment = Some(assessment);
+        cr.updated_at = Utc::now();
+        Ok(())
+    }
+
+    /// 获取影响评估
+    pub fn get_impact_assessment(&self, change_request_id: &str) -> Option<&ImpactAssessment> {
+        self.requests
+            .get(change_request_id)
+            .and_then(|cr| cr.impact_assessment.as_ref())
+    }
+
+    /// 添加审批级别 (GxP: multi-level approval chain)
+    pub fn add_approval_level(
+        &mut self,
+        change_request_id: &str,
+        level: ApprovalLevel,
+    ) -> Result<(), ApprovalError> {
+        let cr = self
+            .requests
+            .get_mut(change_request_id)
+            .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+        // Prevent duplicate levels
+        if cr.approval_chain.iter().any(|a| a.level == level.level) {
+            return Err(ApprovalError::AlreadyExists(format!(
+                "approval level {}",
+                level.level
+            )));
+        }
+
+        cr.approval_chain.push(level);
+        cr.approval_chain.sort_by_key(|a| a.level);
+        cr.updated_at = Utc::now();
+        Ok(())
+    }
+
+    /// 在指定级别审批/拒绝 (GxP: ordered multi-level approval)
+    pub fn approve_at_level(
+        &mut self,
+        change_request_id: &str,
+        level: u32,
+        approver_id: &str,
+        decision: ApprovalDecision,
+        comments: Option<&str>,
+    ) -> Result<(), ApprovalError> {
+        // Verify all previous levels are approved
+        {
+            let cr = self
+                .requests
+                .get(change_request_id)
+                .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+            for prev_level in 1..level {
+                let prev_approved = cr.approval_chain.iter().any(|a| {
+                    a.level == prev_level && matches!(a.decision, Some(ApprovalDecision::Approved))
+                });
+                if !prev_approved {
+                    return Err(ApprovalError::ApprovalLevelNotMet { level: prev_level });
+                }
+            }
+        }
+
+        // Find and update the entry
+        let cr = self.requests.get_mut(change_request_id).unwrap();
+        let entry = cr
+            .approval_chain
+            .iter_mut()
+            .find(|a| a.level == level)
+            .ok_or(ApprovalError::ApprovalLevelNotMet { level })?;
+
+        entry.decision = Some(decision);
+        entry.approver_id = approver_id.to_string();
+        entry.approved_at = Some(Utc::now());
+        entry.comments = comments.map(|s| s.to_string());
+        cr.updated_at = Utc::now();
+
+        info!(
+            change_request_id = change_request_id,
+            level = level,
+            approver = approver_id,
+            "Approval level decision recorded"
+        );
+
+        Ok(())
+    }
+
+    /// 获取审批链
+    pub fn get_approval_chain(&self, change_request_id: &str) -> &[ApprovalLevel] {
+        self.requests
+            .get(change_request_id)
+            .map(|cr| cr.approval_chain.as_slice())
+            .unwrap_or_default()
+    }
+
+    /// 列出指定级别待审批的变更请求 (GxP: multi-level approval queue)
+    pub fn list_pending_at_level(&self, level: u32) -> Vec<&ChangeRequest> {
+        self.requests
+            .values()
+            .filter(|cr| {
+                // Must have an entry at this level with no decision
+                let has_pending = cr
+                    .approval_chain
+                    .iter()
+                    .any(|a| a.level == level && a.decision.is_none());
+                if !has_pending {
+                    return false;
+                }
+                // All previous levels must be approved
+                (1..level).all(|prev| {
+                    cr.approval_chain.iter().any(|a| {
+                        a.level == prev && matches!(a.decision, Some(ApprovalDecision::Approved))
+                    })
+                })
+            })
+            .collect()
+    }
+
+    // ─── GxP: Lifecycle Extensions ──────────────────────────────────
+
+    /// 实施: Approved → Implemented (GxP: EU Annex 11 Clause 10)
+    pub fn implement(
+        &mut self,
+        change_request_id: &str,
+        implementer: &str,
+    ) -> Result<&ChangeRequest, ApprovalError> {
+        {
+            let cr = self
+                .requests
+                .get_mut(change_request_id)
+                .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+            cr.transition(
+                ApprovalState::Implemented,
+                implementer,
+                "Change implemented",
+            )?;
+        }
+        Ok(self.requests.get(change_request_id).unwrap())
+    }
+
+    /// 验证: Implemented → Verified (GxP: ICH Q10 §3.2.1)
+    pub fn verify(
+        &mut self,
+        change_request_id: &str,
+        verifier_id: &str,
+        evidence: &str,
+    ) -> Result<&ChangeRequest, ApprovalError> {
+        {
+            let cr = self
+                .requests
+                .get_mut(change_request_id)
+                .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+            cr.transition(
+                ApprovalState::Verified,
+                verifier_id,
+                &format!("Verified: {evidence}"),
+            )?;
+
+            cr.verified_at = Some(Utc::now());
+            cr.verified_by = Some(verifier_id.to_string());
+        }
+        Ok(self.requests.get(change_request_id).unwrap())
+    }
+
+    /// 关闭: Published → Closed (GxP: EU Annex 11 Clause 10)
+    pub fn close(&mut self, change_request_id: &str) -> Result<&ChangeRequest, ApprovalError> {
+        {
+            let cr = self
+                .requests
+                .get_mut(change_request_id)
+                .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+            let actor = cr.requested_by.clone();
+            cr.transition(ApprovalState::Closed, &actor, "Change request closed")?;
+            cr.closed_at = Some(Utc::now());
+        }
+        Ok(self.requests.get(change_request_id).unwrap())
+    }
+
+    /// 记录有效性检查 (ICH Q10 §3.2.3)
+    pub fn record_effectiveness(
+        &mut self,
+        change_request_id: &str,
+        check: EffectivenessCheck,
+    ) -> Result<(), ApprovalError> {
+        let cr = self
+            .requests
+            .get_mut(change_request_id)
+            .ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
+
+        if cr.effectiveness_check.is_some() {
+            return Err(ApprovalError::EffectivenessCheckExists);
+        }
+
+        info!(
+            change_request_id = change_request_id,
+            checked_by = check.checked_by.as_str(),
+            is_effective = check.is_effective,
+            "Effectiveness check recorded"
+        );
+
+        cr.effectiveness_check = Some(check);
+        cr.updated_at = Utc::now();
+        Ok(())
+    }
+
+    /// 获取有效性检查
+    pub fn get_effectiveness_check(&self, change_request_id: &str) -> Option<&EffectivenessCheck> {
+        self.requests
+            .get(change_request_id)
+            .and_then(|cr| cr.effectiveness_check.as_ref())
     }
 }
 
@@ -843,5 +1180,387 @@ mod tests {
             assert_eq!(cr.audit_trail[i].from_state, *from);
             assert_eq!(cr.audit_trail[i].to_state, *to);
         }
+    }
+
+    // ─── GxP: Impact Assessment & Multi-Level Approval Tests ────────
+
+    fn setup_gxp_cr(wf: &mut ApprovalWorkflow) -> String {
+        let id = "cr-gxp".to_string();
+        wf.create_change_request(
+            id.clone(),
+            "entity-gxp".to_string(),
+            ChangeType::Update,
+            "GxP content".to_string(),
+            "GxP change".to_string(),
+            "qa-engineer".to_string(),
+        )
+        .unwrap();
+        id
+    }
+
+    fn sample_impact() -> ImpactAssessment {
+        ImpactAssessment {
+            assessed_by: "qa-lead".to_string(),
+            assessed_at: Utc::now(),
+            quality_impact: ImpactLevel::High,
+            regulatory_impact: ImpactLevel::Medium,
+            validated_state_impact: ImpactLevel::Low,
+            affected_systems: vec!["system-A".to_string()],
+            mitigation_actions: vec!["re-validate".to_string()],
+            summary: "Impact on validated state".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_submit_impact_assessment() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        let assessment = sample_impact();
+        wf.submit_impact_assessment(&id, assessment).unwrap();
+
+        let stored = wf.get_impact_assessment(&id).unwrap();
+        assert_eq!(stored.assessed_by, "qa-lead");
+        assert_eq!(stored.quality_impact, ImpactLevel::High);
+        assert_eq!(stored.affected_systems.len(), 1);
+    }
+
+    #[test]
+    fn test_impact_level_classification() {
+        let levels = [
+            ImpactLevel::None,
+            ImpactLevel::Low,
+            ImpactLevel::Medium,
+            ImpactLevel::High,
+            ImpactLevel::Critical,
+        ];
+        assert_eq!(levels.len(), 5);
+        assert_ne!(ImpactLevel::None, ImpactLevel::Critical);
+        assert_eq!(ImpactLevel::Medium, ImpactLevel::Medium);
+    }
+
+    #[test]
+    fn test_add_approval_levels() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 1,
+                approver_id: String::new(),
+                approver_role: "peer".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 2,
+                approver_id: String::new(),
+                approver_role: "manager".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+
+        let chain = wf.get_approval_chain(&id);
+        assert_eq!(chain.len(), 2);
+        assert_eq!(chain[0].level, 1);
+        assert_eq!(chain[1].level, 2);
+    }
+
+    #[test]
+    fn test_approve_at_level() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 1,
+                approver_id: String::new(),
+                approver_role: "peer".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+
+        wf.approve_at_level(&id, 1, "peer-1", ApprovalDecision::Approved, Some("LGTM"))
+            .unwrap();
+
+        let chain = wf.get_approval_chain(&id);
+        assert!(matches!(
+            chain[0].decision,
+            Some(ApprovalDecision::Approved)
+        ));
+        assert_eq!(chain[0].approver_id, "peer-1");
+        assert_eq!(chain[0].comments.as_deref(), Some("LGTM"));
+        assert!(chain[0].approved_at.is_some());
+    }
+
+    #[test]
+    fn test_reject_at_level_with_reason() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 1,
+                approver_id: String::new(),
+                approver_role: "peer".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+
+        wf.approve_at_level(
+            &id,
+            1,
+            "peer-1",
+            ApprovalDecision::Rejected,
+            Some("Missing validation data"),
+        )
+        .unwrap();
+
+        let chain = wf.get_approval_chain(&id);
+        assert!(matches!(
+            chain[0].decision,
+            Some(ApprovalDecision::Rejected)
+        ));
+        assert_eq!(
+            chain[0].comments.as_deref(),
+            Some("Missing validation data")
+        );
+    }
+
+    #[test]
+    fn test_full_approval_chain_3_levels() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        for (lvl, role) in [(1, "peer"), (2, "manager"), (3, "quality")] {
+            wf.add_approval_level(
+                &id,
+                ApprovalLevel {
+                    level: lvl,
+                    approver_id: String::new(),
+                    approver_role: role.to_string(),
+                    approved_at: None,
+                    decision: None,
+                    comments: None,
+                },
+            )
+            .unwrap();
+        }
+
+        wf.approve_at_level(&id, 1, "peer-1", ApprovalDecision::Approved, None)
+            .unwrap();
+        wf.approve_at_level(&id, 2, "mgr-1", ApprovalDecision::Approved, None)
+            .unwrap();
+        wf.approve_at_level(&id, 3, "qa-1", ApprovalDecision::Approved, None)
+            .unwrap();
+
+        let chain = wf.get_approval_chain(&id);
+        assert!(chain
+            .iter()
+            .all(|a| matches!(a.decision, Some(ApprovalDecision::Approved))));
+    }
+
+    #[test]
+    fn test_verify_after_implementation() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.submit_for_review(&id).unwrap();
+        wf.approve(&id, "reviewer").unwrap();
+        wf.implement(&id, "deployer").unwrap();
+
+        let cr = wf.verify(&id, "verifier-1", "UAT passed").unwrap();
+        assert_eq!(cr.current_state, ApprovalState::Verified);
+        assert!(cr.verified_at.is_some());
+        assert_eq!(cr.verified_by.as_deref(), Some("verifier-1"));
+    }
+
+    #[test]
+    fn test_close_change_request() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.submit_for_review(&id).unwrap();
+        wf.approve(&id, "reviewer").unwrap();
+        wf.implement(&id, "deployer").unwrap();
+        wf.verify(&id, "verifier", "validated").unwrap();
+        wf.publish(&id).unwrap();
+
+        let cr = wf.close(&id).unwrap();
+        assert_eq!(cr.current_state, ApprovalState::Closed);
+        assert!(cr.closed_at.is_some());
+    }
+
+    #[test]
+    fn test_record_effectiveness_check() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.submit_for_review(&id).unwrap();
+        wf.approve(&id, "reviewer").unwrap();
+
+        let check = EffectivenessCheck {
+            checked_by: "qa-lead".to_string(),
+            checked_at: Utc::now(),
+            is_effective: true,
+            evidence: "Metrics improved by 20%".to_string(),
+            follow_up_actions: vec![],
+        };
+        wf.record_effectiveness(&id, check).unwrap();
+
+        let stored = wf.get_effectiveness_check(&id).unwrap();
+        assert!(stored.is_effective);
+        assert_eq!(stored.evidence, "Metrics improved by 20%");
+    }
+
+    #[test]
+    fn test_list_pending_at_level() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 1,
+                approver_id: String::new(),
+                approver_role: "peer".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+        wf.add_approval_level(
+            &id,
+            ApprovalLevel {
+                level: 2,
+                approver_id: String::new(),
+                approver_role: "manager".to_string(),
+                approved_at: None,
+                decision: None,
+                comments: None,
+            },
+        )
+        .unwrap();
+
+        // Level 1 is pending
+        assert_eq!(wf.list_pending_at_level(1).len(), 1);
+        // Level 2 is NOT pending yet (level 1 not approved)
+        assert_eq!(wf.list_pending_at_level(2).len(), 0);
+
+        // Approve level 1
+        wf.approve_at_level(&id, 1, "peer-1", ApprovalDecision::Approved, None)
+            .unwrap();
+
+        // Now level 2 is pending
+        assert_eq!(wf.list_pending_at_level(1).len(), 0);
+        assert_eq!(wf.list_pending_at_level(2).len(), 1);
+    }
+
+    #[test]
+    fn test_multi_level_approval_ordering() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        for lvl in [1, 2, 3] {
+            wf.add_approval_level(
+                &id,
+                ApprovalLevel {
+                    level: lvl,
+                    approver_id: String::new(),
+                    approver_role: format!("role-{lvl}"),
+                    approved_at: None,
+                    decision: None,
+                    comments: None,
+                },
+            )
+            .unwrap();
+        }
+
+        // Cannot approve level 2 before level 1
+        let result = wf.approve_at_level(&id, 2, "mgr", ApprovalDecision::Approved, None);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ApprovalError::ApprovalLevelNotMet { level: 1 }
+        );
+
+        // Cannot approve level 3 before level 1
+        let result = wf.approve_at_level(&id, 3, "qa", ApprovalDecision::Approved, None);
+        assert!(result.is_err());
+
+        // Can approve level 1
+        wf.approve_at_level(&id, 1, "peer", ApprovalDecision::Approved, None)
+            .unwrap();
+
+        // Still cannot approve level 3 (level 2 not done)
+        let result = wf.approve_at_level(&id, 3, "qa", ApprovalDecision::Approved, None);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ApprovalError::ApprovalLevelNotMet { level: 2 }
+        );
+
+        // Approve level 2, then level 3 works
+        wf.approve_at_level(&id, 2, "mgr", ApprovalDecision::Approved, None)
+            .unwrap();
+        wf.approve_at_level(&id, 3, "qa", ApprovalDecision::Approved, None)
+            .unwrap();
+
+        let chain = wf.get_approval_chain(&id);
+        assert!(chain
+            .iter()
+            .all(|a| matches!(a.decision, Some(ApprovalDecision::Approved))));
+    }
+
+    #[test]
+    fn test_effectiveness_monitoring_workflow() {
+        let mut wf = ApprovalWorkflow::new();
+        let id = setup_gxp_cr(&mut wf);
+
+        // Full GxP lifecycle: impact → review → approve → implement → verify → publish → effectiveness → close
+        wf.submit_impact_assessment(&id, sample_impact()).unwrap();
+        assert!(wf.get_impact_assessment(&id).is_some());
+
+        wf.submit_for_review(&id).unwrap();
+        wf.approve(&id, "reviewer").unwrap();
+        wf.implement(&id, "deployer").unwrap();
+        wf.verify(&id, "verifier", "IQ/OQ/PQ complete").unwrap();
+        wf.publish(&id).unwrap();
+
+        // Record effectiveness check
+        let check = EffectivenessCheck {
+            checked_by: "qa-lead".to_string(),
+            checked_at: Utc::now(),
+            is_effective: true,
+            evidence: "Change achieved intended result".to_string(),
+            follow_up_actions: vec!["Schedule periodic review".to_string()],
+        };
+        wf.record_effectiveness(&id, check).unwrap();
+
+        // Close
+        let cr = wf.close(&id).unwrap();
+        assert_eq!(cr.current_state, ApprovalState::Closed);
+        assert!(cr.closed_at.is_some());
+        assert!(cr.effectiveness_check.as_ref().unwrap().is_effective);
+        assert!(cr.impact_assessment.is_some());
     }
 }

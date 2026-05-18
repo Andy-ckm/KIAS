@@ -626,4 +626,228 @@ implementation:
         assert_eq!(def.name, "echo");
         assert_eq!(def.version, "1.0.0");
     }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_tool() {
+        let registry = ToolRegistry::new();
+        assert!(registry.get("nonexistent").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_history_nonexistent_tool() {
+        let registry = ToolRegistry::new();
+        assert!(registry.history("nonexistent").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_remove_nonexistent_tool() {
+        let registry = ToolRegistry::new();
+        let result = registry.remove("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rollback_nonexistent_tool() {
+        let registry = ToolRegistry::new();
+        let result = registry.rollback("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rollback_no_previous_version() {
+        let registry = ToolRegistry::new();
+        let def = sample_tool_definition();
+        registry.register(def).await.unwrap();
+
+        // First version has no previous
+        let result = registry.rollback("test-tool").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_empty_name() {
+        let registry = ToolRegistry::new();
+        let mut def = sample_tool_definition();
+        def.name = String::new();
+        let result = registry.register(def).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_empty_description() {
+        let registry = ToolRegistry::new();
+        let mut def = sample_tool_definition();
+        def.description = String::new();
+        let result = registry.register(def).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_invalid_schema() {
+        let registry = ToolRegistry::new();
+        let mut def = sample_tool_definition();
+        def.input_schema = serde_json::json!("not an object");
+        let result = registry.register(def).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_tool_definition() {
+        let file = sample_tool_definition();
+        let def = to_tool_definition(&file);
+        assert_eq!(def.name, "test-tool");
+        assert_eq!(def.description, "A test tool");
+    }
+
+    #[test]
+    fn test_to_tool() {
+        let file = sample_tool_definition();
+        let tool = to_tool(&file);
+        assert_eq!(tool.name, "test-tool");
+        assert_eq!(tool.description, "A test tool");
+    }
+
+    #[test]
+    fn test_compute_hash_deterministic() {
+        let registry = ToolRegistry::new();
+        let h1 = registry.compute_hash("hello world");
+        let h2 = registry.compute_hash("hello world");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn test_compute_hash_different_inputs() {
+        let registry = ToolRegistry::new();
+        let h1 = registry.compute_hash("hello");
+        let h2 = registry.compute_hash("world");
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let registry = ToolRegistry::default();
+        // Should be empty
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tools = rt.block_on(registry.list());
+        assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn test_shell_implementation_serde() {
+        let yaml = r#"
+name: shell-tool
+version: "1.0.0"
+description: A shell tool
+input_schema:
+  type: object
+  properties:
+    cmd:
+      type: string
+implementation:
+  type: shell
+  command: "echo hello"
+  workdir: "/tmp"
+  env:
+    FOO: bar
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(
+            def.implementation,
+            ToolImplementation::Shell { .. }
+        ));
+    }
+
+    #[test]
+    fn test_python_implementation_serde() {
+        let yaml = r#"
+name: py-tool
+version: "1.0.0"
+description: A python tool
+input_schema:
+  type: object
+implementation:
+  type: python
+  script: "/scripts/hello.py"
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(
+            def.implementation,
+            ToolImplementation::Python { .. }
+        ));
+    }
+
+    #[test]
+    fn test_wasm_implementation_serde() {
+        let yaml = r#"
+name: wasm-tool
+version: "1.0.0"
+description: A wasm tool
+input_schema:
+  type: object
+implementation:
+  type: wasm
+  module: "/modules/hello.wasm"
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(
+            def.implementation,
+            ToolImplementation::Wasm { .. }
+        ));
+    }
+
+    #[test]
+    fn test_disabled_tool_default() {
+        let yaml = r#"
+name: disabled-tool
+version: "1.0.0"
+description: Disabled
+input_schema:
+  type: object
+implementation:
+  type: http
+  url: "http://localhost:8080"
+enabled: false
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(!def.enabled);
+    }
+
+    #[test]
+    fn test_enabled_default_true() {
+        let yaml = r#"
+name: enabled-tool
+version: "1.0.0"
+description: Enabled
+input_schema:
+  type: object
+implementation:
+  type: http
+  url: "http://localhost:8080"
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(def.enabled);
+    }
+
+    #[test]
+    fn test_dependencies_and_tags() {
+        let yaml = r#"
+name: complex-tool
+version: "2.0.0"
+description: Complex
+input_schema:
+  type: object
+implementation:
+  type: http
+  url: "http://localhost:8080"
+dependencies:
+  - dep-tool-1
+  - dep-tool-2
+tags:
+  - ai
+  - search
+"#;
+        let def: ToolDefinitionFile = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(def.dependencies.len(), 2);
+        assert_eq!(def.tags.len(), 2);
+    }
 }

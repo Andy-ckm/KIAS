@@ -89,3 +89,84 @@ impl ServerCapabilities {
         self.prompts.is_some()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_capabilities_empty() {
+        let caps = ServerCapabilities::new();
+        assert!(!caps.has_tools());
+        assert!(!caps.has_resources());
+        assert!(!caps.has_prompts());
+    }
+
+    #[test]
+    fn test_with_tools() {
+        let caps = ServerCapabilities::new().with_tools();
+        assert!(caps.has_tools());
+        assert!(!caps.has_resources());
+        assert!(!caps.has_prompts());
+    }
+
+    #[test]
+    fn test_with_resources() {
+        let caps = ServerCapabilities::new().with_resources();
+        assert!(!caps.has_tools());
+        assert!(caps.has_resources());
+        assert!(!caps.has_prompts());
+    }
+
+    #[test]
+    fn test_with_prompts() {
+        let caps = ServerCapabilities::new().with_prompts();
+        assert!(!caps.has_tools());
+        assert!(!caps.has_resources());
+        assert!(caps.has_prompts());
+    }
+
+    #[test]
+    fn test_all_capabilities() {
+        let caps = ServerCapabilities::new()
+            .with_tools()
+            .with_resources()
+            .with_prompts();
+        assert!(caps.has_tools());
+        assert!(caps.has_resources());
+        assert!(caps.has_prompts());
+    }
+
+    #[test]
+    fn test_capabilities_serialize_roundtrip() {
+        let caps = ServerCapabilities::new().with_tools().with_resources();
+        let json = serde_json::to_string(&caps).unwrap();
+        let deserialized: ServerCapabilities = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.has_tools());
+        assert!(deserialized.has_resources());
+        assert!(!deserialized.has_prompts());
+    }
+
+    #[test]
+    fn test_capabilities_skip_none() {
+        let caps = ServerCapabilities::new().with_tools();
+        let json = serde_json::to_string(&caps).unwrap();
+        assert!(json.contains("tools"));
+        assert!(!json.contains("resources"));
+        assert!(!json.contains("prompts"));
+    }
+
+    #[test]
+    fn test_tools_capability_list_changed_default() {
+        let caps = ServerCapabilities::new().with_tools();
+        assert!(!caps.tools.unwrap().list_changed);
+    }
+
+    #[test]
+    fn test_resources_capability_defaults() {
+        let caps = ServerCapabilities::new().with_resources();
+        let res = caps.resources.unwrap();
+        assert!(!res.subscribe);
+        assert!(!res.list_changed);
+    }
+}

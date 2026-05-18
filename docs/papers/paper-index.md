@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-18 (13:30)
+更新时间: 2026-05-18 (14:00)
 
-## 论文列表 (24 篇)
+## 论文列表 (29 篇)
 
-### 已下载论文 (10 篇)
+### 已下载论文 (15 篇)
 - ✅ 2605.15040.pdf (Orchard: An Open-Source Agentic Modeling Framework)
 - ✅ 2605.15028.pdf (Multi-Agentic Approach for History Matching of Oil Reservoirs)
 - ✅ 2605.14675.pdf (Agentic AI in Industry: Adoption Level and Deployment Barriers)
@@ -16,9 +16,19 @@
 - ✅ 2605.15198.pdf (ATLAS: Agentic or Latent Visual Reasoning? One Word is Enough for Both)
 - ⚠️ 2605.15181.pdf (From Plans to Pixels) — 31MB 超出 git 限制，仅本地保留
 - ⚠️ 2605.15187.pdf (Articraft: Agentic System for 3D Asset Generation) — 24MB 超出 git 限制，仅本地保留
+- ✅ 2605.13496.pdf (MARLIN: Multi-Agent Game-Theoretic RL for Sustainable LLM Inference)
+- ✅ 2605.09889.pdf (Skill Description Deception Attack against Task Routing in Internet of Agents)
+- ✅ 2605.12364.pdf (Attacks and Mitigations for Distributed Governance of Agentic AI)
+- ✅ 2605.11487.pdf (Digital Identity for Agentic Systems: Portable Authorization Standard)
+- ✅ 2605.07161.pdf (SREGym: A Live Benchmark for AI SRE Agents)
 
-### 待下载论文
-- (无)
+### 待下载论文 (6 篇 — arXiv 限流未下载)
+- ⏳ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
+- ⏳ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
+- ⏳ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
+- ⏳ 2605.15228 (Verifiable Agentic Infrastructure: Proof-Derived Authorization)
+- ⏳ 2605.15218 (CAX-Agent: Lightweight Agent Harness for Reliable APDL Automation)
+- ⏳ 2605.15224 (ICRL: Learning to Internalize Self-Critique with Reinforcement Learning)
 
 ---
 
@@ -112,51 +122,78 @@
 18. **[2605.14625]** Digital Twin Synchronization Over Mobile Embodied AI Network With Agentic Intelligence
     - 链接: https://arxiv.org/abs/2605.14625
 
----
+19. **[2605.13496]** MARLIN: Multi-Agent Game-Theoretic Reinforcement Learning for Sustainable LLM Inference in Cloud Datacenters
+    - 作者: H. Moore, S. Qi, D. Milojicic, C. Bash, S. Pasricha
+    - 日期: 2026-05-13 | 分类: cs.DC, cs.LG
+    - 主题: multi-agent scheduling, LLM inference, energy optimization
+    - 链接: https://arxiv.org/abs/2605.13496
+    - 状态: ✅ 已下载 (1.2MB)
 
-## 🔍 新发现论文 (2026-05-18 13:30 搜索)
+20. **[2605.12364]** Attacks and Mitigations for Distributed Governance of Agentic AI under Byzantine Threats
+    - 作者: Matthew D. Laws, Alina Oprea, Cristina Nita-Rotaru
+    - 日期: 2026-05-12 | 分类: cs.CR, cs.LG, cs.MA
+    - 主题: Byzantine fault tolerance, distributed governance, multi-agent security
+    - 链接: https://arxiv.org/abs/2605.12364
+    - 状态: ✅ 已下载 (1.3MB)
 
-> 注: arXiv API 今日 429 限流严重，PDF 下载超时。以下论文仅记录元数据，待限流解除后下载。
+21. **[2605.11487]** Digital Identity for Agentic Systems: Toward a Portable Authorization Standard
+    - 日期: 2026-05-12 | 分类: cs.AI
+    - 主题: agent identity, authorization, A2A protocol, cross-platform auth
+    - 链接: https://arxiv.org/abs/2605.11487
+    - 状态: ✅ 已下载 (1.3MB)
 
-19. **[2605.15204]** SDOF: Taming the Alignment Tax in Multi-Agent Orchestration with State-Constrained Dispatch
+22. **[2605.09889]** Skill Description Deception Attack against Task Routing in Internet of Agents
+    - 作者: Jiayi He, Xiaofeng Luo, Jiawen Kang, Ruichen Zhang, Jianhang Tu
+    - 日期: 2026-05-11 | 分类: cs.MA
+    - 主题: adversarial attacks, skill routing, multi-agent task delegation
+    - 链接: https://arxiv.org/abs/2605.09889
+    - 状态: ✅ 已下载 (1.0MB)
+
+23. **[2605.07161]** SREGym: A Live Benchmark for AI SRE Agents with High-Fidelity Failure Scenarios
+    - 作者: Jackson Clark, Yiming Su, Saad Mohammad Rafid Pial, Yifang Tian, Lily Gniedziejko
+    - 日期: 2026-05-08 | 分类: cs.AI
+    - 主题: agent evaluation, SRE benchmark, production failure diagnosis
+    - 链接: https://arxiv.org/abs/2605.07161
+    - 状态: ✅ 已下载 (1.2MB)
+
+24. **[2605.15204]** SDOF: Taming the Alignment Tax in Multi-Agent Orchestration with State-Constrained Dispatch
     - 作者: Zhantao Wang
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: multi-agent orchestration, state-constrained dispatch, LangChain/LangGraph/CrewAI
-    - 摘要: Multi-agent orchestration frameworks route tasks through graph-based pipelines but do not enforce stage constraints...
+    - 主题: multi-agent orchestration, state-constrained dispatch
     - 链接: https://arxiv.org/abs/2605.15204
-    - 状态: ⏳ 待下载 (arXiv 429 限流)
+    - 状态: ⏳ 待下载
 
-20. **[2605.15215]** SkillSmith: Compiling Agent Skills into Boundary-Guided Runtime Interfaces
+25. **[2605.15215]** SkillSmith: Compiling Agent Skills into Boundary-Guided Runtime Interfaces
     - 作者: Duling Xu, Zheng Chen, Zaifeng Pan, Jiawei Guan
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: agent skills, runtime interfaces, LLM agent systems
+    - 主题: agent skills, runtime interfaces
     - 链接: https://arxiv.org/abs/2605.15215
     - 状态: ⏳ 待下载
 
-21. **[2605.15227]** NIMO Controller: A Self-Driving Laboratory Orchestrator Based on Model Context Protocol
+26. **[2605.15227]** NIMO Controller: A Self-Driving Laboratory Orchestrator Based on Model Context Protocol
     - 作者: Naruki Yoshikawa, Ryo Tamura
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: MCP orchestrator, self-driving lab, agent control
+    - 主题: MCP orchestrator, self-driving lab
     - 链接: https://arxiv.org/abs/2605.15227
     - 状态: ⏳ 待下载
 
-22. **[2605.15228]** Verifiable Agentic Infrastructure: Proof-Derived Authorization for Sovereign AI Systems
+27. **[2605.15228]** Verifiable Agentic Infrastructure: Proof-Derived Authorization for Sovereign AI Systems
     - 作者: Jun He, Deying Yu
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: agentic authorization, proof-derived auth, autonomy control
+    - 主题: agentic authorization, proof-derived auth
     - 链接: https://arxiv.org/abs/2605.15228
     - 状态: ⏳ 待下载
 
-23. **[2605.15218]** CAX-Agent: A Lightweight Agent Harness for Reliable APDL Automation
+28. **[2605.15218]** CAX-Agent: A Lightweight Agent Harness for Reliable APDL Automation
     - 作者: Chenying Lin, Yichen Hai, Yi He, Ran Wang
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: agent harness, reliable automation, structured execution
+    - 主题: agent harness, reliable automation
     - 链接: https://arxiv.org/abs/2605.15218
     - 状态: ⏳ 待下载
 
-24. **[2605.15224]** ICRL: Learning to Internalize Self-Critique with Reinforcement Learning
+29. **[2605.15224]** ICRL: Learning to Internalize Self-Critique with Reinforcement Learning
     - 作者: Jianbo Lin, Xiaomin Yu, Yi Xin, Yifu Guo
     - 日期: 2026-05-15 | 分类: cs.AI
-    - 主题: self-critique, reinforcement learning, agent self-improvement
+    - 主题: self-critique, reinforcement learning
     - 链接: https://arxiv.org/abs/2605.15224
     - 状态: ⏳ 待下载

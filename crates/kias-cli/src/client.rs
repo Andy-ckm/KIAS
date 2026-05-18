@@ -669,4 +669,50 @@ mod tests {
             assert_eq!(t, back);
         }
     }
+
+    #[test]
+    fn test_workflow_info_deserialize() {
+        let json = r#"{"id":"wf-001","name":"pipeline","status":"running","entry":"start","created_at":"2024-01-01T00:00:00Z"}"#;
+        let info: WorkflowInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "wf-001");
+        assert_eq!(info.name, "pipeline");
+        assert_eq!(info.status, "running");
+        assert_eq!(info.entry.as_deref(), Some("start"));
+    }
+
+    #[test]
+    fn test_node_info_deserialize() {
+        let json = r#"{"id":"n-001","name":"node-1","address":"10.0.0.1:8080","status":"ready","agents":["a1","a2"]}"#;
+        let info: NodeInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "n-001");
+        assert_eq!(info.address, "10.0.0.1:8080");
+        assert_eq!(info.agents.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_metrics_summary_deserialize() {
+        let json = r#"{"total_requests":1000,"total_tokens":500000,"total_cost":12.5,"avg_latency_ms":234.5}"#;
+        let metrics: MetricsSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(metrics.total_requests, 1000);
+        assert_eq!(metrics.total_tokens, 500000);
+        assert!((metrics.total_cost - 12.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_agent_spec_info_deserialize() {
+        let json = r#"{"name":"my-agent","image":"python:3.11","priority":"high"}"#;
+        let spec: AgentSpecInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(spec.name, "my-agent");
+        assert_eq!(spec.image.as_deref(), Some("python:3.11"));
+        assert_eq!(spec.priority.as_deref(), Some("high"));
+    }
+
+    #[test]
+    fn test_agent_spec_info_defaults() {
+        let json = r#"{}"#;
+        let spec: AgentSpecInfo = serde_json::from_str(json).unwrap();
+        assert!(spec.name.is_empty());
+        assert!(spec.image.is_none());
+        assert!(spec.priority.is_none());
+    }
 }

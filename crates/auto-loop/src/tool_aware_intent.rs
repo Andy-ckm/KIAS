@@ -709,4 +709,225 @@ mod tests {
         let score = recognizer.calculate_match_score(tool, "写代码", &intent);
         assert!(score > 0.0);
     }
+
+    #[test]
+    fn test_recognize_security_audit() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::SecurityAudit,
+            complexity: Complexity::Complex,
+            priority: Priority::High,
+            keywords: vec!["安全".into()],
+            raw_input: "对系统进行安全扫描".into(),
+            confidence: 0.85,
+        };
+        let result = recognizer.recognize("对系统进行安全扫描", base_intent);
+        assert!(result.needs_tools);
+        assert!(result
+            .recommended_tools
+            .iter()
+            .any(|t| t.name == "security_scanner"));
+    }
+
+    #[test]
+    fn test_recognize_documentation() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::Documentation,
+            complexity: Complexity::Simple,
+            priority: Priority::Medium,
+            keywords: vec!["文档".into()],
+            raw_input: "生成API文档".into(),
+            confidence: 0.7,
+        };
+        let result = recognizer.recognize("生成API文档", base_intent);
+        assert!(result.recommended_tools.iter().any(|t| t.name == "docgen"));
+    }
+
+    #[test]
+    fn test_recognize_performance_optimization() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::PerformanceOptimization,
+            complexity: Complexity::Complex,
+            priority: Priority::High,
+            keywords: vec!["性能".into()],
+            raw_input: "分析CPU性能瓶颈".into(),
+            confidence: 0.8,
+        };
+        let result = recognizer.recognize("分析CPU性能瓶颈", base_intent);
+        assert!(result.needs_tools);
+        assert!(result
+            .recommended_tools
+            .iter()
+            .any(|t| t.name == "profiler"));
+    }
+
+    #[test]
+    fn test_parameter_inference_rust() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::CodeGeneration,
+            complexity: Complexity::Medium,
+            priority: Priority::Medium,
+            keywords: vec![],
+            raw_input: "用Rust写一个web服务器".into(),
+            confidence: 0.8,
+        };
+        let result = recognizer.recognize("用Rust写一个web服务器", base_intent);
+        assert!(!result.tool_calls.is_empty());
+        let codegen_call = result.tool_calls.iter().find(|c| c.tool_name == "codegen");
+        assert!(codegen_call.is_some());
+        assert_eq!(
+            codegen_call
+                .unwrap()
+                .expected_params
+                .get("language")
+                .unwrap(),
+            "rust"
+        );
+    }
+
+    #[test]
+    fn test_parameter_inference_python() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::CodeGeneration,
+            complexity: Complexity::Medium,
+            priority: Priority::Medium,
+            keywords: vec![],
+            raw_input: "用python写一个脚本".into(),
+            confidence: 0.8,
+        };
+        let result = recognizer.recognize("用python写一个脚本", base_intent);
+        let codegen_call = result.tool_calls.iter().find(|c| c.tool_name == "codegen");
+        assert!(codegen_call.is_some());
+        assert_eq!(
+            codegen_call
+                .unwrap()
+                .expected_params
+                .get("language")
+                .unwrap(),
+            "python"
+        );
+    }
+
+    #[test]
+    fn test_parameter_inference_unit_test() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::TestGeneration,
+            complexity: Complexity::Simple,
+            priority: Priority::Medium,
+            keywords: vec![],
+            raw_input: "编写单元测试".into(),
+            confidence: 0.7,
+        };
+        let result = recognizer.recognize("编写单元测试", base_intent);
+        let testgen_call = result.tool_calls.iter().find(|c| c.tool_name == "testgen");
+        assert!(testgen_call.is_some());
+        assert_eq!(
+            testgen_call
+                .unwrap()
+                .expected_params
+                .get("test_type")
+                .unwrap(),
+            "unit"
+        );
+    }
+
+    #[test]
+    fn test_parameter_inference_integration_test() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::TestGeneration,
+            complexity: Complexity::Medium,
+            priority: Priority::Medium,
+            keywords: vec![],
+            raw_input: "编写集成测试".into(),
+            confidence: 0.7,
+        };
+        let result = recognizer.recognize("编写集成测试", base_intent);
+        let testgen_call = result.tool_calls.iter().find(|c| c.tool_name == "testgen");
+        assert!(testgen_call.is_some());
+        assert_eq!(
+            testgen_call
+                .unwrap()
+                .expected_params
+                .get("test_type")
+                .unwrap(),
+            "integration"
+        );
+    }
+
+    #[test]
+    fn test_parameter_inference_full_scan() {
+        let recognizer = ToolAwareRecognizer::new();
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::SecurityAudit,
+            complexity: Complexity::Complex,
+            priority: Priority::High,
+            keywords: vec![],
+            raw_input: "全面安全扫描".into(),
+            confidence: 0.9,
+        };
+        let result = recognizer.recognize("全面安全扫描", base_intent);
+        let scanner_call = result
+            .tool_calls
+            .iter()
+            .find(|c| c.tool_name == "security_scanner");
+        assert!(scanner_call.is_some());
+        assert_eq!(
+            scanner_call
+                .unwrap()
+                .expected_params
+                .get("scan_type")
+                .unwrap(),
+            "full"
+        );
+    }
+
+    #[test]
+    fn test_type_name_all_variants() {
+        assert_eq!(IntentType::CodeGeneration.type_name(), "CodeGeneration");
+        assert_eq!(IntentType::CodeReview.type_name(), "CodeReview");
+        assert_eq!(IntentType::BugFix.type_name(), "BugFix");
+        assert_eq!(IntentType::Documentation.type_name(), "Documentation");
+        assert_eq!(IntentType::TestGeneration.type_name(), "TestGeneration");
+        assert_eq!(
+            IntentType::ArchitectureDesign.type_name(),
+            "ArchitectureDesign"
+        );
+        assert_eq!(
+            IntentType::PerformanceOptimization.type_name(),
+            "PerformanceOptimization"
+        );
+        assert_eq!(IntentType::SecurityAudit.type_name(), "SecurityAudit");
+        assert_eq!(IntentType::KnowledgeQuery.type_name(), "KnowledgeQuery");
+        assert_eq!(IntentType::SystemAdmin.type_name(), "SystemAdmin");
+        assert_eq!(IntentType::Unknown.type_name(), "Unknown");
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let recognizer = ToolAwareRecognizer::default();
+        assert!(!recognizer.tools.is_empty());
+    }
+
+    #[test]
+    fn test_tool_calls_threshold() {
+        let recognizer = ToolAwareRecognizer::new();
+        // Unknown intent with low confidence → score should be low → no tool_calls
+        let base_intent = RecognizedIntent {
+            intent_type: IntentType::Unknown,
+            complexity: Complexity::Simple,
+            priority: Priority::Low,
+            keywords: vec![],
+            raw_input: "hello".into(),
+            confidence: 0.1,
+        };
+        let result = recognizer.recognize("hello", base_intent);
+        // With Unknown intent and no keywords, score < 0.5 → no tool_calls
+        assert!(result.tool_calls.is_empty());
+    }
 }

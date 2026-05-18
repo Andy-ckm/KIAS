@@ -33,10 +33,7 @@ impl fmt::Display for AuditError {
         match self {
             Self::ReasonRequired => write!(f, "GxP audit entries require a reason"),
             Self::ChainBroken { expected, actual } => {
-                write!(
-                    f,
-                    "Hash chain broken: expected {expected}, got {actual}"
-                )
+                write!(f, "Hash chain broken: expected {expected}, got {actual}")
             }
             Self::MissingField(field) => write!(f, "Missing required field: {field}"),
         }
@@ -228,10 +225,7 @@ impl GxpAuditLog {
     /// The entry's `prev_hash` is set automatically based on the last entry
     /// in the chain (or "GENESIS" for the first). The `entry_hash` is
     /// computed from all fields. The `sequence` is assigned monotonically.
-    pub fn append(
-        &mut self,
-        mut entry: GxpAuditEntry,
-    ) -> Result<&GxpAuditEntry, AuditError> {
+    pub fn append(&mut self, mut entry: GxpAuditEntry) -> Result<&GxpAuditEntry, AuditError> {
         let prev_hash = self
             .entries
             .last()
@@ -285,11 +279,7 @@ impl GxpAuditLog {
     }
 
     /// Query entries by target type and optional target ID.
-    pub fn query_by_target(
-        &self,
-        target_type: &str,
-        target_id: &str,
-    ) -> Vec<&GxpAuditEntry> {
+    pub fn query_by_target(&self, target_type: &str, target_id: &str) -> Vec<&GxpAuditEntry> {
         self.entries
             .iter()
             .filter(|e| e.target_type == target_type && e.target_id == target_id)
@@ -426,10 +416,7 @@ impl GxpAuditEntryBuilder {
     /// Build the entry and append it to the given log.
     ///
     /// Returns an error if the mandatory `reason` field is not set.
-    pub fn build(
-        self,
-        log: &mut GxpAuditLog,
-    ) -> Result<GxpAuditEntry, AuditError> {
+    pub fn build(self, log: &mut GxpAuditLog) -> Result<GxpAuditEntry, AuditError> {
         // GxP requires a reason
         if self.reason.is_none() {
             return Err(AuditError::ReasonRequired);
@@ -450,7 +437,7 @@ impl GxpAuditEntryBuilder {
             reason: self.reason,
             session_id: self.session_id,
             model_version: self.model_version,
-            prev_hash: String::new(), // will be overwritten
+            prev_hash: String::new(),  // will be overwritten
             entry_hash: String::new(), // will be overwritten
             signature: self.signature,
         };
@@ -505,7 +492,10 @@ mod tests {
         assert_eq!(entry.target_id, "doc-42");
         assert_eq!(entry.before_state.as_deref(), Some("Draft"));
         assert_eq!(entry.after_state.as_deref(), Some("Approved"));
-        assert_eq!(entry.reason.as_deref(), Some("Reviewed and approved for release"));
+        assert_eq!(
+            entry.reason.as_deref(),
+            Some("Reviewed and approved for release")
+        );
         assert_eq!(entry.session_id.as_deref(), Some("sess-abc"));
     }
 
@@ -733,16 +723,11 @@ mod tests {
             (ActorType::System, "system"),
             (ActorType::Cron, "cron"),
         ] {
-            let entry = GxpAuditEntryBuilder::new(
-                name,
-                actor_type,
-                GxpAuditAction::Create,
-                "r",
-                name,
-            )
-            .reason("test")
-            .build(&mut log)
-            .unwrap();
+            let entry =
+                GxpAuditEntryBuilder::new(name, actor_type, GxpAuditAction::Create, "r", name)
+                    .reason("test")
+                    .build(&mut log)
+                    .unwrap();
             assert_eq!(entry.actor_type, actor_type);
         }
         assert_eq!(log.entry_count(), 4);

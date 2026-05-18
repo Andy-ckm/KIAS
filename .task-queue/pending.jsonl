@@ -1,4 +1,0 @@
-{"id": "task_1779028022823", "type": "dev", "payload": {"task": "Skill版本控制+rollback：SemVer+内容哈希+一键回滚（skill-mcp灵感）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 22:27:02", "status": "pending"}
-{"id": "task_1779028022849", "type": "dev", "payload": {"task": "YAML DAG声明式编排：workflow-engine支持YAML加载+depends_on+并行（skill-mcp灵感）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 22:27:02", "status": "pending"}
-{"id": "task_1779028022875", "type": "dev", "payload": {"task": "Skill安全检查器：prompt注入检测+lint（skill-mcp灵感）", "priority": 3}, "priority": 5, "created_at": "2026-05-17 22:27:02", "status": "pending"}
-{"id": "task_1779029001206", "type": "dev", "payload": {"task": "Agent自蒸馏：从auto-loop历史操作中自动提取重复工作流→生成Skill（Codex/Hermes灵感）", "priority": 2}, "priority": 5, "created_at": "2026-05-17 22:43:21", "status": "pending"}

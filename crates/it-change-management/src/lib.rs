@@ -2252,4 +2252,262 @@ mod tests {
         let manager = ItChangeManager::new();
         assert_eq!(manager.get_audit_log("nonexistent").len(), 0);
     }
+
+    #[test]
+    fn test_implement_change_not_approved() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        // Draft status — should fail
+        let result = manager.implement_change(&change.id, "user", None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("已批准"));
+    }
+
+    #[test]
+    fn test_complete_implementation_not_implementing() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        let result = manager.complete_implementation(&change.id, "user", None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("实施中"));
+    }
+
+    #[test]
+    fn test_verify_change_not_implementing() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        let result = manager.verify_change(&change.id, "user", None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("已实施"));
+    }
+
+    #[test]
+    fn test_close_change_wrong_status() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        let result = manager.close_change(&change.id, "user", None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("已验证"));
+    }
+
+    #[test]
+    fn test_add_approver_wrong_status() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        // Draft status — should fail
+        let result = manager.add_approver(
+            &change.id,
+            "approver".to_string(),
+            "审批人".to_string(),
+            "QA".to_string(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("已提交或审核中"));
+    }
+
+    #[test]
+    fn test_approve_change_wrong_status() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        // Draft status — should fail
+        let result = manager.approve_change(
+            &change.id,
+            "approver",
+            Decision::Approved,
+            create_test_signature(SignatureMeaning::Approval),
+            None,
+            None,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("审核中"));
+    }
+
+    #[test]
+    fn test_emergency_implement_wrong_category() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low, // Normal, not Emergency
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        manager
+            .submit_for_review(&change.id, "user", None, None)
+            .unwrap();
+        let result = manager.emergency_implement(&change.id, "user", "紧急原因", None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("紧急变更"));
+    }
+
+    #[test]
+    fn test_statistics_empty() {
+        let manager = ItChangeManager::new();
+        let stats = manager.get_statistics();
+        assert_eq!(stats.total, 0);
+        assert_eq!(stats.draft, 0);
+        assert_eq!(stats.submitted, 0);
+        assert_eq!(stats.approved, 0);
+        assert_eq!(stats.closed, 0);
+        assert_eq!(stats.sla_violations, 0);
+    }
+
+    #[test]
+    fn test_change_number_unique() {
+        let mut manager = ItChangeManager::new();
+        let c1 = manager.create_change_request(
+            "变更1".to_string(),
+            "描述".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        let c2 = manager.create_change_request(
+            "变更2".to_string(),
+            "描述".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        assert_ne!(c1.change_number, c2.change_number);
+        assert!(c1.change_number.starts_with("CHG-"));
+        assert!(c2.change_number.starts_with("CHG-"));
+    }
+
+    #[test]
+    fn test_submit_nonexistent_change() {
+        let mut manager = ItChangeManager::new();
+        let result = manager.submit_for_review("nonexistent", "user", None, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_change_nonexistent() {
+        let manager = ItChangeManager::new();
+        let result = manager.get_change("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_changes_by_risk_empty() {
+        let manager = ItChangeManager::new();
+        let changes = manager.list_changes_by_risk(&RiskLevel::High);
+        assert_eq!(changes.len(), 0);
+    }
+
+    #[test]
+    fn test_list_changes_by_status_empty() {
+        let manager = ItChangeManager::new();
+        let changes = manager.list_changes_by_status(&ChangeStatus::Draft);
+        assert_eq!(changes.len(), 0);
+    }
+
+    #[test]
+    fn test_full_emergency_lifecycle() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "紧急修复".to_string(),
+            "生产环境紧急修复".to_string(),
+            ChangeType::Configuration,
+            ChangeCategory::Emergency,
+            RiskLevel::Critical,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        manager
+            .submit_for_review(&change.id, "user", None, None)
+            .unwrap();
+        manager
+            .emergency_implement(&change.id, "user", "生产事故", None, None)
+            .unwrap();
+
+        let change = manager.get_change(&change.id).unwrap();
+        assert_eq!(change.status, ChangeStatus::EmergencyImplemented);
+        assert!(change.implemented_at.is_some());
+        assert!(change.emergency_approval_deadline.is_some());
+    }
 }

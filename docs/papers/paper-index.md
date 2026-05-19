@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (17:30)
+更新时间: 2026-05-19 (18:50)
 
-## 论文列表 (137 篇)
+## 论文列表 (142 篇)
 
-### 已下载论文 (126 篇)
+### 已下载论文 (131 篇)
 - ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
 - ✅ 2605.17641.pdf (Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents)
 - ✅ 2605.17625.pdf (Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents)
@@ -128,6 +128,11 @@
 - ✅ 2510.10454.pdf (Traj-CoA: Patient Trajectory Modeling via Chain-of-Agents)
 - ✅ 2605.15537.pdf (RTL-BenchMT: Dynamic RTL Benchmark via Agent-Assisted Analysis)
 - ✅ 2605.15542.pdf (DRS-GUI: Dynamic Region Search for Training-Free GUI Grounding)
+- ✅ 2605.15384.pdf (Is One Score Enough? Rethinking the Evaluation of Sequentially Evolving LLM Memory)
+- ✅ 2605.14678.pdf (π-Bench: Evaluating Proactive Personal Assistant Agents in Long-Horizon Workflows)
+- ✅ 2604.14572.pdf (Don't Retrieve, Navigate: Distilling Enterprise Knowledge into Navigable Agent Skills)
+- ✅ 2603.16011.pdf (FormulaCode: Evaluating Agentic Optimization on Large Codebases)
+- ✅ 2601.19923.pdf (Structure-BiEval: Dual-Track Framework for Decoupling Structure and Content in LLM Evaluation)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -140,6 +145,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15384]** Is One Score Enough? Rethinking the Evaluation of Sequentially Evolving LLM Memory
+   - 日期: 2026-05-14 | 分类: cs.LG, cs.AI
+   - 主题: LLM memory evaluation, sequential tasks, agent memory
+   - 链接: https://arxiv.org/abs/2605.15384
+   - 状态: ✅ 已下载 (1.5MB)
+
+**[2605.14678]** π-Bench: Evaluating Proactive Personal Assistant Agents in Long-Horizon Workflows
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: proactive agents, personal assistant, workflow evaluation, OpenClaw
+   - 链接: https://arxiv.org/abs/2605.14678
+   - 状态: ✅ 已下载 (1.3MB)
+
+**[2604.14572]** Don't Retrieve, Navigate: Distilling Enterprise Knowledge into Navigable Agent Skills for QA and RAG
+   - 日期: 2026-04-16 | 分类: cs.IR, cs.AI, cs.CL, cs.MA
+   - 主题: agent skills, RAG, enterprise knowledge, navigable skills
+   - 链接: https://arxiv.org/abs/2604.14572
+   - 状态: ✅ 已下载 (1.5MB)
+
+**[2603.16011]** FormulaCode: Evaluating Agentic Optimization on Large Codebases
+   - 日期: 2026-03-16 | 分类: cs.SE, cs.AI, cs.CL
+   - 主题: coding agents, repository-level optimization, agentic benchmarks
+   - 链接: https://arxiv.org/abs/2603.16011
+   - 状态: ✅ 已下载 (464KB)
+
+**[2601.19923]** Structure-BiEval: A Self-Supervised, Dual-Track Framework for Decoupling Structure and Content in LLM Evaluation
+   - 日期: 2026-01-09 | 分类: cs.CL, cs.AI
+   - 主题: LLM evaluation, web agents, structured output, autonomous agents
+   - 链接: https://arxiv.org/abs/2601.19923
+   - 状态: ✅ 已下载 (1.4MB)
 
 **[2605.15542]** DRS-GUI: Dynamic Region Search for Training-Free GUI Grounding
    - 日期: 2026-05-19 | 分类: cs.AI, cs.CV

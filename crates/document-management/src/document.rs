@@ -124,3 +124,90 @@ pub enum ChangeType {
     Signed,
     Archived,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_document_type_variants() {
+        let types = vec![
+            DocumentType::Policy,
+            DocumentType::Procedure,
+            DocumentType::WorkInstruction,
+            DocumentType::Form,
+            DocumentType::Record,
+            DocumentType::Report,
+            DocumentType::Other,
+        ];
+        assert_eq!(types.len(), 7);
+        assert_eq!(types[0], DocumentType::Policy);
+        assert_ne!(types[0], types[6]);
+    }
+
+    #[test]
+    fn test_document_status_variants() {
+        let statuses = vec![
+            DocumentStatus::Draft,
+            DocumentStatus::UnderReview,
+            DocumentStatus::Approved,
+            DocumentStatus::Published,
+            DocumentStatus::Archived,
+            DocumentStatus::Obsolete,
+        ];
+        assert_eq!(statuses.len(), 6);
+        assert_eq!(statuses[0], DocumentStatus::Draft);
+        assert_ne!(statuses[0], statuses[5]);
+    }
+
+    #[test]
+    fn test_document_metadata_default() {
+        let metadata = DocumentMetadata::default();
+        assert!(metadata.file_size.is_none());
+        assert!(metadata.file_type.is_none());
+        assert!(metadata.checksum.is_none());
+        assert!(metadata.retention_period.is_none());
+        assert!(!metadata.confidential);
+        assert!(!metadata.gxp_relevant);
+    }
+
+    #[test]
+    fn test_change_type_variants() {
+        let types = vec![
+            ChangeType::Created,
+            ChangeType::Updated,
+            ChangeType::StatusChanged,
+            ChangeType::Signed,
+            ChangeType::Archived,
+        ];
+        assert_eq!(types.len(), 5);
+    }
+
+    #[test]
+    fn test_create_document_request() {
+        let req = CreateDocumentRequest {
+            title: "Test".to_string(),
+            content: "Content".to_string(),
+            doc_type: DocumentType::Policy,
+            category: "General".to_string(),
+            created_by: "admin".to_string(),
+            tags: vec!["tag1".to_string()],
+        };
+        assert_eq!(req.title, "Test");
+        assert_eq!(req.doc_type, DocumentType::Policy);
+        assert_eq!(req.tags.len(), 1);
+    }
+
+    #[test]
+    fn test_update_document_request() {
+        let req = UpdateDocumentRequest {
+            title: Some("New Title".to_string()),
+            content: None,
+            tags: None,
+            updated_by: "admin".to_string(),
+        };
+        assert!(req.title.is_some());
+        assert!(req.content.is_none());
+        assert!(req.tags.is_none());
+    }
+}

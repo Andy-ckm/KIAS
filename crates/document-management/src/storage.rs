@@ -78,4 +78,76 @@ mod tests {
         assert!(!checksum.is_empty());
         assert_eq!(checksum.len(), 64); // SHA256 hex length
     }
+
+    #[test]
+    fn test_checksum_deterministic() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        let c1 = storage.calculate_checksum("same content");
+        let c2 = storage.calculate_checksum("same content");
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_checksum_different_content() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        let c1 = storage.calculate_checksum("content A");
+        let c2 = storage.calculate_checksum("content B");
+        assert_ne!(c1, c2);
+    }
+
+    #[test]
+    fn test_delete_document() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        storage.store("doc1", "content").unwrap();
+        assert!(storage.retrieve("doc1").is_ok());
+
+        storage.delete("doc1").unwrap();
+        assert!(storage.retrieve("doc1").is_err());
+    }
+
+    #[test]
+    fn test_delete_nonexistent() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        // 删除不存在的文档不应报错
+        storage.delete("nonexistent").unwrap();
+    }
+
+    #[test]
+    fn test_overwrite_content() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        storage.store("doc1", "original").unwrap();
+        storage.store("doc1", "updated").unwrap();
+
+        let retrieved = storage.retrieve("doc1").unwrap();
+        assert_eq!(retrieved, "updated");
+    }
+
+    #[test]
+    fn test_retrieve_nonexistent() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        let result = storage.retrieve("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_store_returns_checksum() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+
+        let checksum = storage.store("doc1", "test content").unwrap();
+        let expected = storage.calculate_checksum("test content");
+        assert_eq!(checksum, expected);
+    }
 }

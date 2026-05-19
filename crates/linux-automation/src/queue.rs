@@ -74,7 +74,14 @@ impl TaskQueue {
     /// 更新任务状态
     pub fn update_status(&self, task_id: Uuid, status: &TaskStatus) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        let status_str = serde_json::to_string(status)?;
+        let status_str = match status {
+            TaskStatus::Pending => "Pending",
+            TaskStatus::Running => "Running",
+            TaskStatus::Success => "Success",
+            TaskStatus::Failed => "Failed",
+            TaskStatus::PartialSuccess => "PartialSuccess",
+            TaskStatus::Cancelled => "Cancelled",
+        };
 
         conn.execute(
             "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
@@ -100,12 +107,21 @@ impl TaskQueue {
                 let task_type_str: String = row.get(1)?;
                 let status_str: String = row.get(2)?;
                 let created_at_str: String = row.get(3)?;
-                let result_str: Option<String> = row.get(6)?;
+
+                let status = match status_str.as_str() {
+                    "Pending" => TaskStatus::Pending,
+                    "Running" => TaskStatus::Running,
+                    "Success" => TaskStatus::Success,
+                    "Failed" => TaskStatus::Failed,
+                    "PartialSuccess" => TaskStatus::PartialSuccess,
+                    "Cancelled" => TaskStatus::Cancelled,
+                    _ => TaskStatus::Pending,
+                };
 
                 Ok(AutomationResult {
                     task_id: Uuid::parse_str(&id_str).unwrap_or_default(),
                     task_type: task_type_str,
-                    status: serde_json::from_str(&status_str).unwrap_or(TaskStatus::Pending),
+                    status,
                     started_at: chrono::DateTime::parse_from_rfc3339(&created_at_str)
                         .map(|dt| dt.with_timezone(&Utc))
                         .unwrap_or_else(|_| Utc::now()),
@@ -127,19 +143,19 @@ impl TaskQueue {
         let total: usize = conn.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
 
         let successful: usize = conn.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = '\"Success\"'",
+            "SELECT COUNT(*) FROM tasks WHERE status = 'Success'",
             [],
             |row| row.get(0),
         )?;
 
         let failed: usize = conn.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = '\"Failed\"'",
+            "SELECT COUNT(*) FROM tasks WHERE status = 'Failed'",
             [],
             |row| row.get(0),
         )?;
 
         let pending: usize = conn.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = '\"Pending\"'",
+            "SELECT COUNT(*) FROM tasks WHERE status = 'Pending'",
             [],
             |row| row.get(0),
         )?;

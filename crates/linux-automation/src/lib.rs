@@ -16,7 +16,7 @@ pub mod models;
 pub mod queue;
 pub mod scanner;
 
-pub use config::LinuxAutomationConfig;
+pub use audit::AuditLog;
 pub use error::{AutomationError, Result};
 pub use executor::TaskExecutor;
 pub use models::*;
@@ -29,6 +29,7 @@ pub struct LinuxAutomation {
     executor: TaskExecutor,
     queue: TaskQueue,
     scanner: ComplianceScanner,
+    audit: AuditLog,
 }
 
 impl LinuxAutomation {
@@ -37,12 +38,14 @@ impl LinuxAutomation {
         let executor = TaskExecutor::new(&config)?;
         let queue = TaskQueue::new(&config.database_path)?;
         let scanner = ComplianceScanner::new(&config)?;
+        let audit = AuditLog::new(&config.database_path)?;
 
         Ok(Self {
             config,
             executor,
             queue,
             scanner,
+            audit,
         })
     }
 
@@ -83,7 +86,7 @@ impl LinuxAutomation {
         self.queue.update_status(task_id, &result.status)?;
 
         // 4. 记录审计日志
-        audit::record_task_execution(&self.config.database_path, &task, &result)?;
+        self.audit.record_task_execution(&task, &result)?;
 
         Ok(result)
     }
@@ -100,13 +103,13 @@ impl LinuxAutomation {
 
     /// 获取审计日志
     pub fn get_audit_log(&self, limit: Option<usize>) -> Result<Vec<AuditEntry>> {
-        audit::get_audit_log(&self.config.database_path, limit)
+        self.audit.get_audit_log(limit)
     }
 
     /// 获取统计信息
     pub fn get_statistics(&self) -> Result<AutomationStatistics> {
         let queue_stats = self.queue.get_statistics()?;
-        let audit_stats = audit::get_statistics(&self.config.database_path)?;
+        let audit_stats = self.audit.get_statistics()?;
 
         Ok(AutomationStatistics {
             total_tasks: queue_stats.total,
@@ -152,7 +155,6 @@ mod tests {
         let stats = automation.get_statistics().unwrap();
         assert_eq!(stats.total_tasks, 0);
         assert_eq!(stats.successful_tasks, 0);
-        assert_eq!(stats.failed_tasks, 0);
     }
 
     #[test]

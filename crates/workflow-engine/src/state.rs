@@ -75,3 +75,99 @@ impl WorkflowState {
         self.updated_at = Utc::now();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_state() {
+        let s = WorkflowState::new("wf-1", "start");
+        assert_eq!(s.workflow_id, "wf-1");
+        assert_eq!(s.current_node, "start");
+        assert_eq!(s.status, WorkflowStatus::NotStarted);
+        assert!(s.data.is_empty());
+        assert!(s.history.is_empty());
+    }
+
+    #[test]
+    fn test_set_and_get() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        s.set("count", 42);
+        assert_eq!(s.get("count"), Some(&serde_json::json!(42)));
+        assert_eq!(s.get("missing"), None);
+    }
+
+    #[test]
+    fn test_set_string_value() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        s.set("name", "hello");
+        assert_eq!(s.get("name"), Some(&serde_json::json!("hello")));
+    }
+
+    #[test]
+    fn test_transition_records_history() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        let mut changes = HashMap::new();
+        changes.insert("progress".to_string(), serde_json::json!(50));
+        s.transition("step2", changes);
+        assert_eq!(s.current_node, "step2");
+        assert_eq!(s.history.len(), 1);
+        assert_eq!(s.history[0].from_node, "start");
+        assert_eq!(s.history[0].to_node, "step2");
+    }
+
+    #[test]
+    fn test_transition_merges_data() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        s.set("keep", "yes");
+        let mut changes = HashMap::new();
+        changes.insert("new_key".to_string(), serde_json::json!("new_val"));
+        s.transition("step2", changes);
+        assert_eq!(s.get("keep"), Some(&serde_json::json!("yes")));
+        assert_eq!(s.get("new_key"), Some(&serde_json::json!("new_val")));
+    }
+
+    #[test]
+    fn test_transition_updates_timestamp() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        let before = s.updated_at;
+        // Small delay to ensure timestamp difference
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        s.transition("step2", HashMap::new());
+        assert!(s.updated_at >= before);
+    }
+
+    #[test]
+    fn test_multiple_transitions() {
+        let mut s = WorkflowState::new("wf-1", "a");
+        s.transition("b", HashMap::new());
+        s.transition("c", HashMap::new());
+        assert_eq!(s.current_node, "c");
+        assert_eq!(s.history.len(), 2);
+        assert_eq!(s.history[0].to_node, "b");
+        assert_eq!(s.history[1].to_node, "c");
+    }
+
+    #[test]
+    fn test_status_variants() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        s.status = WorkflowStatus::Running;
+        assert_eq!(s.status, WorkflowStatus::Running);
+        s.status = WorkflowStatus::Completed;
+        assert_eq!(s.status, WorkflowStatus::Completed);
+    }
+
+    #[test]
+    fn test_state_serialization_roundtrip() {
+        let mut s = WorkflowState::new("wf-1", "start");
+        s.set("key", "value");
+        s.transition("step2", HashMap::new());
+        let json = serde_json::to_string(&s).unwrap();
+        let restored: WorkflowState = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.workflow_id, "wf-1");
+        assert_eq!(restored.current_node, "step2");
+        assert_eq!(restored.get("key"), Some(&serde_json::json!("value")));
+        assert_eq!(restored.history.len(), 1);
+    }
+}

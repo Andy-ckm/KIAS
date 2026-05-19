@@ -239,8 +239,8 @@ impl KiasConfig {
     /// Load configuration from the default path (`config/default.toml`) or
     /// from the path in the `KIAS_CONFIG` env var, with env-var overrides.
     pub fn load() -> Result<Self, KiasError> {
-        let config_path =
-            std::env::var("AgentGuard_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
+        let config_path = std::env::var("AgentGuard_CONFIG")
+            .unwrap_or_else(|_| "config/default.toml".to_string());
         Self::from_file(&config_path)
     }
 

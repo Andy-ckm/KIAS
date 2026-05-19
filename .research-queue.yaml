@@ -224,9 +224,30 @@ research_queue:
   - id: R030
     topic: "性能监控和优化"
     keywords: ["Linux performance monitoring", "performance tuning automation", "bottleneck detection", "resource optimization"]
-    status: pending
+    status: done
     priority: high
-    findings: ""
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 许可证 | 定位 |
+      |------|-------|------|--------|------|
+      | sysstat | 3320 | C | GPL-2.0 | 经典Linux性能监控(sar/iostat/mpstat) |
+      | bottom | 13346 | Rust | MIT | 跨平台系统监控TUI |
+      | intel/pcm | 3272 | C++ | BSD-3 | Intel CPU性能计数器 |
+      | uroboros | 673 | C | NOASSERTION | 单进程监控 |
+      | vps-audit | 1938 | Bash | MIT | 轻量VPS安全+性能审计 |
+      关键洞察:
+      - sysstat是数据采集层(bottom-up),不做分析和建议
+      - bottom是TUI展示层,不做瓶颈分析
+      - 竞品只采集+展示,不做"采集→基线→异常检测→瓶颈分析→优化建议"全链路
+      AgentGuard差异化:
+      - 全链路: 采集→基线建立→统计异常检测→瓶颈分析→优化建议
+      - 可追溯: 每次性能分析自动审计
+      - 可控: 阈值和指标可配置
+      - 瓶颈评分: CPU/内存/磁盘IO/网络/Swap/进程6维评分
+      实现状态:
+      - perf_monitor.rs: 39个测试, 0 clippy
+      - PerfMonitor: 12种指标类型, 6种瓶颈类型
+      - 统计异常检测: 2σ警告/3σ严重
 
   - id: R031
     topic: "用户和权限管理自动化"

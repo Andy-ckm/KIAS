@@ -150,7 +150,7 @@ impl AuditLog {
             signature: None,
         };
         conn.execute(
-            "INSERT INTO audit_log (id, timestamp, user, action, target, result, details, signature) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO audit_log (id, timestamp, user_name, action, target, result, details, signature, hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 entry.id.to_string(),
                 entry.timestamp.to_rfc3339(),
@@ -160,6 +160,7 @@ impl AuditLog {
                 entry.result,
                 entry.details,
                 entry.signature,
+                String::new(),
             ],
         )?;
         Ok(())

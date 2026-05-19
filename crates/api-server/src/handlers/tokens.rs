@@ -264,8 +264,8 @@ mod tests {
         // Create agents with different statuses (different base tokens)
         for (name, status) in [
             ("low-agent", AgentStatus::Pending),    // 0 tokens
-            ("mid-agent", AgentStatus::Scheduled),   // 2000 base
-            ("high-agent", AgentStatus::Succeeded),  // 45000 base
+            ("mid-agent", AgentStatus::Scheduled),  // 2000 base
+            ("high-agent", AgentStatus::Succeeded), // 45000 base
         ] {
             let spec = AgentSpec {
                 name: name.to_string(),

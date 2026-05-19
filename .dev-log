@@ -155,3 +155,4 @@ Total tests:
 [2026-05-20 02:10] api-server/nodes.rs: +9 tests + tracing日志 (0-test handler→9 tests) | 新四步法:Y(评估→审视→方案→开发) | 丰田五问:Y(根因:0-test handler是测试盲区) | 钱学森:Y(可观测性+工程化) | 测试:Y(346 passed, 0 clippy) | 总计:918 tests | 下一步:其他0-test handler(scheduler/tokens)添加测试
 [2026-05-20 02:35] api-server: scheduler.rs +4, tokens.rs +4, auth_gxp.rs +11 tests (+18 total) | 四步法:Y | 丰田五问:Y(根因:低测试handler) | 钱学森:Y(工程化+可观测性) | 测试:Y(936 passed, 0 clippy) | 下一步: context.rs/metrics.rs继续提测或研究R029
 [2026-05-20 02:50] R029备份恢复模块实现: backup_recovery.rs +46 tests, 0 clippy | 四步法:Y | 研究:Y(restic/borg/rustic竞品分析) | 丰田五问:Y(根因:备份工具不做恢复测试) | 钱学森:Y(整体性+可观测性+工程化) | 测试:Y(236 passed) | 磁盘清理:88%→48% | 下一步:R030性能监控或继续提测
+[2026-05-20 03:43] api-server/routes.rs: +26 integration tests (0→26, routing/auth/CORS/404/405) | 四步法:Y | 丰田五问:Y(根因:路由层0测试=无法发现路由装配错误) | 钱学森:Y(整体性:测试完整路由栈/工程化:oneshot集成测试) | 测试:Y(3289 passed, 0 clippy) | 下一步:context.rs/metrics.rs继续提测或研究R030

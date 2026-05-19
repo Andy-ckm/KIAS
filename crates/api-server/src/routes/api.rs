@@ -333,3 +333,428 @@ pub fn create_router(state: AppState) -> Router {
         .layer(cors)
         .with_state(state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        AppState::new_async(config).await
+    }
+
+    async fn test_state_with_auth() -> AppState {
+        let mut config = kias_common::config::KiasConfig::default();
+        config.api_server.auth_enabled = true;
+        config.api_server.jwt_secret = Some("test-secret".to_string());
+        config.api_server.api_keys = vec!["test-api-key".to_string()];
+        AppState::new_async(config).await
+    }
+
+    #[tokio::test]
+    async fn test_health_endpoint_public() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_readyz_endpoint_public() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_endpoint_public() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz/deep")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_route_returns_404() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/nonexistent")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_wrong_method_returns_405() {
+        let app = create_router(test_state().await);
+        // /health only accepts GET, POST should return 405
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(
+            response.status() == StatusCode::METHOD_NOT_ALLOWED
+                || response.status() == StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn test_list_agents_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/agents")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_list_nodes_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/nodes")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_scheduler_status_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/scheduler/status")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_token_analytics_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/tokens")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_list_workflows_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/workflows")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/cluster/status")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/metrics/summary")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_a2a_agent_cards_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/a2a/v1/agents")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_a2a_tasks_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/a2a/v1/tasks")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_well_known_agent_card() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/.well-known/agent.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_auth_enabled_rejects_no_token() {
+        let app = create_router(test_state_with_auth().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/agents")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_auth_enabled_accepts_api_key() {
+        let app = create_router(test_state_with_auth().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/agents")
+                    .header("Authorization", "Bearer test-api-key")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_auth_enabled_rejects_wrong_key() {
+        let app = create_router(test_state_with_auth().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/agents")
+                    .header("Authorization", "Bearer wrong-key")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_auth_enabled_health_still_public() {
+        let app = create_router(test_state_with_auth().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Health is in public_routes, should bypass auth
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_cors_headers_present() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .header("Origin", "https://example.com")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        // CORS layer should add access-control-allow-origin
+        let cors_header = response.headers().get("access-control-allow-origin");
+        assert!(cors_header.is_some(), "CORS header should be present");
+    }
+
+    #[tokio::test]
+    async fn test_im_platforms_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/im/platforms")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_routing_tiers_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/routing/tiers")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_config_endpoint_auth_disabled() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/config")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_context_stats_route_exists() {
+        let app = create_router(test_state().await);
+        // Non-existent session should return an error but not 404
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/context/test-session/stats")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Should not be 404 (route exists) — might be 400/500 depending on handler
+        assert_ne!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_knowledge_search_route_exists() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/knowledge/search?q=test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_ws_stats_endpoint() {
+        let app = create_router(test_state().await);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/ws/stats")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+}

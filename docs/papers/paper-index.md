@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (14:45)
+更新时间: 2026-05-19 (16:10)
 
-## 论文列表 (117 篇)
+## 论文列表 (133 篇)
 
-### 已下载论文 (106 篇)
+### 已下载论文 (122 篇)
 - ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
 - ✅ 2605.17641.pdf (Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents)
 - ✅ 2605.17625.pdf (Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents)
@@ -108,6 +108,22 @@
 - ✅ 2605.15425.pdf (Runtime-Structured Task Decomposition for Agentic Coding Systems)
 - ✅ 2605.10057.pdf (STAR: Failure-Aware Markovian Routing for Multi-Agent Spatiotemporal Reasoning)
 - ✅ 2604.27859.pdf (Rethinking Agentic Reinforcement Learning In Large Language Models)
+- ✅ 2605.18583.pdf (Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks)
+- ✅ 2605.18565.pdf (LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agents)
+- ✅ 2605.18421.pdf (EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective)
+- ✅ 2605.18150.pdf (Whispers in the Noise: Surrogate-Guided Concept Awakening via Multi-Agent Framework)
+- ✅ 2605.18077.pdf (LLM-Guided Communication for Cooperative Multi-Agent Reinforcement Learning)
+- ✅ 2605.18032.pdf (PROTEA: Offline Evaluation and Iterative Refinement for Multi-Agent LLM Workflows)
+- ✅ 2605.17986.pdf (LivePI: More Realistic Benchmarking of Agents Against Indirect Prompt Injection)
+- ✅ 2605.17596.pdf (NeuSymMS: A Hybrid Neuro-Symbolic Memory System for Persistent, Self-Curating LLM Agent Memory)
+- ✅ 2605.17041.pdf (Agentic AI Translate: An Agentic Translator Prototype for Translation as Communication)
+- ✅ 2605.16552.pdf (From Prompts to Protocols: An AI Agent for Laboratory Automation)
+- ✅ 2605.07414.pdf (OrchJail: Jailbreaking Tool-Calling Text-to-Image Agents by Orchestration-Guided Attack)
+- ✅ 2605.05191.pdf (LongSeeker: Elastic Context Orchestration for Long-Horizon Search Agents)
+- ✅ 2605.00742.pdf (Position: Agentic AI Orchestration Should be Bayes-Consistent)
+- ✅ 2604.11378.pdf (From Agent Loops to Structured Graphs: A Scheduler-Theoretic Framework for LLM Agents)
+- ✅ 2601.08173.pdf (The Agent's First Day: Benchmarking Learning, Exploration, and Scheduling in the Real World)
+- ✅ 2601.06425.pdf (HiDVFS: A Hierarchical Multi-Agent DVFS Scheduler for OpenMP DAG Workloads)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -120,6 +136,102 @@
 ---
 
 ## 全部论文清单
+
+**[2605.18583]** Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: coding agents, out-of-scope actions, agent tool use safety
+   - 链接: https://arxiv.org/abs/2605.18583
+   - 状态: ✅ 已下载 (1.8MB)
+
+**[2605.18565]** LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agents
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent memory, multi-target interference, long-horizon agents
+   - 链接: https://arxiv.org/abs/2605.18565
+   - 状态: ✅ 已下载 (770KB)
+
+**[2605.18421]** EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent memory benchmark, self-evolving memory, evaluation
+   - 链接: https://arxiv.org/abs/2605.18421
+   - 状态: ✅ 已下载 (28KB)
+
+**[2605.18150]** Whispers in the Noise: Surrogate-Guided Concept Awakening via a Multi-Agent Framework
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: multi-agent framework, concept awakening, surrogate-guided
+   - 链接: https://arxiv.org/abs/2605.18150
+   - 状态: ✅ 已下载 (884KB)
+
+**[2605.18077]** LLM-Guided Communication for Cooperative Multi-Agent Reinforcement Learning
+   - 日期: 2026-05-18 | 分类: cs.AI, cs.LG
+   - 主题: multi-agent RL, LLM-guided communication, cooperative learning
+   - 链接: https://arxiv.org/abs/2605.18077
+   - 状态: ✅ 已下载 (1.6MB)
+
+**[2605.18032]** PROTEA: Offline Evaluation and Iterative Refinement for Multi-Agent LLM Workflows
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: multi-agent workflows, offline evaluation, iterative refinement, tool use
+   - 链接: https://arxiv.org/abs/2605.18032
+   - 状态: ✅ 已下载 (1.2MB)
+
+**[2605.17986]** LivePI: More Realistic Benchmarking of Agents Against Indirect Prompt Injection
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent security, prompt injection, benchmarking, tool use
+   - 链接: https://arxiv.org/abs/2605.17986
+   - 状态: ✅ 已下载 (8KB)
+
+**[2605.17596]** NeuSymMS: A Hybrid Neuro-Symbolic Memory System for Persistent, Self-Curating LLM Agent Memory
+   - 日期: 2026-05-17 | 分类: cs.AI
+   - 主题: neuro-symbolic memory, persistent memory, self-curating agent memory
+   - 链接: https://arxiv.org/abs/2605.17596
+   - 状态: ✅ 已下载 (17KB)
+
+**[2605.17041]** Agentic AI Translate: An Agentic Translator Prototype for Translation as Communication
+   - 日期: 2026-05-17 | 分类: cs.CL, cs.AI
+   - 主题: agent communication, translation, A2A protocol
+   - 链接: https://arxiv.org/abs/2605.17041
+   - 状态: ✅ 已下载 (307KB)
+
+**[2605.16552]** From Prompts to Protocols: An AI Agent for Laboratory Automation
+   - 日期: 2026-05-16 | 分类: cs.AI
+   - 主题: agent protocol, laboratory automation, prompt-to-protocol
+   - 链接: https://arxiv.org/abs/2605.16552
+   - 状态: ✅ 已下载 (32KB)
+
+**[2605.07414]** OrchJail: Jailbreaking Tool-Calling Text-to-Image Agents by Orchestration-Guided Attack
+   - 日期: 2026-05-08 | 分类: cs.AI
+   - 主题: agent orchestration security, jailbreak, tool-calling agents
+   - 链接: https://arxiv.org/abs/2605.07414
+   - 状态: ✅ 已下载 (198KB)
+
+**[2605.05191]** LongSeeker: Elastic Context Orchestration for Long-Horizon Search Agents
+   - 日期: 2026-05-06 | 分类: cs.AI
+   - 主题: context orchestration, long-horizon search, elastic context
+   - 链接: https://arxiv.org/abs/2605.05191
+   - 状态: ✅ 已下载 (1.7MB)
+
+**[2605.00742]** Position: Agentic AI Orchestration Should be Bayes-Consistent
+   - 日期: 2026-05-01 | 分类: cs.AI
+   - 主题: agentic orchestration, Bayesian consistency, position paper
+   - 链接: https://arxiv.org/abs/2605.00742
+   - 状态: ✅ 已下载 (164KB)
+
+**[2604.11378]** From Agent Loops to Structured Graphs: A Scheduler-Theoretic Framework for LLM Agents
+   - 日期: 2026-04-15 | 分类: cs.AI
+   - 主题: agent scheduling, scheduler-theoretic framework, structured graphs
+   - 链接: https://arxiv.org/abs/2604.11378
+   - 状态: ✅ 已下载 (36KB)
+
+**[2601.08173]** The Agent's First Day: Benchmarking Learning, Exploration, and Scheduling in the Real World
+   - 日期: 2026-01-14 | 分类: cs.AI
+   - 主题: agent benchmarking, exploration, scheduling, real-world evaluation
+   - 链接: https://arxiv.org/abs/2601.08173
+   - 状态: ✅ 已下载 (865KB)
+
+**[2601.06425]** HiDVFS: A Hierarchical Multi-Agent DVFS Scheduler for OpenMP DAG Workloads
+   - 日期: 2026-01-10 | 分类: cs.DC, cs.AI
+   - 主题: multi-agent scheduling, DVFS, hierarchical scheduler, OpenMP
+   - 链接: https://arxiv.org/abs/2601.06425
+   - 状态: ✅ 已下载 (1.3MB)
 
 **[2605.17830]** Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents
    - 日期: 2026-05-18 | 分类: cs.AI

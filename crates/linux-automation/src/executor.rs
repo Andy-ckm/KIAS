@@ -18,8 +18,8 @@ pub struct SshSession {
 }
 
 /// 任务执行器
+#[allow(dead_code)]
 pub struct TaskExecutor {
-    #[allow(dead_code)]
     ssh_key_path: Option<std::path::PathBuf>,
     sessions: std::collections::HashMap<String, SshSession>,
     max_sessions: usize,
@@ -57,7 +57,8 @@ impl TaskExecutor {
     fn cleanup_sessions(&mut self) {
         let now = chrono::Utc::now();
         self.sessions.retain(|_, session| {
-            now.signed_duration_since(session.last_used) < chrono::Duration::from_std(self.session_timeout).unwrap()
+            now.signed_duration_since(session.last_used)
+                < chrono::Duration::from_std(self.session_timeout).unwrap()
         });
     }
 

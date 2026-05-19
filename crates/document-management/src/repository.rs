@@ -204,11 +204,10 @@ impl DocumentRepository {
 
     pub fn search(&self, query: &str) -> Result<Vec<Document>> {
         let conn = self.conn.lock().unwrap();
-
-        // 使用LIKE查询（FTS5在此环境中可能不可用）
         let search_pattern = format!("%{}%", query);
+
         let mut stmt = conn.prepare(
-            "SELECT id FROM documents WHERE title LIKE ?1 OR content LIKE ?1 OR category LIKE ?1 LIMIT 50",
+            "SELECT id FROM documents WHERE title LIKE ?1 OR content LIKE ?1 OR category LIKE ?1 OR tags LIKE ?1 ORDER BY updated_at DESC LIMIT 50",
         )?;
 
         let ids: Vec<String> = stmt

@@ -2952,3 +2952,37 @@ All crates now above 2.0 density (excluding benchmarks which is expected 0).
 
 ### Commits
 - `c398bcd` docs: Sprint 119 — test density push (+8 tests, all crates ≥2.0)
+
+## Sprint 121: 2026-05-19 08:17 (KIAS Auto Loop - it-change-management Test Density)
+
+### Quality Gates (08:17)
+| Check | Result |
+|--------|------|
+| cargo build | Pass |
+| cargo fmt | Pass |
+| cargo clippy | Zero warnings |
+| cargo test | **2939 passed**, 0 failed (+5 from Sprint 120) |
+| Disk (/) | 83% used |
+| Disk (/mnt) | 63% used |
+
+### Test Density Improvements
+| Crate/File | Before | After | Tests Added |
+|-----------|--------|-------|-------------|
+| it-change-management/service.rs | 1.95 | **2.06** | +5 (3→8) |
+
+### New Tests (5 total)
+**service.rs (5 tests)**:
+- test_routes_submit_for_review: draft→submitted state transition
+- test_routes_get_change: lookup by ID + nonexistent error
+- test_routes_get_statistics: stats after creating multiple changes
+- test_routes_add_comment: comment storage on change entity
+- test_routes_full_lifecycle: create→submit→approve→implement→verify→close
+
+### Code Statistics
+- **Total Rust LOC**: 141806
+- **Total Tests**: 2,939 (all passing)
+- **Crates**: 28
+- **All crates ≥ 2.0 density** ✅
+
+### Commits
+- `3885332` test(it-change-management): +5 service route tests, density 1.95→2.06

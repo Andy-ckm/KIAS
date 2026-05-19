@@ -379,6 +379,169 @@ mod tests {
     }
 
     #[test]
+    fn test_routes_rollback_change() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("回滚测试")).unwrap();
+
+        // Move to approved
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+        manager
+            .add_approver(
+                &change.id,
+                "approver1".to_string(),
+                "审批人".to_string(),
+                "经理".to_string(),
+            )
+            .unwrap();
+        let approve_req = ApproveChangeRequest {
+            approver_id: "approver1".to_string(),
+            decision: Decision::Approved,
+            signature_meaning: SignatureMeaning::Approval,
+            password_hash: "hash1".to_string(),
+            token_hash: "hash2".to_string(),
+            signer_name: "审批人".to_string(),
+            signer_title: "经理".to_string(),
+        };
+        routes::approve_change(&mut manager, &change.id, approve_req).unwrap();
+
+        // Implement
+        routes::implement_change(&mut manager, &change.id, "implementer").unwrap();
+
+        // Rollback
+        let result = routes::rollback_change(&mut manager, &change.id, "admin", "发现兼容性问题");
+        assert!(result.is_ok());
+
+        let rolled_back = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(rolled_back.status, ChangeStatus::RolledBack);
+    }
+
+    #[test]
+    fn test_routes_emergency_implement() {
+        let mut manager = ItChangeManager::new();
+        let mut req = create_test_request("紧急修复");
+        req.change_category = ChangeCategory::Emergency;
+        let change = routes::create_change(&mut manager, req).unwrap();
+
+        // Submit first
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+
+        // Emergency implement (skips approval)
+        let result = routes::emergency_implement(&mut manager, &change.id, "admin", "生产中断");
+        assert!(result.is_ok());
+
+        let emergency = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(emergency.status, ChangeStatus::EmergencyImplemented);
+        assert!(emergency.emergency_approval_deadline.is_some());
+    }
+
+    #[test]
+    fn test_routes_trigger_capa() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("CAPA测试")).unwrap();
+
+        let capa_req = TriggerCapaRequest {
+            triggered_by: "auditor".to_string(),
+            title: "发现合规问题".to_string(),
+            description: "变更过程中发现数据完整性问题".to_string(),
+        };
+        let result = routes::trigger_capa(&mut manager, &change.id, capa_req);
+        assert!(result.is_ok());
+
+        let capa_id = result.unwrap();
+        assert!(!capa_id.is_empty());
+
+        // Verify CAPA is stored on the change
+        let updated = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(updated.capa_records.len(), 1);
+        assert_eq!(updated.capa_records[0].id, capa_id);
+    }
+
+    #[test]
+    fn test_routes_approve_nonexistent_fails() {
+        let mut manager = ItChangeManager::new();
+        let approve_req = ApproveChangeRequest {
+            approver_id: "approver1".to_string(),
+            decision: Decision::Approved,
+            signature_meaning: SignatureMeaning::Approval,
+            password_hash: "hash1".to_string(),
+            token_hash: "hash2".to_string(),
+            signer_name: "审批人".to_string(),
+            signer_title: "经理".to_string(),
+        };
+        let result = routes::approve_change(&mut manager, "nonexistent-id", approve_req);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_routes_submit_nonexistent_fails() {
+        let mut manager = ItChangeManager::new();
+        let result = routes::submit_for_review(&mut manager, "nonexistent-id", "user");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_routes_rollback_draft_fails() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("草稿回滚")).unwrap();
+
+        // Cannot rollback a draft change
+        let result = routes::rollback_change(&mut manager, &change.id, "admin", "测试");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("只有实施中"));
+    }
+
+    #[test]
+    fn test_routes_emergency_on_normal_change_fails() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("普通变更")).unwrap();
+
+        // Emergency implement on a normal (non-emergency) change should fail
+        let result = routes::emergency_implement(&mut manager, &change.id, "admin", "测试");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("只有紧急变更"));
+    }
+
+    #[test]
+    fn test_routes_get_audit_log_nonexistent() {
+        let manager = ItChangeManager::new();
+        let audit = routes::get_audit_log(&manager, "nonexistent-id");
+        assert!(audit.is_empty());
+    }
+
+    #[test]
+    fn test_routes_add_comment_nonexistent_fails() {
+        let mut manager = ItChangeManager::new();
+        let comment_req = AddCommentRequest {
+            author: "user".to_string(),
+            content: "test".to_string(),
+            is_internal: false,
+        };
+        let result = routes::add_comment(&mut manager, "nonexistent-id", comment_req);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_routes_implement_wrong_state_fails() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("状态错误")).unwrap();
+
+        // Cannot implement a draft change (must be approved first)
+        let result = routes::implement_change(&mut manager, &change.id, "implementer");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("只有已批准"));
+    }
+
+    #[test]
+    fn test_routes_close_non_verified_fails() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("关闭测试")).unwrap();
+
+        // Cannot close a draft change (must be verified first)
+        let result = routes::close_change(&mut manager, &change.id, "closer");
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_routes_full_lifecycle() {
         let mut manager = ItChangeManager::new();
         let change =

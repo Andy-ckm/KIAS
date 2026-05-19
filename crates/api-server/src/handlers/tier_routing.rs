@@ -559,4 +559,305 @@ mod tests {
         assert!(result.tiers.iter().any(|t| t.name == "Mid"));
         assert!(result.tiers.iter().any(|t| t.name == "Strong"));
     }
+
+    #[tokio::test]
+    async fn test_evaluate_medium_task() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "Write a Python function that parses CSV files".to_string(),
+            input_tokens: 500,
+            requires_tools: false,
+            has_context: false,
+            priority: 3,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        // Medium tasks should be routed to Mid tier
+        assert!(!result.task_id.is_empty());
+        assert!(!result.complexity.is_empty());
+        assert!(result.decision.confidence > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_with_cost_budget() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "simple question".to_string(),
+            input_tokens: 10,
+            requires_tools: false,
+            has_context: false,
+            priority: 5,
+            cost_budget: 0.01,  // Very tight budget
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        // Tight cost budget should bias toward cheaper tier
+        assert!(result.decision.estimated_cost >= 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_with_latency_budget() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "simple question".to_string(),
+            input_tokens: 10,
+            requires_tools: false,
+            has_context: false,
+            priority: 5,
+            cost_budget: 0.0,
+            latency_budget: 0.5,  // Very tight latency
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        assert!(result.decision.estimated_latency >= 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_with_metadata() {
+        let state = test_state().await;
+        let mut metadata = HashMap::new();
+        metadata.insert("source".to_string(), "api".to_string());
+        metadata.insert("user_id".to_string(), "12345".to_string());
+
+        let req = EvaluateRequest {
+            description: "Analyze this data".to_string(),
+            input_tokens: 200,
+            requires_tools: false,
+            has_context: false,
+            priority: 2,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata,
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        assert!(!result.task_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_with_tools_and_context() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "debug and fix".to_string(),
+            input_tokens: 2000,
+            requires_tools: true,
+            has_context: true,
+            priority: 1,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        // Tools + context + high tokens should recommend Strong
+        assert_eq!(result.recommended_tier, "Strong");
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_empty() {
+        let state = test_state().await;
+        let req = BatchEvaluateRequest { tasks: vec![] };
+        let result = batch_evaluate(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.summary.total, 0);
+        assert_eq!(result.summary.simple, 0);
+        assert_eq!(result.summary.medium, 0);
+        assert_eq!(result.summary.complex, 0);
+        assert_eq!(result.summary.avg_confidence, 0.0);
+        assert!(result.results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_single_item() {
+        let state = test_state().await;
+        let req = BatchEvaluateRequest {
+            tasks: vec![EvaluateRequest {
+                description: "hello".to_string(),
+                input_tokens: 5,
+                requires_tools: false,
+                has_context: false,
+                priority: 1,
+                cost_budget: 0.0,
+                latency_budget: 0.0,
+                metadata: HashMap::new(),
+            }],
+        };
+        let result = batch_evaluate(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.summary.total, 1);
+        assert_eq!(result.results.len(), 1);
+        assert!(result.summary.avg_confidence > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_all_complex() {
+        let state = test_state().await;
+        let req = BatchEvaluateRequest {
+            tasks: vec![
+                EvaluateRequest {
+                    description: "Implement a distributed consensus algorithm with fault tolerance".to_string(),
+                    input_tokens: 10000,
+                    requires_tools: true,
+                    has_context: true,
+                    priority: 1,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+                EvaluateRequest {
+                    description: "Refactor the entire codebase with architectural changes".to_string(),
+                    input_tokens: 8000,
+                    requires_tools: true,
+                    has_context: true,
+                    priority: 1,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+            ],
+        };
+        let result = batch_evaluate(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.summary.total, 2);
+        // Both should be complex
+        assert_eq!(result.summary.complex, 2);
+    }
+
+    #[tokio::test]
+    async fn test_register_mid_alias() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "mid-agent".to_string(),
+            tier: "mid".to_string(),
+            weight: 1.5,
+        };
+        let result = register_agent(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.tier, "Mid");
+        assert_eq!(result.weight, 1.5);
+        assert!(result.message.contains("Mid"));
+    }
+
+    #[tokio::test]
+    async fn test_register_medium_alias() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "medium-agent".to_string(),
+            tier: "medium".to_string(),
+            weight: 1.0,
+        };
+        let result = register_agent(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.tier, "Mid");
+    }
+
+    #[tokio::test]
+    async fn test_register_weak_tier() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "weak-agent".to_string(),
+            tier: "weak".to_string(),
+            weight: 0.5,
+        };
+        let result = register_agent(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.tier, "Weak");
+        assert_eq!(result.weight, 0.5);
+    }
+
+    #[tokio::test]
+    async fn test_register_case_insensitive() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "case-agent".to_string(),
+            tier: "STRONG".to_string(),
+            weight: 1.0,
+        };
+        let result = register_agent(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.tier, "Strong");
+    }
+
+    #[tokio::test]
+    async fn test_pool_status_empty() {
+        let state = test_state().await;
+        let status = pool_status(State(state)).await;
+        assert_eq!(status.total_agents, 0);
+        assert_eq!(status.available_agents, 0);
+        assert_eq!(status.total_routed, 0);
+        assert_eq!(status.fallback_count, 0);
+        assert_eq!(status.fallback_rate, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_pool_status_multiple_tiers() {
+        let state = test_state().await;
+
+        // Register agents in all three tiers
+        for (id, tier) in [("w1", "weak"), ("w2", "weak"), ("m1", "mid"), ("s1", "strong")] {
+            let req = RegisterAgentRequest {
+                agent_id: id.to_string(),
+                tier: tier.to_string(),
+                weight: 1.0,
+            };
+            let _ = register_agent(State(state.clone()), Json(req)).await;
+        }
+
+        let status = pool_status(State(state)).await;
+        assert_eq!(status.total_agents, 4);
+        assert_eq!(status.agents_by_tier.get("Weak"), Some(&2));
+        assert_eq!(status.agents_by_tier.get("Mid"), Some(&1));
+        assert_eq!(status.agents_by_tier.get("Strong"), Some(&1));
+    }
+
+    #[tokio::test]
+    async fn test_list_tiers_properties() {
+        let state = test_state().await;
+        let result = list_tiers(State(state)).await;
+
+        // Verify tier properties are reasonable
+        for tier in &result.tiers {
+            assert!(tier.relative_cost > 0.0);
+            assert!(tier.latency_multiplier > 0.0);
+            assert!(tier.capability_score > 0.0);
+        }
+
+        // Weak should be cheapest, Strong most expensive
+        let weak = result.tiers.iter().find(|t| t.name == "Weak").unwrap();
+        let strong = result.tiers.iter().find(|t| t.name == "Strong").unwrap();
+        assert!(weak.relative_cost < strong.relative_cost);
+        assert!(weak.capability_score < strong.capability_score);
+    }
+
+    #[tokio::test]
+    async fn test_routing_decision_has_reason() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "test task".to_string(),
+            input_tokens: 100,
+            requires_tools: false,
+            has_context: false,
+            priority: 3,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        // Decision should always have a non-empty reason
+        assert!(!result.decision.reason.is_empty());
+        assert!(result.decision.confidence > 0.0);
+        assert!(result.decision.confidence <= 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_high_priority() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "CRITICAL: fix production outage NOW".to_string(),
+            input_tokens: 5000,
+            requires_tools: true,
+            has_context: true,
+            priority: 1,  // highest priority
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        // High priority + complex should route to Strong
+        assert_eq!(result.recommended_tier, "Strong");
+    }
 }

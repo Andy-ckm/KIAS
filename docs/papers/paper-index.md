@@ -1,11 +1,14 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (18:50)
+更新时间: 2026-05-19 (20:20)
 
-## 论文列表 (142 篇)
+## 论文列表 (145 篇)
 
-### 已下载论文 (131 篇)
+### 已下载论文 (134 篇)
 - ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
+- ✅ 2605.16198.pdf (Formal Methods Meet LLMs: Auditing, Monitoring, and Intervention for Compliance of Advanced AI Systems)
+- ✅ 2605.15569.pdf (Detecting Privilege Escalation in Polyglot Microservices via Agentic Program Analysis)
+- ✅ 2605.15281.pdf (Autonomous Intelligent Agents for Natural-Language-Driven Web Execution with Integrated Security Assurance)
 - ✅ 2605.17641.pdf (Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents)
 - ✅ 2605.17625.pdf (Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents)
 - ✅ 2605.03989.pdf (An Agent-Oriented Pluggable Experience-RAG Skill for Experience-Driven Retrieval Strategy Orchestration)
@@ -145,6 +148,24 @@
 ---
 
 ## 全部论文清单
+
+**[2605.16198]** Formal Methods Meet LLMs: Auditing, Monitoring, and Intervention for Compliance of Advanced AI Systems
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: AI governance, compliance monitoring, formal methods, auditing, LLM safety
+   - 链接: https://arxiv.org/abs/2605.16198
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.15569]** Detecting Privilege Escalation in Polyglot Microservices via Agentic Program Analysis
+   - 日期: 2026-05-19 | 分类: cs.CR, cs.AI
+   - 主题: privilege escalation, microservices security, agentic analysis, program analysis
+   - 链接: https://arxiv.org/abs/2605.15569
+   - 状态: ✅ 已下载 (152KB)
+
+**[2605.15281]** Autonomous Intelligent Agents for Natural-Language-Driven Web Execution with Integrated Security Assurance
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: autonomous agents, web automation, security assurance, NL-driven execution
+   - 链接: https://arxiv.org/abs/2605.15281
+   - 状态: ✅ 已下载 (191KB)
 
 **[2605.15384]** Is One Score Enough? Rethinking the Evaluation of Sequentially Evolving LLM Memory
    - 日期: 2026-05-14 | 分类: cs.LG, cs.AI

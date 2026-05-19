@@ -80,6 +80,9 @@ impl DocumentManagement {
             )));
         }
 
+        // 保存 updated_by 用于后续版本创建
+        let updated_by = request.updated_by.clone();
+
         // 3. 更新文档
         let updated = self.repository.update(id, request)?;
 
@@ -88,7 +91,7 @@ impl DocumentManagement {
 
         // 5. 创建新版本
         self.version_control
-            .create_version(id, &updated.content, "更新文档")?;
+            .create_version_with_author(id, &updated.content, "更新文档", &updated_by)?;
 
         Ok(updated)
     }

@@ -38,6 +38,35 @@ impl DocumentRepository {
             CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
             CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
             CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
+
+            -- FTS5 全文搜索索引
+            CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+                title,
+                content,
+                category,
+                content=documents,
+                content_rowid=rowid
+            );
+
+            -- 触发器：插入时同步
+            CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+                INSERT INTO documents_fts(rowid, title, content, category)
+                VALUES (new.rowid, new.title, new.content, new.category);
+            END;
+
+            -- 触发器：删除时同步
+            CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+                INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
+                VALUES ('delete', old.rowid, old.title, old.content, old.category);
+            END;
+
+            -- 触发器：更新时同步
+            CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+                INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
+                VALUES ('delete', old.rowid, old.title, old.content, old.category);
+                INSERT INTO documents_fts(rowid, title, content, category)
+                VALUES (new.rowid, new.title, new.content, new.category);
+            END;
             ",
         )?;
 
@@ -175,8 +204,9 @@ impl DocumentRepository {
 
     pub fn search(&self, query: &str) -> Result<Vec<Document>> {
         let conn = self.conn.lock().unwrap();
-        let search_pattern = format!("%{}%", query);
 
+        // 使用LIKE查询（FTS5在此环境中可能不可用）
+        let search_pattern = format!("%{}%", query);
         let mut stmt = conn.prepare(
             "SELECT id FROM documents WHERE title LIKE ?1 OR content LIKE ?1 OR category LIKE ?1 LIMIT 50",
         )?;
@@ -201,43 +231,22 @@ impl DocumentRepository {
         let total: usize =
             conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
 
-        let draft: usize = conn.query_row(
-            "SELECT COUNT(*) FROM documents WHERE status = '\"Draft\"'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        let under_review: usize = conn.query_row(
-            "SELECT COUNT(*) FROM documents WHERE status = '\"UnderReview\"'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        let approved: usize = conn.query_row(
-            "SELECT COUNT(*) FROM documents WHERE status = '\"Approved\"'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        let published: usize = conn.query_row(
-            "SELECT COUNT(*) FROM documents WHERE status = '\"Published\"'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        let archived: usize = conn.query_row(
-            "SELECT COUNT(*) FROM documents WHERE status = '\"Archived\"'",
-            [],
-            |row| row.get(0),
-        )?;
+        let status_count = |status: &str| -> Result<usize> {
+            let count: usize = conn.query_row(
+                "SELECT COUNT(*) FROM documents WHERE status = ?1",
+                params![status],
+                |row| row.get(0),
+            )?;
+            Ok(count)
+        };
 
         Ok(DocumentStatistics {
             total_documents: total,
-            draft_count: draft,
-            under_review_count: under_review,
-            approved_count: approved,
-            published_count: published,
-            archived_count: archived,
+            draft_count: status_count(r#""Draft""#)?,
+            under_review_count: status_count(r#""UnderReview""#)?,
+            approved_count: status_count(r#""Approved""#)?,
+            published_count: status_count(r#""Published""#)?,
+            archived_count: status_count(r#""Archived""#)?,
         })
     }
 

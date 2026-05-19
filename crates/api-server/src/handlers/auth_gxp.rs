@@ -238,4 +238,74 @@ mod tests {
             Role::Admin
         );
     }
+
+    #[test]
+    fn test_map_roles_empty_defaults_to_viewer() {
+        assert_eq!(map_roles(&[]), Role::Viewer);
+    }
+
+    #[test]
+    fn test_map_roles_unknown_role_defaults_to_viewer() {
+        assert_eq!(map_roles(&["unknown".to_string()]), Role::Viewer);
+    }
+
+    #[test]
+    fn test_map_roles_case_sensitive_admin() {
+        // "Admin" matches because of the || check for "Admin"
+        assert_eq!(map_roles(&["Admin".to_string()]), Role::Admin);
+    }
+
+    #[test]
+    fn test_map_roles_case_sensitive_operator() {
+        assert_eq!(map_roles(&["Operator".to_string()]), Role::Operator);
+    }
+
+    #[test]
+    fn test_auth_error_invalid_credentials() {
+        let (status, body) = auth_error_response(AuthError::InvalidCredentials, "");
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body.code, "INVALID_CREDENTIALS");
+    }
+
+    #[test]
+    fn test_auth_error_user_not_found() {
+        let (status, body) = auth_error_response(AuthError::UserNotFound, "");
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body.code, "USER_NOT_FOUND");
+    }
+
+    #[test]
+    fn test_auth_error_two_factor_invalid() {
+        let (status, body) = auth_error_response(AuthError::TwoFactorInvalid, "");
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body.code, "2FA_INVALID");
+    }
+
+    #[test]
+    fn test_auth_error_session_expired() {
+        let (status, body) = auth_error_response(AuthError::SessionExpired, "");
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body.code, "SESSION_EXPIRED");
+    }
+
+    #[test]
+    fn test_auth_error_password_reused() {
+        let (status, body) = auth_error_response(AuthError::PasswordReused, "");
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body.code, "PASSWORD_REUSED");
+    }
+
+    #[test]
+    fn test_auth_error_with_detail() {
+        let (status, body) = auth_error_response(AuthError::InvalidCredentials, "extra info");
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert!(body.error.contains("extra info"));
+    }
+
+    #[test]
+    fn test_create_gxp_auth_state() {
+        let state = create_gxp_auth_state(PasswordPolicy::default());
+        // Should be a valid Arc<Mutex<GxpAuthManager>>
+        assert!(Arc::strong_count(&state) >= 1);
+    }
 }

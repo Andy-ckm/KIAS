@@ -110,4 +110,31 @@ mod tests {
         assert_eq!(check.resource, "server1");
         assert_eq!(check.action, "reboot");
     }
+
+    #[test]
+    fn test_permission_check_clone() {
+        let check = PermissionCheck {
+            allowed: true,
+            user: "admin".to_string(),
+            resource: "server1".to_string(),
+            action: "reboot".to_string(),
+        };
+        let cloned = check.clone();
+        assert_eq!(cloned.allowed, check.allowed);
+        assert_eq!(cloned.user, check.user);
+        assert_eq!(cloned.resource, check.resource);
+        assert_eq!(cloned.action, check.action);
+    }
+
+    #[test]
+    fn test_permission_check_denied() {
+        let check = PermissionCheck {
+            allowed: false,
+            user: "guest".to_string(),
+            resource: "server1".to_string(),
+            action: "reboot".to_string(),
+        };
+        assert!(!check.allowed);
+        assert_eq!(check.user, "guest");
+    }
 }

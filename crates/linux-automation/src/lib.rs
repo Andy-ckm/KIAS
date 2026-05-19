@@ -167,4 +167,50 @@ mod tests {
         let history = automation.get_task_history(Some(10)).unwrap();
         assert!(history.is_empty());
     }
+
+    #[test]
+    fn test_get_audit_log_empty() {
+        let (config, _tmp) = create_test_config();
+        let automation = LinuxAutomation::new(config).unwrap();
+        let log = automation.get_audit_log(Some(10)).unwrap();
+        assert!(log.is_empty());
+    }
+
+    #[test]
+    fn test_get_statistics_all_zero() {
+        let (config, _tmp) = create_test_config();
+        let automation = LinuxAutomation::new(config).unwrap();
+        let stats = automation.get_statistics().unwrap();
+        assert_eq!(stats.total_tasks, 0);
+        assert_eq!(stats.successful_tasks, 0);
+        assert_eq!(stats.failed_tasks, 0);
+        assert_eq!(stats.pending_tasks, 0);
+        assert_eq!(stats.audit_entries, 0);
+        assert!(stats.last_scan_time.is_none());
+    }
+
+    #[test]
+    fn test_create_automation_with_ssh_key() {
+        let tmp = TempDir::new().unwrap();
+        let key_path = tmp.path().join("id_rsa");
+        std::fs::write(&key_path, "fake-key").unwrap();
+        let config = LinuxAutomationConfig {
+            database_path: tmp.path().join("test.db"),
+            playbook_dir: tmp.path().join("playbooks"),
+            ssh_key_path: Some(key_path),
+            log_dir: tmp.path().join("logs"),
+            target_hosts: vec!["10.0.0.1".to_string(), "10.0.0.2".to_string()],
+            compliance_tool: ComplianceTool::Lynis,
+        };
+        let automation = LinuxAutomation::new(config);
+        assert!(automation.is_ok());
+    }
+
+    #[test]
+    fn test_get_task_history_limit_none() {
+        let (config, _tmp) = create_test_config();
+        let automation = LinuxAutomation::new(config).unwrap();
+        let history = automation.get_task_history(None).unwrap();
+        assert!(history.is_empty());
+    }
 }

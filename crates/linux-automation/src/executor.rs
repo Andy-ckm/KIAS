@@ -293,4 +293,55 @@ mod tests {
         assert_eq!(stats.total_tasks, 0);
         assert!(stats.last_scan_time.is_none());
     }
+
+    #[test]
+    fn test_ssh_session_fields() {
+        let session = SshSession {
+            host: "10.0.0.1".to_string(),
+            port: 22,
+            username: "admin".to_string(),
+            key_path: None,
+            connected: false,
+            last_used: chrono::Utc::now(),
+        };
+        assert_eq!(session.host, "10.0.0.1");
+        assert_eq!(session.port, 22);
+        assert_eq!(session.username, "admin");
+        assert!(!session.connected);
+        assert!(session.key_path.is_none());
+    }
+
+    #[test]
+    fn test_ssh_session_clone() {
+        let session = SshSession {
+            host: "server1".to_string(),
+            port: 2222,
+            username: "root".to_string(),
+            key_path: Some(std::path::PathBuf::from("/root/.ssh/id_rsa")),
+            connected: true,
+            last_used: chrono::Utc::now(),
+        };
+        let cloned = session.clone();
+        assert_eq!(cloned.host, session.host);
+        assert_eq!(cloned.port, session.port);
+        assert_eq!(cloned.connected, session.connected);
+    }
+
+    #[test]
+    fn test_executor_sessions_start_empty() {
+        let (executor, _tmp) = create_test_executor();
+        assert!(executor.sessions.is_empty());
+    }
+
+    #[test]
+    fn test_executor_max_sessions_default() {
+        let (executor, _tmp) = create_test_executor();
+        assert_eq!(executor.max_sessions, 10);
+    }
+
+    #[test]
+    fn test_executor_session_timeout_default() {
+        let (executor, _tmp) = create_test_executor();
+        assert_eq!(executor.session_timeout, std::time::Duration::from_secs(300));
+    }
 }

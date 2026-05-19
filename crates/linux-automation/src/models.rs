@@ -109,6 +109,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: NetworkAction,
     },
+    /// 服务管理 (R033) — systemd/nginx/mysql/redis
+    ServiceOps {
+        hosts: Vec<String>,
+        action: ServiceAction,
+    },
 }
 
 /// 任务优先级
@@ -1115,6 +1120,76 @@ pub struct NetworkOpsResult {
     pub port_results: Vec<PortCheckResult>,
     pub connections: Vec<NetworkConnection>,
     pub firewall_rules: Vec<FirewallRule>,
+    pub output: String,
+    pub errors: Vec<String>,
+}
+
+// R033: 服务管理数据模型 — systemd/nginx/mysql/redis
+
+/// 服务操作类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ServiceAction {
+    /// systemd: 启动服务
+    Start { service: String },
+    /// systemd: 停止服务
+    Stop { service: String },
+    /// systemd: 重启服务
+    Restart { service: String },
+    /// systemd: 查看服务状态
+    Status { service: String },
+    /// systemd: 启用开机自启
+    Enable { service: String },
+    /// systemd: 禁用开机自启
+    Disable { service: String },
+    /// systemd: 查看服务日志
+    Logs { service: String, lines: u32 },
+    /// systemd: 列出所有服务
+    ListUnits { unit_type: String },
+    /// systemd: 列出失败的服务
+    ListFailed {},
+    /// systemd: 重载 systemd 配置
+    DaemonReload {},
+    /// nginx: 重载配置
+    NginxReload {},
+    /// nginx: 测试配置
+    NginxTest {},
+    /// nginx: 查看状态
+    NginxStatus {},
+    /// mysql: 查看状态
+    MysqlStatus {},
+    /// mysql: 执行查询
+    MysqlQuery { query: String },
+    /// mysql: 检查表
+    MysqlCheckTables { database: String },
+    /// redis: 查看状态
+    RedisStatus {},
+    /// redis: 查看信息
+    RedisInfo {},
+    /// redis: 执行命令
+    RedisCommand { command: String },
+}
+
+/// 服务信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ServiceInfo {
+    pub name: String,
+    pub unit_type: String,
+    pub active_state: String,
+    pub sub_state: String,
+    pub description: String,
+    pub enabled: bool,
+}
+
+/// 服务操作结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ServiceOpsResult {
+    pub action: String,
+    pub service: String,
+    pub success: bool,
+    pub active_state: Option<String>,
+    pub sub_state: Option<String>,
+    pub enabled: Option<bool>,
+    pub services: Vec<ServiceInfo>,
     pub output: String,
     pub errors: Vec<String>,
 }

@@ -291,7 +291,6 @@ impl DocumentRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::document::*;
     use tempfile::TempDir;
 
     fn setup_repo() -> (TempDir, DocumentRepository) {

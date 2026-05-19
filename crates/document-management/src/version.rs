@@ -206,7 +206,9 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let vc = VersionControl::new(&db_path).unwrap();
 
-        let version = vc.create_version_with_author("doc1", "content", "测试", "test-user").unwrap();
+        let version = vc
+            .create_version_with_author("doc1", "content", "测试", "test-user")
+            .unwrap();
         assert_eq!(version.created_by, "test-user");
         assert_eq!(version.version, 1);
     }

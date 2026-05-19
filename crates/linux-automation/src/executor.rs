@@ -61,17 +61,30 @@ impl TaskExecutor {
     async fn execute_on_host(&self, host: &str, command: &str) -> Result<HostResult> {
         let start = Instant::now();
 
-        // 使用 tokio::process 执行 SSH 命令
-        let output = tokio::process::Command::new("ssh")
-            .arg("-o")
-            .arg("StrictHostKeyChecking=no")
-            .arg("-o")
-            .arg("ConnectTimeout=10")
-            .arg(host)
-            .arg(command)
-            .output()
-            .await
-            .map_err(|e| AutomationError::CommandExecution(format!("SSH 执行失败: {}", e)))?;
+        // 构建SSH命令
+        let mut ssh_cmd = tokio::process::Command::new("ssh");
+        ssh_cmd.arg("-o").arg("StrictHostKeyChecking=no");
+        ssh_cmd.arg("-o").arg("ConnectTimeout=10");
+        ssh_cmd.arg("-o").arg("ServerAliveInterval=15");
+        ssh_cmd.arg("-o").arg("ServerAliveCountMax=3");
+
+        // 添加SSH密钥（如果指定）
+        if let Some(key_path) = &self.ssh_key_path {
+            if key_path.exists() {
+                ssh_cmd.arg("-i").arg(key_path);
+            }
+        }
+
+        ssh_cmd.arg(host).arg(command);
+
+        // 执行命令，带超时
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(300),  // 5分钟超时
+            ssh_cmd.output()
+        )
+        .await
+        .map_err(|_| AutomationError::CommandExecution("SSH 执行超时 (300秒)".to_string()))?
+        .map_err(|e| AutomationError::CommandExecution(format!("SSH 执行失败: {}", e)))?;
 
         let duration = start.elapsed().as_millis() as u64;
 

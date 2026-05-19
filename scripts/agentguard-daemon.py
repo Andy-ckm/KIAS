@@ -191,6 +191,7 @@ class AgentGuardDaemon:
     def check_tests(self) -> tuple:
         """检查测试状态"""
         code, stdout, stderr = self.run_command("cargo test --workspace 2>&1 | grep 'test result:'")
+        self.log(self.current_iteration, f"测试命令返回: code={code}, stdout长度={len(stdout)}, stderr长度={len(stderr)}")
         if code == 0:
             # 解析测试结果
             lines = stdout.strip().split("\n")

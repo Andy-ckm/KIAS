@@ -6,6 +6,7 @@ use chrono::Utc;
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::sync::Mutex;
+use tracing::debug;
 use uuid::Uuid;
 
 /// 审计统计
@@ -161,6 +162,8 @@ impl AuditLog {
             details: None,
             signature: None,
         };
+        debug!(user = %user, action = %action, target = %target, "审计记录");
+
         conn.execute(
             "INSERT INTO audit_log (id, timestamp, user_name, action, target, result, details, signature, hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![

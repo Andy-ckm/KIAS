@@ -203,6 +203,20 @@ impl LinuxAutomation {
                     audit_trail: vec![],
                 }
             }
+            TaskType::BackupOps { hosts, action: _ } => {
+                // TODO: 实现备份操作
+                let summary = format!("备份操作 {} 台主机 (待实现)", hosts.len());
+                AutomationResult {
+                    task_id,
+                    task_type: "BackupOps".to_string(),
+                    status: TaskStatus::Failed,
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
         };
 
         // 3. 更新任务状态

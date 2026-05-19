@@ -35,6 +35,18 @@ pub enum AutomationError {
     #[error("合规扫描失败: {0}")]
     ComplianceScan(String),
 
+    #[error("备份操作失败: {0}")]
+    BackupOperation(String),
+
+    #[error("备份未找到: {0}")]
+    BackupNotFound(String),
+
+    #[error("备份验证失败: {0}")]
+    BackupVerificationFailed(String),
+
+    #[error("恢复失败: {0}")]
+    RestoreFailed(String),
+
     #[error("锁中毒: {0}")]
     LockPoisoned(String),
 

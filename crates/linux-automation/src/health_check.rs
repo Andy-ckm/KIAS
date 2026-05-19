@@ -5,6 +5,7 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
 
 use crate::audit::AuditLog;
 use crate::error::Result;
@@ -140,6 +141,13 @@ impl HealthChecker {
             host,
             &format!("巡检完成, 状态: {:?}", report.overall_status),
         )?;
+
+        match report.overall_status {
+            HealthStatus::Healthy => info!(host = %host, "巡检正常"),
+            HealthStatus::Warning => warn!(host = %host, "巡检发现警告"),
+            HealthStatus::Critical => warn!(host = %host, "巡检发现严重问题"),
+            HealthStatus::Unknown => warn!(host = %host, "巡检状态未知"),
+        }
 
         Ok(report)
     }

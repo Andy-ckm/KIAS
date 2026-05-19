@@ -30,6 +30,7 @@ members = [
     "crates/auto-loop",
     "crates/it-change-management",
     "crates/linux-automation",
+    "crates/document-management",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

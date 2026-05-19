@@ -188,4 +188,79 @@ mod tests {
         assert_eq!(log.len(), 1);
         assert_eq!(log[0].user, "test-user");
     }
+
+    #[test]
+    fn test_multiple_audit_entries() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        for i in 0..3 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: format!("user-{}", i),
+                priority: TaskPriority::Normal,
+            };
+
+            let result = AutomationResult {
+                task_id: task.id,
+                task_type: "CustomCommand".to_string(),
+                status: TaskStatus::Success,
+                started_at: Utc::now(),
+                completed_at: Some(Utc::now()),
+                host_results: vec![],
+                summary: "Test".to_string(),
+                audit_trail: vec![],
+            };
+
+            audit.record_task_execution(&task, &result).unwrap();
+        }
+
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 3);
+
+        let log = audit.get_audit_log(Some(10)).unwrap();
+        assert_eq!(log.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_log_limit() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        for i in 0..5 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "test-user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+
+            let result = AutomationResult {
+                task_id: task.id,
+                task_type: "CustomCommand".to_string(),
+                status: TaskStatus::Success,
+                started_at: Utc::now(),
+                completed_at: Some(Utc::now()),
+                host_results: vec![],
+                summary: "Test".to_string(),
+                audit_trail: vec![],
+            };
+
+            audit.record_task_execution(&task, &result).unwrap();
+        }
+
+        let log = audit.get_audit_log(Some(3)).unwrap();
+        assert_eq!(log.len(), 3);
+    }
 }

@@ -1363,12 +1363,22 @@ async fn handle_linux(action: kias_cli::LinuxAction, _cli: &Cli) -> i32 {
 
     match action {
         kias_cli::LinuxAction::Scan { host, profile } => {
-            println!("{}: 执行合规扫描 {} (profile: {})", "→".blue().bold(), host, profile);
+            println!(
+                "{}: 执行合规扫描 {} (profile: {})",
+                "→".blue().bold(),
+                host,
+                profile
+            );
             println!("{}: 扫描任务已提交", "✓".green().bold());
             ExitCode::Success as i32
         }
         kias_cli::LinuxAction::Patch { host, packages } => {
-            println!("{}: 安装补丁 {} on {}", "→".blue().bold(), packages.join(", "), host);
+            println!(
+                "{}: 安装补丁 {} on {}",
+                "→".blue().bold(),
+                packages.join(", "),
+                host
+            );
             println!("{}: 补丁安装任务已提交", "✓".green().bold());
             ExitCode::Success as i32
         }
@@ -1391,7 +1401,12 @@ async fn handle_linux(action: kias_cli::LinuxAction, _cli: &Cli) -> i32 {
             ExitCode::Success as i32
         }
         kias_cli::LinuxAction::Report { host, format } => {
-            println!("{}: 查询合规报告 {} (格式: {})", "→".blue().bold(), host, format);
+            println!(
+                "{}: 查询合规报告 {} (格式: {})",
+                "→".blue().bold(),
+                host,
+                format
+            );
             ExitCode::Success as i32
         }
         kias_cli::LinuxAction::Audit { limit } => {

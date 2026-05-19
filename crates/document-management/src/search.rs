@@ -1,8 +1,8 @@
 //! 文档全文搜索引擎
 //! 支持 FTS5 全文搜索 + 元数据过滤
 
-use crate::error::{DocumentError, Result};
 use crate::document::*;
+use crate::error::{DocumentError, Result};
 use serde::{Deserialize, Serialize};
 
 /// 搜索查询
@@ -58,7 +58,8 @@ impl DocumentSearchEngine {
     /// 构建 FTS5 查询
     pub fn build_fts_query(query: &SearchQuery) -> Option<String> {
         query.text.as_ref().map(|text| {
-            let terms: Vec<String> = text.split_whitespace()
+            let terms: Vec<String> = text
+                .split_whitespace()
                 .map(|t| format!("\"{}\"", t.replace('"', "")))
                 .collect();
             terms.join(" OR ")
@@ -74,7 +75,11 @@ impl DocumentSearchEngine {
         if let Some(pos) = lower_text.find(&lower_query) {
             let start = pos.saturating_sub(context_chars);
             let end = (pos + query.len() + context_chars).min(text.len());
-            let snippet = if start > 0 { format!("...{}...", &text[start..end]) } else { format!("{}...", &text[..end]) };
+            let snippet = if start > 0 {
+                format!("...{}...", &text[start..end])
+            } else {
+                format!("{}...", &text[..end])
+            };
             snippets.push(snippet);
         }
 
@@ -89,11 +94,16 @@ pub struct TagIndex {
 
 impl TagIndex {
     pub fn new() -> Self {
-        Self { tags: std::collections::HashMap::new() }
+        Self {
+            tags: std::collections::HashMap::new(),
+        }
     }
 
     pub fn add(&mut self, tag: &str, doc_id: &str) {
-        self.tags.entry(tag.to_string()).or_default().push(doc_id.to_string());
+        self.tags
+            .entry(tag.to_string())
+            .or_default()
+            .push(doc_id.to_string());
     }
 
     pub fn find_by_tag(&self, tag: &str) -> Vec<String> {

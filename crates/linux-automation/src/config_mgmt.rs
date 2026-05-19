@@ -1,8 +1,8 @@
 //! 配置管理模块
 //! 管理 Linux 系统配置的版本化和漂移检测
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// 配置快照
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,9 +51,15 @@ impl DriftDetector {
 
     /// 生成配置检查命令
     pub fn build_check_commands(&self) -> Vec<String> {
-        self.monitored_paths.iter().map(|path| {
-            format!("md5sum {} 2>/dev/null || echo 'FILE_NOT_FOUND {}'", path, path)
-        }).collect()
+        self.monitored_paths
+            .iter()
+            .map(|path| {
+                format!(
+                    "md5sum {} 2>/dev/null || echo 'FILE_NOT_FOUND {}'",
+                    path, path
+                )
+            })
+            .collect()
     }
 
     /// 添加监控路径

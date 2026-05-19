@@ -1,20 +1,20 @@
 1|<p align="center">
-  <a href="https://github.com/Andy-ckm/AgentGuard/blob/main/LICENSE">
+  <a href="https://github.com/Andy-ckm/KIAS/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://github.com/Andy-ckm/AgentGuard/actions">
+  <a href="https://github.com/Andy-ckm/KIAS/actions">
     <img src="https://img.shields.io/badge/tests-2307%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
   </a>
-  <a href="https://github.com/Andy-ckm/AgentGuard">
+  <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/badge/crates-26-purple.svg" alt="Crates">
   </a>
-  <a href="https://github.com/Andy-ckm/AgentGuard">
+  <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/badge/LOC-110K%2B-blue.svg" alt="Lines of Code">
   </a>
-  <a href="https://github.com/Andy-ckm/AgentGuard">
+  <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/github/stars/Andy-ckm/AgentGuard?style=social" alt="Stars">
   </a>
 </p>
@@ -515,7 +515,7 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 
 ```bash
 # Download and install
-curl -LO https://github.com/Andy-ckm/AgentGuard/releases/latest/download/kias-amd64.deb
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.deb
 sudo dpkg -i kias-amd64.deb
 
 # Start as systemd service
@@ -530,7 +530,7 @@ journalctl -u kias -f
 
 ```bash
 # Download and install
-curl -LO https://github.com/Andy-ckm/AgentGuard/releases/latest/download/kias-amd64.rpm
+curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.rpm
 sudo rpm -i kias-amd64.rpm
 
 # Start as systemd service
@@ -550,7 +550,7 @@ docker run -d --name kias -p 8080:8080 ghcr.io/andy-ckm/kias:latest
 
 ```bash
 # 1. Clone
-git clone https://github.com/Andy-ckm/AgentGuard.git
+git clone https://github.com/Andy-ckm/KIAS.git
 cd AgentGuard
 
 # 2. Build

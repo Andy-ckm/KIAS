@@ -1,10 +1,14 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (09:10)
+更新时间: 2026-05-19 (14:45)
 
-## 论文列表 (113 篇)
+## 论文列表 (117 篇)
 
-### 已下载论文 (102 篇)
+### 已下载论文 (106 篇)
+- ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
+- ✅ 2605.17641.pdf (Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents)
+- ✅ 2605.17625.pdf (Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents)
+- ✅ 2605.03989.pdf (An Agent-Oriented Pluggable Experience-RAG Skill for Experience-Driven Retrieval Strategy Orchestration)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
 - ✅ 2605.15237.pdf (A3D: Agentic AI flow for autonomous Accelerator Design)
 - ✅ 2605.15206.pdf (AgentStop: Terminating Local AI Agents Early to Save Energy in Consumer Devices)
@@ -116,6 +120,30 @@
 ---
 
 ## 全部论文清单
+
+**[2605.17830]** Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent memory safety, longitudinal risks, memory-equipped agents
+   - 链接: https://arxiv.org/abs/2605.17830
+   - 状态: ✅ 已下载 (20KB)
+
+**[2605.17641]** Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents
+   - 日期: 2026-05-17 | 分类: cs.AI
+   - 主题: causal intervention, memory selection, long-horizon agents
+   - 链接: https://arxiv.org/abs/2605.17641
+   - 状态: ✅ 已下载 (956KB)
+
+**[2605.17625]** Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents
+   - 日期: 2026-05-17 | 分类: cs.AI
+   - 主题: episodic memory, semantic memory, scientific agents, context management
+   - 链接: https://arxiv.org/abs/2605.17625
+   - 状态: ✅ 已下载 (783KB)
+
+**[2605.03989]** An Agent-Oriented Pluggable Experience-RAG Skill for Experience-Driven Retrieval Strategy Orchestration
+   - 日期: 2026-05-05 | 分类: cs.AI
+   - 主题: experience-RAG, retrieval orchestration, agent skills, pluggable architecture
+   - 链接: https://arxiv.org/abs/2605.03989
+   - 状态: ✅ 已下载 (255KB)
 
 **[2605.15665]** PRISM: Prompt Reliability via Iterative Simulation and Monitoring for Enterprise Conversational AI
    - 日期: 2026-05-19 | 分类: cs.AI

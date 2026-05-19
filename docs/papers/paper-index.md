@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (06:55)
+更新时间: 2026-05-19 (07:58)
 
-## 论文列表 (107 篇)
+## 论文列表 (110 篇)
 
-### 已下载论文 (96 篇)
+### 已下载论文 (99 篇)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
 - ✅ 2605.15237.pdf (A3D: Agentic AI flow for autonomous Accelerator Design)
 - ✅ 2605.15206.pdf (AgentStop: Terminating Local AI Agents Early to Save Energy in Consumer Devices)
@@ -98,6 +98,9 @@
 - ✅ 2605.15573.pdf (Response-Conditioned Parallel-to-Sequential Orchestration for Multi-Agent Systems)
 - ✅ 2605.16144.pdf (MAxLM: Multi-Agent Language Model-Based Scheduling and Resource Allocation)
 - ✅ 2605.15486.pdf (Hybrid LLM-based Intelligent Framework for Robot Task Scheduling)
+- ✅ 2605.15425.pdf (Runtime-Structured Task Decomposition for Agentic Coding Systems)
+- ✅ 2605.10057.pdf (STAR: Failure-Aware Markovian Routing for Multi-Agent Spatiotemporal Reasoning)
+- ✅ 2604.27859.pdf (Rethinking Agentic Reinforcement Learning In Large Language Models)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -139,6 +142,24 @@
    - 日期: 2026-05-19 | 分类: cs.AI
    - 主题: LLM scheduling, robot task scheduling, hybrid framework
    - 链接: https://arxiv.org/abs/2605.15486
+   - 状态: ✅ 已下载
+
+**[2605.15425]** Runtime-Structured Task Decomposition for Agentic Coding Systems
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agentic coding, task decomposition, runtime-structured
+   - 链接: https://arxiv.org/abs/2605.15425
+   - 状态: ✅ 已下载
+
+**[2605.10057]** STAR: Failure-Aware Markovian Routing for Multi-Agent Spatiotemporal Reasoning
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: multi-agent routing, failure-aware, spatiotemporal reasoning, Markovian
+   - 链接: https://arxiv.org/abs/2605.10057
+   - 状态: ✅ 已下载
+
+**[2604.27859]** Rethinking Agentic Reinforcement Learning In Large Language Models
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agentic RL, LLM, reinforcement learning paradigm shift
+   - 链接: https://arxiv.org/abs/2604.27859
    - 状态: ✅ 已下载
 
 0. **[2605.14866]** Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought

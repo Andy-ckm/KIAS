@@ -440,7 +440,13 @@ mod tests {
         assert!(engine.list_policies().await.is_empty());
 
         engine
-            .add_policy(make_policy("p1", "Admin", "agent", "Read", PolicyEffect::Allow))
+            .add_policy(make_policy(
+                "p1",
+                "Admin",
+                "agent",
+                "Read",
+                PolicyEffect::Allow,
+            ))
             .await;
         assert_eq!(engine.list_policies().await.len(), 1);
     }

@@ -124,7 +124,8 @@ pub async fn audit_middleware(
         return next.run(request).await;
     }
 
-    let action = action.unwrap();
+    // SAFETY: should_audit is true only when action is Some
+    let action = action.expect("action is Some when should_audit is true");
     let resource_type = infer_resource_type(&uri);
     let resource_id = infer_resource_id(&uri);
     let ip = addr.ip().to_string();
@@ -225,10 +226,7 @@ mod tests {
     #[test]
     fn test_method_to_action_head_options() {
         assert_eq!(method_to_action(&Method::HEAD), Some(AuditAction::Read));
-        assert_eq!(
-            method_to_action(&Method::OPTIONS),
-            Some(AuditAction::Read)
-        );
+        assert_eq!(method_to_action(&Method::OPTIONS), Some(AuditAction::Read));
     }
 
     #[test]
@@ -274,10 +272,7 @@ mod tests {
 
     #[test]
     fn test_infer_resource_id_deep_path() {
-        assert_eq!(
-            infer_resource_id("/api/v1/agents/123/config"),
-            "123"
-        );
+        assert_eq!(infer_resource_id("/api/v1/agents/123/config"), "123");
     }
 
     #[test]

@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (16:10)
+更新时间: 2026-05-19 (17:30)
 
-## 论文列表 (133 篇)
+## 论文列表 (137 篇)
 
-### 已下载论文 (122 篇)
+### 已下载论文 (126 篇)
 - ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
 - ✅ 2605.17641.pdf (Causal Intervention-Based Memory Selection for Long-Horizon LLM Agents)
 - ✅ 2605.17625.pdf (Episodic-Semantic Memory Architecture for Long-Horizon Scientific Agents)
@@ -124,6 +124,10 @@
 - ✅ 2604.11378.pdf (From Agent Loops to Structured Graphs: A Scheduler-Theoretic Framework for LLM Agents)
 - ✅ 2601.08173.pdf (The Agent's First Day: Benchmarking Learning, Exploration, and Scheduling in the Real World)
 - ✅ 2601.06425.pdf (HiDVFS: A Hierarchical Multi-Agent DVFS Scheduler for OpenMP DAG Workloads)
+- ✅ 2605.15461.pdf (DrugSAGE: Self-evolving Agent Experience for Efficient Drug Discovery)
+- ✅ 2510.10454.pdf (Traj-CoA: Patient Trajectory Modeling via Chain-of-Agents)
+- ✅ 2605.15537.pdf (RTL-BenchMT: Dynamic RTL Benchmark via Agent-Assisted Analysis)
+- ✅ 2605.15542.pdf (DRS-GUI: Dynamic Region Search for Training-Free GUI Grounding)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -136,6 +140,30 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15542]** DRS-GUI: Dynamic Region Search for Training-Free GUI Grounding
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CV
+   - 主题: GUI agents, visual grounding, multimodal LLMs
+   - 链接: https://arxiv.org/abs/2605.15542
+   - 状态: ✅ 已下载 (272KB)
+
+**[2605.15537]** RTL-BenchMT: Dynamic Maintenance of RTL Generation Benchmark via Agent-Assisted Analysis
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agentic benchmark, RTL generation, LLM-assisted EDA
+   - 链接: https://arxiv.org/abs/2605.15537
+   - 状态: ✅ 已下载 (1.6MB)
+
+**[2605.15461]** DrugSAGE: Self-evolving Agent Experience for Efficient State-of-the-Art Drug Discovery
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: self-evolving agents, experience retention, tool discovery
+   - 链接: https://arxiv.org/abs/2605.15461
+   - 状态: ✅ 已下载 (2.3MB)
+
+**[2510.10454]** Traj-CoA: Patient Trajectory Modeling via Chain-of-Agents for Lung Cancer Risk Prediction
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: multi-agent chain, trajectory modeling, agentic reasoning
+   - 链接: https://arxiv.org/abs/2510.10454
+   - 状态: ✅ 已下载 (1016KB)
 
 **[2605.18583]** Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks
    - 日期: 2026-05-18 | 分类: cs.AI

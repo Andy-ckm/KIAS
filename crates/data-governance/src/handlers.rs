@@ -246,4 +246,113 @@ mod tests {
         assert_eq!(parse_policy_effect("DENY"), Some(PolicyEffect::Deny));
         assert_eq!(parse_policy_effect("unknown"), None);
     }
+
+    #[test]
+    fn test_parse_audit_action_all_variants() {
+        assert_eq!(parse_audit_action("create"), Some(AuditAction::Create));
+        assert_eq!(parse_audit_action("read"), Some(AuditAction::Read));
+        assert_eq!(parse_audit_action("update"), Some(AuditAction::Update));
+        assert_eq!(parse_audit_action("delete"), Some(AuditAction::Delete));
+        assert_eq!(parse_audit_action("login"), Some(AuditAction::Login));
+        assert_eq!(parse_audit_action("logout"), Some(AuditAction::Logout));
+        assert_eq!(parse_audit_action("schedule"), Some(AuditAction::Schedule));
+        assert_eq!(parse_audit_action("execute"), Some(AuditAction::Execute));
+    }
+
+    #[test]
+    fn test_parse_audit_action_configchange_alias() {
+        assert_eq!(
+            parse_audit_action("configchange"),
+            Some(AuditAction::ConfigChange)
+        );
+        assert_eq!(
+            parse_audit_action("CONFIG_CHANGE"),
+            Some(AuditAction::ConfigChange)
+        );
+    }
+
+    #[test]
+    fn test_parse_audit_action_case_insensitive() {
+        assert_eq!(parse_audit_action("CREATE"), Some(AuditAction::Create));
+        assert_eq!(parse_audit_action("Update"), Some(AuditAction::Update));
+        assert_eq!(parse_audit_action("DELETE"), Some(AuditAction::Delete));
+    }
+
+    #[test]
+    fn test_default_true() {
+        assert!(default_true());
+    }
+
+    #[test]
+    fn test_default_limit() {
+        assert_eq!(default_limit(), 100);
+    }
+
+    #[test]
+    fn test_policy_request_deserialization() {
+        let json = serde_json::json!({
+            "name": "test-policy",
+            "role": "admin",
+            "resource_type": "document",
+            "action": "read",
+            "effect": "allow"
+        });
+        let req: PolicyRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.name, "test-policy");
+        assert_eq!(req.role, "admin");
+        assert_eq!(req.action, "read");
+        assert!(req.enabled); // default_true
+        assert!(req.description.is_empty()); // default
+        assert!(req.id.is_none());
+    }
+
+    #[test]
+    fn test_policy_request_with_id() {
+        let json = serde_json::json!({
+            "id": "custom-id",
+            "name": "test",
+            "role": "user",
+            "resource_type": "file",
+            "action": "delete",
+            "effect": "deny",
+            "enabled": false
+        });
+        let req: PolicyRequest = serde_json::from_value(json).unwrap();
+        assert_eq!(req.id, Some("custom-id".to_string()));
+        assert!(!req.enabled);
+    }
+
+    #[test]
+    fn test_audit_query_deserialization() {
+        let json = serde_json::json!({
+            "actor": "alice",
+            "action": "read",
+            "resource_type": "document",
+            "limit": 50
+        });
+        let query: AuditQuery = serde_json::from_value(json).unwrap();
+        assert_eq!(query.actor, Some("alice".to_string()));
+        assert_eq!(query.limit, 50);
+    }
+
+    #[test]
+    fn test_audit_query_defaults() {
+        let json = serde_json::json!({});
+        let query: AuditQuery = serde_json::from_value(json).unwrap();
+        assert_eq!(query.limit, 100);
+        assert!(query.actor.is_none());
+        assert!(query.action.is_none());
+        assert!(query.resource_type.is_none());
+    }
+
+    #[test]
+    fn test_data_source_info_serialization() {
+        let info = DataSourceInfo {
+            name: "test-db".to_string(),
+            status: "connected".to_string(),
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["name"], "test-db");
+        assert_eq!(json["status"], "connected");
+    }
 }

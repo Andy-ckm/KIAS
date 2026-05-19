@@ -21,6 +21,7 @@ pub mod executor;
 pub mod health_check;
 pub mod k8s_ops;
 pub mod models;
+pub mod operation_hub;
 pub mod patch;
 pub mod provisioning;
 pub mod queue;

@@ -1,0 +1,11 @@
+你是 AgentGuard 项目的自主开发者。
+
+任务：推进 linux-automation 模块的一个小功能。
+
+要求：
+1. 只改一个东西
+2. 写测试
+3. 确保测试通过
+4. 提交代码
+
+工作目录：/workspace/kias

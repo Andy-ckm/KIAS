@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
 # 更新时间: 2026-05-20 02:10
 
-iteration: 19
-last_run: "2026-05-20T02:10:00Z"
-last_commit: "0b7864a"
+iteration: 20
+last_run: "2026-05-20T02:35:00Z"
+last_commit: "15e8964"
 status: active
 
 # 各模块状态
@@ -93,19 +93,19 @@ modules:
     blockers: []
 
   api-server:
-    tests: 346
+    tests: 364
     status: IMPROVING
     features_done:
       - nodes.rs handler tests (+9) ✅
       - nodes.rs tracing日志 ✅
-    next_step: "其他0-test handler添加测试 (scheduler, tokens)"
+    next_step: "context.rs(5)和metrics.rs(5)可继续提测密度"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 918
+  total_tests: 936
   domain_tests: 572
-  api_server_tests: 346
+  api_server_tests: 364
   clippy_warnings: 0
   production_unwrap: 0
   tracing_coverage: "linux-automation integrated, api-server/nodes.rs integrated"

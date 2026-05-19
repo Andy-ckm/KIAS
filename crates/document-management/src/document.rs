@@ -68,7 +68,6 @@ pub struct DocumentMetadata {
     pub gxp_relevant: bool,
 }
 
-
 /// 创建文档请求
 #[derive(Debug, Clone)]
 pub struct CreateDocumentRequest {

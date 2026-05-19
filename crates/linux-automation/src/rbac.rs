@@ -27,19 +27,33 @@ impl RbacManager {
         let enforcer = Enforcer::new(m, a)
             .await
             .map_err(|e| AutomationError::Config(format!("创建RBAC引擎失败: {}", e)))?;
-        Ok(Self { enforcer: Arc::new(RwLock::new(enforcer)) })
+        Ok(Self {
+            enforcer: Arc::new(RwLock::new(enforcer)),
+        })
     }
 
-    pub async fn check_permission(&self, user: &str, resource: &str, action: &str) -> Result<PermissionCheck> {
+    pub async fn check_permission(
+        &self,
+        user: &str,
+        resource: &str,
+        action: &str,
+    ) -> Result<PermissionCheck> {
         let e = self.enforcer.read().await;
-        let allowed = e.enforce((user, resource, action))
+        let allowed = e
+            .enforce((user, resource, action))
             .map_err(|e| AutomationError::PermissionDenied(format!("权限检查失败: {}", e)))?;
-        Ok(PermissionCheck { allowed, user: user.into(), resource: resource.into(), action: action.into() })
+        Ok(PermissionCheck {
+            allowed,
+            user: user.into(),
+            resource: resource.into(),
+            action: action.into(),
+        })
     }
 
     pub async fn add_role(&self, user: &str, role: &str) -> Result<()> {
         let mut e = self.enforcer.write().await;
-        e.add_role_for_user(user, role, None).await
+        e.add_role_for_user(user, role, None)
+            .await
             .map_err(|e| AutomationError::Other(format!("添加角色失败: {}", e)))?;
         Ok(())
     }

@@ -464,6 +464,22 @@
 | 磁盘空间 (/mnt) | 55% 已用 (13G 可用) ✅ |
 | 代码行数 | 138,376 lines (Rust) |
 
+
+### ✅ 知识层测试密度提升 (Sprint 127)
+- **Step 1 评估**: 知识层6个模块density<2.0，合并不需要（跨模块引用仅7个）
+- **Step 2 审视**: 10,794行 / 236测试 / density 2.19，最低: memory_layers(1.37)
+- **Step 3 方案**: Pivot — 提升最低密度模块测试覆盖
+- **Step 4 开发**: +47 tests
+
+| Module | Before | After | Change |
+|--------|--------|-------|--------|
+| memory_layers.rs | 10 tests (1.37) | 32 tests (3.32) | +22 |
+| retriever.rs | 10 tests (1.90) | 23 tests (3.59) | +13 |
+| quality_pipeline.rs | 19 tests (1.91) | 31 tests (3.12) | +12 |
+
+**总计**: 3009 → 3056 tests (+47), knowledge density 2.19 → 2.43
+**质量门**: fmt ✓ | clippy ✓ | test ✓ (0 failed)
+
 ### 🔄 四步法评估：知识层组合优化
 - **Step 1 评估**: Cron prompt 建议合并知识层 10 模块为 3 组
 - **Step 2 审视**: 知识层 10,848 行 / 236 测试 / density 2.18，模块职责清晰无重复

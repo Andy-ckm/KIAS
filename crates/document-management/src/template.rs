@@ -148,3 +148,76 @@ impl TemplateLibrary {
         vec![Self::sop_template(), Self::validation_protocol_template()]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sop_template_id() {
+        let tpl = TemplateLibrary::sop_template();
+        assert_eq!(tpl.id, "tpl-sop-001");
+    }
+
+    #[test]
+    fn test_sop_template_sections_count() {
+        let tpl = TemplateLibrary::sop_template();
+        assert_eq!(tpl.sections.len(), 6);
+    }
+
+    #[test]
+    fn test_sop_template_required_signatures() {
+        let tpl = TemplateLibrary::sop_template();
+        assert_eq!(tpl.required_signatures.len(), 3);
+        assert!(tpl.required_signatures.contains(&"编写人".to_string()));
+        assert!(tpl.required_signatures.contains(&"审核人".to_string()));
+        assert!(tpl.required_signatures.contains(&"批准人".to_string()));
+    }
+
+    #[test]
+    fn test_sop_template_section_ordering() {
+        let tpl = TemplateLibrary::sop_template();
+        for (i, section) in tpl.sections.iter().enumerate() {
+            assert_eq!(section.order, (i + 1) as u32);
+        }
+    }
+
+    #[test]
+    fn test_validation_protocol_template_id() {
+        let tpl = TemplateLibrary::validation_protocol_template();
+        assert_eq!(tpl.id, "tpl-vp-001");
+    }
+
+    #[test]
+    fn test_validation_protocol_sections_count() {
+        let tpl = TemplateLibrary::validation_protocol_template();
+        assert_eq!(tpl.sections.len(), 7);
+    }
+
+    #[test]
+    fn test_all_templates_count() {
+        let templates = TemplateLibrary::all_templates();
+        assert_eq!(templates.len(), 2);
+    }
+
+    #[test]
+    fn test_template_categories() {
+        let sop = TemplateLibrary::sop_template();
+        assert!(matches!(sop.category, TemplateCategory::SOP));
+        let vp = TemplateLibrary::validation_protocol_template();
+        assert!(matches!(vp.category, TemplateCategory::Protocol));
+    }
+
+    #[test]
+    fn test_sop_first_section_required() {
+        let tpl = TemplateLibrary::sop_template();
+        assert!(tpl.sections[0].required);
+    }
+
+    #[test]
+    fn test_sop_reference_section_optional() {
+        let tpl = TemplateLibrary::sop_template();
+        let ref_section = tpl.sections.iter().find(|s| s.title == "参考文件").unwrap();
+        assert!(!ref_section.required);
+    }
+}

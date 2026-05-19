@@ -14,6 +14,7 @@ pub mod error;
 pub mod executor;
 pub mod models;
 pub mod queue;
+pub mod rbac;
 pub mod scanner;
 
 pub use audit::AuditLog;

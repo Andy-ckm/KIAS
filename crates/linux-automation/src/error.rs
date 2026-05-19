@@ -61,6 +61,8 @@ pub enum AutomationError {
 
     #[error("网络操作失败: {0}")]
     NetworkOperation(String),
+    #[error("服务操作失败: {0}")]
+    ServiceOperation(String),
 
     #[error("其他错误: {0}")]
     Other(String),

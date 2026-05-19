@@ -257,7 +257,10 @@ impl EnterpriseDocumentManager {
     }
 
     pub fn list_documents_by_status(&self, status: &DocumentStatus) -> Vec<&DocumentMetadata> {
-        self.documents.values().filter(|d| d.status == *status).collect()
+        self.documents
+            .values()
+            .filter(|d| d.status == *status)
+            .collect()
     }
 
     pub fn submit_for_review(&mut self, document_id: &str, submitter: &str) -> Result<(), String> {
@@ -277,7 +280,12 @@ impl EnterpriseDocumentManager {
         Ok(())
     }
 
-    pub fn approve_document(&mut self, document_id: &str, approver: &str, approver_title: &str) -> Result<(), String> {
+    pub fn approve_document(
+        &mut self,
+        document_id: &str,
+        approver: &str,
+        approver_title: &str,
+    ) -> Result<(), String> {
         let doc = self.documents.get_mut(document_id).ok_or("文档未找到")?;
         if doc.status != DocumentStatus::UnderReview {
             return Err("只有审核中的文档才能批准".to_string());
@@ -342,7 +350,12 @@ impl EnterpriseDocumentManager {
         Ok(())
     }
 
-    pub fn obsolete_document(&mut self, document_id: &str, obsoleter: &str, reason: &str) -> Result<(), String> {
+    pub fn obsolete_document(
+        &mut self,
+        document_id: &str,
+        obsoleter: &str,
+        reason: &str,
+    ) -> Result<(), String> {
         let doc = self.documents.get_mut(document_id).ok_or("文档未找到")?;
         if doc.status == DocumentStatus::Archived {
             return Err("已归档的文档不能废弃".to_string());
@@ -386,7 +399,10 @@ impl EnterpriseDocumentManager {
         checks.push(ComplianceCheck {
             name: "文件完整性".to_string(),
             passed: !doc.file_hash.is_empty(),
-            detail: format!("SHA-256: {}...", &doc.file_hash[..16.min(doc.file_hash.len())]),
+            detail: format!(
+                "SHA-256: {}...",
+                &doc.file_hash[..16.min(doc.file_hash.len())]
+            ),
             reference: "FDA 21 CFR Part 11 §11.10(c)".to_string(),
         });
         checks.push(ComplianceCheck {
@@ -402,7 +418,8 @@ impl EnterpriseDocumentManager {
             reference: "GAMP 5".to_string(),
         });
 
-        let score = (checks.iter().filter(|c| c.passed).count() as f64 / checks.len() as f64) * 100.0;
+        let score =
+            (checks.iter().filter(|c| c.passed).count() as f64 / checks.len() as f64) * 100.0;
 
         Ok(ComplianceCheckResult {
             document_id: document_id.to_string(),
@@ -416,7 +433,10 @@ impl EnterpriseDocumentManager {
     pub fn get_statistics(&self) -> DocumentStatistics {
         let total = self.documents.len();
         let by_status = |status: &DocumentStatus| -> usize {
-            self.documents.values().filter(|d| d.status == *status).count()
+            self.documents
+                .values()
+                .filter(|d| d.status == *status)
+                .count()
         };
         DocumentStatistics {
             total,
@@ -474,13 +494,25 @@ mod tests {
         let mut manager = EnterpriseDocumentManager::new();
         let doc = create_test_doc(&mut manager);
         manager.submit_for_review(&doc.id, "张三").unwrap();
-        assert_eq!(manager.get_document(&doc.id).unwrap().status, DocumentStatus::UnderReview);
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::UnderReview
+        );
         manager.approve_document(&doc.id, "王五", "QA经理").unwrap();
-        assert_eq!(manager.get_document(&doc.id).unwrap().status, DocumentStatus::Approved);
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::Approved
+        );
         manager.publish_document(&doc.id, "王五").unwrap();
-        assert_eq!(manager.get_document(&doc.id).unwrap().status, DocumentStatus::Published);
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::Published
+        );
         manager.archive_document(&doc.id, "系统").unwrap();
-        assert_eq!(manager.get_document(&doc.id).unwrap().status, DocumentStatus::Archived);
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::Archived
+        );
     }
 
     #[test]
@@ -498,7 +530,12 @@ mod tests {
         create_test_doc(&mut manager);
         create_test_doc(&mut manager);
         assert_eq!(manager.list_documents().len(), 2);
-        assert_eq!(manager.list_documents_by_status(&DocumentStatus::Draft).len(), 2);
+        assert_eq!(
+            manager
+                .list_documents_by_status(&DocumentStatus::Draft)
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -542,7 +579,207 @@ mod tests {
         manager.submit_for_review(&doc.id, "张三").unwrap();
         manager.approve_document(&doc.id, "李四", "QA经理").unwrap();
         manager.publish_document(&doc.id, "李四").unwrap();
-        manager.obsolete_document(&doc.id, "系统", "新版已发布").unwrap();
-        assert_eq!(manager.get_document(&doc.id).unwrap().status, DocumentStatus::Obsolete);
+        manager
+            .obsolete_document(&doc.id, "系统", "新版已发布")
+            .unwrap();
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::Obsolete
+        );
+    }
+
+    #[test]
+    fn test_get_document_not_found() {
+        let manager = EnterpriseDocumentManager::new();
+        assert!(manager.get_document("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_list_documents_empty() {
+        let manager = EnterpriseDocumentManager::new();
+        assert!(manager.list_documents().is_empty());
+    }
+
+    #[test]
+    fn test_list_documents_by_status_no_match() {
+        let mut manager = EnterpriseDocumentManager::new();
+        create_test_doc(&mut manager); // creates Draft
+        assert!(manager
+            .list_documents_by_status(&DocumentStatus::Published)
+            .is_empty());
+    }
+
+    #[test]
+    fn test_submit_review_not_found() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let result = manager.submit_for_review("nonexistent", "张三");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_submit_review_wrong_status() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager);
+        manager.submit_for_review(&doc.id, "张三").unwrap();
+        // Try submitting again when already UnderReview
+        let result = manager.submit_for_review(&doc.id, "李四");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "只有草稿状态的文档才能提交审核");
+    }
+
+    #[test]
+    fn test_approve_not_found() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let result = manager.approve_document("nonexistent", "张三", "QA经理");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_approve_wrong_status() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager); // Draft
+        let result = manager.approve_document(&doc.id, "张三", "QA经理");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "只有审核中的文档才能批准");
+    }
+
+    #[test]
+    fn test_publish_not_found() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let result = manager.publish_document("nonexistent", "张三");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_publish_wrong_status() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager); // Draft
+        let result = manager.publish_document(&doc.id, "张三");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "只有已批准的文档才能发布");
+    }
+
+    #[test]
+    fn test_archive_not_found() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let result = manager.archive_document("nonexistent", "张三");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_archive_wrong_status() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager); // Draft
+        let result = manager.archive_document(&doc.id, "张三");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "只有已发布或已废弃的文档才能归档");
+    }
+
+    #[test]
+    fn test_obsolete_not_found() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let result = manager.obsolete_document("nonexistent", "张三", "reason");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_obsolete_archived_doc() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager);
+        // Draft → UnderReview → Approved → Published → Archived
+        manager.submit_for_review(&doc.id, "张三").unwrap();
+        manager.approve_document(&doc.id, "李四", "QA经理").unwrap();
+        manager.publish_document(&doc.id, "王五").unwrap();
+        manager.archive_document(&doc.id, "系统").unwrap();
+        let result = manager.obsolete_document(&doc.id, "赵六", "reason");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "已归档的文档不能废弃");
+    }
+
+    #[test]
+    fn test_archive_from_obsolete() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager);
+        // Draft → UnderReview → Approved → Published → Obsolete → Archived
+        manager.submit_for_review(&doc.id, "张三").unwrap();
+        manager.approve_document(&doc.id, "李四", "QA经理").unwrap();
+        manager.publish_document(&doc.id, "王五").unwrap();
+        manager.obsolete_document(&doc.id, "赵六", "old").unwrap();
+        manager.archive_document(&doc.id, "系统").unwrap();
+        assert_eq!(
+            manager.get_document(&doc.id).unwrap().status,
+            DocumentStatus::Archived
+        );
+    }
+
+    #[test]
+    fn test_compliance_not_found() {
+        let manager = EnterpriseDocumentManager::new();
+        let result = manager.check_compliance("nonexistent");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "文档未找到");
+    }
+
+    #[test]
+    fn test_statistics_all_statuses() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let _doc1 = create_test_doc(&mut manager);
+        let doc2 = create_test_doc(&mut manager);
+        // Move doc2 to UnderReview
+        manager.submit_for_review(&doc2.id, "张三").unwrap();
+        let stats = manager.get_statistics();
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.draft, 1);
+        assert_eq!(stats.under_review, 1);
+        assert_eq!(stats.approved, 0);
+        assert_eq!(stats.published, 0);
+        assert_eq!(stats.archived, 0);
+        assert_eq!(stats.obsolete, 0);
+    }
+
+    #[test]
+    fn test_create_document_types() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let types = vec![
+            DocumentType::BatchRecord,
+            DocumentType::ValidationReport,
+            DocumentType::DeviationReport,
+            DocumentType::CapaReport,
+            DocumentType::TrainingMaterial,
+            DocumentType::EquipmentLog,
+            DocumentType::CalibrationRecord,
+            DocumentType::StabilityStudy,
+            DocumentType::Other("custom".to_string()),
+        ];
+        let prefixes = ["BR", "VR", "DR", "CAPA", "TM", "EL", "CR", "SS", "DOC"];
+        for (i, doc_type) in types.into_iter().enumerate() {
+            let doc = manager.create_document(
+                format!("Doc {}", i),
+                doc_type,
+                DocumentClassification::General,
+                "author".to_string(),
+                "dept".to_string(),
+                "/path".to_string(),
+                b"content",
+                "text/plain".to_string(),
+                vec![],
+            );
+            assert!(doc.document_number.starts_with(prefixes[i]));
+        }
+    }
+
+    #[test]
+    fn test_version_history_recorded() {
+        let mut manager = EnterpriseDocumentManager::new();
+        let doc = create_test_doc(&mut manager);
+        let meta = manager.get_document(&doc.id).unwrap();
+        assert_eq!(meta.version_history.len(), 1);
+        assert_eq!(meta.version_history[0].version, "1.0");
+        assert_eq!(meta.version_history[0].reason, "初始版本");
     }
 }

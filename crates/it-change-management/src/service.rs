@@ -617,7 +617,8 @@ mod tests {
     #[test]
     fn test_routes_statistics_after_lifecycle() {
         let mut manager = ItChangeManager::new();
-        let change = routes::create_change(&mut manager, create_test_request("统计生命周期")).unwrap();
+        let change =
+            routes::create_change(&mut manager, create_test_request("统计生命周期")).unwrap();
 
         // Submit
         routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
@@ -635,7 +636,14 @@ mod tests {
 
         // Submit + Approve
         routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
-        manager.add_approver(&change.id, "a1".to_string(), "审批人".to_string(), "经理".to_string()).unwrap();
+        manager
+            .add_approver(
+                &change.id,
+                "a1".to_string(),
+                "审批人".to_string(),
+                "经理".to_string(),
+            )
+            .unwrap();
         let approve_req = ApproveChangeRequest {
             approver_id: "a1".to_string(),
             decision: Decision::Approved,

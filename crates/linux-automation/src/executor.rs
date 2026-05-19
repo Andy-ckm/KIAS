@@ -79,8 +79,8 @@ impl TaskExecutor {
 
         // 执行命令，带超时
         let output = tokio::time::timeout(
-            std::time::Duration::from_secs(300),  // 5分钟超时
-            ssh_cmd.output()
+            std::time::Duration::from_secs(300), // 5分钟超时
+            ssh_cmd.output(),
         )
         .await
         .map_err(|_| AutomationError::CommandExecution("SSH 执行超时 (300秒)".to_string()))?

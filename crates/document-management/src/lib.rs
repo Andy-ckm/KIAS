@@ -101,8 +101,12 @@ impl DocumentManagement {
         self.storage.store(id, &updated.content)?;
 
         // 5. 创建新版本
-        self.version_control
-            .create_version_with_author(id, &updated.content, "更新文档", &updated_by)?;
+        self.version_control.create_version_with_author(
+            id,
+            &updated.content,
+            "更新文档",
+            &updated_by,
+        )?;
 
         // 6. 审计日志
         audit::record_audit(
@@ -127,8 +131,9 @@ impl DocumentManagement {
             )));
         }
 
-        let result = self.repository
-            .update_status(id, DocumentStatus::UnderReview, submitted_by)?;
+        let result =
+            self.repository
+                .update_status(id, DocumentStatus::UnderReview, submitted_by)?;
 
         // 审计日志
         audit::record_audit(
@@ -164,7 +169,8 @@ impl DocumentManagement {
             self.signature_service.sign(id, approved_by, &sig)?;
         }
 
-        let result = self.repository
+        let result = self
+            .repository
             .update_status(id, DocumentStatus::Approved, approved_by)?;
 
         // 审计日志
@@ -194,7 +200,8 @@ impl DocumentManagement {
             )));
         }
 
-        let result = self.repository
+        let result = self
+            .repository
             .update_status(id, DocumentStatus::Published, published_by)?;
 
         // 审计日志
@@ -220,7 +227,8 @@ impl DocumentManagement {
             )));
         }
 
-        let result = self.repository
+        let result = self
+            .repository
             .update_status(id, DocumentStatus::Archived, archived_by)?;
 
         // 审计日志

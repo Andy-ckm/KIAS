@@ -184,10 +184,7 @@ mod tests {
 
         let entries = get_audit_log(&db_path, "doc1").unwrap();
         assert_eq!(entries.len(), 1);
-        assert_eq!(
-            entries[0].details.as_ref().unwrap(),
-            "审批通过，含电子签名"
-        );
+        assert_eq!(entries[0].details.as_ref().unwrap(), "审批通过，含电子签名");
     }
 
     #[test]

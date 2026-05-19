@@ -32,7 +32,7 @@ impl ConfigLoader for LinuxAutomationConfig {
             return Err(AutomationError::Config("目标服务器列表为空".to_string()));
         }
 
-        if !self.database_path.parent().map_or(false, |p| p.exists()) {
+        if !self.database_path.parent().is_some_and(|p| p.exists()) {
             return Err(AutomationError::Config("数据库目录不存在".to_string()));
         }
 

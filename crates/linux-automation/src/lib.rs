@@ -25,6 +25,7 @@ pub use scanner::ComplianceScanner;
 
 /// Linux 自动化引擎
 pub struct LinuxAutomation {
+    #[allow(dead_code)]
     config: LinuxAutomationConfig,
     executor: TaskExecutor,
     queue: TaskQueue,
@@ -65,9 +66,7 @@ impl LinuxAutomation {
             TaskType::ConfigDeploy { playbook, hosts } => {
                 self.executor.deploy_config(hosts, playbook).await?
             }
-            TaskType::SecurityUpdate { hosts } => {
-                self.executor.security_update(hosts).await?
-            }
+            TaskType::SecurityUpdate { hosts } => self.executor.security_update(hosts).await?,
             TaskType::LogCollection { hosts, log_paths } => {
                 self.executor.collect_logs(hosts, log_paths).await?
             }

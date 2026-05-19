@@ -1,6 +1,6 @@
 //! 任务队列 - SQLite 持久化
 
-use crate::error::{AutomationError, Result};
+use crate::error::Result;
 use crate::models::*;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -52,7 +52,7 @@ impl TaskQueue {
     /// 入队任务
     pub fn enqueue(&self, task: &AutomationTask) -> Result<Uuid> {
         let conn = self.conn.lock().unwrap();
-        let task_json = serde_json::to_string(task)?;
+        let _task_json = serde_json::to_string(task)?;
 
         conn.execute(
             "INSERT INTO tasks (id, task_type, status, created_at, created_by, priority, updated_at)

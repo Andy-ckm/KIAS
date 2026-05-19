@@ -43,14 +43,37 @@ pub struct AutomationTask {
 /// 任务类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    ComplianceScan { profile: String, hosts: Vec<String> },
-    PatchInstall { packages: Vec<String>, hosts: Vec<String> },
-    ConfigDeploy { playbook: String, hosts: Vec<String> },
-    SecurityUpdate { hosts: Vec<String> },
-    LogCollection { hosts: Vec<String>, log_paths: Vec<String> },
-    DiskCleanup { hosts: Vec<String>, targets: Vec<String> },
-    ServiceRestart { service: String, hosts: Vec<String> },
-    CustomCommand { command: String, hosts: Vec<String> },
+    ComplianceScan {
+        profile: String,
+        hosts: Vec<String>,
+    },
+    PatchInstall {
+        packages: Vec<String>,
+        hosts: Vec<String>,
+    },
+    ConfigDeploy {
+        playbook: String,
+        hosts: Vec<String>,
+    },
+    SecurityUpdate {
+        hosts: Vec<String>,
+    },
+    LogCollection {
+        hosts: Vec<String>,
+        log_paths: Vec<String>,
+    },
+    DiskCleanup {
+        hosts: Vec<String>,
+        targets: Vec<String>,
+    },
+    ServiceRestart {
+        service: String,
+        hosts: Vec<String>,
+    },
+    CustomCommand {
+        command: String,
+        hosts: Vec<String>,
+    },
 }
 
 /// 任务优先级

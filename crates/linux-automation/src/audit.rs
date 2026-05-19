@@ -128,7 +128,8 @@ impl AuditLog {
     pub fn get_statistics(&self) -> Result<AuditStatistics> {
         let conn = self.conn.lock().unwrap();
 
-        let total: usize = conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
+        let total: usize =
+            conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
 
         Ok(AuditStatistics {
             total_entries: total,

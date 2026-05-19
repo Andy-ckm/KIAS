@@ -14,7 +14,6 @@ use uuid::Uuid;
 
 use crate::audit::AuditLog;
 use crate::error::Result;
-use crate::models::*;
 
 // ============================================================
 // OperationRegistry: 中央注册表
@@ -444,7 +443,7 @@ impl MemoryAccumulator {
             .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect();
-        common_failures.sort_by(|a, b| b.1.cmp(&a.1));
+        common_failures.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         OperationStats {
             op_type: op_type.to_string(),
@@ -537,7 +536,7 @@ impl OperationMemory {
                     .iter()
                     .map(|(k, v)| (k.clone(), *v))
                     .collect();
-                v.sort_by(|a, b| b.1.cmp(&a.1));
+                v.sort_by_key(|b| std::cmp::Reverse(b.1));
                 v
             })
             .unwrap_or_default()
@@ -645,6 +644,30 @@ pub struct OperationContext {
     pub record: OperationRecord,
     pub relations: Vec<OperationRelation>,
     pub stats: Option<OperationStats>,
+}
+
+impl Default for OperationRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for OperationGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for OperationMemory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for OperationHub {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

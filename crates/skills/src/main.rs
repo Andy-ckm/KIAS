@@ -32,7 +32,9 @@ async fn main() -> anyhow::Result<()> {
     println!("Registered skills: {:?}", registry.list_skills());
 
     if let Some(skill) = registry.get("greet") {
-        let result = skill.execute(serde_json::json!({"name": "AgentGuard"})).await?;
+        let result = skill
+            .execute(serde_json::json!({"name": "AgentGuard"}))
+            .await?;
         println!("Skill result: {}", result);
     }
 

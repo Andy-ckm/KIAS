@@ -244,7 +244,8 @@ mod tests {
         let provider = XProvider::new();
         // Without env var set, should not be configured.
         // (This test only works when the env var is not set.)
-        if std::env::var("AgentGuard_X_BEARER_TOKEN").is_err() && std::env::var("X_BEARER_TOKEN").is_err()
+        if std::env::var("AgentGuard_X_BEARER_TOKEN").is_err()
+            && std::env::var("X_BEARER_TOKEN").is_err()
         {
             assert!(!provider.is_configured());
         }

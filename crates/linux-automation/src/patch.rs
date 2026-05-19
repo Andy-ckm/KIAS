@@ -89,11 +89,10 @@ impl PatchManager {
     /// 检查是否需要重启
     pub fn build_reboot_check_command(&self) -> String {
         match self.package_manager {
-            PackageManager::Yum | PackageManager::Dnf => {
-                "needs-restarting -r".to_string()
-            }
+            PackageManager::Yum | PackageManager::Dnf => "needs-restarting -r".to_string(),
             PackageManager::Apt => {
-                "[ -f /var/run/reboot-required ] && echo 'REBOOT_REQUIRED' || echo 'NO_REBOOT'".to_string()
+                "[ -f /var/run/reboot-required ] && echo 'REBOOT_REQUIRED' || echo 'NO_REBOOT'"
+                    .to_string()
             }
             PackageManager::Zypper => "zypper needs-rebooting".to_string(),
         }

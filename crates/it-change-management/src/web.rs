@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::Json,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use serde::Deserialize;
@@ -69,8 +69,8 @@ async fn list_changes(State(state): State<AppState>) -> Json<Vec<ItChangeRequest
 
 /// 创建变更请求
 async fn create_change(
-    State(state): State<AppState>,
-    Json(request): Json<CreateChangeApiRequest>,
+    State(_state): State<AppState>,
+    Json(_request): Json<CreateChangeApiRequest>,
 ) -> Result<Json<ItChangeRequest>, StatusCode> {
     // 注意：ItChangeManager需要&mut self，但AppState是共享的
     // 这里需要使用内部可变性模式（Mutex或RwLock）

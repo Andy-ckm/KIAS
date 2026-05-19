@@ -1,0 +1,240 @@
+//! 任务队列 - SQLite 持久化
+
+use crate::error::{AutomationError, Result};
+use crate::models::*;
+use chrono::Utc;
+use rusqlite::{params, Connection};
+use std::path::Path;
+use std::sync::Mutex;
+use uuid::Uuid;
+
+/// 任务队列
+pub struct TaskQueue {
+    conn: Mutex<Connection>,
+}
+
+/// 队列统计
+pub struct QueueStatistics {
+    pub total: usize,
+    pub successful: usize,
+    pub failed: usize,
+    pub pending: usize,
+}
+
+impl TaskQueue {
+    /// 创建新的任务队列
+    pub fn new(db_path: &Path) -> Result<Self> {
+        let conn = Connection::open(db_path)?;
+
+        // 创建表
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS tasks (
+                id TEXT PRIMARY KEY,
+                task_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                result TEXT,
+                updated_at TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+            CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+            ",
+        )?;
+
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
+    /// 入队任务
+    pub fn enqueue(&self, task: &AutomationTask) -> Result<Uuid> {
+        let conn = self.conn.lock().unwrap();
+        let task_json = serde_json::to_string(task)?;
+
+        conn.execute(
+            "INSERT INTO tasks (id, task_type, status, created_at, created_by, priority, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                task.id.to_string(),
+                serde_json::to_string(&task.task_type)?,
+                "Pending",
+                task.created_at.to_rfc3339(),
+                task.created_by,
+                serde_json::to_string(&task.priority)?,
+                Utc::now().to_rfc3339(),
+            ],
+        )?;
+
+        Ok(task.id)
+    }
+
+    /// 更新任务状态
+    pub fn update_status(&self, task_id: Uuid, status: &TaskStatus) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let status_str = serde_json::to_string(status)?;
+
+        conn.execute(
+            "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
+            params![status_str, Utc::now().to_rfc3339(), task_id.to_string()],
+        )?;
+
+        Ok(())
+    }
+
+    /// 获取任务历史
+    pub fn get_history(&self, limit: Option<usize>) -> Result<Vec<AutomationResult>> {
+        let conn = self.conn.lock().unwrap();
+        let limit = limit.unwrap_or(100);
+
+        let mut stmt = conn.prepare(
+            "SELECT id, task_type, status, created_at, created_by, priority, result, updated_at
+             FROM tasks ORDER BY created_at DESC LIMIT ?1",
+        )?;
+
+        let tasks = stmt
+            .query_map(params![limit], |row| {
+                let id_str: String = row.get(0)?;
+                let task_type_str: String = row.get(1)?;
+                let status_str: String = row.get(2)?;
+                let created_at_str: String = row.get(3)?;
+                let result_str: Option<String> = row.get(6)?;
+
+                Ok(AutomationResult {
+                    task_id: Uuid::parse_str(&id_str).unwrap_or_default(),
+                    task_type: task_type_str,
+                    status: serde_json::from_str(&status_str).unwrap_or(TaskStatus::Pending),
+                    started_at: chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    completed_at: None,
+                    host_results: vec![],
+                    summary: String::new(),
+                    audit_trail: vec![],
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(tasks)
+    }
+
+    /// 获取统计信息
+    pub fn get_statistics(&self) -> Result<QueueStatistics> {
+        let conn = self.conn.lock().unwrap();
+
+        let total: usize = conn.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
+
+        let successful: usize = conn.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE status = '\"Success\"'",
+            [],
+            |row| row.get(0),
+        )?;
+
+        let failed: usize = conn.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE status = '\"Failed\"'",
+            [],
+            |row| row.get(0),
+        )?;
+
+        let pending: usize = conn.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE status = '\"Pending\"'",
+            [],
+            |row| row.get(0),
+        )?;
+
+        Ok(QueueStatistics {
+            total,
+            successful,
+            failed,
+            pending,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn create_test_queue() -> (TaskQueue, TempDir) {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let queue = TaskQueue::new(&db_path).unwrap();
+        (queue, tmp)
+    }
+
+    #[test]
+    fn test_create_queue() {
+        let (queue, _tmp) = create_test_queue();
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 0);
+    }
+
+    #[test]
+    fn test_enqueue_task() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "ls -la".to_string(),
+                hosts: vec!["localhost".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+
+        let task_id = queue.enqueue(&task).unwrap();
+        assert_eq!(task_id, task.id);
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.pending, 1);
+    }
+
+    #[test]
+    fn test_update_status() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "ls -la".to_string(),
+                hosts: vec!["localhost".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+
+        queue.enqueue(&task).unwrap();
+        queue.update_status(task.id, &TaskStatus::Success).unwrap();
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.successful, 1);
+    }
+
+    #[test]
+    fn test_get_history() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "ls -la".to_string(),
+                hosts: vec!["localhost".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+
+        queue.enqueue(&task).unwrap();
+
+        let history = queue.get_history(Some(10)).unwrap();
+        assert_eq!(history.len(), 1);
+    }
+}

@@ -1,0 +1,33 @@
+[package]
+name = "kias-linux-automation"
+version = "0.1.0"
+edition = "2021"
+description = "AgentGuard Linux 自动化维护模块 - 医药企业合规运维"
+
+[dependencies]
+# 核心
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# SSH 远程执行
+ssh2 = "0.9"
+
+# 数据库
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# 错误处理
+thiserror = "1"
+anyhow = "1"
+
+# 日志
+tracing = "0.1"
+
+# 异步
+futures = "0.3"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"

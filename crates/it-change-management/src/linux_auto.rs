@@ -1020,13 +1020,39 @@ impl ChangeExecutionPlan {
         Self {
             change_id: change_id.to_string(),
             steps: vec![
-                ExecutionStep { order: 1, description: "备份当前配置".into(), command: "tar czf /backup/config-$(date +%Y%m%d).tar.gz /etc/".into(), target_hosts: hosts.clone(), timeout_seconds: 300, requires_approval: false },
-                ExecutionStep { order: 2, description: "执行变更".into(), command: String::new(), target_hosts: hosts.clone(), timeout_seconds: 600, requires_approval: true },
-                ExecutionStep { order: 3, description: "验证变更".into(), command: "systemctl status".into(), target_hosts: hosts.clone(), timeout_seconds: 120, requires_approval: false },
+                ExecutionStep {
+                    order: 1,
+                    description: "备份当前配置".into(),
+                    command: "tar czf /backup/config-$(date +%Y%m%d).tar.gz /etc/".into(),
+                    target_hosts: hosts.clone(),
+                    timeout_seconds: 300,
+                    requires_approval: false,
+                },
+                ExecutionStep {
+                    order: 2,
+                    description: "执行变更".into(),
+                    command: String::new(),
+                    target_hosts: hosts.clone(),
+                    timeout_seconds: 600,
+                    requires_approval: true,
+                },
+                ExecutionStep {
+                    order: 3,
+                    description: "验证变更".into(),
+                    command: "systemctl status".into(),
+                    target_hosts: hosts.clone(),
+                    timeout_seconds: 120,
+                    requires_approval: false,
+                },
             ],
-            rollback_steps: vec![
-                ExecutionStep { order: 1, description: "回滚配置".into(), command: "tar xzf /backup/config-*.tar.gz -C /".into(), target_hosts: hosts.clone(), timeout_seconds: 300, requires_approval: false },
-            ],
+            rollback_steps: vec![ExecutionStep {
+                order: 1,
+                description: "回滚配置".into(),
+                command: "tar xzf /backup/config-*.tar.gz -C /".into(),
+                target_hosts: hosts.clone(),
+                timeout_seconds: 300,
+                requires_approval: false,
+            }],
             pre_checks: vec!["磁盘空间 > 20%".into(), "系统负载 < 5".into()],
             post_checks: vec!["服务正常运行".into(), "日志无错误".into()],
         }

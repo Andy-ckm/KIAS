@@ -39,13 +39,36 @@ impl WorkflowEngine {
             id: "wf-standard-001".into(),
             name: "标准变更审批流程".into(),
             steps: vec![
-                WorkflowStep { step_id: 1, name: "部门主管审批".into(), approver_role: "dept_manager".into(), required: true, timeout_hours: Some(24), auto_approve_on_timeout: false },
-                WorkflowStep { step_id: 2, name: "IT经理审批".into(), approver_role: "it_manager".into(), required: true, timeout_hours: Some(48), auto_approve_on_timeout: false },
-                WorkflowStep { step_id: 3, name: "QA审批".into(), approver_role: "qa_manager".into(), required: true, timeout_hours: Some(72), auto_approve_on_timeout: false },
+                WorkflowStep {
+                    step_id: 1,
+                    name: "部门主管审批".into(),
+                    approver_role: "dept_manager".into(),
+                    required: true,
+                    timeout_hours: Some(24),
+                    auto_approve_on_timeout: false,
+                },
+                WorkflowStep {
+                    step_id: 2,
+                    name: "IT经理审批".into(),
+                    approver_role: "it_manager".into(),
+                    required: true,
+                    timeout_hours: Some(48),
+                    auto_approve_on_timeout: false,
+                },
+                WorkflowStep {
+                    step_id: 3,
+                    name: "QA审批".into(),
+                    approver_role: "qa_manager".into(),
+                    required: true,
+                    timeout_hours: Some(72),
+                    auto_approve_on_timeout: false,
+                },
             ],
-            escalation_rules: vec![
-                EscalationRule { trigger_hours: 24, escalate_to: "it_director".into(), notification_method: "email".into() },
-            ],
+            escalation_rules: vec![EscalationRule {
+                trigger_hours: 24,
+                escalate_to: "it_director".into(),
+                notification_method: "email".into(),
+            }],
         }
     }
 
@@ -55,12 +78,28 @@ impl WorkflowEngine {
             id: "wf-emergency-001".into(),
             name: "紧急变更审批流程".into(),
             steps: vec![
-                WorkflowStep { step_id: 1, name: "值班经理审批".into(), approver_role: "duty_manager".into(), required: true, timeout_hours: Some(1), auto_approve_on_timeout: false },
-                WorkflowStep { step_id: 2, name: "事后补充审批".into(), approver_role: "it_manager".into(), required: true, timeout_hours: Some(72), auto_approve_on_timeout: false },
+                WorkflowStep {
+                    step_id: 1,
+                    name: "值班经理审批".into(),
+                    approver_role: "duty_manager".into(),
+                    required: true,
+                    timeout_hours: Some(1),
+                    auto_approve_on_timeout: false,
+                },
+                WorkflowStep {
+                    step_id: 2,
+                    name: "事后补充审批".into(),
+                    approver_role: "it_manager".into(),
+                    required: true,
+                    timeout_hours: Some(72),
+                    auto_approve_on_timeout: false,
+                },
             ],
-            escalation_rules: vec![
-                EscalationRule { trigger_hours: 1, escalate_to: "cto".into(), notification_method: "sms".into() },
-            ],
+            escalation_rules: vec![EscalationRule {
+                trigger_hours: 1,
+                escalate_to: "cto".into(),
+                notification_method: "sms".into(),
+            }],
         }
     }
 

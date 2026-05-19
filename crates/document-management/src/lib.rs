@@ -12,11 +12,11 @@ pub mod audit;
 pub mod document;
 pub mod error;
 pub mod repository;
+pub mod search;
 pub mod signature;
 pub mod storage;
-pub mod version;
-pub mod search;
 pub mod template;
+pub mod version;
 
 pub use document::*;
 pub use error::{DocumentError, Result};
@@ -276,10 +276,11 @@ impl DocumentManagement {
         }
 
         // 检查文件类型
-        let extension = image_path.extension()
+        let extension = image_path
+            .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("");
-        
+
         let supported_formats = ["png", "jpg", "jpeg", "tiff", "bmp"];
         if !supported_formats.contains(&extension.to_lowercase().as_str()) {
             return Err(DocumentError::Validation(format!(
@@ -296,18 +297,18 @@ impl DocumentManagement {
     /// 将文档转换为PDF
     pub fn convert_to_pdf(&self, doc_id: &str, output_path: &std::path::Path) -> Result<()> {
         let doc = self.repository.get(doc_id)?;
-        
+
         // 检查文档状态
         if doc.status != DocumentStatus::Published {
             return Err(DocumentError::Validation(
-                "只有已发布的文档才能转换为PDF".to_string()
+                "只有已发布的文档才能转换为PDF".to_string(),
             ));
         }
 
         // 这里应该调用文档转换引擎
         // 目前只是创建一个占位文件
         std::fs::write(output_path, format!("PDF内容: {}", doc.title))?;
-        
+
         Ok(())
     }
 
@@ -321,24 +322,23 @@ impl DocumentManagement {
         }
 
         let mut imported = Vec::new();
-        
+
         for entry in std::fs::read_dir(directory)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() {
-                let extension = path.extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("");
-                
+                let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+
                 // 只处理Markdown文件
                 if extension == "md" {
                     let content = std::fs::read_to_string(&path)?;
-                    let title = path.file_stem()
+                    let title = path
+                        .file_stem()
                         .and_then(|name| name.to_str())
                         .unwrap_or("untitled")
                         .to_string();
-                    
+
                     let request = CreateDocumentRequest {
                         title,
                         content,
@@ -347,7 +347,7 @@ impl DocumentManagement {
                         created_by: "batch_import".to_string(),
                         tags: vec!["imported".to_string()],
                     };
-                    
+
                     match self.repository.create(request) {
                         Ok(doc) => imported.push(doc),
                         Err(e) => {
@@ -358,7 +358,7 @@ impl DocumentManagement {
                 }
             }
         }
-        
+
         Ok(imported)
     }
 }

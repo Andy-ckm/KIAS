@@ -1,6 +1,6 @@
 //! 任务队列 - SQLite 持久化
 
-use crate::error::Result;
+use crate::error::{AutomationError, Result};
 use crate::models::*;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -51,7 +51,10 @@ impl TaskQueue {
 
     /// 入队任务
     pub fn enqueue(&self, task: &AutomationTask) -> Result<Uuid> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let _task_json = serde_json::to_string(task)?;
 
         conn.execute(
@@ -73,7 +76,10 @@ impl TaskQueue {
 
     /// 更新任务状态
     pub fn update_status(&self, task_id: Uuid, status: &TaskStatus) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let status_str = match status {
             TaskStatus::Pending => "Pending",
             TaskStatus::Running => "Running",
@@ -93,7 +99,10 @@ impl TaskQueue {
 
     /// 获取任务历史
     pub fn get_history(&self, limit: Option<usize>) -> Result<Vec<AutomationResult>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let limit = limit.unwrap_or(100);
 
         let mut stmt = conn.prepare(
@@ -138,7 +147,10 @@ impl TaskQueue {
 
     /// 获取统计信息
     pub fn get_statistics(&self) -> Result<QueueStatistics> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let total: usize = conn.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
 

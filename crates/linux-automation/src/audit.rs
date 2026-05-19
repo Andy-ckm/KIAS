@@ -1,6 +1,6 @@
 //! 审计日志 - 不可变存储
 
-use crate::error::Result;
+use crate::error::{AutomationError, Result};
 use crate::models::*;
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -55,7 +55,10 @@ impl AuditLog {
         task: &AutomationTask,
         result: &AutomationResult,
     ) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let entry = AuditEntry {
             id: Uuid::new_v4(),
@@ -93,7 +96,10 @@ impl AuditLog {
 
     /// 获取审计日志
     pub fn get_audit_log(&self, limit: Option<usize>) -> Result<Vec<AuditEntry>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let limit = limit.unwrap_or(100);
 
         let mut stmt = conn.prepare(
@@ -126,7 +132,10 @@ impl AuditLog {
 
     /// 获取审计统计
     pub fn get_statistics(&self) -> Result<AuditStatistics> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let total: usize =
             conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
@@ -138,7 +147,10 @@ impl AuditLog {
 
     /// 记录单条操作审计 (简化接口, 供巡检/初始化/Docker/K8s模块使用)
     pub fn log_action(&self, user: &str, action: &str, target: &str, result: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let entry = AuditEntry {
             id: Uuid::new_v4(),
             timestamp: Utc::now(),

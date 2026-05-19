@@ -190,7 +190,10 @@ impl ComplianceScanner {
 
     /// 保存报告
     fn save_report(&self, report: &ComplianceReport) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
         let findings_json = serde_json::to_string(&report.findings)?;
 
         conn.execute(
@@ -214,7 +217,10 @@ impl ComplianceScanner {
 
     /// 获取报告
     pub fn get_report(&self, host: &str) -> Result<ComplianceReport> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, host, scan_time, profile, score, passed, failed, not_applicable, findings
@@ -245,7 +251,10 @@ impl ComplianceScanner {
 
     /// 获取平均分数
     pub fn get_average_score(&self) -> Result<f64> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let avg: f64 = conn
             .query_row(
@@ -260,7 +269,10 @@ impl ComplianceScanner {
 
     /// 获取最后扫描时间
     pub fn get_last_scan_time(&self) -> Result<Option<chrono::DateTime<Utc>>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| AutomationError::LockPoisoned("conn".to_string()))?;
 
         let time: Option<String> = conn
             .query_row("SELECT MAX(scan_time) FROM compliance_reports", [], |row| {

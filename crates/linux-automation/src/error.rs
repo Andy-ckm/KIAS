@@ -35,6 +35,9 @@ pub enum AutomationError {
     #[error("合规扫描失败: {0}")]
     ComplianceScan(String),
 
+    #[error("锁中毒: {0}")]
+    LockPoisoned(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }

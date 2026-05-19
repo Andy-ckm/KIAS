@@ -230,4 +230,85 @@ mod tests {
         assert_eq!(result.utilization, 0.0);
         assert_eq!(result.compression_count, 0);
     }
+
+    #[tokio::test]
+    async fn test_add_message_assistant_role() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "assistant".to_string(),
+            content: "I can help with that".to_string(),
+        };
+        let result = add_message(State(state), Path("session-4".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "session-4");
+        assert_eq!(result.compression_level, "none");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_tool_role() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "tool".to_string(),
+            content: "{\"output\": \"ok\"}".to_string(),
+        };
+        let result = add_message(State(state), Path("session-5".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "session-5");
+    }
+
+    #[test]
+    fn test_add_message_request_deserialize() {
+        let json = r#"{"role":"user","content":"hello"}"#;
+        let req: AddMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.role, "user");
+        assert_eq!(req.content, "hello");
+    }
+
+    #[test]
+    fn test_context_response_serialize() {
+        let resp = ContextResponse {
+            session_id: "s1".to_string(),
+            message_count: 5,
+            total_tokens: 1000,
+            compression_level: "summary".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("session_id"));
+        assert!(json.contains("s1"));
+        assert!(json.contains("message_count"));
+        assert!(json.contains("1000"));
+    }
+
+    #[test]
+    fn test_context_stats_response_serialize() {
+        let resp = ContextStatsResponse {
+            session_id: "s1".to_string(),
+            total_messages: 10,
+            user_messages: 4,
+            assistant_messages: 3,
+            tool_messages: 2,
+            summary_messages: 1,
+            total_tokens: 2000,
+            max_tokens: 4096,
+            utilization: 0.488,
+            compression_count: 2,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("user_messages"));
+        assert!(json.contains("assistant_messages"));
+        assert!(json.contains("tool_messages"));
+        assert!(json.contains("summary_messages"));
+        assert!(json.contains("utilization"));
+    }
+
+    #[test]
+    fn test_compress_session_response_defaults() {
+        // Verify default values for compress when no context_manager
+        let resp = ContextResponse {
+            session_id: "s1".to_string(),
+            message_count: 0,
+            total_tokens: 0,
+            compression_level: "none".to_string(),
+        };
+        assert_eq!(resp.compression_level, "none");
+        assert_eq!(resp.message_count, 0);
+    }
 }

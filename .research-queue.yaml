@@ -164,9 +164,31 @@ research_queue:
   - id: R028
     topic: "日志分析和告警自动化"
     keywords: ["log analysis automation", "log anomaly detection", "automated alerting", "ELK stack automation"]
-    status: pending
+    status: done
     priority: high
-    findings: ""
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 许可证 | 定位 |
+      |------|-------|------|--------|------|
+      | Graylog | 8038 | Java | SSPL | 免费开源日志管理,Web UI+搜索+告警 |
+      | Coroot | 7648 | Go | Apache-2.0 | AI驱动APM,自动根因分析 |
+      | OSSEC | 5005 | C | GPL-2.0 | 主机入侵检测+日志分析 |
+      | rsyslog | 2291 | C | LGPL-3.0 | 高性能日志摄入+ETL |
+      | Vector | 18K+ | Rust | MPL-2.0 | 高性能日志可观测管道 |
+      | Ekanite | 772 | Go | MIT | 带搜索的Syslog服务器 |
+      | Promtail+Loki | 7K+ | Go | AGPL-3.0 | Grafana日志收集+存储 |
+      关键能力:
+      - 日志收集: syslog/journald/files/docker
+      - 模式匹配: 正则/关键词/结构化解析
+      - 异常检测: 基线偏离/频率异常/新模式
+      - 告警规则: 阈值/模式/聚合
+      - 通知: Webhook/邮件/IM
+      AgentGuard差异化(可追溯/透明/可控):
+      - 日志分析结果自动写入审计日志(可追溯)
+      - 分析报告实时推送(透明)
+      - 用户自定义告警规则(可控)
+      - Vector(Rust)可作为日志管道参考实现
+      - Coroot的AI根因分析模式可借鉴
 
   - id: R029
     topic: "备份恢复自动化"

@@ -1,0 +1,21 @@
+[package]
+name = "kias-document-management"
+version = "0.1.0"
+edition = "2021"
+description = "AgentGuard 企业文档管理模块 - 医药企业合规文档处理"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+sha2 = "0.10"
+hex = "0.4"
+
+[dev-dependencies]
+tempfile = "3"

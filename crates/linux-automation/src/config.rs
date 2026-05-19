@@ -88,4 +88,25 @@ mod tests {
 
         assert!(config.validate().is_ok());
     }
+
+    #[test]
+    fn test_default_config() {
+        let config = LinuxAutomationConfig::default_config();
+        assert!(config.target_hosts.is_empty());
+        assert!(config.ssh_key_path.is_some());
+    }
+
+    #[test]
+    fn test_validate_nonexistent_db_dir() {
+        let config = LinuxAutomationConfig {
+            database_path: std::path::PathBuf::from("/nonexistent/dir/test.db"),
+            playbook_dir: std::path::PathBuf::from("/tmp/playbooks"),
+            ssh_key_path: None,
+            log_dir: std::path::PathBuf::from("/tmp/logs"),
+            target_hosts: vec!["localhost".to_string()],
+            compliance_tool: crate::models::ComplianceTool::OpenScap,
+        };
+
+        assert!(config.validate().is_err());
+    }
 }

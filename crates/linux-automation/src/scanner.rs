@@ -351,4 +351,58 @@ mod tests {
         let time = scanner.get_last_scan_time().unwrap();
         assert!(time.is_none());
     }
+
+    #[test]
+    fn test_calculate_score_all_pass() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let findings = vec![
+            ComplianceFinding {
+                rule_id: "1".to_string(),
+                title: "Test".to_string(),
+                severity: Severity::Medium,
+                status: FindingStatus::Pass,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+            ComplianceFinding {
+                rule_id: "2".to_string(),
+                title: "Test".to_string(),
+                severity: Severity::High,
+                status: FindingStatus::Pass,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+        ];
+
+        let score = scanner.calculate_score(&findings);
+        assert_eq!(score, 100.0);
+    }
+
+    #[test]
+    fn test_calculate_score_all_fail() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let findings = vec![
+            ComplianceFinding {
+                rule_id: "1".to_string(),
+                title: "Test".to_string(),
+                severity: Severity::Low,
+                status: FindingStatus::Fail,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+            ComplianceFinding {
+                rule_id: "2".to_string(),
+                title: "Test".to_string(),
+                severity: Severity::Critical,
+                status: FindingStatus::Fail,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+        ];
+
+        let score = scanner.calculate_score(&findings);
+        assert_eq!(score, 0.0);
+    }
 }

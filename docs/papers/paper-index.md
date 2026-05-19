@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (04:35)
+更新时间: 2026-05-20 (05:05)
 
-## 论文列表 (172 篇)
+## 论文列表 (188 篇)
 
-### 已下载论文 (166 篇)
+### 已下载论文 (182 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
 - ✅ 2605.17101.pdf (SEMA-RAG: A Self-Evolving Multi-Agent Retrieval-Augmented Generation Framework for Medical Reasoning)
 - ✅ 2605.16346.pdf (PropGuard: Safeguarding LLM-MAS via Propagation-Aware Exploration and Remediation)
@@ -171,6 +171,22 @@
 - ✅ 2605.16746.pdf (State Contamination in Memory-Augmented LLM Agents)
 - ✅ 2605.14290.pdf (Web Agents Should Adopt Plan-Then-Execute Paradigm)
 - ✅ 2605.11225.pdf (PIVOT: Bridging Planning and Execution in LLM Agents via Trajectory Refinement)
+- ✅ 2605.18024.pdf (Interaction-Breaking Adversarial Learning Framework for Robust Multi-Agent RL)
+- ✅ 2605.17885.pdf (Multi-agent AI systems outperform human teams in creativity)
+- ✅ 2605.11522.pdf (State Twins: An Off-Chain Substrate for Agentic Reasoning over DeFi)
+- ✅ 2605.09937.pdf (Population Protocols over Ordered Agents)
+- ✅ 2605.09055.pdf (Octopus Protocol: One-Shot Hardware Discovery and Control for AI Agents)
+- ✅ 2605.07935.pdf (TraceFix: Repairing Agent Coordination Protocols with TLA+ Counterexamples)
+- ✅ 2605.07306.pdf (BioProVLA-Agent: Protocol-Driven Vision-Enhanced VLA-Enabled Embodied Agent)
+- ✅ 2605.17292.pdf (MetaCogAgent: Metacognitive Multi-Agent LLM with Self-Aware Task Delegation)
+- ✅ 2605.17281.pdf (ContractBench: Can LLM Agents Preserve Observation Contracts?)
+- ✅ 2605.16962.pdf (OmniVL-Guard Pro: Tool-Augmented Agent for Vision-Language Forensics)
+- ✅ 2605.16757.pdf (NeuroMAS: Multi-Agent Systems as Neural Networks with Joint RL)
+- ✅ 2605.06933.pdf (MAGIQ: Post-Quantum Multi-Agentic AI Governance with Provable Security)
+- ✅ 2605.09341.pdf (SkillMAS: Skill Co-Evolution with LLM-based Multi-Agent System)
+- ✅ 2605.17036.pdf (Reliability of Autonomous AI Agents in Supply Chain Management)
+- ✅ 2605.16300.pdf (Consent Chain Degradation in Embodied Multi-Agent Systems)
+- ✅ 2605.17065.pdf (PyraVid: Hierarchical Multimodal Memory for Long-Horizon Video Reasoning)
 
 ### 待下载论文 (6 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -183,6 +199,102 @@
 ---
 
 ## 全部论文清单
+
+**[2605.18024]** Interaction-Breaking Adversarial Learning Framework for Robust Multi-Agent Reinforcement Learning
+   - 日期: 2026-05-23 | 分类: cs.AI, cs.MA, cs.LG
+   - 主题: multi-agent RL, adversarial learning, robustness, interaction-breaking
+   - 链接: https://arxiv.org/abs/2605.18024
+   - 状态: ✅ 已下载 (10.3MB)
+
+**[2605.17885]** Multi-agent AI systems outperform human teams in creativity
+   - 日期: 2026-05-23 | 分类: cs.AI, cs.MA
+   - 主题: multi-agent creativity, human-AI comparison, collaborative ideation
+   - 链接: https://arxiv.org/abs/2605.17885
+   - 状态: ✅ 已下载 (2.5MB)
+
+**[2605.11522]** State Twins: An Off-Chain Substrate for Agentic Reasoning over Decentralized Finance
+   - 日期: 2026-05-15 | 分类: cs.AI, cs.CR
+   - 主题: agent reasoning, DeFi, off-chain substrate, state twins
+   - 链接: https://arxiv.org/abs/2605.11522
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.09937]** Population Protocols over Ordered Agents
+   - 日期: 2026-05-14 | 分类: cs.AI, cs.DC, cs.MA
+   - 主题: population protocols, ordered agents, distributed coordination, theoretical foundations
+   - 链接: https://arxiv.org/abs/2605.09937
+   - 状态: ✅ 已下载 (1.1MB)
+
+**[2605.09055]** Octopus Protocol: One-Shot Hardware Discovery and Control for AI Agents via Infrastructure Description Language
+   - 日期: 2026-05-13 | 分类: cs.AI, cs.OS
+   - 主题: hardware discovery, agent protocol, infrastructure description, one-shot control
+   - 链接: https://arxiv.org/abs/2605.09055
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.07935]** TraceFix: Repairing Agent Coordination Protocols with TLA+ Counterexamples
+   - 日期: 2026-05-12 | 分类: cs.AI, cs.FL, cs.MA
+   - 主题: agent coordination, TLA+ model checking, protocol repair, formal verification
+   - 链接: https://arxiv.org/abs/2605.07935
+   - 状态: ✅ 已下载 (1.6MB)
+
+**[2605.07306]** BioProVLA-Agent: An Affordable, Protocol-Driven, Vision-Enhanced VLA-Enabled Embodied Agent for Biological Research
+   - 日期: 2026-05-11 | 分类: cs.AI, cs.CV, cs.RO
+   - 主题: embodied agent, VLA model, protocol-driven, biological research automation
+   - 链接: https://arxiv.org/abs/2605.07306
+   - 状态: ✅ 已下载 (4.5MB)
+
+**[2605.17292]** MetaCogAgent: A Metacognitive Multi-Agent LLM Framework with Self-Aware Task Delegation
+   - 日期: 2026-05-22 | 分类: cs.AI, cs.MA, cs.CL
+   - 主题: metacognition, multi-agent, task delegation, self-awareness, LLM framework
+   - 链接: https://arxiv.org/abs/2605.17292
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.17281]** ContractBench: Can LLM Agents Preserve Observation Contracts?
+   - 日期: 2026-05-22 | 分类: cs.AI, cs.SE
+   - 主题: LLM agents, tool calling, observation contracts, benchmark, reliability
+   - 链接: https://arxiv.org/abs/2605.17281
+   - 状态: ✅ 已下载 (1.9MB)
+
+**[2605.16962]** OmniVL-Guard Pro: A Tool-Augmented Agent for Omnibus Vision-Language Forensics
+   - 日期: 2026-05-22 | 分类: cs.AI, cs.CV, cs.CL
+   - 主题: tool-augmented agent, vision-language forensics, multimedia detection
+   - 链接: https://arxiv.org/abs/2605.16962
+   - 状态: ✅ 已下载 (7.7MB)
+
+**[2605.16757]** NeuroMAS: Multi-Agent Systems as Neural Networks with Joint Reinforcement Learning
+   - 日期: 2026-05-21 | 分类: cs.AI, cs.MA, cs.LG
+   - 主题: multi-agent systems, neural networks, joint RL, end-to-end training
+   - 链接: https://arxiv.org/abs/2605.16757
+   - 状态: ✅ 已下载 (1.0MB)
+
+**[2605.06933]** MAGIQ: A Post-Quantum Multi-Agentic AI Governance System with Provable Security
+   - 日期: 2026-05-10 | 分类: cs.AI, cs.CR, cs.MA
+   - 主题: multi-agent governance, post-quantum cryptography, provable security
+   - 链接: https://arxiv.org/abs/2605.06933
+   - 状态: ✅ 已下载 (1.6MB)
+
+**[2605.09341]** SkillMAS: Skill Co-Evolution with LLM-based Multi-Agent System
+   - 日期: 2026-05-13 | 分类: cs.AI, cs.MA, cs.CL
+   - 主题: skill co-evolution, multi-agent system, LLM-based agents, collective learning
+   - 链接: https://arxiv.org/abs/2605.09341
+   - 状态: ✅ 已下载 (3.3MB)
+
+**[2605.17036]** Reliability and Effectiveness of Autonomous AI Agents in Supply Chain Management
+   - 日期: 2026-05-22 | 分类: cs.AI, cs.MA
+   - 主题: autonomous agents, supply chain management, reliability evaluation
+   - 链接: https://arxiv.org/abs/2605.17036
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.16300]** Consent Chain Degradation in Embodied Multi-Agent Systems: Bridging the Gap Between Theory and Practice
+   - 日期: 2026-05-21 | 分类: cs.AI, cs.MA, cs.RO
+   - 主题: consent chain, embodied agents, multi-agent systems, theory-practice gap
+   - 链接: https://arxiv.org/abs/2605.16300
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.17065]** PyraVid: Hierarchical Multimodal Memory for Long-Horizon Video Reasoning
+   - 日期: 2026-05-22 | 分类: cs.AI, cs.CV, cs.CL
+   - 主题: hierarchical memory, multimodal, long-horizon reasoning, video understanding
+   - 链接: https://arxiv.org/abs/2605.17065
+   - 状态: ✅ 已下载 (2.4MB)
 
 **[2605.17101]** SEMA-RAG: A Self-Evolving Multi-Agent Retrieval-Augmented Generation Framework for Medical Reasoning
    - 日期: 2026-05-19 | 分类: cs.CL, cs.AI

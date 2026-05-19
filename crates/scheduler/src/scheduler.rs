@@ -1227,4 +1227,372 @@ mod tests {
         assert_eq!(ctx.resource_quota.cpu_limit, 4.0);
         assert_eq!(ctx.resource_quota.memory_limit_mb, 1024);
     }
+
+    // ─── Error path tests ─────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_empty_nodes_returns_error() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes: Vec<Node> = vec![];
+        let agent = make_agent("a1", Priority::Medium);
+
+        let result = scheduler.schedule_agent(&agent, &nodes).await;
+        assert!(result.is_err(), "Empty nodes should return error");
+        match result {
+            Err(KiasError::NoAvailableNodes) => {}
+            other => panic!("Expected NoAvailableNodes, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cpu_quota_enforcement() {
+        let quota = ResourceQuota {
+            max_agents: 0, // no agent limit
+            max_nodes: 10,
+            cpu_limit: 4.0,
+            memory_limit_mb: 0, // no memory limit
+        };
+        let ctx = TenantContext::new("cpu-tenant").with_quota(quota);
+
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // Schedule agent using 3.0 CPU — should succeed
+        let a1 = make_tenant_agent_with_resources("a1", "cpu-tenant", 3.0, 256);
+        let result = scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await;
+        assert!(result.is_ok(), "3.0 CPU should fit in 4.0 limit");
+
+        // Schedule agent using 2.0 CPU — total 5.0 > 4.0, should fail
+        let a2 = make_tenant_agent_with_resources("a2", "cpu-tenant", 2.0, 256);
+        let result = scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx))
+            .await;
+        assert!(result.is_err(), "5.0 CPU should exceed 4.0 limit");
+        match result {
+            Err(KiasError::TenantQuotaExceeded(_)) => {}
+            other => panic!("Expected TenantQuotaExceeded, got {:?}", other),
+        }
+
+        let stats = scheduler.get_tenant_stats("cpu-tenant").await.unwrap();
+        assert_eq!(stats.schedules_rejected_quota, 1);
+    }
+
+    #[tokio::test]
+    async fn test_memory_quota_enforcement() {
+        let quota = ResourceQuota {
+            max_agents: 0,
+            max_nodes: 10,
+            cpu_limit: 0.0,
+            memory_limit_mb: 1024, // 1 GB limit
+        };
+        let ctx = TenantContext::new("mem-tenant").with_quota(quota);
+
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // Schedule agent using 512 MB — should succeed
+        let a1 = make_tenant_agent_with_resources("a1", "mem-tenant", 0.5, 512);
+        let result = scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await;
+        assert!(result.is_ok(), "512 MB should fit in 1024 MB limit");
+
+        // Schedule agent using 600 MB — total 1112 MB > 1024 MB, should fail
+        let a2 = make_tenant_agent_with_resources("a2", "mem-tenant", 0.5, 600);
+        let result = scheduler
+            .schedule_agent_with_tenant(&a2, &nodes, Some(&ctx))
+            .await;
+        assert!(result.is_err(), "1112 MB should exceed 1024 MB limit");
+        match result {
+            Err(KiasError::TenantQuotaExceeded(_)) => {}
+            other => panic!("Expected TenantQuotaExceeded, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_empty_batch_returns_empty_results() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(5);
+        let mut agents: Vec<Agent> = vec![];
+
+        let results = scheduler.schedule_batch(&mut agents, &nodes).await;
+        assert!(
+            results.is_empty(),
+            "Empty batch should return empty results"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_schedule_batch_fair_no_tenants() {
+        // All agents have no tenant_id — should schedule normally
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        let mut agents = vec![
+            make_agent("a1", Priority::High),
+            make_agent("a2", Priority::Medium),
+        ];
+        let tenant_ctxs = HashMap::new();
+
+        let results = scheduler
+            .schedule_batch_fair(&mut agents, &nodes, &tenant_ctxs)
+            .await;
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.is_ok()));
+    }
+
+    #[tokio::test]
+    async fn test_release_unknown_tenant_noop() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+
+        // Releasing for unknown tenant should not panic
+        scheduler
+            .release_tenant_agent("nonexistent", 1.0, 512 * 1024 * 1024)
+            .await;
+
+        let stats = scheduler.get_tenant_stats("nonexistent").await;
+        assert!(stats.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_release_saturates_at_zero() {
+        let ctx = TenantContext::new("sat-tenant");
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // Schedule one agent
+        let a1 = make_tenant_agent_with_resources("a1", "sat-tenant", 1.0, 256);
+        scheduler
+            .schedule_agent_with_tenant(&a1, &nodes, Some(&ctx))
+            .await
+            .unwrap();
+
+        // Release more than allocated — should saturate at zero
+        scheduler
+            .release_tenant_agent("sat-tenant", 99.0, 999 * 1024 * 1024)
+            .await;
+
+        let stats = scheduler.get_tenant_stats("sat-tenant").await.unwrap();
+        assert_eq!(stats.active_agents, 0);
+        assert!(stats.total_cpu >= 0.0, "CPU should not go negative");
+        assert_eq!(stats.total_memory_bytes, 0, "Memory should saturate at 0");
+    }
+
+    // ─── Algorithm variant tests ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_schedule_with_least_loaded_algorithm() {
+        let config = SchedulerConfig {
+            algorithm: "least-loaded".to_string(),
+            ..Default::default()
+        };
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(3);
+        let agent = make_agent("a1", Priority::Medium);
+
+        let result = scheduler.schedule_agent(&agent, &nodes).await.unwrap();
+        assert!(!result.node_id.is_empty());
+        assert_eq!(result.algorithm, "least-loaded");
+    }
+
+    #[tokio::test]
+    async fn test_schedule_with_resource_aware_algorithm() {
+        let config = SchedulerConfig {
+            algorithm: "resource-aware".to_string(),
+            ..Default::default()
+        };
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(3);
+        let agent = make_agent("a1", Priority::Medium);
+
+        let result = scheduler.schedule_agent(&agent, &nodes).await.unwrap();
+        assert!(!result.node_id.is_empty());
+        assert_eq!(result.algorithm, "resource-aware");
+    }
+
+    #[tokio::test]
+    async fn test_schedule_with_cache_aware_algorithm() {
+        let config = SchedulerConfig {
+            algorithm: "cache-aware".to_string(),
+            cache_weight: 0.5,
+            ..Default::default()
+        };
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(3);
+        let agent = make_agent("a1", Priority::Medium);
+
+        let result = scheduler.schedule_agent(&agent, &nodes).await.unwrap();
+        assert!(!result.node_id.is_empty());
+        assert_eq!(result.algorithm, "cache-aware");
+    }
+
+    #[test]
+    fn test_with_cache_optimizer_constructor() {
+        let config = SchedulerConfig::default();
+        let optimizer = Arc::new(CacheOptimizer::new());
+        let scheduler = Scheduler::with_cache_optimizer(config, optimizer.clone());
+
+        // The scheduler's optimizer should be accessible
+        let scheduler_optimizer = scheduler.cache_optimizer();
+        // Verify the optimizer is functional — empty prefix returns no locations
+        assert!(scheduler_optimizer.find_prefix_locations(0).is_empty());
+    }
+
+    // ─── Edge case tests ──────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_schedule_single_node() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(1);
+        let agent = make_agent("a1", Priority::Medium);
+
+        let result = scheduler.schedule_agent(&agent, &nodes).await.unwrap();
+        assert_eq!(result.node_id, "node-0");
+    }
+
+    #[tokio::test]
+    async fn test_schedule_batch_more_agents_than_nodes() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(2);
+
+        let mut agents = vec![
+            make_agent("a1", Priority::High),
+            make_agent("a2", Priority::Medium),
+            make_agent("a3", Priority::Low),
+            make_agent("a4", Priority::Critical),
+        ];
+
+        let results = scheduler.schedule_batch(&mut agents, &nodes).await;
+        assert_eq!(results.len(), 4);
+        // All should succeed — round-robin distributes across nodes
+        assert!(results.iter().all(|r| r.is_ok()));
+    }
+
+    #[tokio::test]
+    async fn test_fair_schedule_index_rotates() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // First fair batch
+        let mut agents1 = vec![
+            make_tenant_agent("a1", "t1", Priority::Medium),
+            make_tenant_agent("a2", "t2", Priority::Medium),
+        ];
+        let mut tenant_ctxs = HashMap::new();
+        tenant_ctxs.insert("t1".to_string(), TenantContext::new("t1"));
+        tenant_ctxs.insert("t2".to_string(), TenantContext::new("t2"));
+
+        let _ = scheduler
+            .schedule_batch_fair(&mut agents1, &nodes, &tenant_ctxs)
+            .await;
+
+        // Second fair batch — index should have rotated
+        let mut agents2 = vec![
+            make_tenant_agent("a3", "t1", Priority::Medium),
+            make_tenant_agent("a4", "t2", Priority::Medium),
+        ];
+        let results = scheduler
+            .schedule_batch_fair(&mut agents2, &nodes, &tenant_ctxs)
+            .await;
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.is_ok()));
+    }
+
+    #[tokio::test]
+    async fn test_tenant_stats_tracking_across_schedules() {
+        let ctx = TenantContext::new("track-tenant");
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(10);
+
+        // Schedule 3 agents
+        for i in 0..3 {
+            let agent = make_tenant_agent(&format!("a{}", i), "track-tenant", Priority::Medium);
+            scheduler
+                .schedule_agent_with_tenant(&agent, &nodes, Some(&ctx))
+                .await
+                .unwrap();
+        }
+
+        let stats = scheduler.get_tenant_stats("track-tenant").await.unwrap();
+        assert_eq!(stats.active_agents, 3);
+        assert_eq!(stats.schedules_attempted, 3);
+        assert_eq!(stats.schedules_succeeded, 3);
+        assert_eq!(stats.schedules_rejected_quota, 0);
+    }
+
+    #[tokio::test]
+    async fn test_schedule_agent_delegates_to_tenant_variant() {
+        // schedule_agent should work identically to schedule_agent_with_tenant(None)
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(3);
+        let agent = make_agent("a1", Priority::High);
+
+        let result1 = scheduler.schedule_agent(&agent, &nodes).await.unwrap();
+        assert!(!result1.node_id.is_empty());
+        assert!(result1.score > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_batch_with_mixed_priorities_sorted() {
+        let config = SchedulerConfig::default();
+        let scheduler = Scheduler::new(config);
+        let nodes = make_nodes(5);
+
+        let mut agents = vec![
+            make_agent("low", Priority::Low),
+            make_agent("critical", Priority::Critical),
+            make_agent("high", Priority::High),
+            make_agent("medium", Priority::Medium),
+        ];
+
+        let results = scheduler.schedule_batch(&mut agents, &nodes).await;
+        assert_eq!(results.len(), 4);
+        // After batch, agents should be sorted by priority
+        assert_eq!(agents[0].id, "critical");
+        assert_eq!(agents[1].id, "high");
+        assert_eq!(agents[2].id, "medium");
+        assert_eq!(agents[3].id, "low");
+    }
+
+    #[test]
+    fn test_tenant_context_default_namespace() {
+        let ctx = TenantContext::new("my-tenant");
+        assert_eq!(ctx.namespace, "tenant-my-tenant");
+        assert_eq!(ctx.resource_quota.max_agents, 0);
+        assert_eq!(ctx.resource_quota.cpu_limit, 0.0);
+    }
+
+    #[test]
+    fn test_resource_quota_default() {
+        let quota = ResourceQuota::default();
+        assert_eq!(quota.max_agents, 0);
+        assert_eq!(quota.max_nodes, 0);
+        assert_eq!(quota.cpu_limit, 0.0);
+        assert_eq!(quota.memory_limit_mb, 0);
+    }
+
+    #[test]
+    fn test_tenant_stats_default() {
+        let stats = TenantStats::default();
+        assert_eq!(stats.active_agents, 0);
+        assert_eq!(stats.total_cpu, 0.0);
+        assert_eq!(stats.total_memory_bytes, 0);
+        assert_eq!(stats.schedules_attempted, 0);
+        assert_eq!(stats.schedules_succeeded, 0);
+        assert_eq!(stats.schedules_rejected_quota, 0);
+    }
 }

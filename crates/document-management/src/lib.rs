@@ -370,4 +370,144 @@ mod tests {
         assert_eq!(stats.total_documents, 1);
         assert_eq!(stats.draft_count, 1);
     }
+
+    #[test]
+    fn test_audit_log_created() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "审计测试".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        let log = system.get_audit_log(&doc.id).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].action, "created");
+        assert_eq!(log[0].performed_by, "user1");
+    }
+
+    #[test]
+    fn test_audit_log_full_lifecycle() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "全流程审计".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Procedure,
+                category: "SOP".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        system.submit_for_approval(&doc.id, "user1").unwrap();
+        system.approve_document(&doc.id, "approver1", None).unwrap();
+        system.publish_document(&doc.id, "publisher1").unwrap();
+        system.archive_document(&doc.id, "admin").unwrap();
+
+        let log = system.get_audit_log(&doc.id).unwrap();
+        assert_eq!(log.len(), 5); // created + submitted + approved + published + archived
+        assert_eq!(log[4].action, "created");
+        assert_eq!(log[3].action, "submitted_for_approval");
+        assert_eq!(log[2].action, "approved");
+        assert_eq!(log[1].action, "published");
+        assert_eq!(log[0].action, "archived");
+    }
+
+    #[test]
+    fn test_version_history_after_update() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "版本测试".to_string(),
+                content: "初始内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        system
+            .update_document(
+                &doc.id,
+                UpdateDocumentRequest {
+                    title: None,
+                    content: Some("更新后内容".to_string()),
+                    tags: None,
+                    updated_by: "editor".to_string(),
+                },
+            )
+            .unwrap();
+
+        let history = system.get_version_history(&doc.id).unwrap();
+        assert_eq!(history.len(), 2); // 初始版本 + 更新版本
+        assert_eq!(history[0].created_by, "editor"); // 最新版本的作者
+    }
+
+    #[test]
+    fn test_invalid_status_transitions() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "状态测试".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        // Draft 不能直接发布
+        assert!(system.publish_document(&doc.id, "user1").is_err());
+
+        // Draft 不能直接归档
+        assert!(system.archive_document(&doc.id, "user1").is_err());
+
+        // 提交后不能再次提交
+        system.submit_for_approval(&doc.id, "user1").unwrap();
+        assert!(system.submit_for_approval(&doc.id, "user1").is_err());
+
+        // UnderReview 不能直接发布
+        assert!(system.publish_document(&doc.id, "user1").is_err());
+    }
+
+    #[test]
+    fn test_update_only_draft() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "更新限制测试".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        // 提交审批后不能更新
+        system.submit_for_approval(&doc.id, "user1").unwrap();
+        let result = system.update_document(
+            &doc.id,
+            UpdateDocumentRequest {
+                title: Some("新标题".to_string()),
+                content: None,
+                tags: None,
+                updated_by: "user1".to_string(),
+            },
+        );
+        assert!(result.is_err());
+    }
 }

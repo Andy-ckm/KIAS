@@ -21,6 +21,19 @@ pub struct AuditEntry {
 pub fn get_audit_log(db_path: &Path, doc_id: &str) -> Result<Vec<AuditEntry>> {
     let conn = Connection::open(db_path)?;
 
+    // 确保表存在
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS document_audit_log (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            performed_by TEXT NOT NULL,
+            performed_at TEXT NOT NULL,
+            details TEXT,
+            ip_address TEXT
+        );",
+    )?;
+
     let mut stmt = conn.prepare(
         "SELECT id, document_id, action, performed_by, performed_at, details, ip_address
          FROM document_audit_log WHERE document_id = ?1 ORDER BY performed_at DESC LIMIT 100",

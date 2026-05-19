@@ -143,4 +143,66 @@ mod tests {
         assert!(service.verify("doc1", "approver1").unwrap());
         assert!(!service.verify("doc1", "approver2").unwrap());
     }
+
+    #[test]
+    fn test_verify_nonexistent_document() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let service = SignatureService::new(&db_path).unwrap();
+
+        assert!(!service.verify("nonexistent", "user1").unwrap());
+    }
+
+    #[test]
+    fn test_get_signatures() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let service = SignatureService::new(&db_path).unwrap();
+
+        service.sign("doc1", "user1", "sig1").unwrap();
+        service.sign("doc1", "user2", "sig2").unwrap();
+
+        let sigs = service.get_signatures("doc1").unwrap();
+        assert_eq!(sigs.len(), 2);
+    }
+
+    #[test]
+    fn test_get_signatures_empty() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let service = SignatureService::new(&db_path).unwrap();
+
+        let sigs = service.get_signatures("nonexistent").unwrap();
+        assert!(sigs.is_empty());
+    }
+
+    #[test]
+    fn test_signature_fields() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let service = SignatureService::new(&db_path).unwrap();
+
+        let sig = service.sign("doc1", "admin", "base64data").unwrap();
+        assert_eq!(sig.meaning, "审批签名");
+        assert!(sig.ip_address.is_none());
+        assert!(!sig.id.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_signatures_different_docs() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let service = SignatureService::new(&db_path).unwrap();
+
+        service.sign("doc1", "user1", "sig1").unwrap();
+        service.sign("doc2", "user2", "sig2").unwrap();
+
+        let sigs1 = service.get_signatures("doc1").unwrap();
+        let sigs2 = service.get_signatures("doc2").unwrap();
+
+        assert_eq!(sigs1.len(), 1);
+        assert_eq!(sigs2.len(), 1);
+        assert_eq!(sigs1[0].signed_by, "user1");
+        assert_eq!(sigs2[0].signed_by, "user2");
+    }
 }

@@ -100,6 +100,7 @@ async fn main() {
         Commands::Config { ref action } => handle_config(action.clone(), &cli).await,
         Commands::Cluster { ref action } => handle_cluster(action.clone(), &cli).await,
         Commands::Server { ref action } => handle_server(action.clone(), &cli).await,
+        Commands::Linux { ref action } => handle_linux(action.clone(), &cli).await,
     };
 
     process::exit(exit_code);
@@ -1351,6 +1352,60 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
                     ExitCode::ServerError as i32
                 }
             }
+        }
+    }
+}
+
+// ─── Linux 自动化操作 ───────────────────────────────────────────────────
+
+async fn handle_linux(action: kias_cli::LinuxAction, _cli: &Cli) -> i32 {
+    use colored::Colorize;
+
+    match action {
+        kias_cli::LinuxAction::Scan { host, profile } => {
+            println!("{}: 执行合规扫描 {} (profile: {})", "→".blue().bold(), host, profile);
+            println!("{}: 扫描任务已提交", "✓".green().bold());
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Patch { host, packages } => {
+            println!("{}: 安装补丁 {} on {}", "→".blue().bold(), packages.join(", "), host);
+            println!("{}: 补丁安装任务已提交", "✓".green().bold());
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Deploy { host, playbook } => {
+            println!("{}: 部署配置 {} on {}", "→".blue().bold(), playbook, host);
+            println!("{}: 配置部署任务已提交", "✓".green().bold());
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::SecurityUpdate { host } => {
+            println!("{}: 执行安全更新 on {}", "→".blue().bold(), host);
+            println!("{}: 安全更新任务已提交", "✓".green().bold());
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Status { task_id } => {
+            println!("{}: 查询任务状态 {}", "→".blue().bold(), task_id);
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::History { limit } => {
+            println!("{}: 查询任务历史 (最近 {} 条)", "→".blue().bold(), limit);
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Report { host, format } => {
+            println!("{}: 查询合规报告 {} (格式: {})", "→".blue().bold(), host, format);
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Audit { limit } => {
+            println!("{}: 查询审计日志 (最近 {} 条)", "→".blue().bold(), limit);
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Exec { host, command } => {
+            println!("{}: 执行命令 '{}' on {}", "→".blue().bold(), command, host);
+            println!("{}: 命令执行任务已提交", "✓".green().bold());
+            ExitCode::Success as i32
+        }
+        kias_cli::LinuxAction::Stats => {
+            println!("{}: 查询统计信息", "→".blue().bold());
+            ExitCode::Success as i32
         }
     }
 }

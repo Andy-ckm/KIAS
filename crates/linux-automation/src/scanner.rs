@@ -4,7 +4,6 @@ use crate::error::{AutomationError, Result};
 use crate::models::*;
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use std::path::Path;
 use std::sync::Mutex;
 
 /// 合规扫描器
@@ -109,8 +108,14 @@ impl ComplianceScanner {
             scan_time: Utc::now(),
             profile: profile.to_string(),
             score: self.calculate_score(&findings),
-            passed: findings.iter().filter(|f| f.status == FindingStatus::Pass).count(),
-            failed: findings.iter().filter(|f| f.status == FindingStatus::Fail).count(),
+            passed: findings
+                .iter()
+                .filter(|f| f.status == FindingStatus::Pass)
+                .count(),
+            failed: findings
+                .iter()
+                .filter(|f| f.status == FindingStatus::Fail)
+                .count(),
             not_applicable: findings
                 .iter()
                 .filter(|f| f.status == FindingStatus::NotApplicable)
@@ -135,7 +140,7 @@ impl ComplianceScanner {
     }
 
     /// 解析扫描发现
-    fn parse_findings(&self, stdout: &str, stderr: &str) -> Result<Vec<ComplianceFinding>> {
+    fn parse_findings(&self, stdout: &str, _stderr: &str) -> Result<Vec<ComplianceFinding>> {
         let mut findings = Vec::new();
 
         // 简化实现：解析 OpenSCAP 输出
@@ -167,7 +172,10 @@ impl ComplianceScanner {
             return 0.0;
         }
 
-        let passed = findings.iter().filter(|f| f.status == FindingStatus::Pass).count();
+        let passed = findings
+            .iter()
+            .filter(|f| f.status == FindingStatus::Pass)
+            .count();
         let total = findings
             .iter()
             .filter(|f| f.status != FindingStatus::NotApplicable)
@@ -255,11 +263,9 @@ impl ComplianceScanner {
         let conn = self.conn.lock().unwrap();
 
         let time: Option<String> = conn
-            .query_row(
-                "SELECT MAX(scan_time) FROM compliance_reports",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MAX(scan_time) FROM compliance_reports", [], |row| {
+                row.get(0)
+            })
             .unwrap_or(None);
 
         match time {

@@ -250,4 +250,266 @@ mod tests {
         assert!(json.contains("pending"));
         assert!(json.contains("0"));
     }
+
+    use axum::extract::State;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    use crate::models::agent::{Agent, AgentSpec, AgentStatus};
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        }
+    }
+
+    fn make_agent(id: &str, name: &str, status: AgentStatus) -> Agent {
+        Agent {
+            id: id.to_string(),
+            spec: AgentSpec {
+                name: name.to_string(),
+                image: "python:3.11".to_string(),
+                command: vec!["python".to_string()],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            },
+            status,
+            node_id: Some("node-1".to_string()),
+            resource_usage: Default::default(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            start_time: Some("2026-01-01T00:00:00Z".to_string()),
+            restart_count: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_empty() {
+        let state = test_state().await;
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.agent_count, 0);
+        assert_eq!(result.node_count, 0);
+        assert_eq!(result.task_stats.pending, 0);
+        assert_eq!(result.task_stats.running, 0);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_with_agents() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "agent-1", AgentStatus::Running),
+            );
+            agents.insert(
+                "a2".into(),
+                make_agent("a2", "agent-2", AgentStatus::Pending),
+            );
+            agents.insert(
+                "a3".into(),
+                make_agent("a3", "agent-3", AgentStatus::Failed),
+            );
+            agents.insert(
+                "a4".into(),
+                make_agent("a4", "agent-4", AgentStatus::Running),
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.agent_count, 4);
+        assert_eq!(result.task_stats.running, 2);
+        assert_eq!(result.task_stats.pending, 1);
+        assert_eq!(result.task_stats.failed, 1);
+        assert_eq!(result.task_stats.succeeded, 0);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_all_statuses() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert("a1".into(), make_agent("a1", "a1", AgentStatus::Pending));
+            agents.insert("a2".into(), make_agent("a2", "a2", AgentStatus::Scheduled));
+            agents.insert("a3".into(), make_agent("a3", "a3", AgentStatus::Running));
+            agents.insert("a4".into(), make_agent("a4", "a4", AgentStatus::Succeeded));
+            agents.insert("a5".into(), make_agent("a5", "a5", AgentStatus::Failed));
+            agents.insert("a6".into(), make_agent("a6", "a6", AgentStatus::Unknown));
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.agent_count, 6);
+        assert_eq!(result.task_stats.pending, 1);
+        assert_eq!(result.task_stats.scheduled, 1);
+        assert_eq!(result.task_stats.running, 1);
+        assert_eq!(result.task_stats.succeeded, 1);
+        assert_eq!(result.task_stats.failed, 1);
+        assert_eq!(result.task_stats.unknown, 1);
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_found() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "agent-42".into(),
+                make_agent("agent-42", "my-agent", AgentStatus::Running),
+            );
+        }
+        let result = agent_metrics(State(state), Path("agent-42".to_string())).await;
+        assert!(result.is_ok());
+        let m = result.unwrap();
+        assert_eq!(m.id, "agent-42");
+        assert_eq!(m.name, "my-agent");
+        assert_eq!(m.status, AgentStatus::Running);
+        assert_eq!(m.restart_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_not_found() {
+        let state = test_state().await;
+        let result = agent_metrics(State(state), Path("nonexistent".to_string())).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_empty() {
+        let state = test_state().await;
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "healthy");
+        assert_eq!(result.nodes.len(), 0);
+        assert_eq!(result.total_agents, 0);
+        assert_eq!(result.running_agents, 0);
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_all_healthy() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "node-1".to_string(),
+                    status: NodeStatus::Ready,
+                    resources: ResourceCapacity {
+                        cpu: "4".into(),
+                        memory: "8Gi".into(),
+                        gpu: "0".into(),
+                    },
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "healthy");
+        assert_eq!(result.nodes.len(), 1);
+        assert_eq!(result.nodes[0].status, "Ready");
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_degraded() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "node-1".to_string(),
+                    status: NodeStatus::Ready,
+                    resources: ResourceCapacity {
+                        cpu: "4".into(),
+                        memory: "8Gi".into(),
+                        gpu: "0".into(),
+                    },
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+            nodes.insert(
+                "n2".into(),
+                Node {
+                    id: "n2".to_string(),
+                    name: "node-2".to_string(),
+                    status: NodeStatus::NotReady,
+                    resources: ResourceCapacity {
+                        cpu: "4".into(),
+                        memory: "8Gi".into(),
+                        gpu: "0".into(),
+                    },
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "agent-1", AgentStatus::Running),
+            );
+            agents.insert(
+                "a2".into(),
+                make_agent("a2", "agent-2", AgentStatus::Running),
+            );
+            agents.insert(
+                "a3".into(),
+                make_agent("a3", "agent-3", AgentStatus::Pending),
+            );
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "degraded");
+        assert_eq!(result.nodes.len(), 2);
+        assert_eq!(result.total_agents, 3);
+        assert_eq!(result.running_agents, 2);
+    }
 }

@@ -13,11 +13,11 @@
 //! - 审计追踪哈希链（防篡改）
 
 pub mod api;
-pub mod web;
 pub mod document;
 pub mod linux_auto;
 pub mod service;
 pub mod storage;
+pub mod web;
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};

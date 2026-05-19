@@ -45,18 +45,14 @@ async fn get_change(
 }
 
 /// 列出变更请求
-async fn list_changes(
-    State(state): State<AppState>,
-) -> Json<Vec<ItChangeRequest>> {
+async fn list_changes(State(state): State<AppState>) -> Json<Vec<ItChangeRequest>> {
     let manager = state.manager;
     let changes = manager.list_changes();
     Json(changes.into_iter().cloned().collect())
 }
 
 /// 获取统计信息
-async fn get_statistics(
-    State(state): State<AppState>,
-) -> Json<ChangeStatistics> {
+async fn get_statistics(State(state): State<AppState>) -> Json<ChangeStatistics> {
     let manager = state.manager;
     let stats = manager.get_statistics();
     Json(stats)

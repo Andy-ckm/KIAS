@@ -186,3 +186,106 @@ pub struct AutomationStatistics {
     pub audit_entries: usize,
     pub last_scan_time: Option<DateTime<Utc>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compliance_tool_variants() {
+        let tools = vec![
+            ComplianceTool::OpenScap,
+            ComplianceTool::Lynis,
+            ComplianceTool::CisCat,
+            ComplianceTool::Custom("custom".to_string()),
+        ];
+        assert_eq!(tools.len(), 4);
+        assert_eq!(tools[0], ComplianceTool::OpenScap);
+        assert_ne!(tools[0], tools[1]);
+    }
+
+    #[test]
+    fn test_task_priority_ordering() {
+        let priorities = vec![
+            TaskPriority::Low,
+            TaskPriority::Normal,
+            TaskPriority::High,
+            TaskPriority::Critical,
+        ];
+        assert_eq!(priorities.len(), 4);
+        assert_eq!(priorities[0], TaskPriority::Low);
+        assert_ne!(priorities[0], priorities[3]);
+    }
+
+    #[test]
+    fn test_task_status_variants() {
+        let statuses = vec![
+            TaskStatus::Pending,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Failed,
+            TaskStatus::PartialSuccess,
+            TaskStatus::Cancelled,
+        ];
+        assert_eq!(statuses.len(), 6);
+        assert_eq!(statuses[0], TaskStatus::Pending);
+        assert_ne!(statuses[0], statuses[2]);
+    }
+
+    #[test]
+    fn test_severity_variants() {
+        let severities = vec![
+            Severity::Low,
+            Severity::Medium,
+            Severity::High,
+            Severity::Critical,
+        ];
+        assert_eq!(severities.len(), 4);
+        assert_eq!(severities[0], Severity::Low);
+        assert_ne!(severities[0], severities[3]);
+    }
+
+    #[test]
+    fn test_finding_status_variants() {
+        let statuses = vec![
+            FindingStatus::Pass,
+            FindingStatus::Fail,
+            FindingStatus::NotApplicable,
+            FindingStatus::NotChecked,
+        ];
+        assert_eq!(statuses.len(), 4);
+        assert_eq!(statuses[0], FindingStatus::Pass);
+        assert_ne!(statuses[0], statuses[1]);
+    }
+
+    #[test]
+    fn test_automation_task_creation() {
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "ls".to_string(),
+                hosts: vec!["localhost".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test".to_string(),
+            priority: TaskPriority::Normal,
+        };
+        assert_eq!(task.created_by, "test");
+        assert_eq!(task.priority, TaskPriority::Normal);
+    }
+
+    #[test]
+    fn test_host_result_creation() {
+        let result = HostResult {
+            host: "localhost".to_string(),
+            status: TaskStatus::Success,
+            stdout: "ok".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration_ms: 100,
+        };
+        assert_eq!(result.host, "localhost");
+        assert_eq!(result.status, TaskStatus::Success);
+        assert_eq!(result.exit_code, 0);
+    }
+}

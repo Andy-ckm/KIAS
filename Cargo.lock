@@ -1993,6 +1993,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "kias-document-management"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "hex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "kias-executor"
 version = "0.1.0"
 dependencies = [

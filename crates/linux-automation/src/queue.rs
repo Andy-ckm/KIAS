@@ -253,4 +253,49 @@ mod tests {
         let history = queue.get_history(Some(10)).unwrap();
         assert_eq!(history.len(), 1);
     }
+
+    #[test]
+    fn test_enqueue_multiple_tasks() {
+        let (queue, _tmp) = create_test_queue();
+
+        for i in 0..3 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "test-user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            queue.enqueue(&task).unwrap();
+        }
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 3);
+        assert_eq!(stats.pending, 3);
+    }
+
+    #[test]
+    fn test_update_status_to_failed() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "ls -la".to_string(),
+                hosts: vec!["localhost".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+
+        queue.enqueue(&task).unwrap();
+        queue.update_status(task.id, &TaskStatus::Failed).unwrap();
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.failed, 1);
+    }
 }

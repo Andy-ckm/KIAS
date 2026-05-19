@@ -170,4 +170,70 @@ mod tests {
         let (executor, _tmp) = create_test_executor();
         assert!(executor.ssh_key_path.is_none());
     }
+
+    #[test]
+    fn test_executor_with_ssh_key() {
+        let tmp = TempDir::new().unwrap();
+        let config = LinuxAutomationConfig {
+            database_path: tmp.path().join("test.db"),
+            playbook_dir: tmp.path().join("playbooks"),
+            ssh_key_path: Some(tmp.path().join("id_rsa")),
+            log_dir: tmp.path().join("logs"),
+            target_hosts: vec!["localhost".to_string()],
+            compliance_tool: ComplianceTool::OpenScap,
+        };
+        let executor = TaskExecutor::new(&config).unwrap();
+        assert!(executor.ssh_key_path.is_some());
+    }
+
+    #[test]
+    fn test_task_type_variants() {
+        let types = vec![
+            TaskType::ComplianceScan {
+                profile: "cis".to_string(),
+                hosts: vec![],
+            },
+            TaskType::PatchInstall {
+                packages: vec![],
+                hosts: vec![],
+            },
+            TaskType::ConfigDeploy {
+                playbook: "test.yml".to_string(),
+                hosts: vec![],
+            },
+            TaskType::SecurityUpdate { hosts: vec![] },
+            TaskType::LogCollection {
+                hosts: vec![],
+                log_paths: vec![],
+            },
+            TaskType::DiskCleanup {
+                hosts: vec![],
+                targets: vec![],
+            },
+            TaskType::ServiceRestart {
+                service: "nginx".to_string(),
+                hosts: vec![],
+            },
+            TaskType::CustomCommand {
+                command: "ls".to_string(),
+                hosts: vec![],
+            },
+        ];
+        assert_eq!(types.len(), 8);
+    }
+
+    #[test]
+    fn test_automation_statistics_default() {
+        let stats = AutomationStatistics {
+            total_tasks: 0,
+            successful_tasks: 0,
+            failed_tasks: 0,
+            pending_tasks: 0,
+            compliance_score: 0.0,
+            audit_entries: 0,
+            last_scan_time: None,
+        };
+        assert_eq!(stats.total_tasks, 0);
+        assert!(stats.last_scan_time.is_none());
+    }
 }

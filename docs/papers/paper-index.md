@@ -1,10 +1,10 @@
 # KIAS 论文研究库
 
-更新时间: 2026-05-19 (07:58)
+更新时间: 2026-05-19 (09:10)
 
-## 论文列表 (110 篇)
+## 论文列表 (113 篇)
 
-### 已下载论文 (99 篇)
+### 已下载论文 (102 篇)
 - ✅ 2605.14866.pdf (Towards In-Depth Root Cause Localization for Microservices with Multi-Agent Recursion-of-Thought)
 - ✅ 2605.15237.pdf (A3D: Agentic AI flow for autonomous Accelerator Design)
 - ✅ 2605.15206.pdf (AgentStop: Terminating Local AI Agents Early to Save Energy in Consumer Devices)
@@ -34,6 +34,9 @@
 - ✅ 2605.16143.pdf (Look Before You Leap: Autonomous Exploration for LLM Agents)
 - ✅ 2605.16233.pdf (FORGE: Self-Evolving Agent Memory With No Weight Updates via Population Broadcast)
 - ✅ 2605.15611.pdf (TopoEvo: A Topology-Aware Self-Evolving Multi-Agent Framework for Root Cause Analysis in Microservices)
+- ✅ 2605.15665.pdf (PRISM: Prompt Reliability via Iterative Simulation and Monitoring for Enterprise Conversational AI)
+- ✅ 2605.15777.pdf (SaaS-Bench: Can Computer-Use Agents Leverage Real-World SaaS to Solve Professional Workflows?)
+- ✅ 2605.15226.pdf (Is Agentic AI Ready for Real-World Hardware Engineering? A Deep Dive with Phoenix-bench)
 - ✅ 2605.15581.pdf (STAR: A Stage-attributed Triage and Repair framework for RCA Agents in Microservices)
 - ✅ 2605.15701.pdf (H-Mem: A Novel Memory Mechanism for Evolving and Retrieving Agent Memory via a Hybrid Structure)
 - ✅ 2605.14892.pdf (Beyond Individual Intelligence: Surveying Collaboration, Failure Attribution, and Self-Evolution in MAS)
@@ -113,6 +116,24 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15665]** PRISM: Prompt Reliability via Iterative Simulation and Monitoring for Enterprise Conversational AI
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: prompt reliability, enterprise AI, conversational AI, monitoring
+   - 链接: https://arxiv.org/abs/2605.15665
+   - 状态: ✅ 已下载 (212KB)
+
+**[2605.15777]** SaaS-Bench: Can Computer-Use Agents Leverage Real-World SaaS to Solve Professional Workflows?
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: computer-use agents, SaaS, benchmark, professional workflows
+   - 链接: https://arxiv.org/abs/2605.15777
+   - 状态: ✅ 已下载 (2.4MB)
+
+**[2605.15226]** Is Agentic AI Ready for Real-World Hardware Engineering? A Deep Dive with Phoenix-bench
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: agentic AI, hardware engineering, benchmark, real-world evaluation
+   - 链接: https://arxiv.org/abs/2605.15226
+   - 状态: ✅ 已下载 (969KB)
 
 **[2605.15237]** A3D: Agentic AI flow for autonomous Accelerator Design
    - 日期: 2026-05-19 | 分类: cs.AI

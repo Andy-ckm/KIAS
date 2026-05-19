@@ -1,7 +1,7 @@
 //! 版本控制
 
 use crate::document::DocumentVersion;
-use crate::error::Result;
+use crate::error::{DocumentError, Result};
 use chrono::Utc;
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
@@ -55,7 +55,10 @@ impl VersionControl {
         comment: &str,
         created_by: &str,
     ) -> Result<DocumentVersion> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         // 获取当前最大版本号
         let max_version: u32 = conn
@@ -99,7 +102,10 @@ impl VersionControl {
     }
 
     pub fn get_history(&self, doc_id: &str) -> Result<Vec<DocumentVersion>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, document_id, version, content, checksum, created_at, created_by, comment

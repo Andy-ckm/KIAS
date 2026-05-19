@@ -114,12 +114,18 @@ impl DocumentRepository {
     }
 
     pub fn get(&self, id: &str) -> Result<Document> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         Self::get_with_conn(&conn, id)
     }
 
     pub fn create(&self, request: CreateDocumentRequest) -> Result<Document> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
         let tags_json = serde_json::to_string(&request.tags).unwrap_or_default();
@@ -162,7 +168,10 @@ impl DocumentRepository {
     }
 
     pub fn update(&self, id: &str, request: UpdateDocumentRequest) -> Result<Document> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let now = Utc::now();
 
         let current = Self::get_with_conn(&conn, id)?;
@@ -186,7 +195,10 @@ impl DocumentRepository {
         status: DocumentStatus,
         updated_by: &str,
     ) -> Result<Document> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let now = Utc::now();
 
         conn.execute(
@@ -203,7 +215,10 @@ impl DocumentRepository {
     }
 
     pub fn search(&self, query: &str) -> Result<Vec<Document>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let search_pattern = format!("%{}%", query);
 
         let mut stmt = conn.prepare(
@@ -225,7 +240,10 @@ impl DocumentRepository {
     }
 
     pub fn get_statistics(&self) -> Result<DocumentStatistics> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         let total: usize =
             conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
@@ -250,7 +268,10 @@ impl DocumentRepository {
     }
 
     pub fn delete(&self, id: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let affected = conn.execute("DELETE FROM documents WHERE id = ?1", params![id])?;
         if affected == 0 {
             return Err(DocumentError::NotFound(id.to_string()));
@@ -259,7 +280,10 @@ impl DocumentRepository {
     }
 
     pub fn list_by_status(&self, status: &DocumentStatus) -> Result<Vec<Document>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let status_json = serde_json::to_string(status)?;
         let mut stmt = conn.prepare(
             "SELECT id FROM documents WHERE status = ?1 ORDER BY updated_at DESC LIMIT 100",
@@ -280,7 +304,10 @@ impl DocumentRepository {
     }
 
     pub fn count(&self) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
         let count: usize =
             conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
         Ok(count)

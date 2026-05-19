@@ -340,7 +340,12 @@ mod tests {
             .await
             .unwrap();
 
-        let content_type = response.headers().get("content-type").unwrap().to_str().unwrap();
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(content_type.contains("application/json"));
     }
 }

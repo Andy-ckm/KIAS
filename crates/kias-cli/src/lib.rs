@@ -4,7 +4,9 @@
 pub mod agent;
 pub mod client;
 pub mod config;
+pub mod linux;
 pub mod output;
+pub use linux::LinuxAction;
 pub mod process;
 pub mod sandbox;
 pub mod skill;
@@ -107,6 +109,11 @@ pub enum Commands {
     Server {
         #[command(subcommand)]
         action: ServerAction,
+    },
+    /// Linux 自动化运维
+    Linux {
+        #[command(subcommand)]
+        action: linux::LinuxAction,
     },
 }
 

@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 /// 任务执行器
 pub struct TaskExecutor {
+    #[allow(dead_code)]
     ssh_key_path: Option<std::path::PathBuf>,
 }
 
@@ -25,7 +26,7 @@ impl TaskExecutor {
         hosts: &[String],
         command: &str,
     ) -> Result<AutomationResult> {
-        let start = Instant::now();
+        let _start = Instant::now();
         let mut host_results = Vec::new();
 
         for host in hosts {
@@ -110,7 +111,8 @@ impl TaskExecutor {
 
     /// 安全更新
     pub async fn security_update(&self, hosts: &[String]) -> Result<AutomationResult> {
-        self.execute_command(hosts, "yum update --security -y").await
+        self.execute_command(hosts, "yum update --security -y")
+            .await
     }
 
     /// 收集日志

@@ -1,11 +1,16 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (01:55)
+更新时间: 2026-05-20 (04:35)
 
-## 论文列表 (167 篇)
+## 论文列表 (172 篇)
 
-### 已下载论文 (161 篇)
+### 已下载论文 (166 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
+- ✅ 2605.17101.pdf (SEMA-RAG: A Self-Evolving Multi-Agent Retrieval-Augmented Generation Framework for Medical Reasoning)
+- ✅ 2605.16346.pdf (PropGuard: Safeguarding LLM-MAS via Propagation-Aware Exploration and Remediation)
+- ✅ 2605.17698.pdf (Agent Bazaar: Enabling Economic Alignment in Multi-Agent Marketplaces)
+- ✅ 2605.17937.pdf (BacktestBench: Benchmarking LLMs for Automated Quantitative Strategy Backtesting)
+- ✅ 2510.21712.pdf (DecoupleSearch: Decouple Planning and Search via Hierarchical Reward Modeling)
 - ✅ 2605.18414.pdf (Prompts Don't Protect: Architectural Enforcement via MCP Proxy for LLM Tool Access Control)
 - ✅ 2605.17909.pdf (Ethical Hyper-Velocity (EHV): Governance-Aware JIT Compiler for Agentic Systems)
 - ✅ 2605.18073.pdf (A-ProS: Towards Reliable Autonomous Programming Through Multi-Model Feedback)
@@ -178,6 +183,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.17101]** SEMA-RAG: A Self-Evolving Multi-Agent Retrieval-Augmented Generation Framework for Medical Reasoning
+   - 日期: 2026-05-19 | 分类: cs.CL, cs.AI
+   - 主题: multi-agent RAG, medical reasoning, self-evolving, retrieval-augmented generation
+   - 链接: https://arxiv.org/abs/2605.17101
+   - 状态: ✅ 已下载 (5.0MB)
+
+**[2605.16346]** PropGuard: Safeguarding LLM-MAS via Propagation-Aware Exploration and Remediation
+   - 日期: 2026-05-19 | 分类: cs.LG, cs.AI
+   - 主题: LLM multi-agent systems, security, propagation-aware, malicious instruction detection
+   - 链接: https://arxiv.org/abs/2605.16346
+   - 状态: ✅ 已下载 (2.7MB)
+
+**[2605.17698]** Agent Bazaar: Enabling Economic Alignment in Multi-Agent Marketplaces
+   - 日期: 2026-05-19 | 分类: cs.LG, cs.AI
+   - 主题: multi-agent marketplaces, economic alignment, agent economics, systemic risk
+   - 链接: https://arxiv.org/abs/2605.17698
+   - 状态: ✅ 已下载 (4.2MB)
+
+**[2605.17937]** BacktestBench: Benchmarking LLMs for Automated Quantitative Strategy Backtesting
+   - 日期: 2026-05-19 | 分类: cs.CL, cs.AI
+   - 主题: LLM benchmarking, quantitative trading, tool use, automated backtesting
+   - 链接: https://arxiv.org/abs/2605.17937
+   - 状态: ✅ 已下载 (7.8MB)
+
+**[2510.21712]** DecoupleSearch: Decouple Planning and Search via Hierarchical Reward Modeling
+   - 日期: 2025-10 | 分类: cs.CL, cs.AI
+   - 主题: agentic RAG, planning, search decoupling, hierarchical reward modeling
+   - 链接: https://arxiv.org/abs/2510.21712
+   - 状态: ✅ 已下载 (1.2MB)
 
 **[2605.18583]** Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks
    - 日期: 2026-05-18 | 分类: cs.AI, cs.SE

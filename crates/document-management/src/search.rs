@@ -2,7 +2,6 @@
 //! 支持 FTS5 全文搜索 + 元数据过滤
 
 use crate::document::*;
-use crate::error::{DocumentError, Result};
 use serde::{Deserialize, Serialize};
 
 /// 搜索查询
@@ -44,6 +43,7 @@ pub struct SearchResult {
 }
 
 /// 文档搜索引擎
+#[allow(dead_code)]
 pub struct DocumentSearchEngine {
     index_path: String,
 }
@@ -112,5 +112,11 @@ impl TagIndex {
 
     pub fn all_tags(&self) -> Vec<String> {
         self.tags.keys().cloned().collect()
+    }
+}
+
+impl Default for TagIndex {
+    fn default() -> Self {
+        Self::new()
     }
 }

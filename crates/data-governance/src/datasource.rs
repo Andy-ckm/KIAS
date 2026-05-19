@@ -491,4 +491,79 @@ mod tests {
         let (active, idle, total) = ds.pool_stats();
         assert!(total > 0 || (active == 0 && idle == 0)); // Valid pool state
     }
+
+    #[test]
+    fn test_datasource_type_parse_case_insensitive() {
+        let t: DataSourceType = "SQLITE".parse().unwrap();
+        assert_eq!(t, DataSourceType::Sqlite);
+        let t: DataSourceType = "Postgres".parse().unwrap();
+        assert_eq!(t, DataSourceType::Postgres);
+    }
+
+    #[test]
+    fn test_datasource_type_parse_postgresql_alias() {
+        let t: DataSourceType = "postgresql".parse().unwrap();
+        assert_eq!(t, DataSourceType::Postgres);
+    }
+
+    #[test]
+    fn test_datasource_type_parse_mariadb_alias() {
+        let t: DataSourceType = "mariadb".parse().unwrap();
+        assert_eq!(t, DataSourceType::Mysql);
+    }
+
+    #[tokio::test]
+    async fn test_memory_datasource_pool_stats() {
+        let ds = MemoryDataSource::new("pool-test");
+        let (active, idle, total) = ds.pool_stats();
+        assert_eq!((active, idle, total), (0, 0, 0));
+    }
+
+    #[tokio::test]
+    async fn test_registry_empty_default() {
+        let registry = DataSourceRegistry::new();
+        assert!(registry.get_default().await.is_none());
+        assert!(registry.list_names().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_registry_remove_nonexistent() {
+        let registry = DataSourceRegistry::new();
+        assert!(!registry.remove("nonexistent").await);
+    }
+
+    #[tokio::test]
+    async fn test_registry_overwrite_default() {
+        let registry = DataSourceRegistry::new();
+        let ds1: Arc<dyn DataSource> = Arc::new(MemoryDataSource::new("first"));
+        let ds2: Arc<dyn DataSource> = Arc::new(MemoryDataSource::new("second"));
+
+        registry.register(ds1, true).await;
+        assert_eq!(registry.get_default().await.unwrap().name(), "first");
+
+        registry.register(ds2, true).await;
+        assert_eq!(registry.get_default().await.unwrap().name(), "second");
+    }
+
+    #[test]
+    fn test_datasource_config_default_max_connections() {
+        let json = r#"{"name":"test","ds_type":"sqlite","connection_string":"test"}"#;
+        let config: DataSourceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_connections, 10);
+        assert!(!config.is_default);
+        assert!(config.description.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_sqlite_datasource_execute_raw() {
+        let ds = SqliteDataSource::new("exec-test", "sqlite::memory:")
+            .await
+            .unwrap();
+        // Create a table
+        let affected = ds
+            .execute_raw("CREATE TABLE IF NOT EXISTS test (id INTEGER)")
+            .await
+            .unwrap();
+        assert_eq!(affected, 0); // CREATE TABLE returns 0 rows affected
+    }
 }

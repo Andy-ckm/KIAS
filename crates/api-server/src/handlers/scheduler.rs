@@ -342,6 +342,230 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_agents_assigned_to_nodes() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let mut agents = HashMap::new();
+        // Create 3 agents assigned to node-1
+        for i in 0..3 {
+            let spec = AgentSpec {
+                name: format!("agent-{}", i),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Running;
+            agent.node_id = Some("node-1".to_string());
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let config = kias_common::config::KiasConfig::default();
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "node-1".to_string(),
+            crate::models::node::Node {
+                id: "node-1".to_string(),
+                name: "node-1".to_string(),
+                status: crate::models::node::NodeStatus::Ready,
+                resources: crate::models::node::ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                allocatable: crate::models::node::ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                labels: Default::default(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                last_heartbeat: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(nodes)),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.node_utilization.len(), 1);
+        assert_eq!(result.node_utilization[0].agent_count, 3);
+        assert_eq!(result.node_utilization[0].running_count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_recent_decisions_truncated() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let mut agents = HashMap::new();
+        // Create 15 agents — recent_decisions should truncate to 10
+        for i in 0..15 {
+            let spec = AgentSpec {
+                name: format!("agent-{}", i),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Running;
+            // Set different timestamps for sorting
+            agent.updated_at = format!("2026-05-20T{:02}:00:00Z", i);
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.recent_decisions.len(), 10);
+        // Should be sorted descending (most recent first)
+        assert!(result.recent_decisions[0].timestamp >= result.recent_decisions[1].timestamp);
+    }
+
+    #[tokio::test]
+    async fn test_success_rate_edge_cases() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        // All failed — success_rate should be 0
+        let mut agents = HashMap::new();
+        for i in 0..3 {
+            let spec = AgentSpec {
+                name: format!("agent-{}", i),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Failed;
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.throughput.success_rate, 0.0);
+        assert_eq!(result.throughput.total_failed, 3);
+        assert_eq!(result.throughput.total_completed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_name_and_description() {
+        let state = test_state().await;
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.current_algorithm.name, "Weighted Round Robin");
+        assert!(!result.current_algorithm.description.is_empty());
+        assert!(result.current_algorithm.description.contains("weighted"));
+    }
+
     use std::sync::Arc;
     use tokio::sync::RwLock;
 }

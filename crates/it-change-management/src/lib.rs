@@ -18,6 +18,7 @@ pub mod linux_auto;
 pub mod service;
 pub mod storage;
 pub mod web;
+pub mod workflow;
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};

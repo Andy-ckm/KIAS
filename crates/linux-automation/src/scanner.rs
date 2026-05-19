@@ -405,4 +405,188 @@ mod tests {
         let score = scanner.calculate_score(&findings);
         assert_eq!(score, 0.0);
     }
+
+    #[test]
+    fn test_parse_findings_empty() {
+        let (scanner, _tmp) = create_test_scanner();
+        let findings = scanner.parse_findings("", "").unwrap();
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_findings_pass_lines() {
+        let (scanner, _tmp) = create_test_scanner();
+        let stdout = "line1 pass check\nline2 pass check\n";
+        let findings = scanner.parse_findings(stdout, "").unwrap();
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].status, FindingStatus::Pass);
+        assert_eq!(findings[1].status, FindingStatus::Pass);
+        assert_eq!(findings[0].rule_id, "RULE-1");
+        assert_eq!(findings[1].rule_id, "RULE-2");
+    }
+
+    #[test]
+    fn test_parse_findings_fail_lines() {
+        let (scanner, _tmp) = create_test_scanner();
+        let stdout = "line1 fail check\nline2 fail check\n";
+        let findings = scanner.parse_findings(stdout, "").unwrap();
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].status, FindingStatus::Fail);
+        assert_eq!(findings[1].status, FindingStatus::Fail);
+    }
+
+    #[test]
+    fn test_parse_findings_mixed() {
+        let (scanner, _tmp) = create_test_scanner();
+        let stdout = "pass check\nfail check\nirrelevant line\npass another\n";
+        let findings = scanner.parse_findings(stdout, "").unwrap();
+        assert_eq!(findings.len(), 3); // "irrelevant line" is skipped
+        assert_eq!(findings[0].status, FindingStatus::Pass);
+        assert_eq!(findings[1].status, FindingStatus::Fail);
+        assert_eq!(findings[2].status, FindingStatus::Pass);
+    }
+
+    #[test]
+    fn test_save_and_get_report() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let report = ComplianceReport {
+            host: "test-host".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 85.5,
+            passed: 10,
+            failed: 2,
+            not_applicable: 3,
+            findings: vec![ComplianceFinding {
+                rule_id: "RULE-1".to_string(),
+                title: "Test finding".to_string(),
+                severity: Severity::High,
+                status: FindingStatus::Pass,
+                description: "Test".to_string(),
+                remediation: Some("Fix it".to_string()),
+            }],
+        };
+
+        scanner.save_report(&report).unwrap();
+
+        let retrieved = scanner.get_report("test-host").unwrap();
+        assert_eq!(retrieved.host, "test-host");
+        assert_eq!(retrieved.profile, "cis");
+        assert!((retrieved.score - 85.5).abs() < 0.01);
+        assert_eq!(retrieved.passed, 10);
+        assert_eq!(retrieved.failed, 2);
+        assert_eq!(retrieved.not_applicable, 3);
+        assert_eq!(retrieved.findings.len(), 1);
+        assert_eq!(retrieved.findings[0].rule_id, "RULE-1");
+    }
+
+    #[test]
+    fn test_get_average_score_after_save() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        // Save two reports
+        let report1 = ComplianceReport {
+            host: "host1".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 80.0,
+            passed: 8,
+            failed: 2,
+            not_applicable: 0,
+            findings: vec![],
+        };
+        let report2 = ComplianceReport {
+            host: "host2".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 60.0,
+            passed: 6,
+            failed: 4,
+            not_applicable: 0,
+            findings: vec![],
+        };
+
+        scanner.save_report(&report1).unwrap();
+        scanner.save_report(&report2).unwrap();
+
+        let avg = scanner.get_average_score().unwrap();
+        assert!((avg - 70.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_get_last_scan_time_after_save() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        assert!(scanner.get_last_scan_time().unwrap().is_none());
+
+        let report = ComplianceReport {
+            host: "host1".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 90.0,
+            passed: 9,
+            failed: 1,
+            not_applicable: 0,
+            findings: vec![],
+        };
+        scanner.save_report(&report).unwrap();
+
+        let time = scanner.get_last_scan_time().unwrap();
+        assert!(time.is_some());
+    }
+
+    #[test]
+    fn test_calculate_score_with_not_applicable() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let findings = vec![
+            ComplianceFinding {
+                rule_id: "1".to_string(),
+                title: "Pass".to_string(),
+                severity: Severity::Medium,
+                status: FindingStatus::Pass,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+            ComplianceFinding {
+                rule_id: "2".to_string(),
+                title: "N/A".to_string(),
+                severity: Severity::Low,
+                status: FindingStatus::NotApplicable,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+            ComplianceFinding {
+                rule_id: "3".to_string(),
+                title: "Fail".to_string(),
+                severity: Severity::High,
+                status: FindingStatus::Fail,
+                description: "Test".to_string(),
+                remediation: None,
+            },
+        ];
+
+        // 1 pass out of 2 applicable (N/A excluded) = 50%
+        let score = scanner.calculate_score(&findings);
+        assert_eq!(score, 50.0);
+    }
+
+    #[test]
+    fn test_calculate_score_only_not_applicable() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let findings = vec![ComplianceFinding {
+            rule_id: "1".to_string(),
+            title: "N/A".to_string(),
+            severity: Severity::Low,
+            status: FindingStatus::NotApplicable,
+            description: "Test".to_string(),
+            remediation: None,
+        }];
+
+        // All N/A → total=0 → return 0.0
+        let score = scanner.calculate_score(&findings);
+        assert_eq!(score, 0.0);
+    }
 }

@@ -298,4 +298,136 @@ mod tests {
         let stats = queue.get_statistics().unwrap();
         assert_eq!(stats.failed, 1);
     }
+
+    #[test]
+    fn test_update_status_pending_to_running() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "test".to_string(),
+                hosts: vec!["host1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            priority: TaskPriority::High,
+        };
+
+        queue.enqueue(&task).unwrap();
+        queue.update_status(task.id, &TaskStatus::Running).unwrap();
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.pending, 0);
+    }
+
+    #[test]
+    fn test_get_history_with_limit() {
+        let (queue, _tmp) = create_test_queue();
+
+        for i in 0..5 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "test-user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            queue.enqueue(&task).unwrap();
+        }
+
+        let history = queue.get_history(Some(3)).unwrap();
+        assert_eq!(history.len(), 3);
+
+        let all_history = queue.get_history(None).unwrap();
+        assert_eq!(all_history.len(), 5);
+    }
+
+    #[test]
+    fn test_get_statistics_mixed_statuses() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task1 = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "cmd1".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+        let task2 = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "cmd2".to_string(),
+                hosts: vec!["h2".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::High,
+        };
+        let task3 = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "cmd3".to_string(),
+                hosts: vec!["h3".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::Low,
+        };
+
+        queue.enqueue(&task1).unwrap();
+        queue.enqueue(&task2).unwrap();
+        queue.enqueue(&task3).unwrap();
+
+        queue.update_status(task1.id, &TaskStatus::Success).unwrap();
+        queue.update_status(task2.id, &TaskStatus::Failed).unwrap();
+        // task3 stays Pending
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 3);
+        assert_eq!(stats.successful, 1);
+        assert_eq!(stats.failed, 1);
+        assert_eq!(stats.pending, 1);
+    }
+
+    #[test]
+    fn test_update_status_cancelled() {
+        let (queue, _tmp) = create_test_queue();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "test".to_string(),
+                hosts: vec!["host".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+
+        queue.enqueue(&task).unwrap();
+        queue
+            .update_status(task.id, &TaskStatus::Cancelled)
+            .unwrap();
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.pending, 0);
+        assert_eq!(stats.successful, 0);
+        assert_eq!(stats.failed, 0);
+    }
+
+    #[test]
+    fn test_history_empty_queue() {
+        let (queue, _tmp) = create_test_queue();
+        let history = queue.get_history(Some(10)).unwrap();
+        assert!(history.is_empty());
+    }
 }

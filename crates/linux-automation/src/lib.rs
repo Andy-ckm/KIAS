@@ -24,6 +24,7 @@ pub mod k8s_ops;
 pub mod models;
 pub mod operation_hub;
 pub mod patch;
+pub mod perf_monitor;
 pub mod provisioning;
 pub mod queue;
 pub mod rbac;

@@ -50,6 +50,12 @@ pub enum AutomationError {
     #[error("锁中毒: {0}")]
     LockPoisoned(String),
 
+    #[error("性能监控错误: {0}")]
+    PerfMonitor(String),
+
+    #[error("基线数据不足: {0}")]
+    BaselineInsufficient(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }
@@ -138,5 +144,31 @@ mod tests {
         }
         let err: Result<i32> = Err(AutomationError::Other("fail".to_string()));
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_perf_monitor_error_display() {
+        let err = AutomationError::PerfMonitor("metric parse failed".to_string());
+        assert_eq!(format!("{}", err), "性能监控错误: metric parse failed");
+    }
+
+    #[test]
+    fn test_baseline_insufficient_error_display() {
+        let err = AutomationError::BaselineInsufficient("need 30 samples".to_string());
+        assert_eq!(format!("{}", err), "基线数据不足: need 30 samples");
+    }
+
+    #[test]
+    fn test_perf_monitor_error_debug() {
+        let err = AutomationError::PerfMonitor("test".to_string());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("PerfMonitor"));
+    }
+
+    #[test]
+    fn test_baseline_insufficient_error_debug() {
+        let err = AutomationError::BaselineInsufficient("test".to_string());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("BaselineInsufficient"));
     }
 }

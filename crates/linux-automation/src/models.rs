@@ -687,16 +687,164 @@ pub struct BackupStatistics {
     pub verification_pass_rate: f64,
 }
 
+// === R030: 性能监控和优化 ===
+
+/// 性能指标类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PerfMetricType {
+    CpuUsage,
+    MemoryUsage,
+    DiskIoRead,
+    DiskIoWrite,
+    NetworkRx,
+    NetworkTx,
+    LoadAverage,
+    SwapUsage,
+    DiskUsage,
+    ProcessCount,
+    ContextSwitches,
+    Interrupts,
+}
+
+/// 单个性能指标采样
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfSample {
+    pub metric_type: PerfMetricType,
+    pub value: f64,
+    pub unit: String,
+    pub timestamp: DateTime<Utc>,
+    pub host: String,
+}
+
+/// 性能基线（正常行为范围）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfBaseline {
+    pub metric_type: PerfMetricType,
+    pub mean: f64,
+    pub std_dev: f64,
+    pub min: f64,
+    pub max: f64,
+    pub p95: f64,
+    pub p99: f64,
+    pub sample_count: u32,
+    pub established_at: DateTime<Utc>,
+}
+
+/// 性能异常
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AnomalySeverity {
+    Info,
+    Warning,
+    Critical,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfAnomaly {
+    pub metric_type: PerfMetricType,
+    pub value: f64,
+    pub baseline_mean: f64,
+    pub deviation_sigma: f64,
+    pub severity: AnomalySeverity,
+    pub message: String,
+    pub detected_at: DateTime<Utc>,
+}
+
+/// 瓶颈类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BottleneckType {
+    CpuBound,
+    MemoryBound,
+    DiskIoBound,
+    NetworkBound,
+    SwapThrashing,
+    ProcessSaturation,
+    NoBottleneck,
+}
+
+/// 瓶颈分析结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BottleneckAnalysis {
+    pub primary: BottleneckType,
+    pub secondary: Option<BottleneckType>,
+    pub cpu_score: f64,
+    pub memory_score: f64,
+    pub disk_io_score: f64,
+    pub network_score: f64,
+    pub description: String,
+}
+
+/// 优化建议
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizationRecommendation {
+    pub category: BottleneckType,
+    pub priority: u8,
+    pub title: String,
+    pub description: String,
+    pub expected_improvement: String,
+    pub command: Option<String>,
+}
+
+/// 性能报告
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfReport {
+    pub host: String,
+    pub collected_at: DateTime<Utc>,
+    pub samples: Vec<PerfSample>,
+    pub baselines: Vec<PerfBaseline>,
+    pub anomalies: Vec<PerfAnomaly>,
+    pub bottleneck: BottleneckAnalysis,
+    pub recommendations: Vec<OptimizationRecommendation>,
+    pub overall_score: f64,
+}
+
+/// 性能监控配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerfMonitorConfig {
+    /// 采集间隔（秒）
+    pub interval_secs: u64,
+    /// 基线建立所需最少样本数
+    pub min_baseline_samples: u32,
+    /// 异常检测阈值（标准差倍数）
+    pub anomaly_sigma_threshold: f64,
+    /// 严重异常阈值
+    pub critical_sigma_threshold: f64,
+    /// 监控的指标类型
+    pub metrics: Vec<PerfMetricType>,
+}
+
+impl Default for PerfMonitorConfig {
+    fn default() -> Self {
+        Self {
+            interval_secs: 60,
+            min_baseline_samples: 30,
+            anomaly_sigma_threshold: 2.0,
+            critical_sigma_threshold: 3.0,
+            metrics: vec![
+                PerfMetricType::CpuUsage,
+                PerfMetricType::MemoryUsage,
+                PerfMetricType::DiskIoRead,
+                PerfMetricType::DiskIoWrite,
+                PerfMetricType::NetworkRx,
+                PerfMetricType::NetworkTx,
+                PerfMetricType::LoadAverage,
+                PerfMetricType::SwapUsage,
+            ],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_compliance_tool_variants() {
-        let tools = [ComplianceTool::OpenScap,
+        let tools = [
+            ComplianceTool::OpenScap,
             ComplianceTool::Lynis,
             ComplianceTool::CisCat,
-            ComplianceTool::Custom("custom".to_string())];
+            ComplianceTool::Custom("custom".to_string()),
+        ];
         assert_eq!(tools.len(), 4);
         assert_eq!(tools[0], ComplianceTool::OpenScap);
         assert_ne!(tools[0], tools[1]);
@@ -704,10 +852,12 @@ mod tests {
 
     #[test]
     fn test_task_priority_ordering() {
-        let priorities = [TaskPriority::Low,
+        let priorities = [
+            TaskPriority::Low,
             TaskPriority::Normal,
             TaskPriority::High,
-            TaskPriority::Critical];
+            TaskPriority::Critical,
+        ];
         assert_eq!(priorities.len(), 4);
         assert_eq!(priorities[0], TaskPriority::Low);
         assert_ne!(priorities[0], priorities[3]);
@@ -715,12 +865,14 @@ mod tests {
 
     #[test]
     fn test_task_status_variants() {
-        let statuses = [TaskStatus::Pending,
+        let statuses = [
+            TaskStatus::Pending,
             TaskStatus::Running,
             TaskStatus::Success,
             TaskStatus::Failed,
             TaskStatus::PartialSuccess,
-            TaskStatus::Cancelled];
+            TaskStatus::Cancelled,
+        ];
         assert_eq!(statuses.len(), 6);
         assert_eq!(statuses[0], TaskStatus::Pending);
         assert_ne!(statuses[0], statuses[2]);
@@ -728,10 +880,12 @@ mod tests {
 
     #[test]
     fn test_severity_variants() {
-        let severities = [Severity::Low,
+        let severities = [
+            Severity::Low,
             Severity::Medium,
             Severity::High,
-            Severity::Critical];
+            Severity::Critical,
+        ];
         assert_eq!(severities.len(), 4);
         assert_eq!(severities[0], Severity::Low);
         assert_ne!(severities[0], severities[3]);
@@ -739,10 +893,12 @@ mod tests {
 
     #[test]
     fn test_finding_status_variants() {
-        let statuses = [FindingStatus::Pass,
+        let statuses = [
+            FindingStatus::Pass,
             FindingStatus::Fail,
             FindingStatus::NotApplicable,
-            FindingStatus::NotChecked];
+            FindingStatus::NotChecked,
+        ];
         assert_eq!(statuses.len(), 4);
         assert_eq!(statuses[0], FindingStatus::Pass);
         assert_ne!(statuses[0], statuses[1]);

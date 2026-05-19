@@ -66,7 +66,9 @@ impl BackupManager {
         let mut audit_entries = Vec::new();
 
         for host in hosts {
-            let result = executor.execute_command(std::slice::from_ref(host), &cmd).await?;
+            let result = executor
+                .execute_command(std::slice::from_ref(host), &cmd)
+                .await?;
 
             let entry = AuditEntry {
                 id: Uuid::new_v4(),
@@ -159,11 +161,11 @@ impl BackupManager {
                 let pit = point_in_time
                     .map(|t| t.format("%Y%m%d_%H%M%S").to_string())
                     .unwrap_or_else(|| "latest".to_string());
-                let cmd = format!(
-                    "rsync -av {}/{}/ {}",
-                    backup_id, pit, restore_path
+                let cmd = format!("rsync -av {}/{}/ {}", backup_id, pit, restore_path);
+                let desc = format!(
+                    "恢复备份 {} 到 {} (时间点: {})",
+                    backup_id, restore_path, pit
                 );
-                let desc = format!("恢复备份 {} 到 {} (时间点: {})", backup_id, restore_path, pit);
                 Ok((cmd, desc))
             }
             BackupAction::Verify { backup_id } => {
@@ -178,12 +180,8 @@ impl BackupManager {
                 source_filter,
                 limit,
             } => {
-                let filter = source_filter
-                    .as_deref()
-                    .unwrap_or("*");
-                let limit_flag = limit
-                    .map(|n| format!(" | head -{}", n))
-                    .unwrap_or_default();
+                let filter = source_filter.as_deref().unwrap_or("*");
+                let limit_flag = limit.map(|n| format!(" | head -{}", n)).unwrap_or_default();
                 let cmd = format!(
                     "find {} -maxdepth 1 -type d -name 'backup_*' | sort -r{}",
                     filter, limit_flag
@@ -254,10 +252,7 @@ impl BackupManager {
     /// 添加备份记录
     pub fn add_record(&self, record: BackupRecord) -> Result<()> {
         let mut records = self.records_lock()?;
-        records
-            .entry(record.job_id)
-            .or_default()
-            .push(record);
+        records.entry(record.job_id).or_default().push(record);
         Ok(())
     }
 
@@ -403,10 +398,7 @@ mod tests {
             sources: vec!["/data".to_string()],
             destination: "/backup".to_string(),
             backup_type: BackupType::Full,
-            schedule: BackupSchedule::Daily {
-                hour: 2,
-                minute: 0,
-            },
+            schedule: BackupSchedule::Daily { hour: 2, minute: 0 },
             compression: CompressionType::Gzip,
             encryption: false,
             encryption_key_id: None,
@@ -928,10 +920,7 @@ mod tests {
         let schedules = [
             BackupSchedule::Manual,
             BackupSchedule::Hourly,
-            BackupSchedule::Daily {
-                hour: 2,
-                minute: 0,
-            },
+            BackupSchedule::Daily { hour: 2, minute: 0 },
             BackupSchedule::Weekly {
                 day_of_week: 1,
                 hour: 3,

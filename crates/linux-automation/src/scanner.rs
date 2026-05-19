@@ -744,10 +744,12 @@ mod tests {
 
     #[test]
     fn test_severity_variants() {
-        let severities = [Severity::Low,
+        let severities = [
+            Severity::Low,
             Severity::Medium,
             Severity::High,
-            Severity::Critical];
+            Severity::Critical,
+        ];
         assert_eq!(severities.len(), 4);
     }
 }

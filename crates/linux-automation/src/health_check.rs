@@ -682,14 +682,16 @@ mod tests {
 
     #[test]
     fn test_health_check_type_variants() {
-        let types = [HealthCheckType::Cpu,
+        let types = [
+            HealthCheckType::Cpu,
             HealthCheckType::Memory,
             HealthCheckType::Disk,
             HealthCheckType::Process,
             HealthCheckType::Log,
             HealthCheckType::Network,
             HealthCheckType::Security,
-            HealthCheckType::All];
+            HealthCheckType::All,
+        ];
         assert_eq!(types.len(), 8);
     }
 

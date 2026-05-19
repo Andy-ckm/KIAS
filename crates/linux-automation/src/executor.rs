@@ -51,17 +51,18 @@ impl TaskExecutor {
             };
             self.sessions.insert(host.to_string(), session);
         }
-        self.sessions.get_mut(host).unwrap()
+        // SAFETY: 上面 insert 保证了 key 存在
+        self.sessions.get_mut(host).expect("session just inserted")
     }
 
     /// 清理过期会话
     #[allow(dead_code)]
     fn cleanup_sessions(&mut self) {
         let now = chrono::Utc::now();
-        self.sessions.retain(|_, session| {
-            now.signed_duration_since(session.last_used)
-                < chrono::Duration::from_std(self.session_timeout).unwrap()
-        });
+        if let Ok(timeout) = chrono::Duration::from_std(self.session_timeout) {
+            self.sessions
+                .retain(|_, session| now.signed_duration_since(session.last_used) < timeout);
+        }
     }
 
     /// 在远程主机上执行命令

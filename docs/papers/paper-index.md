@@ -1,10 +1,15 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (05:05)
+更新时间: 2026-05-20 (05:50)
 
-## 论文列表 (188 篇)
+## 论文列表 (193 篇)
 
-### 已下载论文 (182 篇)
+### 已下载论文 (187 篇)
+- ✅ 2603.01283.pdf (The Informational Cost of Agency: A Bounded Measure of Interaction Efficiency for Deployed RL)
+- ✅ 2605.01283.pdf (Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning)
+- ✅ 2605.12581.pdf (Ensuring Logic in the Fog: Sound POMDP Synthesis with LTL Objectives)
+- ✅ 2605.14665.pdf (Falkor-IRAC: Graph-Constrained Generation for Verified Legal Reasoning in Indian Judicial AI)
+- ✅ 2605.15229.pdf (PBT-Bench: Benchmarking AI Agents on Property-Based Testing)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
 - ✅ 2605.17101.pdf (SEMA-RAG: A Self-Evolving Multi-Agent Retrieval-Augmented Generation Framework for Medical Reasoning)
 - ✅ 2605.16346.pdf (PropGuard: Safeguarding LLM-MAS via Propagation-Aware Exploration and Remediation)
@@ -199,6 +204,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15975]** Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning
+   - 日期: 2026-05-21 | 分类: cs.AI, cs.RO
+   - 主题: long-horizon planning, bilevel policies, symbolic world models, embodied agents
+   - 链接: https://arxiv.org/abs/2605.15975
+   - 状态: ✅ 已下载 (6.7MB)
+
+**[2605.12581]** Ensuring Logic in the Fog: Sound POMDP Synthesis with LTL Objectives
+   - 日期: 2026-05-17 | 分类: cs.AI, cs.FL, cs.RO
+   - 主题: autonomous agents, POMDP, LTL objectives, temporal logic, synthesis
+   - 链接: https://arxiv.org/abs/2605.12581
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2605.14665]** Falkor-IRAC: Graph-Constrained Generation for Verified Legal Reasoning in Indian Judicial AI
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.CL
+   - 主题: agentic reasoning, legal AI, graph-constrained generation, compliance
+   - 链接: https://arxiv.org/abs/2605.14665
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.15229]** PBT-Bench: Benchmarking AI Agents on Property-Based Testing
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.SE
+   - 主题: agent benchmarking, property-based testing, skill evaluation, reasoning
+   - 链接: https://arxiv.org/abs/2605.15229
+   - 状态: ✅ 已下载 (0.7MB)
+
+**[2603.01283]** The Informational Cost of Agency: A Bounded Measure of Interaction Efficiency for Deployed RL
+   - 日期: 2026-03 | 分类: cs.AI, cs.LG
+   - 主题: agency cost, interaction efficiency, deployed RL, reliability theory
+   - 链接: https://arxiv.org/abs/2603.01283
+   - 状态: ✅ 已下载 (0.4MB)
 
 **[2605.18024]** Interaction-Breaking Adversarial Learning Framework for Robust Multi-Agent Reinforcement Learning
    - 日期: 2026-05-23 | 分类: cs.AI, cs.MA, cs.LG

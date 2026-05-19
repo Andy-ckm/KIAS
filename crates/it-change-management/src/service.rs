@@ -296,4 +296,139 @@ mod tests {
         let changes = routes::list_changes(&manager);
         assert_eq!(changes.len(), 0);
     }
+
+    fn create_test_request(title: &str) -> CreateChangeRequest {
+        CreateChangeRequest {
+            title: title.to_string(),
+            description: "测试描述".to_string(),
+            change_type: ChangeType::Configuration,
+            change_category: ChangeCategory::Normal,
+            risk_level: RiskLevel::Low,
+            requester: "test.user".to_string(),
+            requester_department: "IT".to_string(),
+            rollback_plan: "回滚".to_string(),
+            implementation_plan: "实施".to_string(),
+            impact_assessment: ImpactAssessment {
+                affected_systems: vec!["LIMS".to_string()],
+                affected_users: vec!["QC".to_string()],
+                downtime_estimate_minutes: 30,
+                risk_mitigation: vec![],
+                testing_requirements: vec![],
+                gxp_impact: GxpImpact::None,
+                requires_csv_validation: false,
+                affects_data_integrity: false,
+            },
+        }
+    }
+
+    #[test]
+    fn test_routes_submit_for_review() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("提交测试")).unwrap();
+        assert_eq!(change.status, ChangeStatus::Draft);
+
+        let result = routes::submit_for_review(&mut manager, &change.id, "user");
+        assert!(result.is_ok());
+
+        let updated = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(updated.status, ChangeStatus::Submitted);
+    }
+
+    #[test]
+    fn test_routes_get_change() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("查询测试")).unwrap();
+
+        let found = routes::get_change(&manager, &change.id);
+        assert!(found.is_ok());
+        assert_eq!(found.unwrap().title, "查询测试");
+
+        let not_found = routes::get_change(&manager, "nonexistent");
+        assert!(not_found.is_err());
+    }
+
+    #[test]
+    fn test_routes_get_statistics() {
+        let mut manager = ItChangeManager::new();
+        routes::create_change(&mut manager, create_test_request("统计1")).unwrap();
+        routes::create_change(&mut manager, create_test_request("统计2")).unwrap();
+
+        let stats = routes::get_statistics(&manager);
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.draft, 2);
+    }
+
+    #[test]
+    fn test_routes_add_comment() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("评论测试")).unwrap();
+
+        let comment_request = AddCommentRequest {
+            author: "reviewer".to_string(),
+            content: "已审阅变更计划".to_string(),
+            is_internal: false,
+        };
+        let result = routes::add_comment(&mut manager, &change.id, comment_request);
+        assert!(result.is_ok());
+
+        // Verify the change was updated (comments are stored on the change, not in audit log)
+        let updated = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(updated.comments.len(), 1);
+        assert_eq!(updated.comments[0].author, "reviewer");
+        assert_eq!(updated.comments[0].content, "已审阅变更计划");
+    }
+
+    #[test]
+    fn test_routes_full_lifecycle() {
+        let mut manager = ItChangeManager::new();
+        let change =
+            routes::create_change(&mut manager, create_test_request("全流程测试")).unwrap();
+
+        // Submit
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+
+        // Add approver via manager
+        manager
+            .add_approver(
+                &change.id,
+                "approver1".to_string(),
+                "审批人".to_string(),
+                "IT经理".to_string(),
+            )
+            .unwrap();
+
+        // Approve
+        let approve_req = ApproveChangeRequest {
+            approver_id: "approver1".to_string(),
+            decision: Decision::Approved,
+            signature_meaning: SignatureMeaning::Approval,
+            password_hash: "hash1".to_string(),
+            token_hash: "hash2".to_string(),
+            signer_name: "审批人".to_string(),
+            signer_title: "IT经理".to_string(),
+        };
+        routes::approve_change(&mut manager, &change.id, approve_req).unwrap();
+
+        let approved = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(approved.status, ChangeStatus::Approved);
+
+        // Implement
+        routes::implement_change(&mut manager, &change.id, "implementer").unwrap();
+        routes::complete_implementation(&mut manager, &change.id, "implementer").unwrap();
+
+        // Verify
+        routes::verify_change(&mut manager, &change.id, "verifier").unwrap();
+        routes::complete_verification(&mut manager, &change.id, "verifier").unwrap();
+
+        // Close
+        routes::close_change(&mut manager, &change.id, "closer").unwrap();
+
+        let closed = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(closed.status, ChangeStatus::Closed);
+        assert!(closed.closed_at.is_some());
+
+        // Verify audit trail exists
+        let audit = routes::get_audit_log(&manager, &change.id);
+        assert!(audit.len() >= 6); // submit + approve + implement + complete_impl + verify + close
+    }
 }

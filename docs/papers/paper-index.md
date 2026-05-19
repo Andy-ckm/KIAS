@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (05:50)
+更新时间: 2026-05-20 (07:10)
 
-## 论文列表 (193 篇)
+## 论文列表 (201 篇)
 
-### 已下载论文 (187 篇)
+### 已下载论文 (195 篇)
 - ✅ 2603.01283.pdf (The Informational Cost of Agency: A Bounded Measure of Interaction Efficiency for Deployed RL)
 - ✅ 2605.01283.pdf (Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning)
 - ✅ 2605.12581.pdf (Ensuring Logic in the Fog: Sound POMDP Synthesis with LTL Objectives)
@@ -200,10 +200,45 @@
 - ✅ 2605.15228 (Verifiable Agentic Infrastructure: Proof-Derived Authorization)
 - ✅ 2605.15218 (CAX-Agent: Lightweight Agent Harness for Reliable APDL Automation)
 - ✅ 2605.15224 (ICRL: Learning to Internalize Self-Critique with Reinforcement Learning)
+- ✅ 2605.12981.pdf (Protocol-Driven Development: Governing Generated Software Through Invariants and Continuous Evidence)
+- ✅ 2512.06655.pdf (Graph-Regularized Sparse Autoencoders for LLM Safety Steering)
+- ✅ 2512.04745.pdf (Neural Policy Composition from Free Energy Minimization) ⚠️ 仅本地 (20MB)
+- ✅ 2604.21251.pdf (CAP: Controllable Alignment Prompting for Unlearning in LLMs)
+- ✅ 2605.15726.pdf (Nudging Beyond the Comfort Zone: Efficient Strategy-Guided Exploration for RLVR)
 
 ---
 
 ## 全部论文清单
+
+**[2605.12981]** Protocol-Driven Development: Governing Generated Software Through Invariants and Continuous Evidence
+   - 日期: 2026-05-17 | 分类: cs.SE, cs.AI
+   - 主题: protocol-driven development, governance, invariants, continuous evidence, program synthesis
+   - 链接: https://arxiv.org/abs/2605.12981
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2512.06655]** Graph-Regularized Sparse Autoencoders for LLM Safety Steering
+   - 日期: 2025-12-09 | 分类: cs.CL, cs.AI
+   - 主题: LLM safety, sparse autoencoders, steering vectors, graph regularization
+   - 链接: https://arxiv.org/abs/2512.06655
+   - 状态: ✅ 已下载 (2.6MB)
+
+**[2512.04745]** Neural Policy Composition from Free Energy Minimization
+   - 日期: 2025-12-05 | 分类: cs.AI, cs.NE
+   - 主题: policy composition, free energy, behavioral primitives, context-dependent gating
+   - 链接: https://arxiv.org/abs/2512.04745
+   - 状态: ⚠️ 仅本地 (20MB, exceeds git limit)
+
+**[2604.21251]** CAP: Controllable Alignment Prompting for Unlearning in LLMs
+   - 日期: 2026-04-29 | 分类: cs.CL, cs.AI
+   - 主题: LLM unlearning, alignment, regulatory compliance, selective forgetting
+   - 链接: https://arxiv.org/abs/2604.21251
+   - 状态: ✅ 已下载 (5.5MB)
+
+**[2605.15726]** Nudging Beyond the Comfort Zone: Efficient Strategy-Guided Exploration for RLVR
+   - 日期: 2026-05-21 | 分类: cs.AI, cs.LG
+   - 主题: reinforcement learning, verifiable rewards, exploration, reasoning
+   - 链接: https://arxiv.org/abs/2605.15726
+   - 状态: ✅ 已下载 (4.6MB)
 
 **[2605.15975]** Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning
    - 日期: 2026-05-21 | 分类: cs.AI, cs.RO

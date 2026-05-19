@@ -1058,3 +1058,68 @@ impl ChangeExecutionPlan {
         }
     }
 }
+
+#[cfg(test)]
+mod execution_plan_tests {
+    use super::*;
+
+    #[test]
+    fn test_execution_plan_for_infrastructure() {
+        let plan = ChangeExecutionPlan::for_infrastructure(
+            "CHG-001",
+            vec!["server1".to_string(), "server2".to_string()],
+        );
+        assert_eq!(plan.change_id, "CHG-001");
+        assert_eq!(plan.steps.len(), 3);
+        assert_eq!(plan.rollback_steps.len(), 1);
+        assert_eq!(plan.pre_checks.len(), 2);
+        assert_eq!(plan.post_checks.len(), 2);
+    }
+
+    #[test]
+    fn test_execution_plan_step_ordering() {
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-002", vec!["s1".to_string()]);
+        for (i, step) in plan.steps.iter().enumerate() {
+            assert_eq!(step.order, (i + 1) as u32);
+        }
+    }
+
+    #[test]
+    fn test_execution_plan_backup_step() {
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-003", vec!["s1".to_string()]);
+        assert_eq!(plan.steps[0].description, "备份当前配置");
+        assert!(!plan.steps[0].requires_approval);
+        assert_eq!(plan.steps[0].timeout_seconds, 300);
+    }
+
+    #[test]
+    fn test_execution_plan_change_step_requires_approval() {
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-004", vec!["s1".to_string()]);
+        assert!(plan.steps[1].requires_approval);
+        assert_eq!(plan.steps[1].timeout_seconds, 600);
+    }
+
+    #[test]
+    fn test_execution_plan_rollback_command() {
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-005", vec!["s1".to_string()]);
+        assert!(plan.rollback_steps[0].command.contains("tar xzf"));
+        assert!(!plan.rollback_steps[0].requires_approval);
+    }
+
+    #[test]
+    fn test_execution_plan_hosts_propagated() {
+        let hosts = vec!["web1".to_string(), "web2".to_string(), "web3".to_string()];
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-006", hosts.clone());
+        for step in &plan.steps {
+            assert_eq!(step.target_hosts, hosts);
+        }
+    }
+
+    #[test]
+    fn test_execution_plan_clone() {
+        let plan = ChangeExecutionPlan::for_infrastructure("CHG-007", vec!["s1".to_string()]);
+        let cloned = plan.clone();
+        assert_eq!(cloned.change_id, plan.change_id);
+        assert_eq!(cloned.steps.len(), plan.steps.len());
+    }
+}

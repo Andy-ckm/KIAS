@@ -35,3 +35,4 @@ To github.com:Andy-ckm/KIAS.git
 [2026-05-19 19:55] 添加SSH连接管理 | 遵守四步法:Y | 测试通过:Y | 下一步:IT变更管理模块Web API
 [2026-05-19 19:50] 推进 document-management: 审计日志集成到生命周期、修复 version.rs created_by、修复 repository.rs smart quotes、+29测试(31→60) | 遵守四步法:Y | 测试通过:Y | 下一步:linux-automation 补测试
 [2026-05-19 20:05] 添加axum Web API | 遵守四步法:Y | 测试通过:Y | 下一步:继续充实三个模块
+[2026-05-19 20:33] it-change-management +11 route tests (rollback/emergency/CAPA/edge cases), 139→150 | 门控:PASS | 下一步:linux-automation 补充会话管理或命令流式返回

@@ -715,4 +715,102 @@ mod tests {
         assert!(spec.image.is_none());
         assert!(spec.priority.is_none());
     }
+
+    #[test]
+    fn test_url_encoding_empty_string() {
+        assert_eq!(urlencoding::encode(""), "");
+    }
+
+    #[test]
+    fn test_url_encoding_special_chars() {
+        assert_eq!(urlencoding::encode("a=b&c=d"), "a%3Db%26c%3Dd");
+        assert_eq!(urlencoding::encode("hello@world"), "hello%40world");
+        assert_eq!(urlencoding::encode("100%"), "100%25");
+    }
+
+    #[test]
+    fn test_url_encoding_preserves_safe_chars() {
+        assert_eq!(urlencoding::encode("test-path_file.txt"), "test-path_file.txt");
+        assert_eq!(urlencoding::encode("~home"), "~home");
+    }
+
+    #[test]
+    fn test_agent_info_defaults() {
+        let json = r#"{"id":"a-002"}"#;
+        let info: AgentInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "a-002");
+        assert!(info.name.is_empty());
+        assert!(info.status.is_empty());
+        assert!(info.model.is_none());
+        assert!(info.created_at.is_none());
+        assert!(info.updated_at.is_none());
+        assert!(info.spec.is_none());
+    }
+
+    #[test]
+    fn test_agent_info_with_spec() {
+        let json = r#"{"id":"a-003","spec":{"name":"my-agent","image":"rust:1.77"}}"#;
+        let info: AgentInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "a-003");
+        assert_eq!(info.spec.as_ref().unwrap().name, "my-agent");
+        assert_eq!(info.spec.as_ref().unwrap().image.as_deref(), Some("rust:1.77"));
+    }
+
+    #[test]
+    fn test_cluster_status_legacy_fields() {
+        let json = r#"{"status":"degraded","version":"1.0.0"}"#;
+        let status: ClusterStatus = serde_json::from_str(json).unwrap();
+        assert_eq!(status.status.as_deref(), Some("degraded"));
+        assert_eq!(status.version.as_deref(), Some("1.0.0"));
+        assert!(status.overall.is_none());
+        assert!(status.nodes.is_none());
+    }
+
+    #[test]
+    fn test_workflow_info_minimal() {
+        let json = r#"{"id":"wf-002","name":"simple","status":"pending"}"#;
+        let info: WorkflowInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "wf-002");
+        assert!(info.entry.is_none());
+        assert!(info.created_at.is_none());
+    }
+
+    #[test]
+    fn test_node_info_minimal() {
+        let json = r#"{"id":"n-002","name":"node-2","address":"10.0.0.2:9090","status":"offline"}"#;
+        let info: NodeInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.id, "n-002");
+        assert!(info.agents.is_none());
+    }
+
+    #[test]
+    fn test_model_usage_deserialize() {
+        let json = r#"{"model":"gpt-4","tokens":50000,"cost":1.5,"requests":100}"#;
+        let usage: ModelUsage = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.model, "gpt-4");
+        assert_eq!(usage.tokens, 50000);
+        assert!((usage.cost - 1.5).abs() < f64::EPSILON);
+        assert_eq!(usage.requests, 100);
+    }
+
+    #[test]
+    fn test_token_analytics_with_models() {
+        let json = r#"{
+            "total_tokens": 200000,
+            "prompt_tokens": 120000,
+            "completion_tokens": 80000,
+            "total_cost": 3.0,
+            "by_model": [
+                {"model":"gpt-4","tokens":150000,"cost":2.5,"requests":80},
+                {"model":"gpt-3.5","tokens":50000,"cost":0.5,"requests":20}
+            ]
+        }"#;
+        let analytics: TokenAnalytics = serde_json::from_str(json).unwrap();
+        assert_eq!(analytics.total_tokens, 200000);
+        let models = analytics.by_model.unwrap();
+        assert_eq!(models.len(), 2);
+        assert_eq!(models[0].model, "gpt-4");
+        assert_eq!(models[1].model, "gpt-3.5");
+    }
+
 }

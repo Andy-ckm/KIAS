@@ -6,10 +6,24 @@ use chrono::Utc;
 use std::time::Instant;
 use uuid::Uuid;
 
+/// SSH会话
+#[derive(Debug, Clone)]
+pub struct SshSession {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub key_path: Option<std::path::PathBuf>,
+    pub connected: bool,
+    pub last_used: chrono::DateTime<chrono::Utc>,
+}
+
 /// 任务执行器
 pub struct TaskExecutor {
     #[allow(dead_code)]
     ssh_key_path: Option<std::path::PathBuf>,
+    sessions: std::collections::HashMap<String, SshSession>,
+    max_sessions: usize,
+    session_timeout: std::time::Duration,
 }
 
 impl TaskExecutor {
@@ -17,7 +31,34 @@ impl TaskExecutor {
     pub fn new(config: &LinuxAutomationConfig) -> Result<Self> {
         Ok(Self {
             ssh_key_path: config.ssh_key_path.clone(),
+            sessions: std::collections::HashMap::new(),
+            max_sessions: 10,
+            session_timeout: std::time::Duration::from_secs(300),
         })
+    }
+
+    /// 获取或创建SSH会话
+    fn get_session(&mut self, host: &str) -> &mut SshSession {
+        if !self.sessions.contains_key(host) {
+            let session = SshSession {
+                host: host.to_string(),
+                port: 22,
+                username: "root".to_string(),
+                key_path: self.ssh_key_path.clone(),
+                connected: false,
+                last_used: chrono::Utc::now(),
+            };
+            self.sessions.insert(host.to_string(), session);
+        }
+        self.sessions.get_mut(host).unwrap()
+    }
+
+    /// 清理过期会话
+    fn cleanup_sessions(&mut self) {
+        let now = chrono::Utc::now();
+        self.sessions.retain(|_, session| {
+            now.signed_duration_since(session.last_used) < chrono::Duration::from_std(self.session_timeout).unwrap()
+        });
     }
 
     /// 在远程主机上执行命令

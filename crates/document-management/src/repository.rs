@@ -55,9 +55,11 @@ impl DocumentRepository {
             id: row.get(0)?,
             title: row.get(1)?,
             content: row.get(2)?,
-            doc_type: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or(DocumentType::Other),
+            doc_type: serde_json::from_str(&row.get::<_, String>(3)?)
+                .unwrap_or(DocumentType::Other),
             category: row.get(4)?,
-            status: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or(DocumentStatus::Draft),
+            status: serde_json::from_str(&row.get::<_, String>(5)?)
+                .unwrap_or(DocumentStatus::Draft),
             version: row.get(6)?,
             created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
                 .map(|dt| dt.with_timezone(&Utc))
@@ -149,7 +151,12 @@ impl DocumentRepository {
         Self::get_with_conn(&conn, id)
     }
 
-    pub fn update_status(&self, id: &str, status: DocumentStatus, updated_by: &str) -> Result<Document> {
+    pub fn update_status(
+        &self,
+        id: &str,
+        status: DocumentStatus,
+        updated_by: &str,
+    ) -> Result<Document> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now();
 
@@ -191,7 +198,8 @@ impl DocumentRepository {
     pub fn get_statistics(&self) -> Result<DocumentStatistics> {
         let conn = self.conn.lock().unwrap();
 
-        let total: usize = conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
+        let total: usize =
+            conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
 
         let draft: usize = conn.query_row(
             "SELECT COUNT(*) FROM documents WHERE status = '\"Draft\"'",
@@ -231,5 +239,246 @@ impl DocumentRepository {
             published_count: published,
             archived_count: archived,
         })
+    }
+
+    pub fn delete(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute("DELETE FROM documents WHERE id = ?1", params![id])?;
+        if affected == 0 {
+            return Err(DocumentError::NotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn list_by_status(&self, status: &DocumentStatus) -> Result<Vec<Document>> {
+        let conn = self.conn.lock().unwrap();
+        let status_json = serde_json::to_string(status)?;
+        let mut stmt = conn.prepare(
+            "SELECT id FROM documents WHERE status = ?1 ORDER BY updated_at DESC LIMIT 100",
+        )?;
+
+        let ids: Vec<String> = stmt
+            .query_map(params![status_json], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        let mut documents = Vec::new();
+        for id in ids {
+            if let Ok(doc) = Self::get_with_conn(&conn, &id) {
+                documents.push(doc);
+            }
+        }
+
+        Ok(documents)
+    }
+
+    pub fn count(&self) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let count: usize =
+            conn.query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
+        Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::*;
+    use tempfile::TempDir;
+
+    fn setup_repo() -> (TempDir, DocumentRepository) {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let repo = DocumentRepository::new(&db_path).unwrap();
+        (tmp, repo)
+    }
+
+    fn make_request(title: &str) -> CreateDocumentRequest {
+        CreateDocumentRequest {
+            title: title.to_string(),
+            content: format!("Content of {}", title),
+            doc_type: DocumentType::Policy,
+            category: "General".to_string(),
+            created_by: "admin".to_string(),
+            tags: vec!["test".to_string()],
+        }
+    }
+
+    #[test]
+    fn test_create_and_get() {
+        let (_tmp, repo) = setup_repo();
+        let doc = repo.create(make_request("Doc1")).unwrap();
+        assert_eq!(doc.title, "Doc1");
+        assert_eq!(doc.status, DocumentStatus::Draft);
+        assert_eq!(doc.version, 1);
+
+        let fetched = repo.get(&doc.id).unwrap();
+        assert_eq!(fetched.id, doc.id);
+        assert_eq!(fetched.title, "Doc1");
+    }
+
+    #[test]
+    fn test_get_not_found() {
+        let (_tmp, repo) = setup_repo();
+        let result = repo.get("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_update_document() {
+        let (_tmp, repo) = setup_repo();
+        let doc = repo.create(make_request("Original")).unwrap();
+
+        let updated = repo
+            .update(
+                &doc.id,
+                UpdateDocumentRequest {
+                    title: Some("Updated Title".to_string()),
+                    content: Some("New content".to_string()),
+                    tags: None,
+                    updated_by: "editor".to_string(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(updated.title, "Updated Title");
+        assert_eq!(updated.content, "New content");
+        assert_eq!(updated.version, 2);
+        assert_eq!(updated.tags, vec!["test".to_string()]);
+    }
+
+    #[test]
+    fn test_update_status() {
+        let (_tmp, repo) = setup_repo();
+        let doc = repo.create(make_request("StatusDoc")).unwrap();
+        assert_eq!(doc.status, DocumentStatus::Draft);
+
+        let reviewed = repo
+            .update_status(&doc.id, DocumentStatus::UnderReview, "reviewer")
+            .unwrap();
+        assert_eq!(reviewed.status, DocumentStatus::UnderReview);
+
+        let approved = repo
+            .update_status(&doc.id, DocumentStatus::Approved, "approver")
+            .unwrap();
+        assert_eq!(approved.status, DocumentStatus::Approved);
+    }
+
+    #[test]
+    fn test_search_by_title() {
+        let (_tmp, repo) = setup_repo();
+        repo.create(make_request("Alpha Policy")).unwrap();
+        repo.create(make_request("Beta Procedure")).unwrap();
+        repo.create(make_request("Alpha Standard")).unwrap();
+
+        let results = repo.search("Alpha").unwrap();
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn test_search_by_content() {
+        let (_tmp, repo) = setup_repo();
+        repo.create(make_request("Doc A")).unwrap();
+        repo.create(make_request("Doc B")).unwrap();
+
+        let results = repo.search("Content of Doc A").unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let (_tmp, repo) = setup_repo();
+        repo.create(make_request("Doc")).unwrap();
+
+        let results = repo.search("nonexistent_query_xyz").unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_get_statistics_empty() {
+        let (_tmp, repo) = setup_repo();
+        let stats = repo.get_statistics().unwrap();
+        assert_eq!(stats.total_documents, 0);
+        assert_eq!(stats.draft_count, 0);
+    }
+
+    #[test]
+    fn test_get_statistics_with_documents() {
+        let (_tmp, repo) = setup_repo();
+        let doc1 = repo.create(make_request("Doc1")).unwrap();
+        let doc2 = repo.create(make_request("Doc2")).unwrap();
+        repo.create(make_request("Doc3")).unwrap();
+
+        repo.update_status(&doc1.id, DocumentStatus::UnderReview, "user")
+            .unwrap();
+        repo.update_status(&doc2.id, DocumentStatus::Approved, "user")
+            .unwrap();
+
+        let stats = repo.get_statistics().unwrap();
+        assert_eq!(stats.total_documents, 3);
+        assert_eq!(stats.draft_count, 1);
+        assert_eq!(stats.under_review_count, 1);
+        assert_eq!(stats.approved_count, 1);
+    }
+
+    #[test]
+    fn test_delete_document() {
+        let (_tmp, repo) = setup_repo();
+        let doc = repo.create(make_request("ToDelete")).unwrap();
+        assert_eq!(repo.count().unwrap(), 1);
+
+        repo.delete(&doc.id).unwrap();
+        assert_eq!(repo.count().unwrap(), 0);
+        assert!(repo.get(&doc.id).is_err());
+    }
+
+    #[test]
+    fn test_delete_not_found() {
+        let (_tmp, repo) = setup_repo();
+        let result = repo.delete("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_by_status() {
+        let (_tmp, repo) = setup_repo();
+        repo.create(make_request("Draft1")).unwrap();
+        repo.create(make_request("Draft2")).unwrap();
+        let doc3 = repo.create(make_request("Review1")).unwrap();
+        repo.update_status(&doc3.id, DocumentStatus::UnderReview, "user")
+            .unwrap();
+
+        let drafts = repo.list_by_status(&DocumentStatus::Draft).unwrap();
+        assert_eq!(drafts.len(), 2);
+
+        let reviewing = repo.list_by_status(&DocumentStatus::UnderReview).unwrap();
+        assert_eq!(reviewing.len(), 1);
+    }
+
+    #[test]
+    fn test_count() {
+        let (_tmp, repo) = setup_repo();
+        assert_eq!(repo.count().unwrap(), 0);
+
+        repo.create(make_request("Doc1")).unwrap();
+        assert_eq!(repo.count().unwrap(), 1);
+
+        repo.create(make_request("Doc2")).unwrap();
+        assert_eq!(repo.count().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_create_preserves_tags() {
+        let (_tmp, repo) = setup_repo();
+        let req = CreateDocumentRequest {
+            title: "Tagged".to_string(),
+            content: "content".to_string(),
+            doc_type: DocumentType::Procedure,
+            category: "Ops".to_string(),
+            created_by: "admin".to_string(),
+            tags: vec!["important".to_string(), "review".to_string()],
+        };
+        let doc = repo.create(req).unwrap();
+        assert_eq!(doc.tags.len(), 2);
+        assert!(doc.tags.contains(&"important".to_string()));
     }
 }

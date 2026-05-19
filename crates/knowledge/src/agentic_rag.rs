@@ -1097,7 +1097,6 @@ mod tests {
 
         let audit = engine.get_audit_log().await;
         assert!(!audit.is_empty());
-        assert!(audit[0].duration_ms > 0 || audit[0].duration_ms == 0); // 有记录
         assert!(!audit[0].timestamp.is_empty());
     }
 
@@ -1251,7 +1250,7 @@ mod tests {
         // Quality score should be between 0 and 1
         let qs = result.metrics.quality_score();
         assert!(
-            qs >= 0.0 && qs <= 1.0,
+            (0.0..=1.0).contains(&qs),
             "quality_score should be in [0, 1], got {}",
             qs
         );

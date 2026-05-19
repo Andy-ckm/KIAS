@@ -2053,8 +2053,8 @@ mod tests {
         for i in 0..5 {
             let entry = ExperienceReplayRow::new(
                 &agent.id,
-                &format!("input-{i}"),
-                &format!("output-{i}"),
+                format!("input-{i}"),
+                format!("output-{i}"),
                 0.8,
             );
             repo.experience_replay

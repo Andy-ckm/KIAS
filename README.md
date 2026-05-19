@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/logo/kias-logo.svg" alt="AgentGuard" width="420">
+  <img src="docs/logo/agentguard-logo.svg" alt="AgentGuard" width="520">
 </p>
 
 <h1 align="center">AgentGuard</h1>

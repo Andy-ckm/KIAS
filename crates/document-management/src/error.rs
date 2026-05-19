@@ -117,7 +117,9 @@ mod tests {
     fn test_result_type_alias_ok() {
         let res: Result<i32> = Ok(42);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 42);
+        if let Ok(val) = res {
+            assert_eq!(val, 42);
+        }
     }
 
     #[test]

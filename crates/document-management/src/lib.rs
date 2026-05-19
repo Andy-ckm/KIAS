@@ -684,15 +684,13 @@ mod tests {
     fn test_create_document_different_types() {
         let (system, _tmp) = create_test_system();
 
-        let types = vec![
-            DocumentType::Policy,
+        let types = [DocumentType::Policy,
             DocumentType::Procedure,
             DocumentType::WorkInstruction,
             DocumentType::Form,
             DocumentType::Record,
             DocumentType::Report,
-            DocumentType::Other,
-        ];
+            DocumentType::Other];
 
         for (i, doc_type) in types.iter().enumerate() {
             let request = CreateDocumentRequest {

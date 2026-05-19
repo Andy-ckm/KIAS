@@ -791,7 +791,7 @@ mod tests {
         let snapshot = store.save_graph();
         assert_eq!(snapshot.dimension, dim);
         assert_eq!(snapshot.entries.len(), 100);
-        assert!(snapshot.layers.len() >= 1);
+        assert!(!snapshot.layers.is_empty());
 
         // Serialize to JSON and back (simulates disk I/O)
         let json = serde_json::to_string(&snapshot).expect("serialize");

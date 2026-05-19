@@ -132,7 +132,10 @@ mod tests {
     #[test]
     fn test_result_type_alias() {
         let ok: Result<i32> = Ok(42);
-        assert_eq!(ok.unwrap(), 42);
+        assert!(ok.is_ok());
+        if let Ok(val) = ok {
+            assert_eq!(val, 42);
+        }
         let err: Result<i32> = Err(AutomationError::Other("fail".to_string()));
         assert!(err.is_err());
     }

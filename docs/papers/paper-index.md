@@ -1,10 +1,24 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (20:20)
+更新时间: 2026-05-19 (22:52)
 
-## 论文列表 (145 篇)
+## 论文列表 (159 篇)
 
-### 已下载论文 (134 篇)
+### 已下载论文 (148 篇)
+- ✅ 2605.18747.pdf (Code as Agent Harness)
+- ✅ 2605.18703.pdf (EnvFactory: Scaling Tool-Use Agents via Executable Environments Synthesis and Robust RL)
+- ✅ 2605.18693.pdf (SkillGenBench: Benchmarking Skill Generation Pipelines for LLM Agents)
+- ✅ 2605.18684.pdf (Reversa: Reverse Documentation Engineering for Converting Legacy Software into Operational Specifications for AI Agents)
+- ✅ 2605.18672.pdf (Position: A Three-Layer Probabilistic Assume-Guarantee Architecture Is Structurally Required for Safe LLM Agent Deployment)
+- ✅ 2605.18661.pdf (AI for Auto-Research: Roadmap and User Guide)
+- ✅ 2605.18597.pdf (Latent Action Reparameterization for Efficient Agent Inference)
+- ✅ 2605.18572.pdf (MA2P: A Meta-Cognitive Autonomous Intelligent Agents Framework for Complex Persuasion)
+- ✅ 2605.18548.pdf (STT-Arena: A More Realistic Environment for Tool-Using with Spatio-Temporal Dynamics)
+- ✅ 2605.18451.pdf (Code-as-Room: Generating 3D Rooms from Top-Down View Images via Agentic Code Synthesis)
+- ✅ 2605.18396.pdf (NEWTON: Agentic Planning for Physically Grounded Video Generation)
+- ✅ 2605.18284.pdf (CommitDistill: A Lightweight Knowledge-Centric Memory Layer for Software Repositories)
+- ✅ 2605.17526.pdf (SaaSBench: Exploring the Boundaries of Coding Agents in Long-Horizon Enterprise SaaS Engineering)
+- ✅ 2605.16821.pdf (Multi-Paradigm Agent Interaction in Practice: Generator-Evaluator, ReAct Loop, and Adversarial Evaluation)
 - ✅ 2605.17830.pdf (Remembering More, Risking More: Longitudinal Safety Risks in Memory-Equipped LLM Agents)
 - ✅ 2605.16198.pdf (Formal Methods Meet LLMs: Auditing, Monitoring, and Intervention for Compliance of Advanced AI Systems)
 - ✅ 2605.15569.pdf (Detecting Privilege Escalation in Polyglot Microservices via Agentic Program Analysis)
@@ -148,6 +162,90 @@
 ---
 
 ## 全部论文清单
+
+**[2605.18747]** Code as Agent Harness
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: agent harness, code-based agent design, multi-agent systems
+   - 链接: https://arxiv.org/abs/2605.18747
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.18703]** EnvFactory: Scaling Tool-Use Agents via Executable Environments Synthesis and Robust RL
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.LG
+   - 主题: tool-use agents, environment synthesis, reinforcement learning, scalable agents
+   - 链接: https://arxiv.org/abs/2605.18703
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.18693]** SkillGenBench: Benchmarking Skill Generation Pipelines for LLM Agents
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: skill generation, benchmarking, LLM agents, skill pipelines
+   - 链接: https://arxiv.org/abs/2605.18693
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.18684]** Reversa: Reverse Documentation Engineering for Converting Legacy Software into Operational Specifications for AI Agents
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: reverse engineering, documentation, legacy software, agent specifications
+   - 链接: https://arxiv.org/abs/2605.18684
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.18672]** Position: A Three-Layer Probabilistic Assume-Guarantee Architecture Is Structurally Required for Safe LLM Agent Deployment
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.FL
+   - 主题: safe agent deployment, assume-guarantee architecture, probabilistic verification, LLM safety
+   - 链接: https://arxiv.org/abs/2605.18672
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.18661]** AI for Auto-Research: Roadmap and User Guide
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CL
+   - 主题: auto-research, AI research assistant, tool use, research automation
+   - 链接: https://arxiv.org/abs/2605.18661
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.18597]** Latent Action Reparameterization for Efficient Agent Inference
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.LG
+   - 主题: efficient inference, latent actions, agent optimization, reparameterization
+   - 链接: https://arxiv.org/abs/2605.18597
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.18572]** MA2P: A Meta-Cognitive Autonomous Intelligent Agents Framework for Complex Persuasion
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CL
+   - 主题: meta-cognition, autonomous agents, persuasion, agent memory
+   - 链接: https://arxiv.org/abs/2605.18572
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.18548]** STT-Arena: A More Realistic Environment for Tool-Using with Spatio-Temporal Dynamics
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: tool use, spatio-temporal reasoning, benchmark, agent environment
+   - 链接: https://arxiv.org/abs/2605.18548
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.18451]** Code-as-Room: Generating 3D Rooms from Top-Down View Images via Agentic Code Synthesis
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CV
+   - 主题: agentic code synthesis, 3D generation, agent-to-agent protocol
+   - 链接: https://arxiv.org/abs/2605.18451
+   - 状态: ✅ 已下载 (0.1MB)
+
+**[2605.18396]** NEWTON: Agentic Planning for Physically Grounded Video Generation
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CV
+   - 主题: agentic planning, video generation, physical grounding, orchestration
+   - 链接: https://arxiv.org/abs/2605.18396
+   - 状态: ✅ 已下载 (0.1MB)
+
+**[2605.18284]** CommitDistill: A Lightweight Knowledge-Centric Memory Layer for Software Repositories
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: agent memory, knowledge distillation, software repositories, memory layer
+   - 链接: https://arxiv.org/abs/2605.18284
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.17526]** SaaSBench: Exploring the Boundaries of Coding Agents in Long-Horizon Enterprise SaaS Engineering
+   - 日期: 2026-05-18 | 分类: cs.AI, cs.SE
+   - 主题: coding agents, SaaS engineering, long-horizon tasks, agent orchestration
+   - 链接: https://arxiv.org/abs/2605.17526
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.16821]** Multi-Paradigm Agent Interaction in Practice: Generator-Evaluator, ReAct Loop, and Adversarial Evaluation
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent interaction paradigms, ReAct, generator-evaluator, adversarial evaluation
+   - 链接: https://arxiv.org/abs/2605.16821
+   - 状态: ✅ 已下载 (0.2MB)
 
 **[2605.16198]** Formal Methods Meet LLMs: Auditing, Monitoring, and Intervention for Compliance of Advanced AI Systems
    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE

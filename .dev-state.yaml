@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 01:00
+# 更新时间: 2026-05-20 02:10
 
-iteration: 18
-last_run: "2026-05-20T01:00:00Z"
-last_commit: "3fbe7f8"
+iteration: 19
+last_run: "2026-05-20T02:10:00Z"
+last_commit: "0b7864a"
 status: active
 
 # 各模块状态
@@ -92,13 +92,24 @@ modules:
     next_step: "已达标，可推进新模块或深化功能"
     blockers: []
 
+  api-server:
+    tests: 346
+    status: IMPROVING
+    features_done:
+      - nodes.rs handler tests (+9) ✅
+      - nodes.rs tracing日志 ✅
+    next_step: "其他0-test handler添加测试 (scheduler, tokens)"
+    blockers: []
+
 # 质量指标
 quality:
-  total_tests: 572
+  total_tests: 918
+  domain_tests: 572
+  api_server_tests: 346
   clippy_warnings: 0
   production_unwrap: 0
-  tracing_coverage: "linux-automation integrated"
-  disk_usage: "48%"
+  tracing_coverage: "linux-automation integrated, api-server/nodes.rs integrated"
+  disk_usage: "73%"
 
 # 学到的教训
 lessons:
@@ -138,11 +149,19 @@ lessons:
     lesson: "conn.lock().unwrap()是Mutex中毒风险，应该用map_err转换为业务错误"
     solution: "添加Poisoned错误变体，用.map_err(|e| Error::Poisoned(e.to_string()))?"
     date: "2026-05-20"
+  - id: L010
+    lesson: "PaginationParams有page和per_page字段，不是offset和limit"
+    solution: "写测试前先读struct定义确认字段名"
+    date: "2026-05-20"
+  - id: L011
+    lesson: "Arc<RwLock<...>>提供内部可变性，不需要mut绑定"
+    solution: "只有需要rebind变量本身时才需要mut"
+    date: "2026-05-20"
 
 # 四步法检查
 four_step_check:
-  last_evaluation: "2026-05-20T01:00:00Z"
-  last_review: "2026-05-20T01:00:00Z"
-  last_plan: "2026-05-20T01:00:00Z"
-  last_development: "2026-05-20T01:00:00Z"
+  last_evaluation: "2026-05-20T02:10:00Z"
+  last_review: "2026-05-20T02:10:00Z"
+  last_plan: "2026-05-20T02:10:00Z"
+  last_development: "2026-05-20T02:10:00Z"
   violations: []

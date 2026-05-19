@@ -1,19 +1,19 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 06:50
+# 更新时间: 2026-05-20 07:30
 
-iteration: 27
-last_run: "2026-05-20T06:50:00Z"
-last_commit: "6864170"
+iteration: 28
+last_run: "2026-05-20T07:30:00Z"
+last_commit: "ca49caf"
 status: active
 
 # 各模块状态
 modules:
   linux-automation:
-    tests: 364
+    tests: 402
     target_tests: 120
     status: DONE ✅
     production_unwrap: 0
-    next_step: "R033 or deeper coverage"
+    next_step: "R034 磁盘管理 or deeper coverage"
     blockers: []
 
   document-management:
@@ -40,20 +40,29 @@ modules:
   api-server:
     tests: 443
     status: IMPROVING
-    next_step: "scheduler.rs(7), tokens.rs(7) 可继续提测; agents.rs(11), im.rs(20), nl_command.rs(26) 已较高"
+    next_step: "scheduler.rs(7), tokens.rs(7) 可继续提测"
     blockers: []
-    changes:
-      - "tier_routing.rs: 6→23 (+17 edge case tests)"
-      - "workflows.rs: 6→15 (+9 lifecycle tests)"
-      - "knowledge.rs: 7→21 (+14 async handler tests)"
 
 # 质量指标
 quality:
-  total_tests: 3769
-  linux_automation_tests: 364
+  total_tests: 3807
+  linux_automation_tests: 402
   clippy_warnings: 0
   production_unwrap: 0
   disk_usage: "49%"
+
+# 本次迭代成果
+iteration_28:
+  module: "linux-automation/service_manager.rs"
+  new_tests: 38
+  features:
+    - "R033 服务管理模块: systemd/nginx/mysql/redis 全生命周期管理"
+    - "19种ServiceAction: start/stop/restart/status/enable/disable/logs/list-units/list-failed/daemon-reload"
+    - "nginx: reload(test+reload)/test-config/status"
+    - "mysql: status/query(SELECT白名单)/check-tables"
+    - "redis: status/info/command(危险命令黑名单)"
+    - "安全策略: mysql只读白名单, redis危险命令拦截"
+    - "集成到TaskType::ServiceOps dispatch"
 
 # 学到的教训
 lessons:
@@ -69,6 +78,10 @@ lessons:
     lesson: "chunk_document按行分割,单行长文本不会被chunk"
     solution: "测试chunking时用多行内容,不用单行repeat"
     date: "2026-05-20"
+  - id: L021
+    lesson: "match arm中&u32.min(1000)需要(*val).min(1000)解引用"
+    solution: "引用类型的数值比较需要先解引用"
+    date: "2026-05-20"
 
 # 研究队列
-research_queue_next: "R033 服务管理（systemd/nginx/mysql/redis）"
+research_queue_next: "R034 磁盘管理和存储运维"

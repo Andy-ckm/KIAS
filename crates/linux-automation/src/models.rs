@@ -104,6 +104,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: UserAction,
     },
+    /// 网络配置和故障排查 (R032)
+    NetworkOps {
+        hosts: Vec<String>,
+        action: NetworkAction,
+    },
 }
 
 /// 任务优先级
@@ -943,6 +948,175 @@ impl Default for PerfMonitorConfig {
             ],
         }
     }
+}
+
+// ============================================================
+// R032: 网络配置和故障排查
+// ============================================================
+
+/// 网络操作类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NetworkAction {
+    /// 列出网络接口
+    ListInterfaces,
+    /// 查看接口详情
+    InterfaceDetail { interface: String },
+    /// 配置IP地址
+    SetIp {
+        interface: String,
+        ip: String,
+        prefix: u8,
+        gateway: Option<String>,
+    },
+    /// 启用/禁用接口
+    SetInterfaceState { interface: String, up: bool },
+    /// 查看路由表
+    ShowRoutes,
+    /// 添加路由
+    AddRoute {
+        destination: String,
+        gateway: String,
+        interface: Option<String>,
+    },
+    /// 删除路由
+    DeleteRoute { destination: String },
+    /// DNS诊断
+    DnsDiag {
+        domain: String,
+        server: Option<String>,
+    },
+    /// 配置DNS
+    SetDns { servers: Vec<String> },
+    /// 连通性测试
+    Ping {
+        host: String,
+        count: Option<u32>,
+        timeout_secs: Option<u32>,
+    },
+    /// 路由追踪
+    Traceroute { host: String, max_hops: Option<u32> },
+    /// 端口扫描
+    PortCheck {
+        host: String,
+        ports: Vec<u16>,
+        timeout_secs: Option<u32>,
+    },
+    /// 查看网络连接
+    ShowConnections {
+        protocol: Option<String>,
+        state: Option<String>,
+    },
+    /// 查看防火墙规则
+    ShowFirewall,
+    /// 添加防火墙规则
+    AddFirewallRule { rule: FirewallRule },
+    /// 删除防火墙规则
+    DeleteFirewallRule { port: u16, protocol: String },
+    /// 带宽测试
+    BandwidthTest {
+        host: String,
+        duration_secs: Option<u32>,
+    },
+    /// 网络诊断（综合）
+    FullDiag { host: String },
+}
+
+/// 网络接口信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NetworkInterface {
+    pub name: String,
+    pub state: String,
+    pub mac: String,
+    pub mtu: u32,
+    pub ipv4: Vec<IpAddress>,
+    pub ipv6: Vec<IpAddress>,
+}
+
+/// IP地址信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IpAddress {
+    pub address: String,
+    pub prefix: u8,
+    pub scope: String,
+}
+
+/// 路由信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteEntry {
+    pub destination: String,
+    pub gateway: String,
+    pub interface: String,
+    pub metric: Option<u32>,
+    pub proto: Option<String>,
+}
+
+/// DNS诊断结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DnsDiagResult {
+    pub domain: String,
+    pub server: String,
+    pub resolved_ips: Vec<String>,
+    pub query_time_ms: u64,
+    pub authoritative: bool,
+    pub records: Vec<DnsRecord>,
+}
+
+/// DNS记录
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DnsRecord {
+    pub record_type: String,
+    pub value: String,
+    pub ttl: u32,
+}
+
+/// 连通性测试结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PingResult {
+    pub host: String,
+    pub sent: u32,
+    pub received: u32,
+    pub loss_pct: f64,
+    pub rtt_min_ms: f64,
+    pub rtt_avg_ms: f64,
+    pub rtt_max_ms: f64,
+}
+
+/// 端口检查结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PortCheckResult {
+    pub host: String,
+    pub port: u16,
+    pub open: bool,
+    pub service: Option<String>,
+    pub response_time_ms: u64,
+}
+
+/// 网络连接信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NetworkConnection {
+    pub protocol: String,
+    pub local_addr: String,
+    pub local_port: u16,
+    pub remote_addr: String,
+    pub remote_port: u16,
+    pub state: String,
+    pub process: Option<String>,
+}
+
+/// 网络操作结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkOpsResult {
+    pub action: String,
+    pub success: bool,
+    pub interfaces: Vec<NetworkInterface>,
+    pub routes: Vec<RouteEntry>,
+    pub dns_result: Option<DnsDiagResult>,
+    pub ping_result: Option<PingResult>,
+    pub port_results: Vec<PortCheckResult>,
+    pub connections: Vec<NetworkConnection>,
+    pub firewall_rules: Vec<FirewallRule>,
+    pub output: String,
+    pub errors: Vec<String>,
 }
 
 #[cfg(test)]

@@ -59,6 +59,9 @@ pub enum AutomationError {
     #[error("基线数据不足: {0}")]
     BaselineInsufficient(String),
 
+    #[error("网络操作失败: {0}")]
+    NetworkOperation(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }

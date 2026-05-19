@@ -29,6 +29,7 @@ pub mod provisioning;
 pub mod queue;
 pub mod rbac;
 pub mod scanner;
+pub mod network_ops;
 pub mod user_management;
 
 pub use audit::AuditLog;
@@ -241,6 +242,41 @@ impl LinuxAutomation {
                         TaskStatus::Success
                     } else {
                         TaskStatus::PartialSuccess
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::NetworkOps { hosts, action } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let result = network_ops::NetworkManager::execute(
+                        &self.executor,
+                        host,
+                        action,
+                        &self.audit,
+                    )
+                    .await?;
+                    all_results.push(result);
+                }
+                let errors_count: usize = all_results.iter().map(|r| r.errors.len()).sum();
+                let summary = format!(
+                    "网络操作 {} 台主机, {} 错误",
+                    hosts_count, errors_count
+                );
+                AutomationResult {
+                    task_id,
+                    task_type: "NetworkOps".to_string(),
+                    status: if all_results.iter().all(|r| r.success) {
+                        TaskStatus::Success
+                    } else if errors_count > 0 && all_results.iter().any(|r| r.success) {
+                        TaskStatus::PartialSuccess
+                    } else {
+                        TaskStatus::Failed
                     },
                     started_at: Utc::now(),
                     completed_at: Some(Utc::now()),

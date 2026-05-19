@@ -162,4 +162,73 @@ mod tests {
         assert_eq!(history.len(), 2);
         assert_eq!(history[0].version, 2); // 最新版本在前
     }
+
+    #[test]
+    fn test_version_numbering() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let v1 = vc.create_version("doc1", "v1", "版本1").unwrap();
+        let v2 = vc.create_version("doc1", "v2", "版本2").unwrap();
+        let v3 = vc.create_version("doc1", "v3", "版本3").unwrap();
+
+        assert_eq!(v1.version, 1);
+        assert_eq!(v2.version, 2);
+        assert_eq!(v3.version, 3);
+    }
+
+    #[test]
+    fn test_empty_history() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let history = vc.get_history("nonexistent").unwrap();
+        assert!(history.is_empty());
+    }
+
+    #[test]
+    fn test_version_checksum_changes() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let v1 = vc.create_version("doc1", "content A", "v1").unwrap();
+        let v2 = vc.create_version("doc1", "content B", "v2").unwrap();
+
+        assert_ne!(v1.checksum, v2.checksum);
+    }
+
+    #[test]
+    fn test_create_version_with_author() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let version = vc.create_version_with_author("doc1", "content", "测试", "test-user").unwrap();
+        assert_eq!(version.created_by, "test-user");
+        assert_eq!(version.version, 1);
+    }
+
+    #[test]
+    fn test_default_author_is_system() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let version = vc.create_version("doc1", "content", "默认作者").unwrap();
+        assert_eq!(version.created_by, "system");
+    }
+
+    #[test]
+    fn test_version_content_preserved() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let vc = VersionControl::new(&db_path).unwrap();
+
+        let content = "这是版本内容，包含中文";
+        let version = vc.create_version("doc1", content, "保存内容").unwrap();
+        assert_eq!(version.content, content);
+    }
 }

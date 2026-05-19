@@ -150,4 +150,31 @@ mod tests {
         let expected = storage.calculate_checksum("test content");
         assert_eq!(checksum, expected);
     }
+
+    #[test]
+    fn test_store_empty_content() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+        let checksum = storage.store("empty-doc", "").unwrap();
+        assert!(!checksum.is_empty());
+    }
+
+    #[test]
+    fn test_checksum_empty_string() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+        let c1 = storage.calculate_checksum("");
+        let c2 = storage.calculate_checksum("");
+        assert_eq!(c1, c2);
+        assert!(!c1.is_empty());
+    }
+
+    #[test]
+    fn test_retrieve_after_delete_fails() {
+        let tmp = TempDir::new().unwrap();
+        let storage = DocumentStorage::new(tmp.path()).unwrap();
+        storage.store("doc1", "content").unwrap();
+        storage.delete("doc1").unwrap();
+        assert!(storage.retrieve("doc1").is_err());
+    }
 }

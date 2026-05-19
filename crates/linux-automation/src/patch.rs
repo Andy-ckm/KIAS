@@ -150,7 +150,10 @@ mod tests {
     #[test]
     fn test_build_update_command_zypper_security() {
         let pm = PatchManager::new(PackageManager::Zypper);
-        assert_eq!(pm.build_update_command(true), "zypper patch --category security");
+        assert_eq!(
+            pm.build_update_command(true),
+            "zypper patch --category security"
+        );
     }
 
     #[test]

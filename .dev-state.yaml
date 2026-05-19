@@ -1,16 +1,17 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-19 22:00
+# 更新时间: 2026-05-19 22:10
 
-iteration: 12
-last_run: "2026-05-19T22:00:00Z"
-last_commit: "4d0bb11"
+iteration: 16
+last_run: "2026-05-20T00:00:00Z"
+last_commit: "eb53988"
 status: active
 
 # 各模块状态
 modules:
   linux-automation:
-    tests: 86
+    tests: 131
     target_tests: 120
+    status: DONE ✅
     features_done:
       - SSH远程执行引擎
       - 会话管理（连接池、超时、重连）
@@ -20,18 +21,20 @@ modules:
       - 审计日志
       - RBAC权限控制
       - 任务队列
+      - 错误处理（12个测试）
+      - 数据模型（18个测试）
     features_missing:
       - 流式命令输出（实时stdout/stderr）
       - 批量主机执行（并行SSH）
       - 告警通知（Webhook/邮件）
       - 合规报告PDF生成
-    next_step: "添加models.rs边界测试和scanner.rs深度测试"
+    next_step: "已达标，转向其他模块"
     blockers: []
 
   document-management:
-    tests: 100
+    tests: 112
     target_tests: 100
-    status: DONE ✅
+    status: DONE ✅ (+12 error.rs tests this iteration)
     features_done:
       - 文档生命周期管理
       - 版本控制（Git-like）
@@ -45,8 +48,9 @@ modules:
     blockers: []
 
   it-change-management:
-    tests: 176
+    tests: 202
     target_tests: 200
+    status: DONE ✅
     features_done:
       - GxP影响分级
       - 紧急变更通道
@@ -55,7 +59,7 @@ modules:
       - 电子签名
       - SLA跟踪
       - 审计追踪哈希链
-      - Web API（axum）
+      - Web API（axum）— 10个测试
       - RBAC权限控制
       - 审批工作流引擎
       - 变更执行计划
@@ -64,7 +68,7 @@ modules:
       - 实时通知（WebSocket）
       - 仪表盘（变更统计）
       - 与Linux自动化深度联动
-    next_step: "添加linux_auto.rs和document.rs边界测试"
+    next_step: "已达标，可推进新模块或深化功能"
     blockers: []
 
 # 学到的教训
@@ -85,11 +89,23 @@ lessons:
     lesson: "PDF文件被误提交到git"
     solution: "提交前检查git diff --cached，清理无关文件"
     date: "2026-05-19"
+  - id: L005
+    lesson: "tower crate需要启用util feature才能使用ServiceExt::oneshot"
+    solution: "tower = { version = \"0.4\", features = [\"util\"] }"
+    date: "2026-05-19"
+  - id: L006
+    lesson: "Uuid类型没有is_empty()方法，应该用assert_ne!(id, Uuid::nil())"
+    solution: "检查类型的方法集，不要假设String的方法适用于其他类型"
+    date: "2026-05-19"
+  - id: L007
+    lesson: "task_type的Debug格式包含完整字段，不能直接assert_eq到枚举名"
+    solution: "用contains()检查子串，不要assert_eq到简短名称"
+    date: "2026-05-19"
 
 # 四步法检查
 four_step_check:
-  last_evaluation: "2026-05-19T22:00:00Z"
-  last_review: "2026-05-19T22:00:00Z"
-  last_plan: "2026-05-19T22:00:00Z"
-  last_development: "2026-05-19T22:00:00Z"
+  last_evaluation: "2026-05-19T22:10:00Z"
+  last_review: "2026-05-19T22:10:00Z"
+  last_plan: "2026-05-19T22:10:00Z"
+  last_development: "2026-05-19T22:10:00Z"
   violations: []

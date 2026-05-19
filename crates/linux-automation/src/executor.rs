@@ -342,6 +342,9 @@ mod tests {
     #[test]
     fn test_executor_session_timeout_default() {
         let (executor, _tmp) = create_test_executor();
-        assert_eq!(executor.session_timeout, std::time::Duration::from_secs(300));
+        assert_eq!(
+            executor.session_timeout,
+            std::time::Duration::from_secs(300)
+        );
     }
 }

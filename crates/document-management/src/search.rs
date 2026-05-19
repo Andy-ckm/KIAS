@@ -120,3 +120,124 @@ impl Default for TagIndex {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_search_query_default() {
+        let q = SearchQuery::default();
+        assert!(q.text.is_none());
+        assert!(q.doc_type.is_none());
+        assert_eq!(q.limit, 20);
+        assert_eq!(q.offset, 0);
+        assert!(q.tags.is_empty());
+    }
+
+    #[test]
+    fn test_build_fts_query_with_text() {
+        let q = SearchQuery {
+            text: Some("hello world".to_string()),
+            ..Default::default()
+        };
+        let fts = DocumentSearchEngine::build_fts_query(&q);
+        assert_eq!(fts, Some("\"hello\" OR \"world\"".to_string()));
+    }
+
+    #[test]
+    fn test_build_fts_query_no_text() {
+        let q = SearchQuery::default();
+        assert!(DocumentSearchEngine::build_fts_query(&q).is_none());
+    }
+
+    #[test]
+    fn test_build_fts_query_single_term() {
+        let q = SearchQuery {
+            text: Some("rust".to_string()),
+            ..Default::default()
+        };
+        let fts = DocumentSearchEngine::build_fts_query(&q);
+        assert_eq!(fts, Some("\"rust\"".to_string()));
+    }
+
+    #[test]
+    fn test_build_fts_query_strips_quotes() {
+        let q = SearchQuery {
+            text: Some("test \"quoted\"".to_string()),
+            ..Default::default()
+        };
+        let fts = DocumentSearchEngine::build_fts_query(&q).unwrap();
+        assert!(fts.contains("\"quoted\""));
+        // embedded quotes should be stripped
+        assert!(!fts.contains("\"\"quoted\"\""));
+    }
+
+    #[test]
+    fn test_highlight_matches_found() {
+        let snippets = DocumentSearchEngine::highlight_matches(
+            "The quick brown fox jumps over the lazy dog",
+            "fox",
+            5,
+        );
+        assert_eq!(snippets.len(), 1);
+        assert!(snippets[0].contains("fox"));
+    }
+
+    #[test]
+    fn test_highlight_matches_not_found() {
+        let snippets = DocumentSearchEngine::highlight_matches(
+            "The quick brown fox",
+            "elephant",
+            5,
+        );
+        assert!(snippets.is_empty());
+    }
+
+    #[test]
+    fn test_highlight_matches_case_insensitive() {
+        let snippets = DocumentSearchEngine::highlight_matches(
+            "Hello World",
+            "hello",
+            3,
+        );
+        assert_eq!(snippets.len(), 1);
+    }
+
+    #[test]
+    fn test_tag_index_new() {
+        let idx = TagIndex::new();
+        assert!(idx.all_tags().is_empty());
+    }
+
+    #[test]
+    fn test_tag_index_default() {
+        let idx = TagIndex::default();
+        assert!(idx.all_tags().is_empty());
+    }
+
+    #[test]
+    fn test_tag_index_add_and_find() {
+        let mut idx = TagIndex::new();
+        idx.add("compliance", "doc-001");
+        idx.add("compliance", "doc-002");
+        let docs = idx.find_by_tag("compliance");
+        assert_eq!(docs.len(), 2);
+        assert!(docs.contains(&"doc-001".to_string()));
+    }
+
+    #[test]
+    fn test_tag_index_find_nonexistent() {
+        let idx = TagIndex::new();
+        assert!(idx.find_by_tag("missing").is_empty());
+    }
+
+    #[test]
+    fn test_tag_index_all_tags() {
+        let mut idx = TagIndex::new();
+        idx.add("tag1", "d1");
+        idx.add("tag2", "d2");
+        let tags = idx.all_tags();
+        assert_eq!(tags.len(), 2);
+    }
+}

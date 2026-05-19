@@ -66,5 +66,48 @@ impl RbacManager {
 }
 
 pub fn rbac_model() -> &'static str {
-    "[request_definition]\nr = sub, obj, act\n\n[policy_definition]\np = sub, obj, act\n\n[role_definition]\ng = _, _\n\n[policy_effect]\ne = some(where (p.eft == allow))\n\n[matchers]\nm = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act\n"
+    "[request_definition]\\nr = sub, obj, act\\n\\n[policy_definition]\\np = sub, obj, act\\n\\n[role_definition]\\ng = _, _\\n\\n[policy_effect]\\ne = some(where (p.eft == allow))\\n\\n[matchers]\\nm = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act\\n"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rbac_model_not_empty() {
+        let model = rbac_model();
+        assert!(!model.is_empty());
+    }
+
+    #[test]
+    fn test_rbac_model_contains_sections() {
+        let model = rbac_model();
+        assert!(model.contains("[request_definition]"));
+        assert!(model.contains("[policy_definition]"));
+        assert!(model.contains("[role_definition]"));
+        assert!(model.contains("[policy_effect]"));
+        assert!(model.contains("[matchers]"));
+    }
+
+    #[test]
+    fn test_rbac_model_contains_required_fields() {
+        let model = rbac_model();
+        assert!(model.contains("r = sub, obj, act"));
+        assert!(model.contains("p = sub, obj, act"));
+        assert!(model.contains("g = _, _"));
+    }
+
+    #[test]
+    fn test_permission_check_fields() {
+        let check = PermissionCheck {
+            allowed: true,
+            user: "admin".to_string(),
+            resource: "server1".to_string(),
+            action: "reboot".to_string(),
+        };
+        assert!(check.allowed);
+        assert_eq!(check.user, "admin");
+        assert_eq!(check.resource, "server1");
+        assert_eq!(check.action, "reboot");
+    }
 }

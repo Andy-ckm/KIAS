@@ -1,9 +1,6 @@
 //! 补丁管理模块
 //! 支持 yum/apt 包管理器的安全补丁
 
-use crate::error::{AutomationError, Result};
-use crate::models::*;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// 包管理器类型
@@ -35,6 +32,7 @@ pub enum PatchSeverity {
 }
 
 /// 补丁管理器
+#[allow(dead_code)]
 pub struct PatchManager {
     package_manager: PackageManager,
     auto_reboot: bool,

@@ -49,6 +49,8 @@ impl DocumentManagement {
 
     /// 创建新文档
     pub fn create_document(&self, request: CreateDocumentRequest) -> Result<Document> {
+        let created_by = request.created_by.clone();
+
         // 1. 创建文档记录
         let doc = self.repository.create(request)?;
 
@@ -58,6 +60,15 @@ impl DocumentManagement {
         // 3. 创建初始版本
         self.version_control
             .create_version(&doc.id, &doc.content, "初始版本")?;
+
+        // 4. 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            &doc.id,
+            "created",
+            &created_by,
+            Some(format!("创建文档: {}", doc.title)),
+        )?;
 
         Ok(doc)
     }
@@ -93,6 +104,15 @@ impl DocumentManagement {
         self.version_control
             .create_version_with_author(id, &updated.content, "更新文档", &updated_by)?;
 
+        // 6. 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            id,
+            "updated",
+            &updated_by,
+            Some(format!("更新文档, 版本 {}", updated.version)),
+        )?;
+
         Ok(updated)
     }
 
@@ -107,8 +127,19 @@ impl DocumentManagement {
             )));
         }
 
-        self.repository
-            .update_status(id, DocumentStatus::UnderReview, submitted_by)
+        let result = self.repository
+            .update_status(id, DocumentStatus::UnderReview, submitted_by)?;
+
+        // 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            id,
+            "submitted_for_approval",
+            submitted_by,
+            Some("文档提交审批".to_string()),
+        )?;
+
+        Ok(result)
     }
 
     /// 审批文档
@@ -128,12 +159,28 @@ impl DocumentManagement {
         }
 
         // 如果有电子签名，验证并记录
+        let has_signature = signature.is_some();
         if let Some(sig) = signature {
             self.signature_service.sign(id, approved_by, &sig)?;
         }
 
-        self.repository
-            .update_status(id, DocumentStatus::Approved, approved_by)
+        let result = self.repository
+            .update_status(id, DocumentStatus::Approved, approved_by)?;
+
+        // 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            id,
+            "approved",
+            approved_by,
+            Some(if has_signature {
+                "文档审批通过(含电子签名)".to_string()
+            } else {
+                "文档审批通过".to_string()
+            }),
+        )?;
+
+        Ok(result)
     }
 
     /// 发布文档
@@ -147,8 +194,19 @@ impl DocumentManagement {
             )));
         }
 
-        self.repository
-            .update_status(id, DocumentStatus::Published, published_by)
+        let result = self.repository
+            .update_status(id, DocumentStatus::Published, published_by)?;
+
+        // 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            id,
+            "published",
+            published_by,
+            Some("文档发布".to_string()),
+        )?;
+
+        Ok(result)
     }
 
     /// 归档文档
@@ -162,8 +220,19 @@ impl DocumentManagement {
             )));
         }
 
-        self.repository
-            .update_status(id, DocumentStatus::Archived, archived_by)
+        let result = self.repository
+            .update_status(id, DocumentStatus::Archived, archived_by)?;
+
+        // 审计日志
+        audit::record_audit(
+            &self.repository.db_path,
+            id,
+            "archived",
+            archived_by,
+            Some("文档归档".to_string()),
+        )?;
+
+        Ok(result)
     }
 
     /// 搜索文档

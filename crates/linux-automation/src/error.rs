@@ -53,6 +53,9 @@ pub enum AutomationError {
     #[error("性能监控错误: {0}")]
     PerfMonitor(String),
 
+    #[error("用户管理错误: {0}")]
+    UserManagement(String),
+
     #[error("基线数据不足: {0}")]
     BaselineInsufficient(String),
 

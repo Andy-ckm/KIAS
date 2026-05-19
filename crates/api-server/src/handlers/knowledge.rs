@@ -350,4 +350,180 @@ mod tests {
         assert_eq!(r.page_id, "p1");
         assert_eq!(r.score, 0.8);
     }
+
+    async fn test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        AppState::new_async(config).await
+    }
+
+    #[tokio::test]
+    async fn test_ingest_document_success() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "Rust Guide".to_string(),
+            content: "Rust is a systems programming language focused on safety and performance.".to_string(),
+            tags: vec!["rust".to_string(), "programming".to_string()],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let result = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        assert!(!result.document_id.is_empty());
+        assert!(result.chunks_created > 0);
+        assert_eq!(result.status, "ingested");
+    }
+
+    #[tokio::test]
+    async fn test_ingest_document_empty_content_fails() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "Empty".to_string(),
+            content: "".to_string(),
+            tags: vec![],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let result = ingest_document(State(state), Json(req)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_ingest_document_whitespace_content_fails() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "Whitespace".to_string(),
+            content: "   \n  ".to_string(),
+            tags: vec![],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let result = ingest_document(State(state), Json(req)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_ingest_long_document_chunks() {
+        let state = test_state().await;
+        // Create content with many lines to trigger chunking (>500 chars)
+        let long_content = (0..50).map(|i| format!("Line {} about Rust programming and systems.", i)).collect::<Vec<_>>().join("\n");
+        let req = IngestRequest {
+            title: "Long Doc".to_string(),
+            content: long_content,
+            tags: vec![],
+            source_type: "paper".to_string(),
+            source_url: None,
+        };
+        let result = ingest_document(State(state), Json(req)).await.unwrap();
+        assert!(result.chunks_created >= 2, "Long doc should produce multiple chunks, got {}", result.chunks_created);
+    }
+
+    #[tokio::test]
+    async fn test_list_documents_empty() {
+        let state = test_state().await;
+        let result = list_documents(State(state)).await;
+        assert_eq!(result["total"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_list_documents_after_ingest() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "Test Doc".to_string(),
+            content: "Some content for testing".to_string(),
+            tags: vec!["test".to_string()],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+
+        let result = list_documents(State(state)).await;
+        assert_eq!(result["total"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_search_knowledge_empty() {
+        let state = test_state().await;
+        let result = search_knowledge(
+            State(state),
+            Query(SearchQuery { q: "nonexistent".to_string(), limit: Some(10) }),
+        )
+        .await;
+        assert_eq!(result.total, 0);
+    }
+
+    #[tokio::test]
+    async fn test_search_knowledge_after_ingest() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "Rust Ownership".to_string(),
+            content: "Rust uses ownership to manage memory without garbage collection.".to_string(),
+            tags: vec!["rust".to_string()],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+
+        let result = search_knowledge(
+            State(state),
+            Query(SearchQuery { q: "rust ownership".to_string(), limit: Some(10) }),
+        )
+        .await;
+        assert!(result.total > 0);
+        assert!(result.items[0].score > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_search_knowledge_limit() {
+        let state = test_state().await;
+        // Ingest multiple docs
+        for i in 0..5 {
+            let req = IngestRequest {
+                title: format!("Doc {}", i),
+                content: format!("Content about topic {}", i),
+                tags: vec![],
+                source_type: "doc".to_string(),
+                source_url: None,
+            };
+            let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        }
+
+        let result = search_knowledge(
+            State(state),
+            Query(SearchQuery { q: "content topic".to_string(), limit: Some(2) }),
+        )
+        .await;
+        assert!(result.total <= 2);
+    }
+
+    #[tokio::test]
+    async fn test_search_knowledge_title_match() {
+        let state = test_state().await;
+        let req = IngestRequest {
+            title: "UniqueTitle12345".to_string(),
+            content: "generic content".to_string(),
+            tags: vec![],
+            source_type: "doc".to_string(),
+            source_url: None,
+        };
+        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+
+        let result = search_knowledge(
+            State(state),
+            Query(SearchQuery { q: "UniqueTitle12345".to_string(), limit: Some(10) }),
+        )
+        .await;
+        assert!(result.total > 0);
+    }
+
+    #[test]
+    fn test_chunk_document_short() {
+        let chunks = chunk_document("hello world", 500);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].trim(), "hello world");
+    }
+
+    #[test]
+    fn test_chunk_document_empty() {
+        let chunks = chunk_document("", 500);
+        assert_eq!(chunks.len(), 1);
+    }
 }

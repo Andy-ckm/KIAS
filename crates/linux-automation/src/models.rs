@@ -288,4 +288,169 @@ mod tests {
         assert_eq!(result.status, TaskStatus::Success);
         assert_eq!(result.exit_code, 0);
     }
+
+    #[test]
+    fn test_task_type_variants() {
+        let scan = TaskType::ComplianceScan {
+            profile: "CIS".to_string(),
+            hosts: vec!["h1".to_string()],
+        };
+        assert!(matches!(scan, TaskType::ComplianceScan { .. }));
+
+        let patch = TaskType::PatchInstall {
+            packages: vec!["vim".to_string()],
+            hosts: vec!["h1".to_string()],
+        };
+        assert!(matches!(patch, TaskType::PatchInstall { .. }));
+
+        let deploy = TaskType::ConfigDeploy {
+            playbook: "site.yml".to_string(),
+            hosts: vec!["h1".to_string()],
+        };
+        assert!(matches!(deploy, TaskType::ConfigDeploy { .. }));
+    }
+
+    #[test]
+    fn test_compliance_report_creation() {
+        let report = ComplianceReport {
+            host: "server1".to_string(),
+            scan_time: Utc::now(),
+            profile: "CIS Level 1".to_string(),
+            score: 85.5,
+            passed: 100,
+            failed: 15,
+            not_applicable: 5,
+            findings: vec![],
+        };
+        assert_eq!(report.score, 85.5);
+        assert_eq!(report.passed + report.failed + report.not_applicable, 120);
+    }
+
+    #[test]
+    fn test_compliance_finding_creation() {
+        let finding = ComplianceFinding {
+            rule_id: "CIS-1.1.1".to_string(),
+            title: "Disable unused filesystem".to_string(),
+            severity: Severity::High,
+            status: FindingStatus::Fail,
+            description: "Test".to_string(),
+            remediation: Some("Fix it".to_string()),
+        };
+        assert_eq!(finding.severity, Severity::High);
+        assert_eq!(finding.status, FindingStatus::Fail);
+        assert!(finding.remediation.is_some());
+    }
+
+    #[test]
+    fn test_audit_entry_creation() {
+        let entry = AuditEntry {
+            id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            user: "admin".to_string(),
+            action: "deploy".to_string(),
+            target: "server1".to_string(),
+            result: "success".to_string(),
+            details: Some("deployed v2.0".to_string()),
+            signature: None,
+        };
+        assert_eq!(entry.user, "admin");
+        assert!(entry.details.is_some());
+        assert!(entry.signature.is_none());
+    }
+
+    #[test]
+    fn test_automation_result_creation() {
+        let result = AutomationResult {
+            task_id: Uuid::new_v4(),
+            task_type: "ComplianceScan".to_string(),
+            status: TaskStatus::Success,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "All good".to_string(),
+            audit_trail: vec![],
+        };
+        assert_eq!(result.status, TaskStatus::Success);
+        assert!(result.completed_at.is_some());
+    }
+
+    #[test]
+    fn test_automation_statistics_creation() {
+        let stats = AutomationStatistics {
+            total_tasks: 100,
+            successful_tasks: 90,
+            failed_tasks: 5,
+            pending_tasks: 5,
+            compliance_score: 95.0,
+            audit_entries: 200,
+            last_scan_time: Some(Utc::now()),
+        };
+        assert_eq!(stats.total_tasks, 100);
+        assert_eq!(stats.compliance_score, 95.0);
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_task_status() {
+        let statuses = vec![
+            TaskStatus::Pending,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Failed,
+        ];
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(status, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_severity() {
+        let severities = vec![
+            Severity::Low,
+            Severity::Medium,
+            Severity::High,
+            Severity::Critical,
+        ];
+        for sev in severities {
+            let json = serde_json::to_string(&sev).unwrap();
+            let deserialized: Severity = serde_json::from_str(&json).unwrap();
+            assert_eq!(sev, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_task_type_security_update() {
+        let task = TaskType::SecurityUpdate {
+            hosts: vec!["h1".to_string(), "h2".to_string()],
+        };
+        assert!(matches!(task, TaskType::SecurityUpdate { .. }));
+    }
+
+    #[test]
+    fn test_task_type_log_collection() {
+        let task = TaskType::LogCollection {
+            hosts: vec!["h1".to_string()],
+            log_paths: vec!["/var/log/syslog".to_string()],
+        };
+        assert!(matches!(task, TaskType::LogCollection { .. }));
+    }
+
+    #[test]
+    fn test_task_type_disk_cleanup() {
+        let task = TaskType::DiskCleanup {
+            hosts: vec!["h1".to_string()],
+            targets: vec!["/tmp".to_string()],
+        };
+        assert!(matches!(task, TaskType::DiskCleanup { .. }));
+    }
+
+    #[test]
+    fn test_task_type_service_restart() {
+        let task = TaskType::ServiceRestart {
+            service: "nginx".to_string(),
+            hosts: vec!["h1".to_string()],
+        };
+        assert!(matches!(task, TaskType::ServiceRestart { .. }));
+    }
 }

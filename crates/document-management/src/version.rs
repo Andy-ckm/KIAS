@@ -44,6 +44,17 @@ impl VersionControl {
         content: &str,
         comment: &str,
     ) -> Result<DocumentVersion> {
+        self.create_version_with_author(doc_id, content, comment, "system")
+    }
+
+    /// 创建版本，指定作者
+    pub fn create_version_with_author(
+        &self,
+        doc_id: &str,
+        content: &str,
+        comment: &str,
+        created_by: &str,
+    ) -> Result<DocumentVersion> {
         let conn = self.conn.lock().unwrap();
 
         // 获取当前最大版本号
@@ -65,7 +76,7 @@ impl VersionControl {
             content: content.to_string(),
             checksum,
             created_at: Utc::now(),
-            created_by: "system".to_string(),
+            created_by: created_by.to_string(),
             comment: comment.to_string(),
         };
 

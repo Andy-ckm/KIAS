@@ -252,4 +252,257 @@ mod tests {
             let _ = ts.total_tokens;
         }
     }
+
+    #[tokio::test]
+    async fn test_token_per_agent_sorted_by_total() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let config = kias_common::config::KiasConfig::default();
+        let mut agents = HashMap::new();
+
+        // Create agents with different statuses (different base tokens)
+        for (name, status) in [
+            ("low-agent", AgentStatus::Pending),    // 0 tokens
+            ("mid-agent", AgentStatus::Scheduled),   // 2000 base
+            ("high-agent", AgentStatus::Succeeded),  // 45000 base
+        ] {
+            let spec = AgentSpec {
+                name: name.to_string(),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = status;
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
+                kias_knowledge::graph::KnowledgeGraph::new(),
+            )),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = token_analytics(State(state)).await;
+        assert_eq!(result.per_agent.len(), 3);
+        // Should be sorted descending by total_tokens
+        assert!(result.per_agent[0].total_tokens >= result.per_agent[1].total_tokens);
+        assert!(result.per_agent[1].total_tokens >= result.per_agent[2].total_tokens);
+        // Highest should be "high-agent" (Succeeded status)
+        assert_eq!(result.per_agent[0].agent_name, "high-agent");
+    }
+
+    #[tokio::test]
+    async fn test_token_cost_calculation() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let config = kias_common::config::KiasConfig::default();
+        let mut agents = HashMap::new();
+
+        let spec = AgentSpec {
+            name: "cost-agent".to_string(),
+            image: "python:3.11".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "medium".to_string(),
+            env: HashMap::new(),
+        };
+        let mut agent = Agent::from_spec(spec);
+        agent.status = AgentStatus::Running;
+        agents.insert(agent.id.clone(), agent);
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
+                kias_knowledge::graph::KnowledgeGraph::new(),
+            )),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = token_analytics(State(state)).await;
+        // Running agent: base=15000, restart_multiplier=1
+        // input = 15000 * 3 * 1 / 4 = 11250
+        // output = 15000 * 1 / 4 = 3750
+        // total = 15000
+        // cost = 15000 * 0.000003 = 0.045
+        assert_eq!(result.per_agent.len(), 1);
+        let usage = &result.per_agent[0];
+        assert_eq!(usage.input_tokens, 11250);
+        assert_eq!(usage.output_tokens, 3750);
+        assert_eq!(usage.total_tokens, 15000);
+        assert!((usage.estimated_cost - 0.045).abs() < 0.0001);
+        assert_eq!(result.total_cost, usage.estimated_cost);
+    }
+
+    #[tokio::test]
+    async fn test_token_restart_multiplier() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let config = kias_common::config::KiasConfig::default();
+        let mut agents = HashMap::new();
+
+        let spec = AgentSpec {
+            name: "restart-agent".to_string(),
+            image: "python:3.11".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "medium".to_string(),
+            env: HashMap::new(),
+        };
+        let mut agent = Agent::from_spec(spec);
+        agent.status = AgentStatus::Running;
+        agent.restart_count = 3; // 3 restarts → multiplier = 4
+        agents.insert(agent.id.clone(), agent);
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
+                kias_knowledge::graph::KnowledgeGraph::new(),
+            )),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = token_analytics(State(state)).await;
+        // Running agent with 3 restarts: base=15000, multiplier=4
+        // input = 15000 * 3 * 4 / 4 = 45000
+        // output = 15000 * 4 / 4 = 15000
+        // total = 60000
+        assert_eq!(result.per_agent.len(), 1);
+        assert_eq!(result.per_agent[0].total_tokens, 60000);
+        // With restarts, tokens should be 4x base
+        assert_eq!(result.per_agent[0].input_tokens, 45000);
+        assert_eq!(result.per_agent[0].output_tokens, 15000);
+    }
+
+    #[tokio::test]
+    async fn test_token_pending_agent_zero_tokens() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let config = kias_common::config::KiasConfig::default();
+        let mut agents = HashMap::new();
+
+        let spec = AgentSpec {
+            name: "pending-agent".to_string(),
+            image: "python:3.11".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "medium".to_string(),
+            env: HashMap::new(),
+        };
+        let mut agent = Agent::from_spec(spec);
+        agent.status = AgentStatus::Pending;
+        agents.insert(agent.id.clone(), agent);
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(kias_knowledge::retriever::KeywordRetriever::new(
+                kias_knowledge::graph::KnowledgeGraph::new(),
+            )),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = token_analytics(State(state)).await;
+        // Pending agent: base=0, so everything is 0
+        assert_eq!(result.per_agent.len(), 1);
+        assert_eq!(result.per_agent[0].total_tokens, 0);
+        assert_eq!(result.per_agent[0].input_tokens, 0);
+        assert_eq!(result.per_agent[0].output_tokens, 0);
+        assert_eq!(result.per_agent[0].estimated_cost, 0.0);
+    }
 }

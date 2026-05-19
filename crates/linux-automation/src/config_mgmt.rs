@@ -75,3 +75,67 @@ impl DriftDetector {
         &self.monitored_paths
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_drift_detector_new() {
+        let detector = DriftDetector::new("/tmp/baseline");
+        assert_eq!(detector.baseline_path, "/tmp/baseline");
+    }
+
+    #[test]
+    fn test_drift_detector_default_monitored_paths() {
+        let detector = DriftDetector::new("/tmp/baseline");
+        let paths = detector.monitored_paths();
+        assert_eq!(paths.len(), 10);
+        assert!(paths.contains(&"/etc/ssh/sshd_config".to_string()));
+        assert!(paths.contains(&"/etc/passwd".to_string()));
+        assert!(paths.contains(&"/etc/sudoers".to_string()));
+    }
+
+    #[test]
+    fn test_build_check_commands_count_matches_paths() {
+        let detector = DriftDetector::new("/tmp/baseline");
+        let commands = detector.build_check_commands();
+        assert_eq!(commands.len(), detector.monitored_paths().len());
+    }
+
+    #[test]
+    fn test_build_check_commands_format() {
+        let detector = DriftDetector::new("/tmp/baseline");
+        let commands = detector.build_check_commands();
+        for cmd in &commands {
+            assert!(cmd.starts_with("md5sum "));
+            assert!(cmd.contains("2>/dev/null || echo 'FILE_NOT_FOUND "));
+        }
+    }
+
+    #[test]
+    fn test_add_monitor_new_path() {
+        let mut detector = DriftDetector::new("/tmp/baseline");
+        let initial_count = detector.monitored_paths().len();
+        detector.add_monitor("/etc/nginx/nginx.conf".to_string());
+        assert_eq!(detector.monitored_paths().len(), initial_count + 1);
+        assert!(detector.monitored_paths().contains(&"/etc/nginx/nginx.conf".to_string()));
+    }
+
+    #[test]
+    fn test_add_monitor_duplicate_ignored() {
+        let mut detector = DriftDetector::new("/tmp/baseline");
+        let initial_count = detector.monitored_paths().len();
+        detector.add_monitor("/etc/passwd".to_string()); // already exists
+        assert_eq!(detector.monitored_paths().len(), initial_count);
+    }
+
+    #[test]
+    fn test_monitored_paths_returns_slice() {
+        let detector = DriftDetector::new("/tmp/baseline");
+        let paths = detector.monitored_paths();
+        // returns a &[String] slice
+        assert!(!paths.is_empty());
+        assert_eq!(paths[0], "/etc/ssh/sshd_config");
+    }
+}

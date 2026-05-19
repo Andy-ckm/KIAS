@@ -1,11 +1,13 @@
-# AGENTS.md - KIAS
+# AGENTS.md - AgentGuard
 
-> Kubernetes-like Intelligent Agent Scheduling System
-> 专业 AI Agent 集群调度系统
+> 让AI Agent可追溯、透明、可控
+> Production-grade AI Agent compliance & governance system
 
 ## 1. 项目概述
 
-KIAS 是一个 Rust 实现的 Agent 集群调度系统，借鉴 K8S 架构 + ANOLISA 可观测性 + DeepSeek 缓存优化。
+AgentGuard 是一个 Rust 实现的 AI Agent 合规治理系统，让企业敢在生产环境使用AI Agent。
+
+**核心定位**：让AI Agent可追溯、透明、可控
 
 **技术栈**：Rust (axum/tonic) + TypeScript (React) + etcd + SQLite
 

@@ -38,6 +38,7 @@ impl TaskExecutor {
     }
 
     /// 获取或创建SSH会话
+    #[allow(dead_code)]
     fn get_session(&mut self, host: &str) -> &mut SshSession {
         if !self.sessions.contains_key(host) {
             let session = SshSession {
@@ -54,6 +55,7 @@ impl TaskExecutor {
     }
 
     /// 清理过期会话
+    #[allow(dead_code)]
     fn cleanup_sessions(&mut self) {
         let now = chrono::Utc::now();
         self.sessions.retain(|_, session| {

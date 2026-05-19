@@ -173,7 +173,7 @@ mod tests {
         // Pre-populate agents to match desired replicas
         let mut state = make_test_state(2, 2);
         for i in 1..=2 {
-            let mut info = AgentInfo::new(&format!("agent-{}", i), &format!("test-agent-{}", i));
+            let mut info = AgentInfo::new(format!("agent-{}", i), format!("test-agent-{}", i));
             info.status = AgentStatus::Running;
             state.agents.insert(format!("agent-{}", i), info);
         }
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(state.actual.running_replicas, 5);
         assert_eq!(state.agents.len(), 5);
         // Each agent should have a unique ID and Running status
-        for (_id, info) in &state.agents {
+        for info in state.agents.values() {
             assert!(matches!(info.status, AgentStatus::Running));
         }
     }

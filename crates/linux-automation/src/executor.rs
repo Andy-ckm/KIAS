@@ -246,8 +246,7 @@ mod tests {
 
     #[test]
     fn test_task_type_variants() {
-        let types = vec![
-            TaskType::ComplianceScan {
+        let types = [TaskType::ComplianceScan {
                 profile: "cis".to_string(),
                 hosts: vec![],
             },
@@ -275,8 +274,7 @@ mod tests {
             TaskType::CustomCommand {
                 command: "ls".to_string(),
                 hosts: vec![],
-            },
-        ];
+            }];
         assert_eq!(types.len(), 8);
     }
 

@@ -29,6 +29,7 @@ pub mod provisioning;
 pub mod queue;
 pub mod rbac;
 pub mod scanner;
+pub mod user_management;
 
 pub use audit::AuditLog;
 pub use error::{AutomationError, Result};
@@ -212,6 +213,35 @@ impl LinuxAutomation {
                     task_id,
                     task_type: "BackupOps".to_string(),
                     status: TaskStatus::Failed,
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::UserManage { hosts, action } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let result = user_management::UserManager::execute(
+                        &self.executor,
+                        host,
+                        action,
+                        &self.audit,
+                    )
+                    .await?;
+                    all_results.push(result);
+                }
+                let summary = format!("用户管理操作 {} 台主机", hosts_count);
+                AutomationResult {
+                    task_id,
+                    task_type: "UserManage".to_string(),
+                    status: if all_results.iter().all(|r| r.status == TaskStatus::Success) {
+                        TaskStatus::Success
+                    } else {
+                        TaskStatus::PartialSuccess
+                    },
                     started_at: Utc::now(),
                     completed_at: Some(Utc::now()),
                     host_results: vec![],

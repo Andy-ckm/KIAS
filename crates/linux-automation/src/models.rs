@@ -99,6 +99,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: BackupAction,
     },
+    /// 用户和权限管理 (R031)
+    UserManage {
+        hosts: Vec<String>,
+        action: UserAction,
+    },
 }
 
 /// 任务优先级
@@ -685,6 +690,113 @@ pub struct BackupStatistics {
     pub oldest_backup: Option<DateTime<Utc>>,
     pub newest_backup: Option<DateTime<Utc>>,
     pub verification_pass_rate: f64,
+}
+
+// === R031: 用户和权限管理 ===
+
+/// 用户管理操作
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum UserAction {
+    /// 创建用户
+    Create {
+        username: String,
+        uid: Option<u32>,
+        shell: Option<String>,
+        home_dir: Option<String>,
+        groups: Vec<String>,
+        ssh_key: Option<String>,
+    },
+    /// 删除用户
+    Delete { username: String, remove_home: bool },
+    /// 修改用户
+    Modify {
+        username: String,
+        new_shell: Option<String>,
+        new_home: Option<String>,
+        add_groups: Vec<String>,
+        remove_groups: Vec<String>,
+        lock: Option<bool>,
+    },
+    /// 列出用户
+    List { system_users: bool },
+    /// 检查用户状态
+    Check { username: String },
+    /// 锁定用户
+    Lock { username: String },
+    /// 解锁用户
+    Unlock { username: String },
+    /// 创建用户组
+    CreateGroup { groupname: String, gid: Option<u32> },
+    /// 删除用户组
+    DeleteGroup { groupname: String },
+    /// 管理sudo权限
+    SudoManage {
+        username: String,
+        rules: Vec<String>,
+        remove: bool,
+    },
+    /// 检查文件权限
+    CheckPermissions {
+        path: String,
+        expected_owner: String,
+        expected_mode: String,
+    },
+    /// 修复文件权限
+    FixPermissions {
+        path: String,
+        owner: String,
+        mode: String,
+        recursive: bool,
+    },
+}
+
+/// 用户信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserInfo {
+    pub username: String,
+    pub uid: u32,
+    pub gid: u32,
+    pub home_dir: String,
+    pub shell: String,
+    pub groups: Vec<String>,
+    pub locked: bool,
+    pub last_login: Option<String>,
+    pub comment: String,
+}
+
+/// 用户组信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GroupInfo {
+    pub name: String,
+    pub gid: u32,
+    pub members: Vec<String>,
+}
+
+/// 用户管理结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserManageResult {
+    pub action: String,
+    pub host: String,
+    pub status: TaskStatus,
+    pub message: String,
+    pub users: Vec<UserInfo>,
+    pub groups: Vec<GroupInfo>,
+    pub permission_checks: Vec<PermissionCheckResult>,
+    pub commands_executed: Vec<String>,
+    pub audit_id: String,
+}
+
+/// 权限检查结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PermissionCheckResult {
+    pub path: String,
+    pub owner: String,
+    pub group: String,
+    pub mode: String,
+    pub expected_owner: Option<String>,
+    pub expected_mode: Option<String>,
+    pub compliant: bool,
+    pub issues: Vec<String>,
 }
 
 // === R030: 性能监控和优化 ===

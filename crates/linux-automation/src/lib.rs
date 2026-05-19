@@ -16,6 +16,8 @@ pub mod models;
 pub mod queue;
 pub mod rbac;
 pub mod scanner;
+pub mod patch;
+pub mod config_mgmt;
 
 pub use audit::AuditLog;
 pub use error::{AutomationError, Result};
@@ -23,6 +25,7 @@ pub use executor::TaskExecutor;
 pub use models::*;
 pub use queue::TaskQueue;
 pub use scanner::ComplianceScanner;
+pub use patch::PatchManager;
 
 /// Linux 自动化引擎
 pub struct LinuxAutomation {

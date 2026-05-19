@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 02:50
+# 更新时间: 2026-05-20 03:43
 
-iteration: 21
-last_run: "2026-05-20T02:50:00Z"
-last_commit: "10d8c98"
+iteration: 22
+last_run: "2026-05-20T03:43:00Z"
+last_commit: "933a2e8"
 status: active
 
 # 各模块状态
@@ -13,25 +13,6 @@ modules:
     target_tests: 120
     status: DONE ✅
     production_unwrap: 0
-    features_done:
-      - SSH远程执行引擎
-      - 会话管理（连接池、超时、重连）
-      - 合规扫描（CIS Benchmark）
-      - 补丁管理（4种包管理器）
-      - 配置漂移检测
-      - 审计日志
-      - RBAC权限控制
-      - 任务队列
-      - 错误处理（12个测试）
-      - 数据模型（18个测试）
-      - R023: 日常巡检(CPU/内存/磁盘/进程/日志/网络/安全) ✅
-      - R024: 服务器初始化(11种步骤类型) ✅
-      - R025: Docker容器运维(11种操作) ✅
-      - R026: K8s集群运维(9种操作+故障诊断) ✅
-      - OperationHub(SAP Agent Hub架构) ✅
-      - tracing结构化日志集成 ✅
-      - 生产unwrap()已清零 ✅
-      - R029: 备份恢复自动化(46测试) ✅
     next_step: "R030性能监控或R031用户权限管理"
     blockers: []
 
@@ -57,18 +38,18 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 364
+    tests: 390
     status: IMPROVING
     next_step: "context.rs(5)和metrics.rs(5)可继续提测密度"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 3563
+  total_tests: 3289
   linux_automation_tests: 236
   clippy_warnings: 0
   production_unwrap: 0
-  disk_usage: "48%"
+  disk_usage: "70%"
 
 # 学到的教训
 lessons:
@@ -79,6 +60,10 @@ lessons:
   - id: L013
     lesson: "MutexGuard类型签名中HashMap<V>的>不能多写"
     solution: "仔细检查泛型闭合括号"
+    date: "2026-05-20"
+  - id: L014
+    lesson: "routes/api.rs 0测试是最大盲区 — 路由装配错误无法发现"
+    solution: "用tower::ServiceExt::oneshot写路由集成测试"
     date: "2026-05-20"
 
 # 研究队列

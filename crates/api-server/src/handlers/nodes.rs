@@ -33,12 +33,10 @@ pub async fn get_node(
 ) -> Result<Json<ApiResponse<Node>>, ApiError> {
     tracing::info!(node_id = %id, "Getting node");
     let nodes = state.nodes.read().await;
-    let node = nodes
-        .get(&id)
-        .ok_or_else(|| {
-            tracing::warn!(node_id = %id, "Node not found");
-            ApiError::not_found(format!("Node '{id}' not found"))
-        })?;
+    let node = nodes.get(&id).ok_or_else(|| {
+        tracing::warn!(node_id = %id, "Node not found");
+        ApiError::not_found(format!("Node '{id}' not found"))
+    })?;
 
     Ok(Json(ApiResponse { data: node.clone() }))
 }
@@ -143,7 +141,10 @@ mod tests {
     #[tokio::test]
     async fn test_list_nodes_empty() {
         let state = test_state_with_nodes(vec![]).await;
-        let params = PaginationParams { page: None, per_page: None };
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
         let result = list_nodes(State(state), Query(params)).await;
         assert_eq!(result.total, 0);
         assert!(result.items.is_empty());
@@ -151,12 +152,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_nodes_with_data() {
-        let state = test_state_with_nodes(vec![
-            test_node("n1", "node-1"),
-            test_node("n2", "node-2"),
-        ])
-        .await;
-        let params = PaginationParams { page: None, per_page: None };
+        let state =
+            test_state_with_nodes(vec![test_node("n1", "node-1"), test_node("n2", "node-2")]).await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
         let result = list_nodes(State(state), Query(params)).await;
         assert_eq!(result.total, 2);
         assert_eq!(result.items.len(), 2);
@@ -199,13 +200,11 @@ mod tests {
     #[tokio::test]
     async fn test_list_node_agents_empty() {
         let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
-        let params = PaginationParams { page: None, per_page: None };
-        let result = list_node_agents(
-            State(state),
-            Path("n1".to_string()),
-            Query(params),
-        )
-        .await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.total, 0);
@@ -215,13 +214,12 @@ mod tests {
     #[tokio::test]
     async fn test_list_node_agents_node_not_found() {
         let state = test_state_with_nodes(vec![]).await;
-        let params = PaginationParams { page: None, per_page: None };
-        let result = list_node_agents(
-            State(state),
-            Path("nonexistent".to_string()),
-            Query(params),
-        )
-        .await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result =
+            list_node_agents(State(state), Path("nonexistent".to_string()), Query(params)).await;
         assert!(result.is_err());
     }
 
@@ -251,13 +249,11 @@ mod tests {
         };
         state.agents.write().await.insert("a1".to_string(), agent);
 
-        let params = PaginationParams { page: None, per_page: None };
-        let result = list_node_agents(
-            State(state),
-            Path("n1".to_string()),
-            Query(params),
-        )
-        .await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.total, 1);
@@ -266,11 +262,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_node_agents_filters_by_node() {
-        let state = test_state_with_nodes(vec![
-            test_node("n1", "node-1"),
-            test_node("n2", "node-2"),
-        ])
-        .await;
+        let state =
+            test_state_with_nodes(vec![test_node("n1", "node-1"), test_node("n2", "node-2")]).await;
 
         // Add agents to different nodes
         for (id, node_id) in [("a1", "n1"), ("a2", "n2"), ("a3", "n1")] {
@@ -296,13 +289,11 @@ mod tests {
             state.agents.write().await.insert(id.to_string(), agent);
         }
 
-        let params = PaginationParams { page: None, per_page: None };
-        let result = list_node_agents(
-            State(state),
-            Path("n1".to_string()),
-            Query(params),
-        )
-        .await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
         assert!(result.is_ok());
         let resp = result.unwrap();
         assert_eq!(resp.total, 2); // a1 and a3 are on n1

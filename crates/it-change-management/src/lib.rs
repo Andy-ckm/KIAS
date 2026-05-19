@@ -1072,6 +1072,52 @@ impl ItChangeManager {
         }
     }
 
+    /// 检查用户是否有权限执行操作
+    pub fn check_permission(&self, user_id: &str, action: &str, change_id: Option<&str>) -> bool {
+        // 简化的权限检查逻辑
+        // 实际应该使用casbin或其他RBAC库
+        
+        // 管理员有所有权限
+        if user_id == "admin" {
+            return true;
+        }
+        
+        // 检查用户是否是变更的请求者或审批者
+        if let Some(change_id) = change_id {
+            if let Some(change) = self.changes.iter().find(|c| c.id == change_id) {
+                // 请求者可以查看和编辑自己的变更
+                if change.requester == user_id {
+                    return matches!(action, "view" | "edit" | "submit" | "comment");
+                }
+                
+                // 审批者可以审批变更
+                if change.approvers.iter().any(|a| a.user_id == user_id) {
+                    return matches!(action, "view" | "approve" | "reject" | "comment");
+                }
+            }
+        }
+        
+        // 默认允许查看
+        action == "view"
+    }
+
+    /// 获取用户的变更列表
+    pub fn get_user_changes(&self, user_id: &str) -> Vec<&ItChangeRequest> {
+        self.changes.iter()
+            .filter(|c| c.requester == user_id || c.approvers.iter().any(|a| a.user_id == user_id))
+            .collect()
+    }
+
+    /// 获取待审批的变更列表
+    pub fn get_pending_approvals(&self, user_id: &str) -> Vec<&ItChangeRequest> {
+        self.changes.iter()
+            .filter(|c| {
+                c.status == ChangeStatus::UnderReview &&
+                c.approvers.iter().any(|a| a.user_id == user_id && a.decision.is_none())
+            })
+            .collect()
+    }
+
     // 内部方法
 
     fn get_change_mut(&mut self, change_id: &str) -> Result<&mut ItChangeRequest, String> {
@@ -2512,5 +2558,161 @@ mod tests {
         assert_eq!(change.status, ChangeStatus::EmergencyImplemented);
         assert!(change.implemented_at.is_some());
         assert!(change.emergency_approval_deadline.is_some());
+    }
+    #[test]
+    fn test_check_permission_admin() {
+        let manager = ItChangeManager::new();
+        
+        // 管理员有所有权限
+        assert!(manager.check_permission("admin", "view", None));
+        assert!(manager.check_permission("admin", "edit", None));
+        assert!(manager.check_permission("admin", "approve", None));
+        assert!(manager.check_permission("admin", "delete", None));
+    }
+
+    #[test]
+    fn test_check_permission_requester() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "user1".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+        
+        // 请求者可以查看、编辑、提交和评论
+        assert!(manager.check_permission("user1", "view", Some(&change.id)));
+        assert!(manager.check_permission("user1", "edit", Some(&change.id)));
+        assert!(manager.check_permission("user1", "submit", Some(&change.id)));
+        assert!(manager.check_permission("user1", "comment", Some(&change.id)));
+        
+        // 请求者不能审批
+        assert!(!manager.check_permission("user1", "approve", Some(&change.id)));
+    }
+
+    #[test]
+    fn test_check_permission_approver() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "user1".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+        
+        manager.submit_for_review(&change.id, "user1", None, None).unwrap();
+        manager.add_approver(&change.id, "approver1".to_string(), "审批者1".to_string(), "审批者".to_string()).unwrap();
+        
+        // 审批者可以查看、审批和评论
+        assert!(manager.check_permission("approver1", "view", Some(&change.id)));
+        assert!(manager.check_permission("approver1", "approve", Some(&change.id)));
+        assert!(manager.check_permission("approver1", "reject", Some(&change.id)));
+        assert!(manager.check_permission("approver1", "comment", Some(&change.id)));
+        
+        // 审批者不能编辑
+        assert!(!manager.check_permission("approver1", "edit", Some(&change.id)));
+    }
+
+    #[test]
+    fn test_check_permission_other_user() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "user1".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+        
+        // 其他用户只能查看
+        assert!(manager.check_permission("other_user", "view", Some(&change.id)));
+        assert!(!manager.check_permission("other_user", "edit", Some(&change.id)));
+        assert!(!manager.check_permission("other_user", "approve", Some(&change.id)));
+    }
+
+    #[test]
+    fn test_get_user_changes() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "user1".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+        
+        manager.submit_for_review(&change.id, "user1", None, None).unwrap();
+        manager.add_approver(&change.id, "approver1".to_string(), "审批者1".to_string(), "审批者".to_string()).unwrap();
+        
+        // 用户1的变更
+        let user1_changes = manager.get_user_changes("user1");
+        assert_eq!(user1_changes.len(), 1);
+        assert_eq!(user1_changes[0].id, change.id);
+        
+        // 审批者1的变更
+        let approver1_changes = manager.get_user_changes("approver1");
+        assert_eq!(approver1_changes.len(), 1);
+        assert_eq!(approver1_changes[0].id, change.id);
+        
+        // 其他用户的变更
+        let other_changes = manager.get_user_changes("other_user");
+        assert_eq!(other_changes.len(), 0);
+    }
+
+    #[test]
+    fn test_get_pending_approvals() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "测试变更".to_string(),
+            "测试描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "user1".to_string(),
+            "IT部门".to_string(),
+            "回滚计划".to_string(),
+            "实施计划".to_string(),
+            create_test_impact_assessment(),
+        );
+        
+        manager.submit_for_review(&change.id, "user1", None, None).unwrap();
+        manager.add_approver(&change.id, "approver1".to_string(), "审批者1".to_string(), "审批者".to_string()).unwrap();
+        manager.add_approver(&change.id, "approver2".to_string(), "审批者2".to_string(), "审批者".to_string()).unwrap();
+        
+        // 审批者1的待审批
+        let pending1 = manager.get_pending_approvals("approver1");
+        assert_eq!(pending1.len(), 1);
+        assert_eq!(pending1[0].id, change.id);
+        
+        // 审批者2的待审批
+        let pending2 = manager.get_pending_approvals("approver2");
+        assert_eq!(pending2.len(), 1);
+        assert_eq!(pending2[0].id, change.id);
+        
+        // 其他用户的待审批
+        let pending_other = manager.get_pending_approvals("other_user");
+        assert_eq!(pending_other.len(), 0);
     }
 }

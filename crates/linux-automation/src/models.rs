@@ -94,6 +94,11 @@ pub enum TaskType {
         context: String,
         action: K8sAction,
     },
+    /// 备份恢复 (R029)
+    BackupOps {
+        hosts: Vec<String>,
+        action: BackupAction,
+    },
 }
 
 /// 任务优先级
@@ -486,6 +491,200 @@ pub struct K8sOpsResult {
     pub output: String,
     pub recommendations: Vec<String>,
     pub audit_trail: Vec<AuditEntry>,
+}
+
+/// 备份操作类型 (R029)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BackupAction {
+    /// 创建备份
+    Create {
+        sources: Vec<String>,
+        destination: String,
+        backup_type: BackupType,
+        compression: CompressionType,
+        encryption: bool,
+        exclude_patterns: Vec<String>,
+    },
+    /// 恢复备份
+    Restore {
+        backup_id: String,
+        restore_path: String,
+        point_in_time: Option<DateTime<Utc>>,
+    },
+    /// 验证备份完整性
+    Verify { backup_id: String },
+    /// 列出备份
+    List {
+        source_filter: Option<String>,
+        limit: Option<u32>,
+    },
+    /// 清理旧备份
+    Prune {
+        retention_days: u32,
+        keep_daily: u32,
+        keep_weekly: u32,
+        keep_monthly: u32,
+    },
+    /// 恢复测试（自动恢复到临时目录并验证）
+    RestoreTest { backup_id: String },
+    /// 备份状态检查
+    Status,
+}
+
+/// 备份类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BackupType {
+    /// 全量备份
+    Full,
+    /// 增量备份（基于上次备份）
+    Incremental,
+    /// 差异备份（基于上次全量备份）
+    Differential,
+}
+
+/// 压缩类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CompressionType {
+    None,
+    Gzip,
+    Zstd,
+    Lz4,
+}
+
+/// 备份任务
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupJob {
+    pub id: Uuid,
+    pub name: String,
+    pub sources: Vec<String>,
+    pub destination: String,
+    pub backup_type: BackupType,
+    pub schedule: BackupSchedule,
+    pub compression: CompressionType,
+    pub encryption: bool,
+    pub encryption_key_id: Option<String>,
+    pub exclude_patterns: Vec<String>,
+    pub retention: RetentionPolicy,
+    pub created_at: DateTime<Utc>,
+    pub created_by: String,
+    pub status: BackupJobStatus,
+    pub last_run: Option<DateTime<Utc>>,
+    pub last_backup_id: Option<String>,
+    pub total_backups: u32,
+    pub total_size_bytes: u64,
+}
+
+/// 备份调度
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BackupSchedule {
+    /// 手动触发
+    Manual,
+    /// 每小时
+    Hourly,
+    /// 每天（指定时间）
+    Daily { hour: u32, minute: u32 },
+    /// 每周（指定天和时间）
+    Weekly {
+        day_of_week: u32,
+        hour: u32,
+        minute: u32,
+    },
+    /// 每月（指定日和时间）
+    Monthly {
+        day_of_month: u32,
+        hour: u32,
+        minute: u32,
+    },
+    /// Cron 表达式
+    Cron { expression: String },
+}
+
+/// 保留策略
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    pub keep_daily: u32,
+    pub keep_weekly: u32,
+    pub keep_monthly: u32,
+    pub keep_yearly: u32,
+    pub max_total_size_gb: Option<f64>,
+}
+
+impl Default for RetentionPolicy {
+    fn default() -> Self {
+        Self {
+            keep_daily: 7,
+            keep_weekly: 4,
+            keep_monthly: 12,
+            keep_yearly: 3,
+            max_total_size_gb: None,
+        }
+    }
+}
+
+/// 备份作业状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BackupJobStatus {
+    Active,
+    Paused,
+    Failed,
+    Disabled,
+}
+
+/// 备份记录
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupRecord {
+    pub id: Uuid,
+    pub job_id: Uuid,
+    pub backup_type: BackupType,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub status: BackupStatus,
+    pub size_bytes: u64,
+    pub file_count: u64,
+    pub checksum: String,
+    pub encryption: bool,
+    pub compression: CompressionType,
+    pub duration_secs: u64,
+    pub source_hosts: Vec<String>,
+    pub error_message: Option<String>,
+    pub verification: Option<BackupVerification>,
+}
+
+/// 备份状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BackupStatus {
+    InProgress,
+    Completed,
+    Failed,
+    Verified,
+    Corrupted,
+}
+
+/// 备份验证结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupVerification {
+    pub verified_at: DateTime<Utc>,
+    pub checksum_match: bool,
+    pub file_count_match: bool,
+    pub restore_test_passed: bool,
+    pub integrity_score: f64, // 0.0-1.0
+    pub notes: String,
+}
+
+/// 备份统计
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupStatistics {
+    pub total_jobs: u32,
+    pub active_jobs: u32,
+    pub total_backups: u32,
+    pub total_size_bytes: u64,
+    pub last_24h_backups: u32,
+    pub last_24h_failures: u32,
+    pub average_duration_secs: u64,
+    pub storage_used_gb: f64,
+    pub oldest_backup: Option<DateTime<Utc>>,
+    pub newest_backup: Option<DateTime<Utc>>,
+    pub verification_pass_rate: f64,
 }
 
 #[cfg(test)]

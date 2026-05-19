@@ -2,9 +2,9 @@
 
 更新时间: 2026-05-19 (23:10)
 
-## 论文列表 (170 篇)
+## 论文列表 (160 篇)
 
-### 已下载论文 (159 篇)
+### 已下载论文 (154 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
 - ✅ 2605.18703.pdf (EnvFactory: Scaling Tool-Use Agents via Executable Environments Synthesis and Robust RL)
 - ✅ 2605.18693.pdf (SkillGenBench: Benchmarking Skill Generation Pipelines for LLM Agents)
@@ -125,9 +125,6 @@
 - ✅ 2605.15425.pdf (Runtime-Structured Task Decomposition for Agentic Coding Systems)
 - ✅ 2605.10057.pdf (STAR: Failure-Aware Markovian Routing for Multi-Agent Spatiotemporal Reasoning)
 - ✅ 2604.27859.pdf (Rethinking Agentic Reinforcement Learning In Large Language Models)
-- ✅ 2605.18583.pdf (Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks)
-- ✅ 2605.18565.pdf (LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agents)
-- ✅ 2605.18421.pdf (EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective)
 - ✅ 2605.18150.pdf (Whispers in the Noise: Surrogate-Guided Concept Awakening via Multi-Agent Framework)
 - ✅ 2605.18077.pdf (LLM-Guided Communication for Cooperative Multi-Agent Reinforcement Learning)
 - ✅ 2605.18032.pdf (PROTEA: Offline Evaluation and Iterative Refinement for Multi-Agent LLM Workflows)
@@ -161,8 +158,9 @@
 - ✅ 2605.16909.pdf (TOBench: Task-Oriented Omni-Modal Benchmark for Tool-Using Agents)
 - ✅ 2605.16746.pdf (State Contamination in Memory-Augmented LLM Agents)
 - ✅ 2605.14290.pdf (Web Agents Should Adopt Plan-Then-Execute Paradigm)
+- ✅ 2605.11225.pdf (PIVOT: Bridging Planning and Execution in LLM Agents via Trajectory Refinement)
 
-### 待下载论文 (0 篇)
+### 待下载论文 (6 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
 - ✅ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
 - ✅ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
@@ -239,6 +237,12 @@
    - 主题: web agents, plan-then-execute, ReAct paradigm, agent architecture
    - 链接: https://arxiv.org/abs/2605.14290
    - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.11225]** PIVOT: Bridging Planning and Execution in LLM Agents via Trajectory Refinement
+   - 日期: 2026-05-11 | 分类: cs.AI
+   - 主题: planning, execution, trajectory refinement, LLM agents
+   - 链接: https://arxiv.org/abs/2605.11225
+   - 状态: ✅ 已下载 (0.1MB)
 
 **[2605.18747]** Code as Agent Harness
    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
@@ -395,24 +399,6 @@
    - 主题: multi-agent chain, trajectory modeling, agentic reasoning
    - 链接: https://arxiv.org/abs/2510.10454
    - 状态: ✅ 已下载 (1016KB)
-
-**[2605.18583]** Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks
-   - 日期: 2026-05-18 | 分类: cs.AI
-   - 主题: coding agents, out-of-scope actions, agent tool use safety
-   - 链接: https://arxiv.org/abs/2605.18583
-   - 状态: ✅ 已下载 (1.8MB)
-
-**[2605.18565]** LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agents
-   - 日期: 2026-05-18 | 分类: cs.AI
-   - 主题: agent memory, multi-target interference, long-horizon agents
-   - 链接: https://arxiv.org/abs/2605.18565
-   - 状态: ✅ 已下载 (770KB)
-
-**[2605.18421]** EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective
-   - 日期: 2026-05-18 | 分类: cs.AI
-   - 主题: agent memory benchmark, self-evolving memory, evaluation
-   - 链接: https://arxiv.org/abs/2605.18421
-   - 状态: ✅ 已下载 (28KB)
 
 **[2605.18150]** Whispers in the Noise: Surrogate-Guided Concept Awakening via a Multi-Agent Framework
    - 日期: 2026-05-18 | 分类: cs.AI

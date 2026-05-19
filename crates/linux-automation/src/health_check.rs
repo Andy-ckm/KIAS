@@ -184,7 +184,7 @@ impl HealthChecker {
             .await?;
         if let Some(hr) = result.host_results.first() {
             if hr.exit_code == 0 {
-                let parts: Vec<&str> = hr.stdout.trim().split_whitespace().collect();
+                let parts: Vec<&str> = hr.stdout.split_whitespace().collect();
                 if let Some(load1_str) = parts.first() {
                     if let Ok(load1) = load1_str.parse::<f64>() {
                         let nproc_cmd = "nproc";
@@ -236,7 +236,7 @@ impl HealthChecker {
         let result = executor.execute_command(&[host.to_string()], cmd).await?;
         if let Some(hr) = result.host_results.first() {
             if hr.exit_code == 0 {
-                let parts: Vec<&str> = hr.stdout.trim().split_whitespace().collect();
+                let parts: Vec<&str> = hr.stdout.split_whitespace().collect();
                 if parts.len() >= 3 {
                     let total_mb: u64 = parts[0].parse().unwrap_or(0);
                     let used_mb: u64 = parts[1].parse().unwrap_or(0);
@@ -270,7 +270,7 @@ impl HealthChecker {
             .await?;
         if let Some(hr) = result.host_results.first() {
             if hr.exit_code == 0 {
-                let parts: Vec<&str> = hr.stdout.trim().split_whitespace().collect();
+                let parts: Vec<&str> = hr.stdout.split_whitespace().collect();
                 if parts.len() >= 3 {
                     let total: u64 = parts[0].parse().unwrap_or(0);
                     let percent: f64 = parts[2].parse().unwrap_or(0.0);

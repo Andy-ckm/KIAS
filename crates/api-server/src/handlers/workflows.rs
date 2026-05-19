@@ -301,4 +301,158 @@ mod tests {
         let result = delete_workflow(State(state), Path("nonexistent".to_string())).await;
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_create_with_multiple_nodes() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "multi-node".to_string(),
+            description: "workflow with dependencies".to_string(),
+            nodes: vec![
+                WorkflowNode {
+                    id: "n1".to_string(),
+                    name: "fetch".to_string(),
+                    node_type: "http".to_string(),
+                    config: serde_json::json!({"url": "https://example.com"}),
+                    dependencies: vec![],
+                },
+                WorkflowNode {
+                    id: "n2".to_string(),
+                    name: "process".to_string(),
+                    node_type: "llm".to_string(),
+                    config: serde_json::json!({"prompt": "summarize"}),
+                    dependencies: vec!["n1".to_string()],
+                },
+                WorkflowNode {
+                    id: "n3".to_string(),
+                    name: "save".to_string(),
+                    node_type: "shell".to_string(),
+                    config: serde_json::json!({"command": "cat > output.txt"}),
+                    dependencies: vec!["n2".to_string()],
+                },
+            ],
+        };
+        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        assert_eq!(created.nodes.len(), 3);
+        assert_eq!(created.nodes[2].dependencies, vec!["n2"]);
+    }
+
+    #[tokio::test]
+    async fn test_create_description_only() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "desc-only".to_string(),
+            description: "just a description, no nodes".to_string(),
+            nodes: vec![],
+        };
+        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        assert!(created.nodes.is_empty());
+        assert_eq!(created.description, "just a description, no nodes");
+    }
+
+    #[tokio::test]
+    async fn test_list_multiple_workflows_status_counts() {
+        let state = test_state().await;
+
+        // Create 3 workflows
+        for name in ["wf-1", "wf-2", "wf-3"] {
+            let req = CreateWorkflowRequest {
+                name: name.to_string(),
+                description: String::new(),
+                nodes: vec![],
+            };
+            let _ = create_workflow(State(state.clone()), Json(req)).await;
+        }
+
+        let summary = list_workflows(State(state)).await;
+        assert_eq!(summary.total, 3);
+        assert_eq!(summary.draft, 3);
+        assert_eq!(summary.running, 0);
+        assert_eq!(summary.completed, 0);
+        assert_eq!(summary.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_one_of_many() {
+        let state = test_state().await;
+
+        let mut ids = Vec::new();
+        for name in ["keep-1", "delete-me", "keep-2"] {
+            let req = CreateWorkflowRequest {
+                name: name.to_string(),
+                description: String::new(),
+                nodes: vec![],
+            };
+            let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+            ids.push((name, wf.id.clone()));
+        }
+
+        // Delete the middle one
+        let delete_id = &ids[1].1;
+        let _ = delete_workflow(State(state.clone()), Path(delete_id.clone())).await.unwrap();
+
+        let summary = list_workflows(State(state)).await;
+        assert_eq!(summary.total, 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_whitespace_name_fails() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "   ".to_string(),
+            description: String::new(),
+            nodes: vec![],
+        };
+        let result = create_workflow(State(state), Json(req)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_created_workflow_has_valid_id() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "id-test".to_string(),
+            description: String::new(),
+            nodes: vec![],
+        };
+        let wf = create_workflow(State(state), Json(req)).await.unwrap();
+        // ID should be a valid UUID
+        assert!(uuid::Uuid::parse_str(&wf.id).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_created_workflow_timestamps() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "ts-test".to_string(),
+            description: String::new(),
+            nodes: vec![],
+        };
+        let wf = create_workflow(State(state), Json(req)).await.unwrap();
+        assert!(!wf.created_at.is_empty());
+        assert!(!wf.updated_at.is_empty());
+        assert!(wf.started_at.is_none());
+        assert!(wf.completed_at.is_none());
+        assert_eq!(wf.execution_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_after_delete_fails() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "temp".to_string(),
+            description: String::new(),
+            nodes: vec![],
+        };
+        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone())).await.unwrap();
+        let result = get_workflow(State(state), Path(wf.id.clone())).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_workflow_status_default_is_draft() {
+        let status = WorkflowStatus::default();
+        assert_eq!(status, WorkflowStatus::Draft);
+    }
 }

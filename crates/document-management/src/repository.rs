@@ -488,4 +488,63 @@ mod tests {
         assert_eq!(doc.tags.len(), 2);
         assert!(doc.tags.contains(&"important".to_string()));
     }
+
+    #[test]
+    fn test_update_not_found() {
+        let (_tmp, repo) = setup_repo();
+        let result = repo.update(
+            "nonexistent",
+            UpdateDocumentRequest {
+                title: Some("New".to_string()),
+                content: None,
+                tags: None,
+                updated_by: "user".to_string(),
+            },
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_update_status_not_found() {
+        let (_tmp, repo) = setup_repo();
+        let result = repo.update_status("nonexistent", DocumentStatus::UnderReview, "user");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_by_status_empty() {
+        let (_tmp, repo) = setup_repo();
+        let docs = repo.list_by_status(&DocumentStatus::Published).unwrap();
+        assert!(docs.is_empty());
+    }
+
+    #[test]
+    fn test_count_after_delete() {
+        let (_tmp, repo) = setup_repo();
+        let doc = repo.create(make_request("ToDelete")).unwrap();
+        assert_eq!(repo.count().unwrap(), 1);
+        repo.delete(&doc.id).unwrap();
+        assert_eq!(repo.count().unwrap(), 0);
+    }
+
+    #[test]
+    fn test_search_by_tag() {
+        let (_tmp, repo) = setup_repo();
+        let mut req = make_request("Tagged Doc");
+        req.tags = vec!["compliance".to_string()];
+        repo.create(req).unwrap();
+
+        // search by tag content
+        let results = repo.search("compliance").unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_create_with_empty_tags() {
+        let (_tmp, repo) = setup_repo();
+        let mut req = make_request("No Tags");
+        req.tags = vec![];
+        let doc = repo.create(req).unwrap();
+        assert!(doc.tags.is_empty());
+    }
 }

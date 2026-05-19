@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-19 22:10
+# 更新时间: 2026-05-20 01:30
 
-iteration: 16
-last_run: "2026-05-20T00:00:00Z"
-last_commit: "eb53988"
+iteration: 17
+last_run: "2026-05-20T01:30:00Z"
+last_commit: "90f65d7"
 status: active
 
 # 各模块状态
@@ -27,18 +27,13 @@ modules:
       - R024: 服务器初始化(11种步骤类型) ✅
       - R025: Docker容器运维(11种操作) ✅
       - R026: K8s集群运维(9种操作+故障诊断) ✅
-    features_missing:
-      - 流式命令输出（实时stdout/stderr）
-      - 批量主机执行（并行SSH）
-      - 告警通知（Webhook/邮件）
-      - 合规报告PDF生成
-    next_step: "已达标，转向其他模块"
+    next_step: "已达标"
     blockers: []
 
   document-management:
     tests: 112
     target_tests: 100
-    status: DONE ✅ (+12 error.rs tests this iteration)
+    status: DONE ✅
     features_done:
       - 文档生命周期管理
       - 版本控制（Git-like）
@@ -48,7 +43,7 @@ modules:
       - 文档模板系统
       - OCR集成
       - 批量导入
-    next_step: "已达标，转向其他模块"
+    next_step: "已达标"
     blockers: []
 
   it-change-management:
@@ -67,11 +62,23 @@ modules:
       - RBAC权限控制
       - 审批工作流引擎
       - 变更执行计划
-    features_missing:
-      - 报告生成（合规报告、审计报告）
-      - 实时通知（WebSocket）
-      - 仪表盘（变更统计）
-      - 与Linux自动化深度联动
+    next_step: "已达标"
+    blockers: []
+
+  data-governance:
+    tests: 68
+    target_tests: 60
+    status: DONE ✅ (iteration 17: +28 tests)
+    features_done:
+      - Multi-Datasource Access (DataSource trait + registry)
+      - Resource-Level Permissions (PolicyEngine + RBAC)
+      - Audit Trail (axum middleware)
+      - SQLite backend
+      - Memory backend (testing)
+      - DataSourceType Display/FromStr
+      - PolicyEffect serde
+      - AccessDecision evaluation
+      - 边界测试覆盖 (audit_middleware:15, datasource:20, policy:21)
     next_step: "已达标，可推进新模块或深化功能"
     blockers: []
 
@@ -105,11 +112,15 @@ lessons:
     lesson: "task_type的Debug格式包含完整字段，不能直接assert_eq到枚举名"
     solution: "用contains()检查子串，不要assert_eq到简短名称"
     date: "2026-05-19"
+  - id: L008
+    lesson: "infer_resource_type对无/api/v1/前缀的路径也会singularize"
+    solution: "写测试前先读函数实现，理解strip_prefix的unwrap_or行为"
+    date: "2026-05-20"
 
 # 四步法检查
 four_step_check:
-  last_evaluation: "2026-05-19T22:10:00Z"
-  last_review: "2026-05-19T22:10:00Z"
-  last_plan: "2026-05-19T22:10:00Z"
-  last_development: "2026-05-19T22:10:00Z"
+  last_evaluation: "2026-05-20T01:30:00Z"
+  last_review: "2026-05-20T01:30:00Z"
+  last_plan: "2026-05-20T01:30:00Z"
+  last_development: "2026-05-20T01:30:00Z"
   violations: []

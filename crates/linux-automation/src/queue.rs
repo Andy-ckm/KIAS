@@ -430,4 +430,125 @@ mod tests {
         let history = queue.get_history(Some(10)).unwrap();
         assert!(history.is_empty());
     }
+
+    #[test]
+    fn test_enqueue_returns_task_id() {
+        let (queue, _tmp) = create_test_queue();
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "test".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::Normal,
+        };
+        let task_id = queue.enqueue(&task).unwrap();
+        assert_ne!(task_id, Uuid::nil());
+    }
+
+    #[test]
+    fn test_get_history_none_limit() {
+        let (queue, _tmp) = create_test_queue();
+        for i in 0..3 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["h1".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            queue.enqueue(&task).unwrap();
+        }
+        let history = queue.get_history(None).unwrap();
+        assert_eq!(history.len(), 3);
+    }
+
+    #[test]
+    fn test_statistics_empty_queue() {
+        let (queue, _tmp) = create_test_queue();
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 0);
+        assert_eq!(stats.pending, 0);
+        assert_eq!(stats.successful, 0);
+        assert_eq!(stats.failed, 0);
+    }
+
+    #[test]
+    fn test_update_status_success() {
+        let (queue, _tmp) = create_test_queue();
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "test".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::High,
+        };
+        queue.enqueue(&task).unwrap();
+        queue.update_status(task.id, &TaskStatus::Success).unwrap();
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.successful, 1);
+        assert_eq!(stats.pending, 0);
+    }
+
+    #[test]
+    fn test_task_priority_high() {
+        let (queue, _tmp) = create_test_queue();
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "urgent".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            priority: TaskPriority::Critical,
+        };
+        let task_id = queue.enqueue(&task).unwrap();
+        assert_ne!(task_id, Uuid::nil());
+    }
+
+    #[test]
+    fn test_enqueue_different_task_types() {
+        let (queue, _tmp) = create_test_queue();
+        let task_types = vec![
+            TaskType::CustomCommand {
+                command: "ls".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::ComplianceScan {
+                profile: "cis".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::PatchInstall {
+                packages: vec!["vim".to_string()],
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::SecurityUpdate {
+                hosts: vec!["h1".to_string()],
+            },
+        ];
+
+        for tt in task_types {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: tt,
+                created_at: Utc::now(),
+                created_by: "user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            queue.enqueue(&task).unwrap();
+        }
+
+        let stats = queue.get_statistics().unwrap();
+        assert_eq!(stats.total, 4);
+    }
 }

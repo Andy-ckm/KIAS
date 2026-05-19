@@ -263,4 +263,147 @@ mod tests {
         let log = audit.get_audit_log(Some(3)).unwrap();
         assert_eq!(log.len(), 3);
     }
+
+    #[test]
+    fn test_audit_log_none_limit() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        for i in 0..3 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            let result = AutomationResult {
+                task_id: task.id,
+                task_type: "CustomCommand".to_string(),
+                status: TaskStatus::Success,
+                started_at: Utc::now(),
+                completed_at: Some(Utc::now()),
+                host_results: vec![],
+                summary: "Test".to_string(),
+                audit_trail: vec![],
+            };
+            audit.record_task_execution(&task, &result).unwrap();
+        }
+
+        let log = audit.get_audit_log(None).unwrap();
+        assert_eq!(log.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_entry_fields() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::CustomCommand {
+                command: "whoami".to_string(),
+                hosts: vec!["server1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "admin".to_string(),
+            priority: TaskPriority::High,
+        };
+        let result = AutomationResult {
+            task_id: task.id,
+            task_type: "CustomCommand".to_string(),
+            status: TaskStatus::Failed,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "Failed".to_string(),
+            audit_trail: vec![],
+        };
+        audit.record_task_execution(&task, &result).unwrap();
+
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].user, "admin");
+        assert!(log[0].action.contains("CustomCommand"));
+    }
+
+    #[test]
+    fn test_audit_statistics_after_multiple_records() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        for i in 0..10 {
+            let task = AutomationTask {
+                id: Uuid::new_v4(),
+                task_type: TaskType::CustomCommand {
+                    command: format!("cmd-{}", i),
+                    hosts: vec!["localhost".to_string()],
+                },
+                created_at: Utc::now(),
+                created_by: "user".to_string(),
+                priority: TaskPriority::Normal,
+            };
+            let result = AutomationResult {
+                task_id: task.id,
+                task_type: "CustomCommand".to_string(),
+                status: TaskStatus::Success,
+                started_at: Utc::now(),
+                completed_at: Some(Utc::now()),
+                host_results: vec![],
+                summary: "Test".to_string(),
+                audit_trail: vec![],
+            };
+            audit.record_task_execution(&task, &result).unwrap();
+        }
+
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 10);
+    }
+
+    #[test]
+    fn test_audit_log_empty() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+        let log = audit.get_audit_log(Some(10)).unwrap();
+        assert!(log.is_empty());
+    }
+
+    #[test]
+    fn test_audit_record_failed_task() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        let task = AutomationTask {
+            id: Uuid::new_v4(),
+            task_type: TaskType::ComplianceScan {
+                profile: "cis".to_string(),
+                hosts: vec!["server1".to_string()],
+            },
+            created_at: Utc::now(),
+            created_by: "scanner".to_string(),
+            priority: TaskPriority::Critical,
+        };
+        let result = AutomationResult {
+            task_id: task.id,
+            task_type: "ComplianceScan".to_string(),
+            status: TaskStatus::Failed,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "Scan failed".to_string(),
+            audit_trail: vec![],
+        };
+        audit.record_task_execution(&task, &result).unwrap();
+
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert!(log[0].action.contains("ComplianceScan"));
+    }
 }

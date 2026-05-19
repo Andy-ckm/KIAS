@@ -529,4 +529,50 @@ mod tests {
         assert!(store.load_board("nope").unwrap().is_none());
         assert!(store.load_task("nope").unwrap().is_none());
     }
+
+    #[test]
+    fn test_count_in_column() {
+        let store = KanbanStore::new_in_memory().unwrap();
+        store.save_board(&KanbanBoard::new("b1", "Test")).unwrap();
+
+        // Add 3 tasks in Triage, 2 in InProgress
+        for i in 0..3 {
+            store
+                .save_task(&make_task(&format!("t{i}"), "b1", &format!("Task {i}")))
+                .unwrap();
+        }
+        for i in 3..5 {
+            let mut task = make_task(&format!("t{i}"), "b1", &format!("Task {i}"));
+            task.column = KanbanColumn::InProgress;
+            store.save_task(&task).unwrap();
+        }
+
+        assert_eq!(
+            store.count_in_column("b1", KanbanColumn::Triage).unwrap(),
+            3
+        );
+        assert_eq!(
+            store
+                .count_in_column("b1", KanbanColumn::InProgress)
+                .unwrap(),
+            2
+        );
+        assert_eq!(store.count_in_column("b1", KanbanColumn::Done).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_delete_task() {
+        let store = KanbanStore::new_in_memory().unwrap();
+        store.save_board(&KanbanBoard::new("b1", "Test")).unwrap();
+
+        store.save_task(&make_task("t1", "b1", "Task 1")).unwrap();
+        assert!(store.load_task("t1").unwrap().is_some());
+
+        store.delete_task("t1").unwrap();
+        assert!(store.load_task("t1").unwrap().is_none());
+        assert_eq!(
+            store.count_in_column("b1", KanbanColumn::Triage).unwrap(),
+            0
+        );
+    }
 }

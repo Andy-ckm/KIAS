@@ -14,6 +14,7 @@
 
 pub mod api;
 pub mod linux_auto;
+pub mod service;
 pub mod storage;
 
 use chrono::{DateTime, Duration, Utc};

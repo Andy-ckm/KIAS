@@ -193,9 +193,33 @@ research_queue:
   - id: R029
     topic: "备份恢复自动化"
     keywords: ["backup automation Linux", "disaster recovery automation", "backup verification", "automated restore testing"]
-    status: pending
+    status: done
     priority: high
-    findings: ""
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 许可证 | 定位 |
+      |------|-------|------|--------|------|
+      | restic | 33576 | Go | BSD-2 | 快速安全高效备份(去重+加密) |
+      | borgbackup | 13344 | Python/C | NOASSERTION | 去重归档+压缩+加密 |
+      | zerobyte | 6376 | JS | AGPL-3 | 自托管备份自动化(基于restic) |
+      | backrest | 6317 | Go | GPL-3 | restic Web UI编排器 |
+      | timeshift | 4774 | C | LGPL-3 | 系统还原(rsync+hardlink) |
+      | rustic | 3048 | Rust | Apache-2 | restic格式Rust实现 |
+      | borgmatic | 2250 | Python | GPL-3 | 配置驱动备份 |
+      | conserve | 277 | Rust | NOASSERTION | Rust文件备份工具 |
+      关键洞察:
+      - 备份工具碎片化: 执行(restic/borg) / 编排(backrest/zerobyte) / 还原测试(几乎没有)
+      - 竞品只做备份,不做恢复测试验证 — 这是市场空白
+      - rustic(Rust)证明Rust可以做备份工具
+      AgentGuard差异化:
+      - 备份→验证→恢复测试→审计(竞品只做备份)
+      - 可追溯: 每次备份操作自动审计
+      - 可控: 保留策略可配置
+      - 恢复测试: 自动恢复到临时目录验证完整性(独有)
+      实现状态:
+      - backup_recovery.rs: 46个测试, 0 clippy
+      - BackupManager: 7种操作(Create/Restore/Verify/List/Prune/RestoreTest/Status)
+      - 保留策略引擎 + 统计引擎 
 
   - id: R030
     topic: "性能监控和优化"

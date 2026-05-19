@@ -7,6 +7,7 @@ use crate::audit::AuditLog;
 use crate::error::Result;
 use crate::executor::TaskExecutor;
 use crate::models::*;
+use tracing::info;
 
 /// K8s 运维引擎
 pub struct K8sOps;
@@ -203,6 +204,8 @@ impl K8sOps {
             host,
             &format!("{}: {:?}", action_desc, status),
         )?;
+
+        info!(host = %host, context = %context, action = %action_desc, status = ?status, "K8s操作完成");
 
         Ok(K8sOpsResult {
             context: context.to_string(),

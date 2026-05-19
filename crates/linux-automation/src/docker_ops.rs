@@ -7,6 +7,7 @@ use crate::audit::AuditLog;
 use crate::error::Result;
 use crate::executor::TaskExecutor;
 use crate::models::*;
+use tracing::info;
 
 /// Docker 运维引擎
 pub struct DockerOps;
@@ -113,6 +114,8 @@ impl DockerOps {
             host,
             &format!("{}: {:?}", action_desc, status),
         )?;
+
+        info!(host = %host, action = %action_desc, status = ?status, "Docker操作完成");
 
         let message = match &status {
             TaskStatus::Success => format!("{} 成功", action_desc),

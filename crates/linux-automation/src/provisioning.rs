@@ -4,6 +4,7 @@
 //! 灵魂: 可追溯(每步审计) / 透明(进度推送) / 可控(模板可定制)
 
 use chrono::Utc;
+use tracing::info;
 
 use crate::audit::AuditLog;
 use crate::error::Result;
@@ -45,6 +46,8 @@ impl Provisioner {
                 host,
                 &format!("步骤[{}]: {:?}", step.name, status),
             )?;
+
+            info!(host = %host, step = %step.name, status = ?status, "初始化步骤完成");
 
             // 必需步骤失败则中止
             if step.required && status == TaskStatus::Failed {

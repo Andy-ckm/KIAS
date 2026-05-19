@@ -10,6 +10,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::audit::AuditLog;
@@ -168,6 +169,12 @@ impl OperationRegistry {
                 &record.target_host,
                 summary,
             )?;
+
+            if success {
+                info!(op_id = %id, host = %record.target_host, "操作完成");
+            } else {
+                warn!(op_id = %id, host = %record.target_host, reason = %summary, "操作失败");
+            }
         }
         Ok(())
     }
@@ -588,6 +595,8 @@ impl OperationHub {
 
         // 3. 标记开始
         self.registry.start(&id)?;
+
+        debug!(op_id = %id, op_type = %op_type, "操作自动审批并开始执行");
 
         Ok(id)
     }

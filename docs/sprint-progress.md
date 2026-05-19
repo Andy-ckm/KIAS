@@ -1,4 +1,4 @@
-## Latest: 2026-05-19 09:10 (KIAS Auto Loop - Sprint 124)
+## Latest: 2026-05-19 09:10 (AgentGuard Auto Loop - Sprint 124)
 
 ### Quality Gates (09:10)
 | Check | Result |
@@ -22,7 +22,7 @@
 
 ---
 
-## Latest: 2026-05-19 08:56 (KIAS Auto Loop - Sprint 123)
+## Latest: 2026-05-19 08:56 (AgentGuard Auto Loop - Sprint 123)
 
 ### Quality Gates (08:56)
 | Check | Result |
@@ -54,7 +54,7 @@
 
 ---
 
-## Latest: 2026-05-19 08:23 (KIAS Cron Monitor - Sprint 122)
+## Latest: 2026-05-19 08:23 (AgentGuard Cron Monitor - Sprint 122)
 
 ### Quality Gates (08:23)
 | Check | Result |
@@ -77,7 +77,7 @@
 
 ---
 
-## Latest: 2026-05-19 07:58 (KIAS Auto Loop - Sprint 119)
+## Latest: 2026-05-19 07:58 (AgentGuard Auto Loop - Sprint 119)
 
 ### Quality Gates (07:58)
 | Check | Result |
@@ -105,7 +105,7 @@
 
 ---
 
-## Latest: 2026-05-19 07:00 (KIAS Auto Loop - Sprint 118)
+## Latest: 2026-05-19 07:00 (AgentGuard Auto Loop - Sprint 118)
 
 ### Quality Gates (07:00)
 | Check | Result |
@@ -130,7 +130,7 @@
 
 ---
 
-## Latest: 2026-05-19 06:30 (KIAS Auto Loop - Sprint 117)
+## Latest: 2026-05-19 06:30 (AgentGuard Auto Loop - Sprint 117)
 
 ### Quality Gates (06:30)
 | Check | Result |
@@ -160,7 +160,7 @@
 
 ---
 
-## Latest: 2026-05-19 06:10 (KIAS Auto Loop - Sprint 116)
+## Latest: 2026-05-19 06:10 (AgentGuard Auto Loop - Sprint 116)
 
 ### Quality Gates (06:10)
 | Check | Result |
@@ -179,7 +179,7 @@
 
 ---
 
-## Latest: 2026-05-19 06:10 (KIAS Auto Loop - Sprint 115)
+## Latest: 2026-05-19 06:10 (AgentGuard Auto Loop - Sprint 115)
 
 ### Quality Gates (06:10)
 | Check | Result |
@@ -245,7 +245,7 @@
 
 ---
 
-## Latest: 2026-05-19 05:40 (KIAS Auto Loop - Sprint 114)
+## Latest: 2026-05-19 05:40 (AgentGuard Auto Loop - Sprint 114)
 
 ### Quality Gates (05:40)
 | Check | Result |
@@ -264,7 +264,7 @@
 ### Paper Acquisition
 - Searched arXiv RSS (cs.AI + cs.CL + cs.LG + cs.MA) for latest agent papers
 - Found 281 new relevant papers not in index, filtered to 17 high-relevance (score >= 5)
-- Selected top 3 KIAS-relevant papers (orchestration, scheduling)
+- Selected top 3 AgentGuard-relevant papers (orchestration, scheduling)
 - Downloaded 3 PDFs (all verified valid)
 - Updated paper-index.md: 102 → 105 papers (94 downloaded)
 
@@ -277,7 +277,7 @@
 
 ---
 
-## Latest: 2026-05-19 04:25 (KIAS Auto Loop - Sprint 113)
+## Latest: 2026-05-19 04:25 (AgentGuard Auto Loop - Sprint 113)
 
 ### Quality Gates (04:25)
 | Check | Result |
@@ -318,7 +318,7 @@
 
 ---
 
-## Latest: 2026-05-19 04:15 (KIAS Auto Loop - Sprint 112)
+## Latest: 2026-05-19 04:15 (AgentGuard Auto Loop - Sprint 112)
 
 ### Quality Gates (04:15)
 | Check | Result |
@@ -351,7 +351,7 @@
 
 ---
 
-## 最新更新：2026-05-19 03:40 (KIAS 自循环开发 — Sprint 111)
+## 最新更新：2026-05-19 03:40 (AgentGuard 自循环开发 — Sprint 111)
 
 ### 📊 质量门禁 (03:40)
 | 检查项 | 结果 |
@@ -383,7 +383,7 @@
 
 ---
 
-## 最新更新：2026-05-19 03:12 (KIAS 自循环开发 — Sprint 110 验证)
+## 最新更新：2026-05-19 03:12 (AgentGuard 自循环开发 — Sprint 110 验证)
 
 ### 📊 质量门禁 (03:12)
 | 检查项 | 结果 |
@@ -424,7 +424,7 @@
 
 ---
 
-## 最新更新：2026-05-19 03:05 (KIAS 自循环开发 — Sprint 109)
+## 最新更新：2026-05-19 03:05 (AgentGuard 自循环开发 — Sprint 109)
 
 ### 📊 自循环开发检查 (03:05)
 | 检查项 | 结果 |
@@ -461,7 +461,7 @@
 
 ---
 
-## 最新更新：2026-05-19 02:39 (KIAS 自循环开发 — Sprint 108)
+## 最新更新：2026-05-19 02:39 (AgentGuard 自循环开发 — Sprint 108)
 
 ### 📊 自循环开发检查 (02:39)
 | 检查项 | 结果 |
@@ -492,7 +492,7 @@
 
 ---
 
-## 最新更新：2026-05-19 02:15 (KIAS 自循环开发 — Sprint 107)
+## 最新更新：2026-05-19 02:15 (AgentGuard 自循环开发 — Sprint 107)
 
 ### 📊 自循环开发检查 (02:00)
 | 检查项 | 结果 |
@@ -516,15 +516,15 @@
 - 论文库总计: 72 篇 (60 已下载 + 12 待下载)
 
 ### 🔑 重点论文摘要
-- **RecMem** (2605.16045): 递归记忆整合机制，适合长期运行的 Agent 记忆管理 → 对 KIAS 的 Agent 记忆系统有直接参考价值
-- **Context Pruning** (2605.15315): 编码 Agent 的上下文剪枝，减少 token 消耗 → 对 KIAS 的 token 优化有参考价值
-- **Compound LLM Agent** (2605.16205): 复合 Agent 设计的成本-性能权衡研究 → 对 KIAS 调度器有参考价值
+- **RecMem** (2605.16045): 递归记忆整合机制，适合长期运行的 Agent 记忆管理 → 对 AgentGuard 的 Agent 记忆系统有直接参考价值
+- **Context Pruning** (2605.15315): 编码 Agent 的上下文剪枝，减少 token 消耗 → 对 AgentGuard 的 token 优化有参考价值
+- **Compound LLM Agent** (2605.16205): 复合 Agent 设计的成本-性能权衡研究 → 对 AgentGuard 调度器有参考价值
 
 **结论**: 全部通过，下载 6 篇新论文，更新论文索引。
 
 ---
 
-## 最新更新：2026-05-19 02:17 (KIAS 自循环开发 — Sprint 107)
+## 最新更新：2026-05-19 02:17 (AgentGuard 自循环开发 — Sprint 107)
 
 ### 📊 自循环开发检查 (02:17)
 | 检查项 | 结果 |
@@ -547,7 +547,7 @@
 
 ---
 
-## 最新更新：2026-05-19 01:41 (KIAS 定时监控 — Sprint 105 验证)
+## 最新更新：2026-05-19 01:41 (AgentGuard 定时监控 — Sprint 105 验证)
 
 ### 📊 定时健康检查 (01:41)
 | 检查项 | 结果 |
@@ -562,7 +562,7 @@
 
 ---
 
-## 最新更新：2026-05-19 01:30 (KIAS 自循环开发 — Sprint 105 验证 + 四步法评估)
+## 最新更新：2026-05-19 01:30 (AgentGuard 自循环开发 — Sprint 105 验证 + 四步法评估)
 
 ### 📊 系统健康检查 (01:00)
 | 检查项 | 结果 |
@@ -648,7 +648,7 @@
 
 ---
 
-## 最新更新：2026-05-19 00:50 (KIAS 自循环开发 — 自动巡检+论文下载)
+## 最新更新：2026-05-19 00:50 (AgentGuard 自循环开发 — 自动巡检+论文下载)
 
 ### 📊 系统健康检查 (00:50)
 | 检查项 | 结果 |
@@ -680,7 +680,7 @@
 
 ---
 
-## 最新更新：2026-05-18 23:37 (KIAS 自动巡检 — 周期健康检查)
+## 最新更新：2026-05-18 23:37 (AgentGuard 自动巡检 — 周期健康检查)
 
 ### 🔍 周期健康检查 (23:37)
 | 检查项 | 结果 |
@@ -696,7 +696,7 @@
 
 ---
 
-## 最新更新：2026-05-18 23:31 (KIAS Auto-Loop — Sprint 103 验证)
+## 最新更新：2026-05-18 23:31 (AgentGuard Auto-Loop — Sprint 103 验证)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -734,7 +734,7 @@
 
 ---
 
-## 最新更新：2026-05-18 23:22 (KIAS Auto-Loop — Sprint 102)
+## 最新更新：2026-05-18 23:22 (AgentGuard Auto-Loop — Sprint 102)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -766,7 +766,7 @@
 
 ---
 
-## 最新更新：2026-05-18 21:50 (KIAS Auto-Loop — Sprint 101)
+## 最新更新：2026-05-18 21:50 (AgentGuard Auto-Loop — Sprint 101)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -796,7 +796,7 @@
 
 ---
 
-## 最新更新：2026-05-18 21:09 (KIAS Auto-Loop — Sprint 99)
+## 最新更新：2026-05-18 21:09 (AgentGuard Auto-Loop — Sprint 99)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -824,7 +824,7 @@
 
 ---
 
-## 最新更新：2026-05-18 20:31 (KIAS Auto-Loop — Sprint 98)
+## 最新更新：2026-05-18 20:31 (AgentGuard Auto-Loop — Sprint 98)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -850,7 +850,7 @@
 
 ---
 
-## 最新更新：2026-05-18 20:20 (KIAS Auto-Loop — Sprint 97)
+## 最新更新：2026-05-18 20:20 (AgentGuard Auto-Loop — Sprint 97)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -887,7 +887,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 19:20 (KIAS Auto-Loop — Sprint 95)
+## 最新更新：2026-05-18 19:20 (AgentGuard Auto-Loop — Sprint 95)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -913,18 +913,18 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 | 2605.15333 | Zero-Shot Goal Recognition with LLMs | goal recognition, planning |
 | 2605.15308 | SMCEvolve: Scientific Discovery via SMC | scientific discovery, evolution |
 
-### 🔧 KIAS 相关性
-- **Belief Engine (2605.15343)**: 多 Agent 审议中的立场动态 → KIAS team-engine 的 Owner-Worker-Verifier 质量门禁
-- **Ensemble Monitoring (2605.15377)**: AI 控制的集成监控 → KIAS controller 的健康检查和故障恢复
-- **Agentic Evolution (2605.15301)**: Agent 进化式改进 → KIAS goal-engine 的目标驱动循环
-- **Goal Recognition (2605.15333)**: 零样本目标识别 → KIAS scheduler 的任务理解
+### 🔧 AgentGuard 相关性
+- **Belief Engine (2605.15343)**: 多 Agent 审议中的立场动态 → AgentGuard team-engine 的 Owner-Worker-Verifier 质量门禁
+- **Ensemble Monitoring (2605.15377)**: AI 控制的集成监控 → AgentGuard controller 的健康检查和故障恢复
+- **Agentic Evolution (2605.15301)**: Agent 进化式改进 → AgentGuard goal-engine 的目标驱动循环
+- **Goal Recognition (2605.15333)**: 零样本目标识别 → AgentGuard scheduler 的任务理解
 
 ### ✅ 结论
 全绿，无需修复。论文库持续扩展，新增 5 篇高质量论文。
 
 ---
 
-## 最新更新：2026-05-18 18:52 (KIAS Auto-Loop — Sprint 94)
+## 最新更新：2026-05-18 18:52 (AgentGuard Auto-Loop — Sprint 94)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -942,7 +942,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 18:37 (KIAS Auto-Loop — Sprint 93)
+## 最新更新：2026-05-18 18:37 (AgentGuard Auto-Loop — Sprint 93)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -985,7 +985,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 - auto-loop 的 Dry-Run/Self-boundary 模块引入了新的 clippy 问题，已修复
 - 所有 crate 测试密度均 > 1.86
 
-## 最新更新：2026-05-18 18:15 (KIAS Auto-Loop — Sprint 92)
+## 最新更新：2026-05-18 18:15 (AgentGuard Auto-Loop — Sprint 92)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -1017,7 +1017,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 17:40 (KIAS Auto-Loop — Sprint 91)
+## 最新更新：2026-05-18 17:40 (AgentGuard Auto-Loop — Sprint 91)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -1044,7 +1044,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 16:29 (KIAS Monitoring — Sprint 90)
+## 最新更新：2026-05-18 16:29 (AgentGuard Monitoring — Sprint 90)
 
 ### 🔍 健康检查
 | 检查项 | 结果 |
@@ -1073,7 +1073,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 16:05 (KIAS Auto-Loop — Sprint 89)
+## 最新更新：2026-05-18 16:05 (AgentGuard Auto-Loop — Sprint 89)
 
 ### 🔍 自循环开发检查
 | 检查项 | 结果 |
@@ -1102,7 +1102,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 
 ---
 
-## 最新更新：2026-05-18 15:50 (KIAS Auto-Loop — Sprint 88)
+## 最新更新：2026-05-18 15:50 (AgentGuard Auto-Loop — Sprint 88)
 
 ### 🔍 自循环开发检查
 | 检查项 | 结果 |
@@ -1148,7 +1148,7 @@ GitHub API 搜索 agent framework (Rust, 2026-05 更新):
 - 无 TODO/stub/unimplemented 代码
 - 代码库状态优秀，持续监控中
 
-## 最新更新：2026-05-18 14:45 (KIAS Auto-Loop — Sprint 86)
+## 最新更新：2026-05-18 14:45 (AgentGuard Auto-Loop — Sprint 86)
 
 ### 🔍 自循环开发检查
 | 检查项 | 结果 |
@@ -2709,7 +2709,7 @@ Filesystem      Size  Used Avail Use% Mounted on
 | Agent Coordination: 工业调度基准 | 2605.13172 | 537KB | agent-coordination-benchmark.md |
 | Harnessing Agentic Evolution | 2605.13821 | 230KB | agentic-evolution-analysis.md |
 
-### 🎯 KIAS 映射价值
+### 🎯 AgentGuard 映射价值
 - **Cognifold** → 记忆层架构 (memory_layers.rs): 主动折叠机制、CLS 理论应用
 - **OpenAaaS** → 跨机构 Agent 编排: AaaS 接口标准、权限模型
 - **Agent Coordination** → 调度基准 (scheduler/): DESBench 集成、层级 vs 扁平协调
@@ -2911,7 +2911,7 @@ Sprint 100 更新 (2026-05-18):
 - / (系统盘): 78% 使用率 (8.3G free)
 - /mnt (挂载盘): 62% 使用率 (11G free)
 
-## Sprint 115: 2026-05-19 05:35 (KIAS Auto Loop - Test Density Push)
+## Sprint 115: 2026-05-19 05:35 (AgentGuard Auto Loop - Test Density Push)
 
 ### Quality Gates (05:35)
 | Check | Result |
@@ -2963,7 +2963,7 @@ Sprint 100 更新 (2026-05-18):
 | scheduler | 1.97 | 7,966 | 157 | +3 tests |
 | skills | 1.97 | 8,364 | 165 | +3 tests |
 
-## Sprint 119: 2026-05-19 07:05 (KIAS Auto Loop - Test Density Push)
+## Sprint 119: 2026-05-19 07:05 (AgentGuard Auto Loop - Test Density Push)
 
 ### Quality Gates (07:05)
 | Check | Result |
@@ -3032,7 +3032,7 @@ All crates now above 2.0 density (excluding benchmarks which is expected 0).
 ### Commits
 - `c398bcd` docs: Sprint 119 — test density push (+8 tests, all crates ≥2.0)
 
-## Sprint 121: 2026-05-19 08:17 (KIAS Auto Loop - it-change-management Test Density)
+## Sprint 121: 2026-05-19 08:17 (AgentGuard Auto Loop - it-change-management Test Density)
 
 ### Quality Gates (08:17)
 | Check | Result |

@@ -135,6 +135,35 @@ impl AuditLog {
             total_entries: total,
         })
     }
+
+    /// 记录单条操作审计 (简化接口, 供巡检/初始化/Docker/K8s模块使用)
+    pub fn log_action(&self, user: &str, action: &str, target: &str, result: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let entry = AuditEntry {
+            id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            user: user.to_string(),
+            action: action.to_string(),
+            target: target.to_string(),
+            result: result.to_string(),
+            details: None,
+            signature: None,
+        };
+        conn.execute(
+            "INSERT INTO audit_log (id, timestamp, user, action, target, result, details, signature) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                entry.id.to_string(),
+                entry.timestamp.to_rfc3339(),
+                entry.user,
+                entry.action,
+                entry.target,
+                entry.result,
+                entry.details,
+                entry.signature,
+            ],
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

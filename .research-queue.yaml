@@ -1,0 +1,247 @@
+# AgentGuard Linux自主运维Agent — 研究队列
+# 核心定位：自动运维，不是杀毒软件
+
+# === 最高优先级：日常运维自动化 ===
+research_queue:
+  - id: R023
+    topic: "Linux日常巡检自动化（CPU/内存/磁盘/进程/日志）"
+    keywords: ["Linux daily health check", "server health monitoring script", "automated server inspection", "Linux housekeeping automation"]
+    status: done
+    priority: critical
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 定位 |
+      |------|-------|------|------|
+      | Netdata | 78857 | C | AI驱动实时可观测, 内置ML异常检测, 自动dashboard |
+      | Cockpit | 14095 | JS | Web管理单台服务器, 终端+服务+存储+网络 |
+      | Glances | 27K+ | Python | 系统监控(CPU/mem/disk/net/process), 可Web/REST |
+      | Node Exporter | 11K+ | Go | Prometheus指标导出器 |
+      | sysstat/sar | 3K+ | C | 系统活动报告, 历史数据 |
+      | nmon | 1K+ | C | AIX/Linux性能监控 |
+      日常巡检核心项目:
+      - CPU: 负载/使用率/进程top10/iowait
+      - 内存: 使用率/swap/buffer/cache/OOM killer
+      - 磁盘: 使用率/inode/IO等待/SMART健康
+      - 进程: 僵尸进程/CPU/内存top10/异常进程
+      - 日志: /var/log关键错误/dmesg异常/systemd失败单元
+      - 网络: 连接数/带宽/DNS/丢包率
+      - 安全: 最近登录/失败SSH/异常用户
+      AgentGuard差异(可追溯/透明/可控):
+      - 巡检结果自动写入审计日志(可追溯)
+      - 巡检报告实时推送用户(透明)
+      - 用户定义巡检规则和阈值(可控)
+      - 竞品只展示数据,AgentGuard: 巡检→发现→建议→一键修复→审计
+
+  - id: R024
+    topic: "新装Linux服务器初始化（软件安装+配置）"
+    keywords: ["Linux server provisioning automation", "new server setup script", "Linux bootstrap automation", "server initialization playbook"]
+    status: done
+    priority: critical
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 定位 |
+      |------|-------|------|------|
+      | Ansible | 68600 | Python | Agentless, SSH推送, Playbook YAML, 最大生态 |
+      | cloud-init | 2500+ | Python | 云实例初始化(CLI metadata→配置) |
+      | Packer | 15K+ | Go | 机器镜像构建(多云/多格式) |
+      | Foreman | 2867 | Ruby | 服务器生命周期管理(裸机→退役) |
+      | Cobbler | 2K+ | Python | Linux安装服务器(PXE/Kickstart) |
+      新服务器初始化核心步骤:
+      1. 系统更新: apt/yum update
+      2. 基础软件: vim/curl/wget/git/htop/tmux
+      3. 用户配置: 创建用户/SSH密钥/sudo配置
+      4. 安全加固: SSH配置/防火墙/SELinux/密码策略
+      5. 时区/语言: timedatectl/locale
+      6. NTP同步: chrony/ntp
+      7. DNS配置: /etc/resolv.conf
+      8. 内核参数: sysctl优化
+      9. 服务配置: systemd enable/disable
+      10. 监控部署: node_exporter/agent
+      AgentGuard差异(可追溯/透明/可控):
+      - 每步初始化操作自动记录审计日志(可追溯)
+      - 初始化进度实时推送(透明)
+      - 用户可自定义初始化模板(可控)
+      - 竞品执行完就完,AgentGuard: 执行→验证→对比期望状态→偏差报告
+
+  - id: R025
+    topic: "Docker容器运维管理"
+    keywords: ["Docker operations management", "container lifecycle management", "Docker monitoring automation", "container health check"]
+    status: done
+    priority: critical
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 定位 |
+      |------|-------|------|------|
+      | Portainer | 31K+ | Go | Docker/Swarm/K8s轻量管理UI |
+      | ctop | 15K+ | Go | 容器实时指标(top风格) |
+      | lazydocker | 38K+ | Go | Docker终端UI(懒人版) |
+      | Docker Compose | 35K+ | Go | 多容器编排 |
+      | cAdvisor | 17K+ | Go | 容器资源监控 |
+      Docker运维核心任务:
+      - 容器生命周期: 创建/启动/停止/重启/删除/日志
+      - 镜像管理: 拉取/构建/清理悬挂镜像/仓库管理
+      - 网络管理: 网络创建/连接/端口映射/DNS
+      - 存储管理: Volume创建/清理/备份
+      - 资源监控: CPU/内存/IO/网络实时指标
+      - 日志管理: 容器日志收集/轮转/告警
+      - 健康检查: HEALTHCHECK配置/自动重启
+      - 安全扫描: 镜像漏洞扫描(Trivy/Grype)
+      AgentGuard差异(可追溯/透明/可控):
+      - 容器操作全量审计(谁在什么时候删了哪个容器)(可追溯)
+      - 容器状态变更实时通知(透明)
+      - 用户定义容器策略(自动重启/资源限制/镜像白名单)(可控)
+      - 竞品只展示,AgentGuard: 监控→异常→AI诊断→自动修复→审计
+
+  - id: R026
+    topic: "Kubernetes集群运维"
+    keywords: ["Kubernetes operations", "K8s cluster management", "kubernetes troubleshooting automation", "k8s health check"]
+    status: done
+    priority: critical
+    findings: |
+      竞品/参考工具:
+      | 项目 | Stars | 语言 | 定位 |
+      |------|-------|------|------|
+      | k9s | 29K+ | Go | K8s终端UI, 实时导航/管理 |
+      | Popeye | 3K+ | Go | K8s集群linter, 检测配置问题 |
+      | kube-bench | 7K+ | Go | CIS K8s基准检查 |
+      | Robusta | 1.5K+ | Python | Prometheus告警富化+自动修复 |
+      | HolmesGPT | 1K+ | Python | CNCF AI SRE Agent, 根因分析 |
+      | KRR | 1K+ | Python | K8s资源推荐(CPU/内存) |
+      | Lens | 22K+ | TS | K8s IDE |
+      | ArgoCD | 19K+ | Go | GitOps持续交付 |
+      | Flux | 7K+ | Go | GitOps工具集 |
+      K8s运维核心任务:
+      - 集群健康: Node状态/Pod状态/组件健康
+      - 资源管理: CPU/内存请求/限制/HPA/VPA
+      - 故障排查: Pod CrashLoop/OOMKilled/Pending/ImagePullBackOff
+      - 网络调试: Service/Ingress/DNS/NetworkPolicy
+      - 存储管理: PVC/PV/StorageClass
+      - 安全审计: RBAC/PodSecurityPolicy/Secret管理
+      - 版本升级: 集群升级/组件升级
+      - 备份恢复: etcd备份/Velero
+      HolmesGPT关键洞察(CNCF SRE Agent):
+      - AI Agent调查生产事故,找到根因
+      - 支持K8s/VM/云/数据库/SaaS
+      - 开源, CNCF项目
+      - 与Robusta平台集成
+      AgentGuard差异:
+      - HolmesGPT只诊断不修复,AgentGuard: 诊断→修复→验证→审计
+      - k9s/Popeye是CLI工具,AgentGuard是Agent(自动执行)
+      - 可追溯: 所有kubectl操作审计
+      - 可控: 用户定义策略(禁止删除生产Namespace)
+
+  - id: R027
+    topic: "Agent自管理（自我监控、自我修复、自我升级）"
+    keywords: ["self-healing agent", "agent self-management", "agent monitoring", "agent auto-upgrade"]
+    status: done
+    priority: critical
+    findings: |
+      竞品/参考:
+      | 项目 | Stars | 定位 | 自管理能力 |
+      |------|-------|------|------------|
+      | HolmesGPT | 1K+ | CNCF AI SRE Agent | AI根因分析, 但不自我管理 |
+      | Robusta | 1.5K+ | K8s告警富化 | 自动修复Playbook, 但只管K8s |
+      | StackStorm | 6.4K | 事件驱动自动化 | 规则引擎+自动修复, 但不自我管理 |
+      | Wazuh | 15.6K | XDR+SIEM | Agent自更新, 但不管运维 |
+      | Ansible | 68.6K | 配置管理 | 无Agent, 不涉及自管理 |
+      Agent自管理核心能力:
+      - 自我监控: Agent进程健康/内存/CPU/连接状态
+      - 自我修复: 进程崩溃自动重启/配置损坏自动恢复
+      - 自我升级: 热更新/滚动升级/回滚
+      - 自我配置: 根据环境自动调整参数
+      - 自我诊断: 内部错误日志分析/性能瓶颈定位
+      现有AgentGuard基础:
+      - ✅ 心跳监控(controller/heartbeat.rs)
+      - ✅ 故障恢复-指数退避(controller/recovery.rs)
+      - ✅ 健康检查循环(controller/health.rs)
+      - ✅ Agent生命周期管理(controller/state.rs)
+      AgentGuard自管理设计(灵魂:可追溯/透明/可控):
+      - 可追溯: Agent自身操作也写审计日志(不豁免)
+      - 透明: Agent状态/健康/升级进度实时推送
+      - 可控: 用户定义Agent行为边界(不能自己给自己提权)
+      - 关键: Agent不能超越用户设定的权限(安全边界)
+
+  - id: R028
+    topic: "日志分析和告警自动化"
+    keywords: ["log analysis automation", "log anomaly detection", "automated alerting", "ELK stack automation"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R029
+    topic: "备份恢复自动化"
+    keywords: ["backup automation Linux", "disaster recovery automation", "backup verification", "automated restore testing"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R030
+    topic: "性能监控和优化"
+    keywords: ["Linux performance monitoring", "performance tuning automation", "bottleneck detection", "resource optimization"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R031
+    topic: "用户和权限管理自动化"
+    keywords: ["Linux user management automation", "SSH key management", "sudo management", "access control automation"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R032
+    topic: "网络配置和故障排查"
+    keywords: ["Linux network troubleshooting", "network configuration automation", "DNS/DHCP/firewall management"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R033
+    topic: "服务管理（systemd/nginx/mysql/redis）"
+    keywords: ["Linux service management", "systemd automation", "nginx management", "database operations"]
+    status: pending
+    priority: high
+    findings: ""
+
+  - id: R034
+    topic: "磁盘管理和存储运维"
+    keywords: ["Linux disk management", "LVM automation", "storage monitoring", "disk cleanup automation"]
+    status: pending
+    priority: medium
+    findings: ""
+
+  - id: R035
+    topic: "定时任务管理（cron/systemd timer）"
+    keywords: ["cron job management", "systemd timer", "scheduled task automation"]
+    status: pending
+    priority: medium
+    findings: ""
+
+  # === 拓展：AIOps和智能运维 ===
+  - id: R019
+    topic: "AIOps智能运维"
+    keywords: ["AIOps", "predictive failure", "anomaly detection", "self-healing systems"]
+    status: pending
+    priority: high
+    findings: ""
+
+  # === 已完成的研究 ===
+  - id: R002
+    topic: "Linux合规扫描开源工具（竞品分析）"
+    status: done
+    findings: "已完成8个竞品分析，但定位偏安全扫描，需要转向运维自动化"
+
+# 已完成
+completed:
+  - id: C001
+    topic: "Skill-Evolver 自进化Agent"
+    key_insights: "8阶段Loop、trace诊断、5维AND门控"
+  - id: C002
+    topic: "GBrain Agent记忆系统"
+    key_insights: "三层架构、零LLM知识图谱、Dream Cycle"
+  - id: C003
+    topic: "TencentDB Agent Memory"
+    key_insights: "Mermaid任务画布、上下文卸载"
+  - id: C004
+    topic: "prax-agent 自主Agent"
+    key_insights: "Agent Loop、Memory Middleware、Planning"

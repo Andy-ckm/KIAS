@@ -7,14 +7,22 @@
 //! - 配置管理
 //! - 审计日志持久化
 //! - RBAC 权限控制
+//! - R023: 日常巡检（CPU/内存/磁盘/进程/日志/网络/安全）
+//! - R024: 服务器初始化（软件安装/用户配置/安全加固）
+//! - R025: Docker 容器运维管理
+//! - R026: Kubernetes 集群运维
 
 pub mod audit;
 pub mod config;
 pub mod config_mgmt;
+pub mod docker_ops;
 pub mod error;
 pub mod executor;
+pub mod health_check;
+pub mod k8s_ops;
 pub mod models;
 pub mod patch;
+pub mod provisioning;
 pub mod queue;
 pub mod rbac;
 pub mod scanner;
@@ -26,6 +34,8 @@ pub use models::*;
 pub use patch::PatchManager;
 pub use queue::TaskQueue;
 pub use scanner::ComplianceScanner;
+
+use chrono::Utc;
 
 /// Linux 自动化引擎
 pub struct LinuxAutomation {
@@ -82,6 +92,115 @@ impl LinuxAutomation {
             }
             TaskType::CustomCommand { command, hosts } => {
                 self.executor.execute_command(hosts, command).await?
+            }
+            TaskType::HealthCheck { hosts, checks } => {
+                let hosts_count = hosts.len();
+                let checker = health_check::HealthChecker::new(
+                    health_check::HealthCheckThresholds::default(),
+                );
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let report = checker
+                        .check_all(&self.executor, host, checks, &self.audit)
+                        .await?;
+                    all_results.push(report);
+                }
+                let checks_count: usize = all_results.iter().map(|r| r.checks.len()).sum();
+                let summary = format!("巡检 {} 台主机, 共 {} 项检查", hosts_count, checks_count);
+                AutomationResult {
+                    task_id,
+                    task_type: "HealthCheck".to_string(),
+                    status: if all_results
+                        .iter()
+                        .any(|r| r.overall_status == HealthStatus::Critical)
+                    {
+                        TaskStatus::Failed
+                    } else {
+                        TaskStatus::Success
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::ServerProvision { hosts, template } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let report = provisioning::Provisioner::provision(
+                        &self.executor,
+                        host,
+                        template,
+                        &self.audit,
+                    )
+                    .await?;
+                    all_results.push(report);
+                }
+                let summary = format!("初始化 {} 台主机, 模板: {}", hosts_count, template.name);
+                AutomationResult {
+                    task_id,
+                    task_type: "ServerProvision".to_string(),
+                    status: if all_results
+                        .iter()
+                        .all(|r| r.overall_status == TaskStatus::Success)
+                    {
+                        TaskStatus::Success
+                    } else {
+                        TaskStatus::PartialSuccess
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::DockerOps { hosts, action } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let result =
+                        docker_ops::DockerOps::execute(&self.executor, host, action, &self.audit)
+                            .await?;
+                    all_results.push(result);
+                }
+                let summary = format!("Docker操作 {} 台主机", hosts_count);
+                AutomationResult {
+                    task_id,
+                    task_type: "DockerOps".to_string(),
+                    status: if all_results.iter().all(|r| r.status == TaskStatus::Success) {
+                        TaskStatus::Success
+                    } else {
+                        TaskStatus::PartialSuccess
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::K8sOps { context, action } => {
+                let result = k8s_ops::K8sOps::execute(
+                    &self.executor,
+                    "localhost",
+                    context,
+                    action,
+                    &self.audit,
+                )
+                .await?;
+                AutomationResult {
+                    task_id,
+                    task_type: "K8sOps".to_string(),
+                    status: result.status.clone(),
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary: format!("K8s操作: {:?}", action),
+                    audit_trail: vec![],
+                }
             }
         };
 

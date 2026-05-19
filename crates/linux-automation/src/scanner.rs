@@ -589,4 +589,155 @@ mod tests {
         let score = scanner.calculate_score(&findings);
         assert_eq!(score, 0.0);
     }
+
+    #[test]
+    fn test_get_report_not_found() {
+        let (scanner, _tmp) = create_test_scanner();
+        let result = scanner.get_report("nonexistent-host");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_report_overwrites() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        let report1 = ComplianceReport {
+            host: "host1".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 50.0,
+            passed: 5,
+            failed: 5,
+            not_applicable: 0,
+            findings: vec![],
+        };
+        scanner.save_report(&report1).unwrap();
+
+        let report2 = ComplianceReport {
+            host: "host1".to_string(),
+            scan_time: Utc::now(),
+            profile: "stig".to_string(),
+            score: 90.0,
+            passed: 9,
+            failed: 1,
+            not_applicable: 0,
+            findings: vec![],
+        };
+        scanner.save_report(&report2).unwrap();
+
+        let retrieved = scanner.get_report("host1").unwrap();
+        assert_eq!(retrieved.profile, "stig");
+        assert!((retrieved.score - 90.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_save_multiple_hosts() {
+        let (scanner, _tmp) = create_test_scanner();
+
+        for i in 0..5 {
+            let report = ComplianceReport {
+                host: format!("host{}", i),
+                scan_time: Utc::now(),
+                profile: "cis".to_string(),
+                score: 80.0 + i as f64,
+                passed: 8 + i,
+                failed: 2,
+                not_applicable: 0,
+                findings: vec![],
+            };
+            scanner.save_report(&report).unwrap();
+        }
+
+        for i in 0..5 {
+            let r = scanner.get_report(&format!("host{}", i)).unwrap();
+            assert!((r.score - (80.0 + i as f64)).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn test_compliance_finding_fields() {
+        let finding = ComplianceFinding {
+            rule_id: "CIS-1.1.1".to_string(),
+            title: "Ensure SSH is configured".to_string(),
+            severity: Severity::High,
+            status: FindingStatus::Fail,
+            description: "SSH should be hardened".to_string(),
+            remediation: Some("Edit /etc/ssh/sshd_config".to_string()),
+        };
+        assert_eq!(finding.rule_id, "CIS-1.1.1");
+        assert_eq!(finding.severity, Severity::High);
+        assert!(finding.remediation.is_some());
+    }
+
+    #[test]
+    fn test_compliance_report_clone() {
+        let report = ComplianceReport {
+            host: "server1".to_string(),
+            scan_time: Utc::now(),
+            profile: "cis".to_string(),
+            score: 85.0,
+            passed: 10,
+            failed: 2,
+            not_applicable: 3,
+            findings: vec![],
+        };
+        let cloned = report.clone();
+        assert_eq!(cloned.host, report.host);
+        assert_eq!(cloned.score, report.score);
+    }
+
+    #[test]
+    fn test_calculate_score_single_pass() {
+        let (scanner, _tmp) = create_test_scanner();
+        let findings = vec![ComplianceFinding {
+            rule_id: "1".to_string(),
+            title: "Test".to_string(),
+            severity: Severity::Low,
+            status: FindingStatus::Pass,
+            description: "Test".to_string(),
+            remediation: None,
+        }];
+        assert_eq!(scanner.calculate_score(&findings), 100.0);
+    }
+
+    #[test]
+    fn test_calculate_score_single_fail() {
+        let (scanner, _tmp) = create_test_scanner();
+        let findings = vec![ComplianceFinding {
+            rule_id: "1".to_string(),
+            title: "Test".to_string(),
+            severity: Severity::Critical,
+            status: FindingStatus::Fail,
+            description: "Test".to_string(),
+            remediation: None,
+        }];
+        assert_eq!(scanner.calculate_score(&findings), 0.0);
+    }
+
+    #[test]
+    fn test_parse_findings_only_whitespace() {
+        let (scanner, _tmp) = create_test_scanner();
+        let findings = scanner.parse_findings("   \n  \n", "").unwrap();
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_findings_large_output() {
+        let (scanner, _tmp) = create_test_scanner();
+        let lines: Vec<String> = (0..100).map(|i| format!("line {} pass check", i)).collect();
+        let stdout = lines.join("\n");
+        let findings = scanner.parse_findings(&stdout, "").unwrap();
+        assert_eq!(findings.len(), 100);
+    }
+
+    #[test]
+    fn test_severity_variants() {
+        let severities = vec![
+            Severity::Low,
+            Severity::Medium,
+            Severity::High,
+            Severity::Critical,
+        ];
+        assert_eq!(severities.len(), 4);
+    }
 }

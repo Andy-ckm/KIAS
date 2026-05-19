@@ -32,3 +32,5 @@ To github.com:Andy-ckm/KIAS.git
 === 迭代 1 完成 ===
 
 [2026-05-19 19:50] 添加FTS5全文搜索 | 遵守四步法:Y | 测试通过:Y | 下一步:Linux自动化模块SSH连接管理
+[2026-05-19 19:55] 添加SSH连接管理 | 遵守四步法:Y | 测试通过:Y | 下一步:IT变更管理模块Web API
+[2026-05-19 19:50] 推进 document-management: 审计日志集成到生命周期、修复 version.rs created_by、修复 repository.rs smart quotes、+29测试(31→60) | 遵守四步法:Y | 测试通过:Y | 下一步:linux-automation 补测试

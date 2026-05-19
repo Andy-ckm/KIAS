@@ -238,7 +238,10 @@ impl NetworkManager {
             }
             NetworkAction::SetDns { servers } => {
                 let servers_str = servers.join(" ");
-                let cmd = format!("echo 'nameservers={}' > /etc/resolv.conf.head && resolvconf -u", servers_str);
+                let cmd = format!(
+                    "echo 'nameservers={}' > /etc/resolv.conf.head && resolvconf -u",
+                    servers_str
+                );
                 let output = Self::run_cmd(executor, host, &cmd).await?;
                 commands_executed.push(cmd);
                 (
@@ -405,7 +408,10 @@ impl NetworkManager {
                 let output = Self::run_cmd(executor, host, &cmd).await?;
                 commands_executed.push(cmd);
                 (
-                    format!("添加防火墙规则: {}:{}/{}", rule.port, rule.protocol, rule.action),
+                    format!(
+                        "添加防火墙规则: {}:{}/{}",
+                        rule.port, rule.protocol, rule.action
+                    ),
                     NetworkOpsResult {
                         action: "AddFirewallRule".to_string(),
                         success: true,
@@ -652,7 +658,11 @@ impl NetworkManager {
                 host
             )],
             NetworkAction::Traceroute { host, max_hops } => {
-                vec![format!("traceroute -n -m {} {}", max_hops.unwrap_or(30), host)]
+                vec![format!(
+                    "traceroute -n -m {} {}",
+                    max_hops.unwrap_or(30),
+                    host
+                )]
             }
             NetworkAction::PortCheck {
                 host,
@@ -662,12 +672,7 @@ impl NetworkManager {
                 let t = timeout_secs.unwrap_or(3);
                 ports
                     .iter()
-                    .map(|p| {
-                        format!(
-                            "timeout {} bash -c 'echo >/dev/tcp/{}/{}'",
-                            t, host, p
-                        )
-                    })
+                    .map(|p| format!("timeout {} bash -c 'echo >/dev/tcp/{}/{}'", t, host, p))
                     .collect()
             }
             NetworkAction::ShowConnections { protocol, state: _ } => {
@@ -707,7 +712,9 @@ impl NetworkManager {
         let result = executor
             .execute_command(&[host.to_string()], cmd)
             .await
-            .map_err(|e| AutomationError::NetworkOperation(format!("命令执行失败 '{}': {}", cmd, e)))?;
+            .map_err(|e| {
+                AutomationError::NetworkOperation(format!("命令执行失败 '{}': {}", cmd, e))
+            })?;
         result
             .host_results
             .first()
@@ -733,19 +740,15 @@ impl NetworkManager {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
-                        let mtu = item
-                            .get("mtu")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(1500) as u32;
+                        let mtu = item.get("mtu").and_then(|v| v.as_u64()).unwrap_or(1500) as u32;
                         let mut ipv4 = Vec::new();
                         let mut ipv6 = Vec::new();
                         if let Some(addrs) = item.get("addr_info").and_then(|v| v.as_array()) {
                             for addr in addrs {
                                 let ip = addr.get("local")?.as_str()?.to_string();
-                                let prefix = addr
-                                    .get("prefixlen")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0) as u8;
+                                let prefix =
+                                    addr.get("prefixlen").and_then(|v| v.as_u64()).unwrap_or(0)
+                                        as u8;
                                 let family = addr
                                     .get("family")
                                     .and_then(|v| v.as_str())
@@ -830,7 +833,12 @@ impl NetworkManager {
             .lines()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty() && !l.starts_with(';') && !l.starts_with('#'))
-            .filter(|l| l.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false))
+            .filter(|l| {
+                l.chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+            })
             .map(|l| l.to_string())
             .collect()
     }
@@ -938,7 +946,10 @@ impl NetworkManager {
                 };
                 let (local_addr, local_port) = Self::parse_addr_port(&local);
                 let (remote_addr, remote_port) = Self::parse_addr_port(&remote);
-                let process = parts.last().map(|s| s.to_string()).filter(|s| s.contains('"'));
+                let process = parts
+                    .last()
+                    .map(|s| s.to_string())
+                    .filter(|s| s.contains('"'));
                 Some(NetworkConnection {
                     protocol,
                     local_addr,
@@ -1425,10 +1436,7 @@ mod tests {
         assert_eq!(NetworkAction::ListInterfaces, NetworkAction::ListInterfaces);
         assert_eq!(NetworkAction::ShowRoutes, NetworkAction::ShowRoutes);
         assert_eq!(NetworkAction::ShowFirewall, NetworkAction::ShowFirewall);
-        assert_ne!(
-            NetworkAction::ListInterfaces,
-            NetworkAction::ShowRoutes
-        );
+        assert_ne!(NetworkAction::ListInterfaces, NetworkAction::ShowRoutes);
     }
 
     #[test]

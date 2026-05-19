@@ -13,6 +13,7 @@
 //! - R026: Kubernetes 集群运维
 
 pub mod audit;
+pub mod backup_recovery;
 pub mod config;
 pub mod config_mgmt;
 pub mod docker_ops;

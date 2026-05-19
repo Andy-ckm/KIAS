@@ -1,6 +1,6 @@
 //! 电子签名服务
 
-use crate::error::Result;
+use crate::error::{DocumentError, Result};
 use chrono::Utc;
 use rusqlite::{params, Connection};
 use std::path::Path;
@@ -47,7 +47,10 @@ impl SignatureService {
     }
 
     pub fn sign(&self, doc_id: &str, signed_by: &str, signature_data: &str) -> Result<Signature> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         let signature = Signature {
             id: Uuid::new_v4().to_string(),
@@ -77,7 +80,10 @@ impl SignatureService {
     }
 
     pub fn verify(&self, doc_id: &str, signed_by: &str) -> Result<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         let count: usize = conn.query_row(
             "SELECT COUNT(*) FROM signatures WHERE document_id = ?1 AND signed_by = ?2",
@@ -89,7 +95,10 @@ impl SignatureService {
     }
 
     pub fn get_signatures(&self, doc_id: &str) -> Result<Vec<Signature>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| DocumentError::Other(format!("锁中毒: {}", e)))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, document_id, signed_by, signature_data, signed_at, ip_address, meaning

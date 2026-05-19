@@ -24,6 +24,8 @@ pub enum StorageError {
     Serialization(#[from] serde_json::Error),
     #[error("未找到: {0}")]
     NotFound(String),
+    #[error("锁中毒: {0}")]
+    Poisoned(String),
 }
 
 /// SQLite 持久化存储
@@ -54,7 +56,10 @@ impl ChangeStorage {
 
     /// 初始化数据库表
     fn init_tables(&self) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         conn.execute_batch(
             "
@@ -159,7 +164,10 @@ impl ChangeStorage {
 
     /// 保存变更请求
     pub fn save_change(&self, change: &ItChangeRequest) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         conn.execute(
             "INSERT OR REPLACE INTO change_requests (
@@ -273,7 +281,10 @@ impl ChangeStorage {
 
     /// 保存审计日志条目
     pub fn save_audit_entry(&self, entry: &AuditEntry) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         conn.execute(
             "INSERT INTO audit_log (id, change_id, actor, action, detail, timestamp, previous_hash, hash, ip_address, user_agent)
@@ -297,7 +308,10 @@ impl ChangeStorage {
 
     /// 获取变更请求
     pub fn get_change(&self, change_id: &str) -> Result<Option<ItChangeRequest>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, change_number, title, description, change_type, change_category,
@@ -387,7 +401,10 @@ impl ChangeStorage {
 
     /// 列出所有变更请求
     pub fn list_changes(&self) -> Result<Vec<ItChangeRequest>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         let mut stmt = conn.prepare("SELECT id FROM change_requests ORDER BY created_at DESC")?;
 
@@ -410,7 +427,10 @@ impl ChangeStorage {
 
     /// 获取审计日志
     pub fn get_audit_log(&self, change_id: &str) -> Result<Vec<AuditEntry>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, change_id, actor, action, detail, timestamp, previous_hash, hash, ip_address, user_agent
@@ -440,7 +460,10 @@ impl ChangeStorage {
 
     /// 获取全部审计日志
     pub fn get_all_audit_log(&self) -> Result<Vec<AuditEntry>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, change_id, actor, action, detail, timestamp, previous_hash, hash, ip_address, user_agent
@@ -473,7 +496,10 @@ impl ChangeStorage {
         &self,
         status: &ChangeStatus,
     ) -> Result<Vec<ItChangeRequest>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
         let status_str = serde_json::to_string(status).unwrap_or_default();
 
         let mut stmt = conn
@@ -498,7 +524,10 @@ impl ChangeStorage {
 
     /// 获取 SLA 超期的变更
     pub fn get_sla_violations(&self) -> Result<Vec<ItChangeRequest>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StorageError::Poisoned(e.to_string()))?;
         let now = Utc::now().to_rfc3339();
 
         let mut stmt = conn.prepare(

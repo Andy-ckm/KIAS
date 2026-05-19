@@ -1,3 +1,57 @@
+## Latest: 2026-05-19 15:40 (AgentGuard Auto Loop - Sprint 128)
+
+### Quality Gates (15:40)
+| Check | Result |
+|--------|------|
+| cargo build | Pass |
+| cargo fmt | Pass |
+| cargo clippy | Zero warnings |
+| cargo test | **3076 passed**, 0 failed, 4 ignored |
+| Disk (/) | 84% (32G/40G) - 6.2G free |
+| Disk (/mnt) | 63% (18G/30G) - 11G free |
+
+### Four-Step Eval: scheduler.rs test density improvement
+- Step 1 评估: scheduler.rs 密度 1.71 (1230 lines, 21 tests) — 最低密度核心模块
+- Step 2 审视: 21 个测试覆盖 happy path + 基本租户隔离，缺少 CPU/内存配额、算法变体、错误路径
+- Step 3 方案: +20 tests 覆盖错误路径 + 算法变体 + 边界情况
+- Step 4 开发: Done, scheduler.rs 密度 1.71 → 3.25, scheduler 整体密度 2.02 → 2.17
+
+### Changes
+| Metric | Before | After | Change |
+|------|--------|-------|--------|
+| scheduler.rs tests | 21 | 41 | +20 |
+| scheduler.rs density | 1.71 | 3.25 | +90% |
+| scheduler total tests | 162 | 182 | +20 |
+| scheduler total density | 2.02 | 2.17 | +7% |
+| Workspace total tests | 3056 | 3076 | +20 |
+
+### New Tests (20)
+**Error paths (6)**:
+- Empty nodes → NoAvailableNodes error
+- CPU quota enforcement (3.0 fits, 5.0 exceeds 4.0)
+- Memory quota enforcement (512 fits, 1112 exceeds 1024)
+- Empty batch → empty results
+- Release unknown tenant → no-op
+- Release saturates at zero
+
+**Algorithm variants (4)**:
+- least-loaded algorithm
+- resource-aware algorithm
+- cache-aware algorithm
+- Cache optimizer constructor with shared Arc
+
+**Edge cases (10)**:
+- Single node scheduling
+- More agents than nodes (round-robin distributes)
+- Fair schedule index rotation across batches
+- Tenant stats tracking across multiple schedules
+- schedule_agent delegates to tenant variant
+- Mixed priority sorting verification
+- Batch fair with no tenants
+- Tenant context default namespace
+- ResourceQuota default values
+- TenantStats default values
+
 ## Latest: 2026-05-19 14:45 (AgentGuard Auto Loop - Sprint 127)
 
 ### Quality Gates (14:45)

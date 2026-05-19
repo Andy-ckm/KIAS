@@ -594,4 +594,107 @@ mod tests {
         let audit = routes::get_audit_log(&manager, &change.id);
         assert!(audit.len() >= 6); // submit + approve + implement + complete_impl + verify + close
     }
+
+    #[test]
+    fn test_routes_get_change_id_matches() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("ID匹配")).unwrap();
+        let found = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(found.id, change.id);
+    }
+
+    #[test]
+    fn test_routes_list_changes_after_create() {
+        let mut manager = ItChangeManager::new();
+        routes::create_change(&mut manager, create_test_request("变更A")).unwrap();
+        routes::create_change(&mut manager, create_test_request("变更B")).unwrap();
+        routes::create_change(&mut manager, create_test_request("变更C")).unwrap();
+
+        let changes = routes::list_changes(&manager);
+        assert_eq!(changes.len(), 3);
+    }
+
+    #[test]
+    fn test_routes_statistics_after_lifecycle() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("统计生命周期")).unwrap();
+
+        // Submit
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+
+        let stats = routes::get_statistics(&manager);
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.submitted, 1);
+        assert_eq!(stats.draft, 0);
+    }
+
+    #[test]
+    fn test_routes_implement_approved_change() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("实施测试")).unwrap();
+
+        // Submit + Approve
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+        manager.add_approver(&change.id, "a1".to_string(), "审批人".to_string(), "经理".to_string()).unwrap();
+        let approve_req = ApproveChangeRequest {
+            approver_id: "a1".to_string(),
+            decision: Decision::Approved,
+            signature_meaning: SignatureMeaning::Approval,
+            password_hash: "h1".to_string(),
+            token_hash: "h2".to_string(),
+            signer_name: "审批人".to_string(),
+            signer_title: "经理".to_string(),
+        };
+        routes::approve_change(&mut manager, &change.id, approve_req).unwrap();
+
+        // Implement
+        let result = routes::implement_change(&mut manager, &change.id, "implementer");
+        assert!(result.is_ok());
+
+        let implemented = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(implemented.status, ChangeStatus::Implementing);
+    }
+
+    #[test]
+    fn test_routes_add_internal_comment() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("内部评论")).unwrap();
+
+        let comment_req = AddCommentRequest {
+            author: "qa".to_string(),
+            content: "内部审核备注".to_string(),
+            is_internal: true,
+        };
+        routes::add_comment(&mut manager, &change.id, comment_req).unwrap();
+
+        let updated = routes::get_change(&manager, &change.id).unwrap();
+        assert_eq!(updated.comments.len(), 1);
+        assert!(updated.comments[0].is_internal);
+    }
+
+    #[test]
+    fn test_routes_get_audit_log_after_operations() {
+        let mut manager = ItChangeManager::new();
+        let change = routes::create_change(&mut manager, create_test_request("审计测试")).unwrap();
+        routes::submit_for_review(&mut manager, &change.id, "user").unwrap();
+
+        let audit = routes::get_audit_log(&manager, &change.id);
+        assert!(!audit.is_empty());
+        // Should have at least create + submit entries
+        assert!(audit.len() >= 2);
+    }
+
+    #[test]
+    fn test_routes_rollback_nonexistent_fails() {
+        let mut manager = ItChangeManager::new();
+        let result = routes::rollback_change(&mut manager, "nonexistent", "admin", "测试");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_routes_emergency_implement_nonexistent_fails() {
+        let mut manager = ItChangeManager::new();
+        let result = routes::emergency_implement(&mut manager, "nonexistent", "admin", "测试");
+        assert!(result.is_err());
+    }
 }

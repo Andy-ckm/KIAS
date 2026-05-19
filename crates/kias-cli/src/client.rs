@@ -730,7 +730,10 @@ mod tests {
 
     #[test]
     fn test_url_encoding_preserves_safe_chars() {
-        assert_eq!(urlencoding::encode("test-path_file.txt"), "test-path_file.txt");
+        assert_eq!(
+            urlencoding::encode("test-path_file.txt"),
+            "test-path_file.txt"
+        );
         assert_eq!(urlencoding::encode("~home"), "~home");
     }
 
@@ -753,7 +756,10 @@ mod tests {
         let info: AgentInfo = serde_json::from_str(json).unwrap();
         assert_eq!(info.id, "a-003");
         assert_eq!(info.spec.as_ref().unwrap().name, "my-agent");
-        assert_eq!(info.spec.as_ref().unwrap().image.as_deref(), Some("rust:1.77"));
+        assert_eq!(
+            info.spec.as_ref().unwrap().image.as_deref(),
+            Some("rust:1.77")
+        );
     }
 
     #[test]
@@ -812,5 +818,4 @@ mod tests {
         assert_eq!(models[0].model, "gpt-4");
         assert_eq!(models[1].model, "gpt-3.5");
     }
-
 }

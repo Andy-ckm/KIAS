@@ -74,6 +74,26 @@ pub enum TaskType {
         command: String,
         hosts: Vec<String>,
     },
+    /// 日常巡检 (R023)
+    HealthCheck {
+        hosts: Vec<String>,
+        checks: Vec<HealthCheckType>,
+    },
+    /// 服务器初始化 (R024)
+    ServerProvision {
+        hosts: Vec<String>,
+        template: ProvisionTemplate,
+    },
+    /// Docker 运维 (R025)
+    DockerOps {
+        hosts: Vec<String>,
+        action: DockerAction,
+    },
+    /// K8s 运维 (R026)
+    K8sOps {
+        context: String,
+        action: K8sAction,
+    },
 }
 
 /// 任务优先级
@@ -185,6 +205,287 @@ pub struct AutomationStatistics {
     pub compliance_score: f64,
     pub audit_entries: usize,
     pub last_scan_time: Option<DateTime<Utc>>,
+}
+
+// ============================================================
+// R023: 日常巡检数据模型
+// ============================================================
+
+/// 巡检类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum HealthCheckType {
+    Cpu,
+    Memory,
+    Disk,
+    Process,
+    Log,
+    Network,
+    Security,
+    All,
+}
+
+/// 巡检报告
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthCheckReport {
+    pub host: String,
+    pub check_time: DateTime<Utc>,
+    pub overall_status: HealthStatus,
+    pub checks: Vec<HealthCheckItem>,
+    pub recommendations: Vec<String>,
+}
+
+/// 单项巡检结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthCheckItem {
+    pub check_type: HealthCheckType,
+    pub status: HealthStatus,
+    pub metric_name: String,
+    pub metric_value: String,
+    pub threshold: Option<String>,
+    pub message: String,
+}
+
+/// 健康状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum HealthStatus {
+    Healthy,
+    Warning,
+    Critical,
+    Unknown,
+}
+
+// ============================================================
+// R024: 服务器初始化数据模型
+// ============================================================
+
+/// 初始化模板
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvisionTemplate {
+    pub name: String,
+    pub steps: Vec<ProvisionStep>,
+}
+
+/// 初始化步骤
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvisionStep {
+    pub name: String,
+    pub step_type: ProvisionStepType,
+    pub required: bool,
+}
+
+/// 初始化步骤类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProvisionStepType {
+    SystemUpdate,
+    InstallPackages {
+        packages: Vec<String>,
+    },
+    CreateUser {
+        username: String,
+        ssh_key: Option<String>,
+    },
+    SudoConfig {
+        username: String,
+        rules: Vec<String>,
+    },
+    SshHardening {
+        config: SshConfig,
+    },
+    Firewall {
+        rules: Vec<FirewallRule>,
+    },
+    Timezone {
+        tz: String,
+    },
+    NtpServer {
+        server: String,
+    },
+    KernelParams {
+        params: Vec<(String, String)>,
+    },
+    ServiceManagement {
+        enable: Vec<String>,
+        disable: Vec<String>,
+    },
+    CustomScript {
+        script: String,
+    },
+}
+
+/// SSH 加固配置
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SshConfig {
+    pub permit_root_login: bool,
+    pub password_auth: bool,
+    pub max_auth_tries: u32,
+    pub port: u16,
+}
+
+/// 防火墙规则
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FirewallRule {
+    pub port: u16,
+    pub protocol: String,
+    pub action: String,
+    pub source: Option<String>,
+}
+
+/// 初始化报告
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvisionReport {
+    pub host: String,
+    pub template_name: String,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub step_results: Vec<ProvisionStepResult>,
+    pub overall_status: TaskStatus,
+}
+
+/// 单步初始化结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProvisionStepResult {
+    pub step_name: String,
+    pub status: TaskStatus,
+    pub stdout: String,
+    pub stderr: String,
+    pub duration_ms: u64,
+}
+
+// ============================================================
+// R025: Docker 运维数据模型
+// ============================================================
+
+/// Docker 操作
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum DockerAction {
+    /// 列出容器
+    ListContainers { all: bool },
+    /// 容器状态
+    ContainerStatus { container: String },
+    /// 启动容器
+    Start { container: String },
+    /// 停止容器
+    Stop { container: String },
+    /// 重启容器
+    Restart { container: String },
+    /// 删除容器
+    Remove { container: String, force: bool },
+    /// 查看日志
+    Logs { container: String, tail: u32 },
+    /// 资源监控
+    Stats,
+    /// 清理(悬挂镜像/停止容器/未使用volume)
+    Prune {
+        images: bool,
+        containers: bool,
+        volumes: bool,
+    },
+    /// 镜像列表
+    ListImages,
+    /// 拉取镜像
+    Pull { image: String },
+}
+
+/// Docker 容器信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DockerContainer {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    pub status: String,
+    pub state: String,
+    pub ports: String,
+    pub created: String,
+    pub cpu_percent: Option<f64>,
+    pub mem_usage: Option<String>,
+}
+
+/// Docker 操作结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DockerOpsResult {
+    pub host: String,
+    pub action: DockerAction,
+    pub status: TaskStatus,
+    pub containers: Vec<DockerContainer>,
+    pub message: String,
+    pub audit_trail: Vec<AuditEntry>,
+}
+
+// ============================================================
+// R026: K8s 运维数据模型
+// ============================================================
+
+/// K8s 操作
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum K8sAction {
+    /// 集群健康检查
+    ClusterHealth,
+    /// 节点状态
+    NodeStatus,
+    /// Pod 状态
+    PodStatus { namespace: Option<String> },
+    /// 失败Pod排查
+    TroubleshootFailedPods { namespace: Option<String> },
+    /// 资源使用
+    ResourceUsage { namespace: Option<String> },
+    /// 事件查看
+    Events {
+        namespace: Option<String>,
+        limit: u32,
+    },
+    /// 描述资源
+    Describe {
+        resource_type: String,
+        name: String,
+        namespace: Option<String>,
+    },
+    /// 删除资源
+    Delete {
+        resource_type: String,
+        name: String,
+        namespace: Option<String>,
+        force: bool,
+    },
+    /// 自定义 kubectl
+    Kubectl { args: Vec<String> },
+}
+
+/// K8s 节点信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct K8sNode {
+    pub name: String,
+    pub status: String,
+    pub roles: String,
+    pub age: String,
+    pub version: String,
+    pub cpu: String,
+    pub memory: String,
+}
+
+/// K8s Pod 信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct K8sPod {
+    pub name: String,
+    pub namespace: String,
+    pub ready: String,
+    pub status: String,
+    pub restarts: u32,
+    pub age: String,
+    pub cpu: Option<String>,
+    pub memory: Option<String>,
+}
+
+/// K8s 操作结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct K8sOpsResult {
+    pub context: String,
+    pub action: K8sAction,
+    pub status: TaskStatus,
+    pub nodes: Vec<K8sNode>,
+    pub pods: Vec<K8sPod>,
+    pub output: String,
+    pub recommendations: Vec<String>,
+    pub audit_trail: Vec<AuditEntry>,
 }
 
 #[cfg(test)]

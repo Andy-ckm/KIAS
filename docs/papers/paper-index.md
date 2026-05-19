@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (22:52)
+更新时间: 2026-05-19 (23:10)
 
-## 论文列表 (159 篇)
+## 论文列表 (170 篇)
 
-### 已下载论文 (148 篇)
+### 已下载论文 (159 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
 - ✅ 2605.18703.pdf (EnvFactory: Scaling Tool-Use Agents via Executable Environments Synthesis and Robust RL)
 - ✅ 2605.18693.pdf (SkillGenBench: Benchmarking Skill Generation Pipelines for LLM Agents)
@@ -150,6 +150,17 @@
 - ✅ 2604.14572.pdf (Don't Retrieve, Navigate: Distilling Enterprise Knowledge into Navigable Agent Skills)
 - ✅ 2603.16011.pdf (FormulaCode: Evaluating Agentic Optimization on Large Codebases)
 - ✅ 2601.19923.pdf (Structure-BiEval: Dual-Track Framework for Decoupling Structure and Content in LLM Evaluation)
+- ✅ 2605.18583.pdf (Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks)
+- ✅ 2605.18565.pdf (LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agent Systems)
+- ✅ 2605.18421.pdf (EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective)
+- ✅ 2605.18401.pdf (SkillsVote: Lifecycle Governance of Agent Skills)
+- ✅ 2605.17998.pdf (Verify-Gated Completion as Admission Control in Governed Multi-Agent Runtime)
+- ✅ 2605.17877.pdf (PAIR: Prefix-Aware Internal Reward Model for Multi-Turn Agent Optimization)
+- ✅ 2605.17480.pdf (The Capability Paradox: How Smaller Auditors Make Multi-Agent Systems Less Secure)
+- ✅ 2605.17444.pdf (MemRepair: Hierarchical Memory for Agentic Repository-Level Vulnerability Repair)
+- ✅ 2605.16909.pdf (TOBench: Task-Oriented Omni-Modal Benchmark for Tool-Using Agents)
+- ✅ 2605.16746.pdf (State Contamination in Memory-Augmented LLM Agents)
+- ✅ 2605.14290.pdf (Web Agents Should Adopt Plan-Then-Execute Paradigm)
 
 ### 待下载论文 (0 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
@@ -162,6 +173,72 @@
 ---
 
 ## 全部论文清单
+
+**[2605.18583]** Overeager Coding Agents: Measuring Out-of-Scope Actions on Benign Tasks
+   - 日期: 2026-05-18 | 分类: cs.AI, cs.SE
+   - 主题: coding agents, safety, out-of-scope actions, benign tasks
+   - 链接: https://arxiv.org/abs/2605.18583
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.18565]** LongMINT: Evaluating Memory under Multi-Target Interference in Long-Horizon Agent Systems
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent memory, multi-target interference, long-horizon, memory evaluation
+   - 链接: https://arxiv.org/abs/2605.18565
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.18421]** EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent memory, benchmarking, self-evolving memory, memory evaluation
+   - 链接: https://arxiv.org/abs/2605.18421
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.18401]** SkillsVote: Lifecycle Governance of Agent Skills from Collection, Recommendation to Evolution
+   - 日期: 2026-05-18 | 分类: cs.AI
+   - 主题: agent skills, lifecycle governance, skill evolution, skill recommendation
+   - 链接: https://arxiv.org/abs/2605.18401
+   - 状态: ✅ 已下载 (1.2MB)
+
+**[2605.17998]** Verify-Gated Completion as Admission Control in a Governed Multi-Agent Runtime
+   - 日期: 2026-05-18 | 分类: cs.AI, cs.MA
+   - 主题: multi-agent runtime, admission control, verify-gated, governance
+   - 链接: https://arxiv.org/abs/2605.17998
+   - 状态: ✅ 已下载 (0.9MB)
+
+**[2605.17877]** PAIR: Prefix-Aware Internal Reward Model for Multi-Turn Agent Optimization
+   - 日期: 2026-05-18 | 分类: cs.AI, cs.LG
+   - 主题: multi-turn agent, reward model, GRPO, prefix-aware, agent optimization
+   - 链接: https://arxiv.org/abs/2605.17877
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.17480]** The Capability Paradox: How Smaller Auditors Make Multi-Agent Systems Less Secure
+   - 日期: 2026-05-17 | 分类: cs.AI, cs.CR
+   - 主题: multi-agent security, auditor capability, security paradox, LLM safety
+   - 链接: https://arxiv.org/abs/2605.17480
+   - 状态: ✅ 已下载 (0.9MB)
+
+**[2605.17444]** MemRepair: Hierarchical Memory for Agentic Repository-Level Vulnerability Repair
+   - 日期: 2026-05-17 | 分类: cs.AI, cs.SE
+   - 主题: hierarchical memory, vulnerability repair, repository-level, agent memory
+   - 链接: https://arxiv.org/abs/2605.17444
+   - 状态: ✅ 已下载 (0.1MB)
+
+**[2605.16909]** TOBench: A Task-Oriented Omni-Modal Benchmark for Real-World Tool-Using Agents
+   - 日期: 2026-05-16 | 分类: cs.AI
+   - 主题: tool-using agents, benchmark, omni-modal, task-oriented
+   - 链接: https://arxiv.org/abs/2605.16909
+   - 状态: ✅ 已下载 (1.0MB)
+
+**[2605.16746]** State Contamination in Memory-Augmented LLM Agents
+   - 日期: 2026-05-16 | 分类: cs.AI, cs.CL
+   - 主题: memory-augmented agents, state contamination, persistent state, memory integrity
+   - 链接: https://arxiv.org/abs/2605.16746
+   - 状态: ✅ 已下载 (0.9MB)
+
+**[2605.14290]** Web Agents Should Adopt the Plan-Then-Execute Paradigm
+   - 日期: 2026-05-14 | 分类: cs.AI
+   - 主题: web agents, plan-then-execute, ReAct paradigm, agent architecture
+   - 链接: https://arxiv.org/abs/2605.14290
+   - 状态: ✅ 已下载 (0.4MB)
 
 **[2605.18747]** Code as Agent Harness
    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE

@@ -119,7 +119,9 @@ mod tests {
         let initial_count = detector.monitored_paths().len();
         detector.add_monitor("/etc/nginx/nginx.conf".to_string());
         assert_eq!(detector.monitored_paths().len(), initial_count + 1);
-        assert!(detector.monitored_paths().contains(&"/etc/nginx/nginx.conf".to_string()));
+        assert!(detector
+            .monitored_paths()
+            .contains(&"/etc/nginx/nginx.conf".to_string()));
     }
 
     #[test]

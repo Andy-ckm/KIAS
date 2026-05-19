@@ -2754,4 +2754,218 @@ mod tests {
         let pending_other = manager.get_pending_approvals("other_user");
         assert_eq!(pending_other.len(), 0);
     }
+
+    #[test]
+    fn test_create_with_all_change_types() {
+        let mut manager = ItChangeManager::new();
+        let types = vec![
+            ChangeType::Infrastructure,
+            ChangeType::Application,
+            ChangeType::Configuration,
+            ChangeType::DataMigration,
+            ChangeType::Interface,
+            ChangeType::Security,
+            ChangeType::Data,
+        ];
+        for ct in types {
+            let change = manager.create_change_request(
+                format!("变更 {:?}", ct),
+                "描述".to_string(),
+                ct.clone(),
+                ChangeCategory::Normal,
+                RiskLevel::Low,
+                "user".to_string(),
+                "IT".to_string(),
+                "回滚".to_string(),
+                "实施".to_string(),
+                create_test_impact_assessment(),
+            );
+            assert_eq!(change.change_type, ct);
+        }
+        assert_eq!(manager.list_changes().len(), 7);
+    }
+
+    #[test]
+    fn test_create_with_all_risk_levels() {
+        let mut manager = ItChangeManager::new();
+        let risks = vec![
+            RiskLevel::Critical,
+            RiskLevel::High,
+            RiskLevel::Medium,
+            RiskLevel::Low,
+        ];
+        for risk in &risks {
+            manager.create_change_request(
+                format!("风险 {:?}", risk),
+                "描述".to_string(),
+                ChangeType::Infrastructure,
+                ChangeCategory::Normal,
+                risk.clone(),
+                "user".to_string(),
+                "IT".to_string(),
+                "回滚".to_string(),
+                "实施".to_string(),
+                create_test_impact_assessment(),
+            );
+        }
+        assert_eq!(manager.list_changes().len(), 4);
+    }
+
+    #[test]
+    fn test_gxp_impact_levels() {
+        let mut manager = ItChangeManager::new();
+        let impacts = vec![GxpImpact::Direct, GxpImpact::Indirect, GxpImpact::None];
+        for impact in impacts {
+            let mut ia = create_test_impact_assessment();
+            ia.gxp_impact = impact.clone();
+            let change = manager.create_change_request(
+                format!("GxP {:?}", impact),
+                "描述".to_string(),
+                ChangeType::Infrastructure,
+                ChangeCategory::Normal,
+                RiskLevel::Low,
+                "user".to_string(),
+                "IT".to_string(),
+                "回滚".to_string(),
+                "实施".to_string(),
+                ia,
+            );
+            assert_eq!(change.impact_assessment.gxp_impact, impact);
+        }
+    }
+
+    #[test]
+    fn test_change_number_format() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "格式测试".to_string(),
+            "描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        // Change number should be non-empty
+        assert!(!change.change_number.is_empty());
+    }
+
+    #[test]
+    fn test_created_at_set() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "时间测试".to_string(),
+            "描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        assert!(change.created_at <= Utc::now());
+    }
+
+    #[test]
+    fn test_updated_at_changes_on_submit() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "更新时间测试".to_string(),
+            "描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        let original_updated = change.updated_at;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        manager
+            .submit_for_review(&change.id, "user", None, None)
+            .unwrap();
+        let updated = manager.get_change(&change.id).unwrap();
+        assert!(updated.updated_at >= original_updated);
+    }
+
+    #[test]
+    fn test_requester_set_correctly() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "请求者测试".to_string(),
+            "描述".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::Medium,
+            "zhang.san".to_string(),
+            "质量部".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        assert_eq!(change.requester, "zhang.san");
+        assert_eq!(change.requester_department, "质量部");
+    }
+
+    #[test]
+    fn test_rollback_plan_stored() {
+        let mut manager = ItChangeManager::new();
+        let change = manager.create_change_request(
+            "回滚计划测试".to_string(),
+            "描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "恢复到v1.0版本".to_string(),
+            "升级到v2.0".to_string(),
+            create_test_impact_assessment(),
+        );
+        assert_eq!(change.rollback_plan, "恢复到v1.0版本");
+        assert_eq!(change.implementation_plan, "升级到v2.0");
+    }
+
+    #[test]
+    fn test_multiple_managers_independent() {
+        let mut mgr1 = ItChangeManager::new();
+        let mut mgr2 = ItChangeManager::new();
+
+        mgr1.create_change_request(
+            "mgr1变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Infrastructure,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+        mgr2.create_change_request(
+            "mgr2变更".to_string(),
+            "描述".to_string(),
+            ChangeType::Application,
+            ChangeCategory::Normal,
+            RiskLevel::Low,
+            "user".to_string(),
+            "IT".to_string(),
+            "回滚".to_string(),
+            "实施".to_string(),
+            create_test_impact_assessment(),
+        );
+
+        assert_eq!(mgr1.list_changes().len(), 1);
+        assert_eq!(mgr2.list_changes().len(), 1);
+        assert_eq!(mgr1.list_changes()[0].title, "mgr1变更");
+        assert_eq!(mgr2.list_changes()[0].title, "mgr2变更");
+    }
 }

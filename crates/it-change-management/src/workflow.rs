@@ -115,3 +115,128 @@ impl WorkflowEngine {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_standard_approval_steps() {
+        let wf = WorkflowEngine::standard_approval();
+        assert_eq!(wf.steps.len(), 3);
+        assert_eq!(wf.id, "wf-standard-001");
+    }
+
+    #[test]
+    fn test_standard_approval_step_roles() {
+        let wf = WorkflowEngine::standard_approval();
+        assert_eq!(wf.steps[0].approver_role, "dept_manager");
+        assert_eq!(wf.steps[1].approver_role, "it_manager");
+        assert_eq!(wf.steps[2].approver_role, "qa_manager");
+    }
+
+    #[test]
+    fn test_standard_approval_all_required() {
+        let wf = WorkflowEngine::standard_approval();
+        assert!(wf.steps.iter().all(|s| s.required));
+    }
+
+    #[test]
+    fn test_standard_approval_timeouts() {
+        let wf = WorkflowEngine::standard_approval();
+        assert_eq!(wf.steps[0].timeout_hours, Some(24));
+        assert_eq!(wf.steps[1].timeout_hours, Some(48));
+        assert_eq!(wf.steps[2].timeout_hours, Some(72));
+    }
+
+    #[test]
+    fn test_standard_approval_escalation() {
+        let wf = WorkflowEngine::standard_approval();
+        assert_eq!(wf.escalation_rules.len(), 1);
+        assert_eq!(wf.escalation_rules[0].escalate_to, "it_director");
+    }
+
+    #[test]
+    fn test_emergency_approval_steps() {
+        let wf = WorkflowEngine::emergency_approval();
+        assert_eq!(wf.steps.len(), 2);
+        assert_eq!(wf.id, "wf-emergency-001");
+    }
+
+    #[test]
+    fn test_emergency_approval_fast_timeout() {
+        let wf = WorkflowEngine::emergency_approval();
+        assert_eq!(wf.steps[0].timeout_hours, Some(1));
+        assert_eq!(wf.escalation_rules[0].trigger_hours, 1);
+    }
+
+    #[test]
+    fn test_emergency_approval_escalates_to_cto() {
+        let wf = WorkflowEngine::emergency_approval();
+        assert_eq!(wf.escalation_rules[0].escalate_to, "cto");
+        assert_eq!(wf.escalation_rules[0].notification_method, "sms");
+    }
+
+    #[test]
+    fn test_validate_standard_workflow_ok() {
+        let wf = WorkflowEngine::standard_approval();
+        assert!(WorkflowEngine::validate_workflow(&wf).is_ok());
+    }
+
+    #[test]
+    fn test_validate_empty_steps_fails() {
+        let wf = ApprovalWorkflow {
+            id: "test".into(),
+            name: "empty".into(),
+            steps: vec![],
+            escalation_rules: vec![],
+        };
+        assert!(WorkflowEngine::validate_workflow(&wf).is_err());
+    }
+
+    #[test]
+    fn test_validate_no_required_steps_fails() {
+        let wf = ApprovalWorkflow {
+            id: "test".into(),
+            name: "no-required".into(),
+            steps: vec![WorkflowStep {
+                step_id: 1,
+                name: "optional".into(),
+                approver_role: "anyone".into(),
+                required: false,
+                timeout_hours: None,
+                auto_approve_on_timeout: false,
+            }],
+            escalation_rules: vec![],
+        };
+        assert!(WorkflowEngine::validate_workflow(&wf).is_err());
+    }
+
+    #[test]
+    fn test_validate_with_one_required_passes() {
+        let wf = ApprovalWorkflow {
+            id: "test".into(),
+            name: "minimal".into(),
+            steps: vec![
+                WorkflowStep {
+                    step_id: 1,
+                    name: "optional".into(),
+                    approver_role: "anyone".into(),
+                    required: false,
+                    timeout_hours: None,
+                    auto_approve_on_timeout: false,
+                },
+                WorkflowStep {
+                    step_id: 2,
+                    name: "required".into(),
+                    approver_role: "manager".into(),
+                    required: true,
+                    timeout_hours: Some(24),
+                    auto_approve_on_timeout: false,
+                },
+            ],
+            escalation_rules: vec![],
+        };
+        assert!(WorkflowEngine::validate_workflow(&wf).is_ok());
+    }
+}

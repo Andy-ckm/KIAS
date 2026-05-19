@@ -23,9 +23,9 @@
   <img src="docs/logo/kias-logo.svg" alt="KIAS" width="420">
 </p>
 
-<h1 align="center">KIAS</h1>
-<p align="center"><strong>Kubernetes-like Intelligent Agent Scheduling</strong></p>
-<p align="center">Production-grade AI Agent cluster orchestration built in Rust</p>
+<h1 align="center">AgentGuard</h1>
+<p align="center"><strong>让AI Agent可追溯、透明、可控</strong></p>
+<p align="center">Production-grade AI Agent compliance & governance system built in Rust</p>
 
 <p align="center">
   <a href="docs/technical-showcase.md">Technical Deep Dive</a> ·
@@ -39,15 +39,15 @@
 
 ## Overview
 
-KIAS is a production-grade AI Agent cluster orchestration system built in Rust. It applies Kubernetes control-plane architecture to LLM agent management — treating agents as long-lived, schedulable, self-healing resources.
+AgentGuard is a production-grade AI Agent compliance & governance system built in Rust. It makes AI Agents **traceable, transparent, and controllable** — so enterprises dare to deploy Agents in production.
 
-**Core concept: Positive Loop + Self-Evolution**
+**Core mission: 让企业敢用AI Agent**
 
 ```
-Run → Observe → Extract Patterns → Generate Skills → Validate → Deploy → Run Again
+Agent的行为 → 审计追踪 → 透明可观测 → 可控可干预 → 企业敢用
 ```
 
-Each cycle makes the system stronger — failure patterns become skills, successful strategies get reused, agent capabilities accumulate over time.
+AgentGuard applies Kubernetes control-plane architecture to LLM agent management — treating agents as governed, auditable, compliance-ready resources.
 
 ### Two Core Scenarios
 

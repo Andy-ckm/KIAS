@@ -28,6 +28,9 @@ pub enum DocumentError {
     #[error("版本冲突: {0}")]
     VersionConflict(String),
 
+    #[error("验证失败: {0}")]
+    Validation(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }

@@ -262,6 +262,103 @@ impl DocumentManagement {
     pub fn get_statistics(&self) -> Result<DocumentStatistics> {
         self.repository.get_statistics()
     }
+
+    /// 从图片中提取文字（OCR）
+    pub fn extract_text_from_image(&self, image_path: &std::path::Path) -> Result<String> {
+        // 检查文件是否存在
+        if !image_path.exists() {
+            return Err(DocumentError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("图片文件不存在: {}", image_path.display()),
+            )));
+        }
+
+        // 检查文件类型
+        let extension = image_path.extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("");
+        
+        let supported_formats = ["png", "jpg", "jpeg", "tiff", "bmp"];
+        if !supported_formats.contains(&extension.to_lowercase().as_str()) {
+            return Err(DocumentError::Validation(format!(
+                "不支持的图片格式: {}，支持的格式: {:?}",
+                extension, supported_formats
+            )));
+        }
+
+        // 这里应该调用OCR引擎（如tesseract）
+        // 目前返回占位符
+        Ok(format!("OCR提取的文字（来自 {}）", image_path.display()))
+    }
+
+    /// 将文档转换为PDF
+    pub fn convert_to_pdf(&self, doc_id: &str, output_path: &std::path::Path) -> Result<()> {
+        let doc = self.repository.get(doc_id)?;
+        
+        // 检查文档状态
+        if doc.status != DocumentStatus::Published {
+            return Err(DocumentError::Validation(
+                "只有已发布的文档才能转换为PDF".to_string()
+            ));
+        }
+
+        // 这里应该调用文档转换引擎
+        // 目前只是创建一个占位文件
+        std::fs::write(output_path, format!("PDF内容: {}", doc.title))?;
+        
+        Ok(())
+    }
+
+    /// 批量导入文档
+    pub fn batch_import(&self, directory: &std::path::Path) -> Result<Vec<Document>> {
+        if !directory.exists() || !directory.is_dir() {
+            return Err(DocumentError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("目录不存在: {}", directory.display()),
+            )));
+        }
+
+        let mut imported = Vec::new();
+        
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                let extension = path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("");
+                
+                // 只处理Markdown文件
+                if extension == "md" {
+                    let content = std::fs::read_to_string(&path)?;
+                    let title = path.file_stem()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("untitled")
+                        .to_string();
+                    
+                    let request = CreateDocumentRequest {
+                        title,
+                        content,
+                        doc_type: DocumentType::Other,
+                        category: "imported".to_string(),
+                        created_by: "batch_import".to_string(),
+                        tags: vec!["imported".to_string()],
+                    };
+                    
+                    match self.repository.create(request) {
+                        Ok(doc) => imported.push(doc),
+                        Err(e) => {
+                            // 记录错误但继续处理其他文件
+                            eprintln!("导入文件 {} 失败: {}", path.display(), e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(imported)
+    }
 }
 
 /// 文档统计信息

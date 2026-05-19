@@ -9,7 +9,7 @@ status: active
 # 各模块状态
 modules:
   linux-automation:
-    tests: 131
+    tests: 167
     target_tests: 120
     status: DONE ✅
     features_done:
@@ -23,6 +23,10 @@ modules:
       - 任务队列
       - 错误处理（12个测试）
       - 数据模型（18个测试）
+      - R023: 日常巡检(CPU/内存/磁盘/进程/日志/网络/安全) ✅
+      - R024: 服务器初始化(11种步骤类型) ✅
+      - R025: Docker容器运维(11种操作) ✅
+      - R026: K8s集群运维(9种操作+故障诊断) ✅
     features_missing:
       - 流式命令输出（实时stdout/stderr）
       - 批量主机执行（并行SSH）

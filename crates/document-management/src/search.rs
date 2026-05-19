@@ -186,21 +186,14 @@ mod tests {
 
     #[test]
     fn test_highlight_matches_not_found() {
-        let snippets = DocumentSearchEngine::highlight_matches(
-            "The quick brown fox",
-            "elephant",
-            5,
-        );
+        let snippets =
+            DocumentSearchEngine::highlight_matches("The quick brown fox", "elephant", 5);
         assert!(snippets.is_empty());
     }
 
     #[test]
     fn test_highlight_matches_case_insensitive() {
-        let snippets = DocumentSearchEngine::highlight_matches(
-            "Hello World",
-            "hello",
-            3,
-        );
+        let snippets = DocumentSearchEngine::highlight_matches("Hello World", "hello", 3);
         assert_eq!(snippets.len(), 1);
     }
 

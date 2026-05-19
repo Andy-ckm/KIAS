@@ -96,3 +96,103 @@ impl PatchManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_patch_manager_new_yum() {
+        let pm = PatchManager::new(PackageManager::Yum);
+        assert!(!pm.auto_reboot);
+        assert!(pm.exclude_packages.is_empty());
+    }
+
+    #[test]
+    fn test_patch_manager_new_apt() {
+        let pm = PatchManager::new(PackageManager::Apt);
+        assert!(!pm.auto_reboot);
+    }
+
+    #[test]
+    fn test_build_update_command_yum_security() {
+        let pm = PatchManager::new(PackageManager::Yum);
+        assert_eq!(pm.build_update_command(true), "dnf update --security -y");
+    }
+
+    #[test]
+    fn test_build_update_command_yum_all() {
+        let pm = PatchManager::new(PackageManager::Yum);
+        assert_eq!(pm.build_update_command(false), "dnf update -y");
+    }
+
+    #[test]
+    fn test_build_update_command_apt_security() {
+        let pm = PatchManager::new(PackageManager::Apt);
+        let cmd = pm.build_update_command(true);
+        assert!(cmd.contains("apt-get update"));
+        assert!(cmd.contains("security.list"));
+    }
+
+    #[test]
+    fn test_build_update_command_apt_all() {
+        let pm = PatchManager::new(PackageManager::Apt);
+        let cmd = pm.build_update_command(false);
+        assert_eq!(cmd, "apt-get update && apt-get upgrade -y");
+    }
+
+    #[test]
+    fn test_build_update_command_dnf_security() {
+        let pm = PatchManager::new(PackageManager::Dnf);
+        assert_eq!(pm.build_update_command(true), "dnf update --security -y");
+    }
+
+    #[test]
+    fn test_build_update_command_zypper_security() {
+        let pm = PatchManager::new(PackageManager::Zypper);
+        assert_eq!(pm.build_update_command(true), "zypper patch --category security");
+    }
+
+    #[test]
+    fn test_build_update_command_zypper_all() {
+        let pm = PatchManager::new(PackageManager::Zypper);
+        assert_eq!(pm.build_update_command(false), "zypper update -y");
+    }
+
+    #[test]
+    fn test_build_check_command_yum() {
+        let pm = PatchManager::new(PackageManager::Yum);
+        assert_eq!(pm.build_check_command(), "dnf check-update --security");
+    }
+
+    #[test]
+    fn test_build_check_command_apt() {
+        let pm = PatchManager::new(PackageManager::Apt);
+        assert!(pm.build_check_command().contains("apt list"));
+    }
+
+    #[test]
+    fn test_build_check_command_zypper() {
+        let pm = PatchManager::new(PackageManager::Zypper);
+        assert_eq!(pm.build_check_command(), "zypper list-patches");
+    }
+
+    #[test]
+    fn test_build_reboot_check_command_yum() {
+        let pm = PatchManager::new(PackageManager::Yum);
+        assert_eq!(pm.build_reboot_check_command(), "needs-restarting -r");
+    }
+
+    #[test]
+    fn test_build_reboot_check_command_apt() {
+        let pm = PatchManager::new(PackageManager::Apt);
+        let cmd = pm.build_reboot_check_command();
+        assert!(cmd.contains("reboot-required"));
+    }
+
+    #[test]
+    fn test_build_reboot_check_command_zypper() {
+        let pm = PatchManager::new(PackageManager::Zypper);
+        assert_eq!(pm.build_reboot_check_command(), "zypper needs-rebooting");
+    }
+}

@@ -617,4 +617,133 @@ mod tests {
         );
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_get_document_not_found() {
+        let (system, _tmp) = create_test_system();
+        let result = system.get_document("nonexistent-id");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_documents_no_match() {
+        let (system, _tmp) = create_test_system();
+        system
+            .create_document(CreateDocumentRequest {
+                title: "测试文档".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        let results = system.search_documents("不存在的关键词xyz").unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_get_version_history_single_version() {
+        let (system, _tmp) = create_test_system();
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "版本测试".to_string(),
+                content: "初始内容".to_string(),
+                doc_type: DocumentType::Procedure,
+                category: "SOP".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        let versions = system.get_version_history(&doc.id).unwrap();
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].version, 1);
+    }
+
+    #[test]
+    fn test_get_audit_log_new_doc() {
+        let (system, _tmp) = create_test_system();
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "审计测试".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Policy,
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        let log = system.get_audit_log(&doc.id).unwrap();
+        assert!(!log.is_empty());
+    }
+
+    #[test]
+    fn test_create_document_different_types() {
+        let (system, _tmp) = create_test_system();
+
+        let types = vec![
+            DocumentType::Policy,
+            DocumentType::Procedure,
+            DocumentType::WorkInstruction,
+            DocumentType::Form,
+            DocumentType::Record,
+            DocumentType::Report,
+            DocumentType::Other,
+        ];
+
+        for (i, doc_type) in types.iter().enumerate() {
+            let request = CreateDocumentRequest {
+                title: format!("文档类型测试 {}", i),
+                content: "内容".to_string(),
+                doc_type: doc_type.clone(),
+                category: "测试".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            };
+            let doc = system.create_document(request).unwrap();
+            assert_eq!(doc.doc_type, *doc_type);
+        }
+
+        let stats = system.get_statistics().unwrap();
+        assert_eq!(stats.total_documents, 7);
+    }
+
+    #[test]
+    fn test_statistics_after_lifecycle() {
+        let (system, _tmp) = create_test_system();
+
+        let doc = system
+            .create_document(CreateDocumentRequest {
+                title: "统计测试".to_string(),
+                content: "内容".to_string(),
+                doc_type: DocumentType::Procedure,
+                category: "SOP".to_string(),
+                created_by: "user1".to_string(),
+                tags: vec![],
+            })
+            .unwrap();
+
+        system.submit_for_approval(&doc.id, "user1").unwrap();
+
+        let stats = system.get_statistics().unwrap();
+        assert_eq!(stats.total_documents, 1);
+        assert!(stats.under_review_count >= 1);
+    }
+
+    #[test]
+    fn test_batch_import_nonexistent_dir() {
+        let (system, _tmp) = create_test_system();
+        let result = system.batch_import(std::path::Path::new("/nonexistent/dir"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_to_pdf_nonexistent_doc() {
+        let (system, tmp) = create_test_system();
+        let result = system.convert_to_pdf("nonexistent", &tmp.path().join("out.pdf"));
+        assert!(result.is_err());
+    }
 }

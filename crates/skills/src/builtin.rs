@@ -1636,4 +1636,250 @@ mod tests {
         let research_skills = registry.find_by_tag("research");
         assert_eq!(research_skills.len(), 2); // paper_fetch, doc_analysis
     }
+
+    #[tokio::test]
+    async fn test_sql_query_select() {
+        let skill = SqlQuerySkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "query": "SELECT * FROM users"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+        assert_eq!(val["is_read_only"], true);
+    }
+
+    #[tokio::test]
+    async fn test_data_transform_filter() {
+        let skill = DataTransformSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "data": [
+                    {"name": "Alice", "age": 30},
+                    {"name": "Bob", "age": 25}
+                ],
+                "transform": "filter",
+                "key": "name",
+                "value": "Alice"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+        let filtered = val["data"].as_array().unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0]["name"], "Alice");
+    }
+
+    #[tokio::test]
+    async fn test_data_transform_sort() {
+        let skill = DataTransformSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "data": [
+                    {"name": "Bob", "age": 25},
+                    {"name": "Alice", "age": 30}
+                ],
+                "transform": "sort",
+                "key": "name"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_data_transform_count() {
+        let skill = DataTransformSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "data": [
+                    {"name": "Alice", "age": 30},
+                    {"name": "Bob", "age": 25},
+                    {"name": "Alice", "age": 35}
+                ],
+                "transform": "count",
+                "key": "name"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_data_transform_identity() {
+        let skill = DataTransformSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "data": [{"name": "Alice"}],
+                "transform": "identity"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_network_scan_quick() {
+        let skill = NetworkScanSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "target": "localhost",
+                "scan_type": "quick"
+            }))
+            .await;
+        // May fail if nmap is not installed
+        if let Ok(val) = result {
+            assert!(val.get("target").is_some());
+            assert!(val.get("scan_type").is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_paper_fetch_arxiv() {
+        let skill = PaperFetchSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "query": "test",
+                "source": "arxiv"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_doc_analysis_with_content() {
+        let skill = DocAnalysisSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "content": "This is a test document."
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_journal_entry_create() {
+        let skill = JournalEntrySkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "action": "create",
+                "title": "Test Entry",
+                "content": "Test content"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_reconciliation_run() {
+        let skill = ReconciliationSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "account": "test_account",
+                "period": "2024-01",
+                "set_a": [{"id": "1", "amount": 100}],
+                "set_b": [{"id": "1", "amount": 100}]
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_resume_screening_analyze() {
+        let skill = ResumeScreeningSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "job_requirements": "Rust developer with 5 years experience",
+                "resume_text": "Experienced Rust developer with 6 years of experience"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_attendance_tracking_status() {
+        let skill = AttendanceTrackingSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "action": "status",
+                "employee": "test_user"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_procurement_create() {
+        let skill = ProcurementSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "action": "create",
+                "items": ["item1", "item2"]
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_inventory_management_check() {
+        let skill = InventoryManagementSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "action": "check",
+                "item": "test_item"
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_presentation_generation_create() {
+        let skill = PresentationGenerationSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "topic": "Q1 2024 Results",
+                "audience": "executives",
+                "slides": 5
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_business_analysis_analyze() {
+        let skill = BusinessAnalysisSkill;
+        let result = skill
+            .execute(serde_json::json!({
+                "action": "analyze",
+                "data": {"revenue": 100000, "cost": 50000}
+            }))
+            .await;
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        assert_eq!(val["status"], "ok");
+    }
 }

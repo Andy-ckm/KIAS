@@ -524,4 +524,118 @@ mod tests {
             }
         }
     }
+    #[tokio::test]
+    async fn test_keyword_retriever_by_type() {
+        let graph = build_test_graph();
+        let retriever = KeywordRetriever::new(graph);
+        let results = retriever
+            .retrieve_by_type("Rust", NodeType::Concept, 5)
+            .await
+            .unwrap();
+        for r in &results {
+            assert_eq!(r.node.node_type, NodeType::Concept);
+            assert!(r.node.content.to_lowercase().contains("rust"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_keyword_retriever_empty_query() {
+        let graph = build_test_graph();
+        let retriever = KeywordRetriever::new(graph);
+        let results = retriever.retrieve("", 5).await.unwrap();
+        // Empty string matches everything (contains check)
+        assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_keyword_retriever_no_match() {
+        let graph = build_test_graph();
+        let retriever = KeywordRetriever::new(graph);
+        let results = retriever.retrieve("quantum entanglement", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_keyword_retriever_by_type_empty_query() {
+        let graph = build_test_graph();
+        let retriever = KeywordRetriever::new(graph);
+        let results = retriever
+            .retrieve_by_type("", NodeType::Document, 5)
+            .await
+            .unwrap();
+        // Empty string matches all documents
+        assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_empty_graph() {
+        let graph = KnowledgeGraph::new();
+        let retriever = HybridRetriever::new(graph);
+        let results = retriever.retrieve("anything", 5).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_by_type_empty_query() {
+        let graph = build_test_graph();
+        let retriever = HybridRetriever::new(graph);
+        let results = retriever
+            .retrieve_by_type("", NodeType::Document, 5)
+            .await
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_by_type_no_match() {
+        let graph = build_test_graph();
+        let retriever = HybridRetriever::new(graph);
+        let results = retriever
+            .retrieve_by_type("blockchain", NodeType::Document, 5)
+            .await
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_tokenize_special_chars() {
+        let terms = HybridRetriever::tokenize("hello-world foo_bar baz!");
+        assert!(terms.contains(&"hello-world".to_string()));
+        assert!(terms.contains(&"foo_bar".to_string()));
+        // "baz!" - the ! is stripped, leaving "baz"
+        assert!(terms.contains(&"baz".to_string()));
+    }
+
+    #[test]
+    fn test_tokenize_empty() {
+        let terms = HybridRetriever::tokenize("");
+        assert!(terms.is_empty());
+    }
+
+    #[test]
+    fn test_tokenize_all_stop_words() {
+        let terms = HybridRetriever::tokenize("the is a an");
+        assert!(terms.is_empty());
+    }
+
+    #[test]
+    fn test_term_frequency() {
+        let query = vec!["rust".to_string(), "memory".to_string()];
+        let tf = HybridRetriever::term_frequency(&query, "Rust uses memory safety via ownership");
+        assert!(tf > 0.0);
+    }
+
+    #[test]
+    fn test_term_frequency_no_match() {
+        let query = vec!["quantum".to_string()];
+        let tf = HybridRetriever::term_frequency(&query, "Rust programming language");
+        assert_eq!(tf, 0.0);
+    }
+
+    #[test]
+    fn test_match_type_equality() {
+        assert_eq!(MatchType::ContentMatch, MatchType::ContentMatch);
+        assert_ne!(MatchType::ContentMatch, MatchType::GraphExpansion);
+        assert_ne!(MatchType::MetadataMatch, MatchType::TagMatch);
+    }
 }

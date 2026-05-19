@@ -866,6 +866,8 @@ mod tests {
         assert!(report.contains("AgentGuard 数据质量报告"));
         assert!(report.contains("总知识条目: 1"));
         assert!(report.contains("总采纳: 1"));
+        assert!(report.contains("总交叉验证"));
+        assert!(report.contains("平均质量分"));
     }
 
     #[test]
@@ -990,5 +992,162 @@ mod tests {
         // 6. Report
         let report = pipeline.generate_report();
         assert!(report.contains("高质量"));
+    }
+    #[test]
+    fn test_quality_weights_default() {
+        let w = QualityWeights::default();
+        assert!((w.source_trust - 0.2).abs() < f64::EPSILON);
+        assert!((w.cross_validation - 0.25).abs() < f64::EPSILON);
+        assert!((w.user_feedback - 0.3).abs() < f64::EPSILON);
+        assert!((w.time_decay - 0.1).abs() < f64::EPSILON);
+        assert!((w.execution_success - 0.15).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_quality_scorer_clamps_to_one() {
+        let scorer = QualityScorer::new();
+        let mut entry = make_entry("e1", vec![]);
+        entry.source_trust_score = 1.0;
+        entry.cross_validation_score = 1.0;
+        entry.user_feedback_score = 1.0;
+        entry.execution_success_rate = 1.0;
+        let score = scorer.compute_score(&entry);
+        assert!(score <= 1.0);
+    }
+
+    #[test]
+    fn test_record_adoption_nonexistent() {
+        let mut pipeline = QualityPipeline::new();
+        // Should not panic
+        pipeline.record_adoption("nonexistent");
+        assert_eq!(pipeline.stats().total_entries, 0);
+    }
+
+    #[test]
+    fn test_record_rejection_nonexistent() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.record_rejection("nonexistent");
+        assert_eq!(pipeline.stats().total_entries, 0);
+    }
+
+    #[test]
+    fn test_record_execution_nonexistent() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.record_execution("nonexistent", true);
+        assert_eq!(pipeline.stats().total_entries, 0);
+    }
+
+    #[test]
+    fn test_mark_negative_nonexistent() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.mark_negative("nonexistent", "reason");
+        assert_eq!(pipeline.stats().total_entries, 0);
+    }
+
+    #[test]
+    fn test_search_by_tag_with_min_quality() {
+        let mut pipeline = QualityPipeline::new();
+        let mut e1 = make_entry("e1", vec!["rust"]);
+        e1.source_trust_score = 0.95;
+        e1.user_feedback_score = 0.95;
+        pipeline.add_entry(e1);
+        pipeline.add_entry(make_entry("e2", vec!["rust"]));
+
+        // With high min_quality, only high-quality entry returned
+        let results = pipeline.search_by_tag("rust", 0.5);
+        assert!(results.len() <= 2);
+        for entry in &results {
+            assert!(entry.quality_score >= 0.5);
+        }
+    }
+
+    #[test]
+    fn test_cleanup_removes_nothing_when_all_good() {
+        let mut pipeline = QualityPipeline::new();
+        let mut e1 = make_entry("e1", vec![]);
+        e1.source_trust_score = 0.9;
+        e1.user_feedback_score = 0.9;
+        pipeline.add_entry(e1);
+        let removed = pipeline.cleanup_low_quality(0.1);
+        assert_eq!(removed, 0);
+        assert_eq!(pipeline.stats().total_entries, 1);
+    }
+
+    #[test]
+    fn test_stats_after_multiple_operations() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.add_entry(make_entry("e1", vec![]));
+        pipeline.add_entry(make_entry("e2", vec![]));
+        pipeline.record_adoption("e1");
+        pipeline.record_rejection("e2");
+        pipeline.mark_negative("e2", "bad");
+
+        let stats = pipeline.stats();
+        assert_eq!(stats.total_entries, 2);
+        assert_eq!(stats.total_adoptions, 1);
+        assert_eq!(stats.total_rejections, 1);
+        assert_eq!(stats.negative_count, 1);
+    }
+
+    #[test]
+    fn test_report_contains_stats() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.add_entry(make_entry("e1", vec![]));
+        pipeline.record_adoption("e1");
+        pipeline.record_execution("e1", true);
+
+        let report = pipeline.generate_report();
+        assert!(report.contains("总采纳: 1"));
+        assert!(report.contains("总交叉验证"));
+        assert!(report.contains("平均质量分"));
+    }
+
+    #[test]
+    fn test_execution_failure_degrades_rate() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.add_entry(make_entry("e1", vec![]));
+        pipeline.record_execution("e1", false);
+        pipeline.record_execution("e1", false);
+        let rate = pipeline.entries.get("e1").unwrap().execution_success_rate;
+        assert!(rate < 0.5);
+    }
+
+    #[test]
+    fn test_multiple_cross_validations() {
+        let mut pipeline = QualityPipeline::new();
+        pipeline.add_entry(make_entry("e1", vec![]));
+
+        // First validation
+        let outputs1 = vec![
+            AgentOutput {
+                agent_id: "a1".into(),
+                output: "yes".into(),
+                confidence: 0.9,
+            },
+            AgentOutput {
+                agent_id: "a2".into(),
+                output: "yes".into(),
+                confidence: 0.85,
+            },
+        ];
+        pipeline.cross_validate("e1", outputs1);
+        let v1 = pipeline.entries.get("e1").unwrap().validation_count;
+
+        // Second validation
+        let outputs2 = vec![
+            AgentOutput {
+                agent_id: "a3".into(),
+                output: "yes".into(),
+                confidence: 0.8,
+            },
+            AgentOutput {
+                agent_id: "a4".into(),
+                output: "yes".into(),
+                confidence: 0.9,
+            },
+        ];
+        pipeline.cross_validate("e1", outputs2);
+        let v2 = pipeline.entries.get("e1").unwrap().validation_count;
+        assert!(v2 > v1);
     }
 }

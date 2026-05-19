@@ -729,4 +729,235 @@ mod tests {
         assert_eq!(truncate("short", 10), "short");
         assert_eq!(truncate("a long string here", 5), "a lon...");
     }
+    #[tokio::test]
+    async fn test_tool_result_get_full() {
+        let store = ToolResultStore::new(ToolResultStoreConfig::default());
+        store.store("id1", "search", "full content here").await;
+        assert_eq!(
+            store.get_full("id1").await,
+            Some("full content here".to_string())
+        );
+        assert_eq!(store.get_full("nonexistent").await, None);
+    }
+
+    #[tokio::test]
+    async fn test_tool_result_get_preview() {
+        let store = ToolResultStore::new(ToolResultStoreConfig::default());
+        store.store("id1", "search", "preview content").await;
+        assert_eq!(
+            store.get_preview("id1").await,
+            Some("preview content".to_string())
+        );
+        assert_eq!(store.get_preview("missing").await, None);
+    }
+
+    #[tokio::test]
+    async fn test_tool_result_count() {
+        let store = ToolResultStore::new(ToolResultStoreConfig::default());
+        assert_eq!(store.count().await, 0);
+        store.store("a", "search", "content a").await;
+        store.store("b", "find", "content b").await;
+        assert_eq!(store.count().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_tool_result_cleanup() {
+        let store = ToolResultStore::new(ToolResultStoreConfig::default());
+        store.store("old", "search", "old data").await;
+        // Cleanup with zero duration removes everything
+        store.cleanup(chrono::Duration::zero()).await;
+        assert_eq!(store.count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_tool_result_long_content_preview_format() {
+        let store = ToolResultStore::new(ToolResultStoreConfig {
+            preview_size: 10,
+            ..Default::default()
+        });
+        let preview = store.store("id1", "search", &"a".repeat(100)).await;
+        assert!(preview.starts_with("aaaaaaaaaa"));
+        assert!(preview.contains("[Full content stored at tool-results/id1]"));
+    }
+
+    #[tokio::test]
+    async fn test_session_memory_count() {
+        let mgr = SessionMemoryManager::new(SessionMemoryConfig::default());
+        assert_eq!(mgr.session_count().await, 0);
+        mgr.create_session("s1", "q1").await;
+        mgr.create_session("s2", "q2").await;
+        assert_eq!(mgr.session_count().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_session_update_duplicate_doc_dedup() {
+        let mgr = SessionMemoryManager::new(SessionMemoryConfig::default());
+        mgr.create_session("s1", "q").await;
+        mgr.update("s1", "f1", Some("doc1")).await;
+        mgr.update("s1", "f2", Some("doc1")).await; // same doc
+        let session = mgr.get_session("s1").await.unwrap();
+        assert_eq!(session.referenced_docs.len(), 1);
+        assert_eq!(session.key_findings.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_session_update_nonexistent() {
+        let mgr = SessionMemoryManager::new(SessionMemoryConfig::default());
+        // Should not panic on non-existent session
+        mgr.update("missing", "finding", None).await;
+        assert_eq!(mgr.session_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_session_needs_compaction_no_findings() {
+        let config = SessionMemoryConfig {
+            compaction_token_threshold: 100,
+            ..Default::default()
+        };
+        let mgr = SessionMemoryManager::new(config);
+        mgr.create_session("s1", "q").await;
+        // No findings → false even if tokens exceed threshold
+        assert!(!mgr.needs_compaction("s1", 500).await);
+    }
+
+    #[tokio::test]
+    async fn test_session_needs_compaction_nonexistent() {
+        let mgr = SessionMemoryManager::new(SessionMemoryConfig::default());
+        assert!(!mgr.needs_compaction("missing", 999999).await);
+    }
+
+    #[tokio::test]
+    async fn test_session_generate_summary_nonexistent() {
+        let mgr = SessionMemoryManager::new(SessionMemoryConfig::default());
+        assert!(mgr.generate_summary("missing").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_dream_memory_count() {
+        let consolidator = DreamConsolidator::new(DreamConfig::default());
+        assert_eq!(consolidator.memory_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_dream_not_needed_returns_zero() {
+        let config = DreamConfig {
+            min_sessions_to_dream: 10,
+            ..Default::default()
+        };
+        let consolidator = DreamConsolidator::new(config);
+        consolidator
+            .record_session(make_session("s1", "q", vec!["f1"]))
+            .await;
+        let result = consolidator.dream().await;
+        assert_eq!(result.memories_consolidated, 0);
+        assert_eq!(result.contradictions_resolved, 0);
+        assert!(!result.index_updated);
+        assert_eq!(result.duration_ms, 0);
+    }
+
+    #[tokio::test]
+    async fn test_dream_contradiction_detection() {
+        let config = DreamConfig {
+            min_sessions_to_dream: 1,
+            ..Default::default()
+        };
+        let consolidator = DreamConsolidator::new(config);
+        // Pre-add a memory
+        consolidator.memories.write().await.push(MemoryEntry {
+            id: "m1".into(),
+            category: MemoryCategory::ErrorFix,
+            content: "Error in auth module fixed by patching".into(),
+            source_sessions: vec![],
+            confidence: 0.9,
+            created_at: chrono::Utc::now(),
+            last_accessed: chrono::Utc::now(),
+            access_count: 0,
+        });
+        // Record session with finding that contains the existing memory content
+        consolidator
+            .record_session(make_session(
+                "s1",
+                "fix",
+                vec!["Error in auth module fixed by patching"],
+            ))
+            .await;
+        let result = consolidator.dream().await;
+        // The finding should be detected as contradiction (substring match)
+        assert!(result.contradictions_resolved > 0);
+    }
+
+    #[tokio::test]
+    async fn test_dream_query_no_match() {
+        let consolidator = DreamConsolidator::new(DreamConfig::default());
+        let results = consolidator
+            .query(&MemoryCategory::ErrorFix, "nonexistent")
+            .await;
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_classify_finding_workflow() {
+        let (cat, conf) = classify_finding("workflow for deployment");
+        assert_eq!(cat, MemoryCategory::WorkflowPattern);
+        assert!(conf > 0.6);
+    }
+
+    #[tokio::test]
+    async fn test_classify_finding_structure() {
+        let (cat, conf) = classify_finding("architecture of the system");
+        assert_eq!(cat, MemoryCategory::ProjectStructure);
+        assert!(conf > 0.7);
+    }
+
+    #[tokio::test]
+    async fn test_classify_finding_default() {
+        let (cat, conf) = classify_finding("random observation");
+        assert_eq!(cat, MemoryCategory::BestPractice);
+        assert!(conf < 0.7);
+    }
+
+    #[test]
+    fn test_truncate_exact_boundary() {
+        assert_eq!(truncate("exact", 5), "exact");
+        assert_eq!(truncate("toolong", 4), "tool...");
+    }
+
+    #[test]
+    fn test_truncate_empty() {
+        assert_eq!(truncate("", 10), "");
+    }
+
+    #[test]
+    fn test_memory_category_partial_eq() {
+        assert_eq!(MemoryCategory::ErrorFix, MemoryCategory::ErrorFix);
+        assert_ne!(MemoryCategory::ErrorFix, MemoryCategory::BestPractice);
+    }
+
+    #[test]
+    fn test_default_configs() {
+        let trc = ToolResultStoreConfig::default();
+        assert_eq!(trc.preview_size, 2048);
+        assert_eq!(trc.max_storage_size, 100 * 1024 * 1024);
+
+        let smc = SessionMemoryConfig::default();
+        assert_eq!(smc.compaction_token_threshold, 100_000);
+        assert_eq!(smc.min_messages_to_keep, 5);
+
+        let dc = DreamConfig::default();
+        assert_eq!(dc.min_sessions_to_dream, 5);
+        assert_eq!(dc.dream_interval_hours, 24);
+        assert_eq!(dc.max_index_lines, 200);
+    }
+
+    fn make_session(id: &str, query: &str, findings: Vec<&str>) -> SessionMemoryEntry {
+        SessionMemoryEntry {
+            session_id: id.into(),
+            query_summary: query.into(),
+            key_findings: findings.into_iter().map(String::from).collect(),
+            referenced_docs: vec![],
+            tool_stats: ToolCallStats::default(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
 }

@@ -221,4 +221,70 @@ mod tests {
         let state = AuditMiddlewareState::new(log).with_reads(true);
         assert!(state.audit_reads);
     }
+
+    #[test]
+    fn test_method_to_action_head_options() {
+        assert_eq!(method_to_action(&Method::HEAD), Some(AuditAction::Read));
+        assert_eq!(
+            method_to_action(&Method::OPTIONS),
+            Some(AuditAction::Read)
+        );
+    }
+
+    #[test]
+    fn test_infer_resource_type_empty_path() {
+        assert_eq!(infer_resource_type("/"), "unknown");
+        assert_eq!(infer_resource_type(""), "unknown");
+    }
+
+    #[test]
+    fn test_infer_resource_type_no_api_prefix() {
+        assert_eq!(infer_resource_type("/other/path"), "other");
+        // "agents" without /api/v1/ prefix still gets singularized
+        assert_eq!(infer_resource_type("agents"), "agent");
+    }
+
+    #[test]
+    fn test_infer_resource_type_tasks() {
+        assert_eq!(infer_resource_type("/api/v1/tasks"), "task");
+        assert_eq!(infer_resource_type("/api/v1/tasks/42"), "task");
+    }
+
+    #[test]
+    fn test_infer_resource_type_skills() {
+        assert_eq!(infer_resource_type("/api/v1/skills"), "skill");
+    }
+
+    #[test]
+    fn test_infer_resource_type_configs() {
+        assert_eq!(infer_resource_type("/api/v1/configs"), "config");
+    }
+
+    #[test]
+    fn test_infer_resource_id_empty_path() {
+        assert_eq!(infer_resource_id("/api/v1/"), "*");
+    }
+
+    #[test]
+    fn test_infer_resource_id_no_api_prefix() {
+        // Without /api/v1/ prefix, second segment is the resource id
+        assert_eq!(infer_resource_id("/other"), "other");
+        assert_eq!(infer_resource_id("/other/abc"), "other");
+    }
+
+    #[test]
+    fn test_infer_resource_id_deep_path() {
+        assert_eq!(
+            infer_resource_id("/api/v1/agents/123/config"),
+            "123"
+        );
+    }
+
+    #[test]
+    fn test_clone_middleware_state() {
+        let log: Arc<dyn AuditLogger> = Arc::new(MemoryAuditLog::new());
+        let state = AuditMiddlewareState::new(log).with_reads(true);
+        let cloned = state.clone();
+        assert!(cloned.audit_reads);
+    }
 }

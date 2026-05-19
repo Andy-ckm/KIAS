@@ -420,4 +420,87 @@ mod tests {
         let deserialized: ResourcePolicy = serde_json::from_str(&json).unwrap();
         assert_eq!(policy, deserialized);
     }
+
+    #[test]
+    fn test_access_decision_is_allowed() {
+        assert!(AccessDecision::Allow.is_allowed());
+        assert!(!AccessDecision::Deny("reason".to_string()).is_allowed());
+    }
+
+    #[test]
+    fn test_access_decision_debug() {
+        let d = AccessDecision::Deny("test reason".to_string());
+        let debug = format!("{:?}", d);
+        assert!(debug.contains("test reason"));
+    }
+
+    #[tokio::test]
+    async fn test_policy_engine_list_policies() {
+        let engine = PolicyEngine::new();
+        assert!(engine.list_policies().await.is_empty());
+
+        engine
+            .add_policy(make_policy("p1", "Admin", "agent", "Read", PolicyEffect::Allow))
+            .await;
+        assert_eq!(engine.list_policies().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_policy_engine_remove_nonexistent() {
+        let engine = PolicyEngine::new();
+        assert!(!engine.remove_policy("nonexistent").await);
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_case_insensitive_action() {
+        let engine = PolicyEngine::with_policies(vec![make_policy(
+            "p1",
+            "Admin",
+            "agent",
+            "Read",
+            PolicyEffect::Allow,
+        )]);
+
+        // Should match regardless of case
+        assert!(engine.evaluate("Admin", "agent", "read").await.is_allowed());
+        assert!(engine.evaluate("Admin", "agent", "READ").await.is_allowed());
+    }
+
+    #[tokio::test]
+    async fn test_deny_overrides_allow_both_present() {
+        let engine = PolicyEngine::with_policies(vec![
+            make_policy("p1", "Admin", "agent", "Read", PolicyEffect::Allow),
+            make_policy("p2", "Admin", "agent", "Read", PolicyEffect::Deny),
+        ]);
+
+        let decision = engine.evaluate("Admin", "agent", "Read").await;
+        assert!(!decision.is_allowed());
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_unknown_role() {
+        let engine = PolicyEngine::with_policies(default_policies());
+        let decision = engine.evaluate("UnknownRole", "agent", "Read").await;
+        assert!(!decision.is_allowed());
+    }
+
+    #[test]
+    fn test_resource_policy_default_enabled() {
+        let json = r#"{"id":"p1","name":"test","role":"Admin","resource_type":"agent","action":"Read","effect":"allow"}"#;
+        let policy: ResourcePolicy = serde_json::from_str(json).unwrap();
+        assert!(policy.enabled); // default_enabled should be true
+        assert!(policy.description.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_default_policies_operator_all_resources() {
+        let engine = PolicyEngine::with_policies(default_policies());
+        // Operator can Read all resource types
+        for rt in &["agent", "node", "workflow", "task", "config", "knowledge"] {
+            assert!(
+                engine.evaluate("Operator", rt, "Read").await.is_allowed(),
+                "Operator should be able to Read {rt}"
+            );
+        }
+    }
 }

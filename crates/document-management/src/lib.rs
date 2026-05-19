@@ -15,6 +15,8 @@ pub mod repository;
 pub mod signature;
 pub mod storage;
 pub mod version;
+pub mod search;
+pub mod template;
 
 pub use document::*;
 pub use error::{DocumentError, Result};

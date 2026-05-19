@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_document_type_variants() {
-        let types = vec![
+        let types = [
             DocumentType::Policy,
             DocumentType::Procedure,
             DocumentType::WorkInstruction,
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_document_status_variants() {
-        let statuses = vec![
+        let statuses = [
             DocumentStatus::Draft,
             DocumentStatus::UnderReview,
             DocumentStatus::Approved,
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_change_type_variants() {
-        let types = vec![
+        let types = [
             ChangeType::Created,
             ChangeType::Updated,
             ChangeType::StatusChanged,

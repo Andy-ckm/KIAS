@@ -669,12 +669,11 @@ mod tests {
             make_gpu_node("mig-node", 4, 4, 32.0, 64 * 1024 * 1024 * 1024, labels_mig),
         ];
 
-        let mut preferred = vec![];
-        preferred.push(kias_common::LabelPreference {
+        let preferred = vec![kias_common::LabelPreference {
             label: "gpu-mig-enabled".to_string(),
             value: "true".to_string(),
             weight: 1.0,
-        });
+        }];
 
         let agent = Agent {
             id: "a1".to_string(),
@@ -730,12 +729,11 @@ mod tests {
             ),
         ];
 
-        let mut preferred = vec![];
-        preferred.push(kias_common::LabelPreference {
+        let preferred = vec![kias_common::LabelPreference {
             label: "gpu-mig-enabled".to_string(),
             value: "true".to_string(),
             weight: 1.0,
-        });
+        }];
 
         let agent = Agent {
             id: "a1".to_string(),

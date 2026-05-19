@@ -693,12 +693,10 @@ mod tests {
 
     #[test]
     fn test_compliance_tool_variants() {
-        let tools = vec![
-            ComplianceTool::OpenScap,
+        let tools = [ComplianceTool::OpenScap,
             ComplianceTool::Lynis,
             ComplianceTool::CisCat,
-            ComplianceTool::Custom("custom".to_string()),
-        ];
+            ComplianceTool::Custom("custom".to_string())];
         assert_eq!(tools.len(), 4);
         assert_eq!(tools[0], ComplianceTool::OpenScap);
         assert_ne!(tools[0], tools[1]);
@@ -706,12 +704,10 @@ mod tests {
 
     #[test]
     fn test_task_priority_ordering() {
-        let priorities = vec![
-            TaskPriority::Low,
+        let priorities = [TaskPriority::Low,
             TaskPriority::Normal,
             TaskPriority::High,
-            TaskPriority::Critical,
-        ];
+            TaskPriority::Critical];
         assert_eq!(priorities.len(), 4);
         assert_eq!(priorities[0], TaskPriority::Low);
         assert_ne!(priorities[0], priorities[3]);
@@ -719,14 +715,12 @@ mod tests {
 
     #[test]
     fn test_task_status_variants() {
-        let statuses = vec![
-            TaskStatus::Pending,
+        let statuses = [TaskStatus::Pending,
             TaskStatus::Running,
             TaskStatus::Success,
             TaskStatus::Failed,
             TaskStatus::PartialSuccess,
-            TaskStatus::Cancelled,
-        ];
+            TaskStatus::Cancelled];
         assert_eq!(statuses.len(), 6);
         assert_eq!(statuses[0], TaskStatus::Pending);
         assert_ne!(statuses[0], statuses[2]);
@@ -734,12 +728,10 @@ mod tests {
 
     #[test]
     fn test_severity_variants() {
-        let severities = vec![
-            Severity::Low,
+        let severities = [Severity::Low,
             Severity::Medium,
             Severity::High,
-            Severity::Critical,
-        ];
+            Severity::Critical];
         assert_eq!(severities.len(), 4);
         assert_eq!(severities[0], Severity::Low);
         assert_ne!(severities[0], severities[3]);
@@ -747,12 +739,10 @@ mod tests {
 
     #[test]
     fn test_finding_status_variants() {
-        let statuses = vec![
-            FindingStatus::Pass,
+        let statuses = [FindingStatus::Pass,
             FindingStatus::Fail,
             FindingStatus::NotApplicable,
-            FindingStatus::NotChecked,
-        ];
+            FindingStatus::NotChecked];
         assert_eq!(statuses.len(), 4);
         assert_eq!(statuses[0], FindingStatus::Pass);
         assert_ne!(statuses[0], statuses[1]);

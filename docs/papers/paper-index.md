@@ -1,11 +1,15 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-19 (23:10)
+更新时间: 2026-05-20 (00:20)
 
-## 论文列表 (160 篇)
+## 论文列表 (164 篇)
 
-### 已下载论文 (154 篇)
+### 已下载论文 (158 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
+- ✅ 2605.17046.pdf (1GC-7RC: One Graphic Card - Seven Research Challenges!)
+- ✅ 2605.14312.pdf (Making OpenAPI Documentation Agent-Ready: Detecting Documentation and REST Smells with a Multi-Agent LLM System)
+- ✅ 2605.10907.pdf (Engineering Robustness into Personal Agents with the AI Workflow Store)
+- ✅ 2605.09998.pdf (Continual Harness: Online Adaptation for Self-Improving Foundation Agents)
 - ✅ 2605.18703.pdf (EnvFactory: Scaling Tool-Use Agents via Executable Environments Synthesis and Robust RL)
 - ✅ 2605.18693.pdf (SkillGenBench: Benchmarking Skill Generation Pipelines for LLM Agents)
 - ✅ 2605.18684.pdf (Reversa: Reverse Documentation Engineering for Converting Legacy Software into Operational Specifications for AI Agents)
@@ -220,6 +224,12 @@
    - 链接: https://arxiv.org/abs/2605.17444
    - 状态: ✅ 已下载 (0.1MB)
 
+**[2605.17046]** 1GC-7RC: One Graphic Card - Seven Research Challenges!
+   - 日期: 2026-05-17 | 分类: cs.AI
+   - 主题: AI agents, research challenges, GPU, benchmark
+   - 链接: https://arxiv.org/abs/2605.17046
+   - 状态: ✅ 已下载 (0.04MB)
+
 **[2605.16909]** TOBench: A Task-Oriented Omni-Modal Benchmark for Real-World Tool-Using Agents
    - 日期: 2026-05-16 | 分类: cs.AI
    - 主题: tool-using agents, benchmark, omni-modal, task-oriented
@@ -238,11 +248,29 @@
    - 链接: https://arxiv.org/abs/2605.14290
    - 状态: ✅ 已下载 (0.4MB)
 
+**[2605.14312]** Making OpenAPI Documentation Agent-Ready: Detecting Documentation and REST Smells with a Multi-Agent LLM System
+   - 日期: 2026-05-14 | 分类: cs.AI, cs.SE
+   - 主题: OpenAPI, documentation smells, multi-agent, REST API, LLM
+   - 链接: https://arxiv.org/abs/2605.14312
+   - 状态: ✅ 已下载 (0.5MB)
+
 **[2605.11225]** PIVOT: Bridging Planning and Execution in LLM Agents via Trajectory Refinement
    - 日期: 2026-05-11 | 分类: cs.AI
    - 主题: planning, execution, trajectory refinement, LLM agents
    - 链接: https://arxiv.org/abs/2605.11225
    - 状态: ✅ 已下载 (0.1MB)
+
+**[2605.10907]** Engineering Robustness into Personal Agents with the AI Workflow Store
+   - 日期: 2026-05-13 | 分类: cs.AI, cs.SE
+   - 主题: personal agents, robustness, workflow store, agent engineering
+   - 链接: https://arxiv.org/abs/2605.10907
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2605.09998]** Continual Harness: Online Adaptation for Self-Improving Foundation Agents
+   - 日期: 2026-05-12 | 分类: cs.AI
+   - 主题: self-improving agents, continual learning, online adaptation, foundation agents
+   - 链接: https://arxiv.org/abs/2605.09998
+   - 状态: ✅ 已下载 (0.9MB)
 
 **[2605.18747]** Code as Agent Harness
    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE

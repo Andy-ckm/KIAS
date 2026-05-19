@@ -477,15 +477,13 @@ mod tests {
 
     #[test]
     fn test_scheduling_strategy_all_variants() {
-        let strategies = vec![
-            SchedulingStrategy::RoundRobin,
+        let strategies = [SchedulingStrategy::RoundRobin,
             SchedulingStrategy::LeastLoaded,
             SchedulingStrategy::Affinity,
             SchedulingStrategy::CacheAware,
             SchedulingStrategy::GpuAware,
             SchedulingStrategy::Priority,
-            SchedulingStrategy::ResourceAware,
-        ];
+            SchedulingStrategy::ResourceAware];
         // All variants should be distinct
         for i in 0..strategies.len() {
             for j in (i + 1)..strategies.len() {

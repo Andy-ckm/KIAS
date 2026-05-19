@@ -1,11 +1,14 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (00:20)
+更新时间: 2026-05-20 (01:55)
 
-## 论文列表 (164 篇)
+## 论文列表 (167 篇)
 
-### 已下载论文 (158 篇)
+### 已下载论文 (161 篇)
 - ✅ 2605.18747.pdf (Code as Agent Harness)
+- ✅ 2605.18414.pdf (Prompts Don't Protect: Architectural Enforcement via MCP Proxy for LLM Tool Access Control)
+- ✅ 2605.17909.pdf (Ethical Hyper-Velocity (EHV): Governance-Aware JIT Compiler for Agentic Systems)
+- ✅ 2605.18073.pdf (A-ProS: Towards Reliable Autonomous Programming Through Multi-Model Feedback)
 - ✅ 2605.17046.pdf (1GC-7RC: One Graphic Card - Seven Research Challenges!)
 - ✅ 2605.14312.pdf (Making OpenAPI Documentation Agent-Ready: Detecting Documentation and REST Smells with a Multi-Agent LLM System)
 - ✅ 2605.10907.pdf (Engineering Robustness into Personal Agents with the AI Workflow Store)
@@ -1200,6 +1203,27 @@
     - 主题: agent tracing, ownership, provenance
     - 链接: https://arxiv.org/abs/2605.16035
     - 状态: ✅ 已下载 (1.6MB)
+
+69. **[2605.18414]** Prompts Don't Protect: Architectural Enforcement via MCP Proxy for LLM Tool Access Control
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-18 | 分类: cs.AI
+    - 主题: MCP proxy, tool access control, LLM security, architectural enforcement
+    - 链接: https://arxiv.org/abs/2605.18414
+    - 状态: ✅ 已下载 (0.2MB)
+
+70. **[2605.17909]** Ethical Hyper-Velocity (EHV): A Provably Deterministic Governance-Aware JIT Compiler Architecture for Agentic Systems
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-18 | 分类: cs.AI
+    - 主题: governance, JIT compiler, agentic systems, deterministic enforcement
+    - 链接: https://arxiv.org/abs/2605.17909
+    - 状态: ✅ 已下载 (0.3MB)
+
+71. **[2605.18073]** A-ProS: Towards Reliable Autonomous Programming Through Multi-Model Feedback
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-18 | 分类: cs.AI
+    - 主题: autonomous programming, multi-model feedback, code generation
+    - 链接: https://arxiv.org/abs/2605.18073
+    - 状态: ✅ 已下载 (4.2MB)
 
 ---
 

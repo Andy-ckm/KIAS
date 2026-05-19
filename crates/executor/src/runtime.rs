@@ -463,7 +463,7 @@ impl TaskExecutor for ShellExecutor {
 
         // Pass prompt as environment variable for script consumption
         if let Some(prompt) = task.payload.get("prompt").and_then(|v| v.as_str()) {
-            cmd.env("KIAS_PROMPT", prompt);
+            cmd.env("AgentGuard_PROMPT", prompt);
         }
 
         let output = tokio::time::timeout(timeout_dur, cmd.output()).await;

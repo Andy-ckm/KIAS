@@ -1,4 +1,4 @@
-# KIAS Agent Shell 调度架构设计
+# AgentGuard Agent Shell 调度架构设计
 
 > 版本: 0.1 (Draft)
 > 日期: 2026-05-16
@@ -6,7 +6,7 @@
 
 ## 1. 核心洞察
 
-传统 K8S 调度的是 **Pod = Docker Image + Env Vars**，KIAS 调度的是
+传统 K8S 调度的是 **Pod = Docker Image + Env Vars**，AgentGuard 调度的是
 **Agent Shell = 模板 + 参数**。
 
 用户不需要写 workflow，只需要表达需求。系统自动：
@@ -79,7 +79,7 @@
 │              调度执行层 (Scheduler + Executor)         │
 │                                                      │
 │  Workflow DAG → Scheduler 分配 Node → 执行           │
-│  复用 KIAS 现有 Scheduler + TeamEngine               │
+│  复用 AgentGuard 现有 Scheduler + TeamEngine               │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -308,11 +308,11 @@ pub struct AssemblyRule {
 }
 ```
 
-## 8. 与现有 KIAS 组件的集成
+## 8. 与现有 AgentGuard 组件的集成
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  KIAS 架构                        │
+│                  AgentGuard 架构                        │
 │                                                  │
 │  ┌─────────────┐     ┌─────────────────────┐    │
 │  │ NL API      │────▶│ Intent Layer (新)    │    │
@@ -373,7 +373,7 @@ pub struct AssemblyRule {
 
 | 决策 | 选择 | 理由 |
 |------|------|------|
-| Shell 格式 | YAML | 与 KIAS 现有 workflow 一致，人类可读 |
+| Shell 格式 | YAML | 与 AgentGuard 现有 workflow 一致，人类可读 |
 | 参数类型系统 | JSON Schema 子集 | 标准化，可验证，可序列化 |
 | 意图识别 | LLM + 规则混合 | 简单场景用规则，复杂场景用 LLM |
 | 匹配算法 | 加权评分 | 可解释，可调参，可学习 |

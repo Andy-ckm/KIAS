@@ -1,4 +1,4 @@
-# KIAS 核心理念：编程即训练
+# AgentGuard 核心理念：编程即训练
 
 > 参考来源：Claude Code /goal、François Chollet
 > 核心洞察：足够先进的 AI 编程，本质上就是机器学习
@@ -11,7 +11,7 @@ model.fit() = /goal
 
 ## 对应关系
 
-| 机器学习 | AI 编程 | KIAS 实现 |
+| 机器学习 | AI 编程 | AgentGuard 实现 |
 |----------|---------|-----------|
 | Loss Function | 需求文档 | Goal 定义 |
 | 验证集 | 测试用例 | GoalCondition |
@@ -42,7 +42,7 @@ model.fit() = /goal
 - 目标状态面板实时显示
 - 明确的停止条件
 
-## KIAS 设计原则
+## AgentGuard 设计原则
 
 ### 1. 优化目标定对了吗？
 - 好目标三要素：可衡量的终态、验证方式、约束
@@ -126,4 +126,4 @@ if goal.description != original_description {
 > 是想清楚自己到底要什么，然后，定义好验收标准。
 > 剩下的，交给训练循环。
 
-KIAS 的目标就是把这个「训练循环」正式自动化。
+AgentGuard 的目标就是把这个「训练循环」正式自动化。

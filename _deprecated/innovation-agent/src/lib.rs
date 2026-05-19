@@ -184,7 +184,7 @@ impl InnovationAgent {
     /// 生成Markdown报告
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str("# KIAS 创新洞察报告\n\n");
+        report.push_str("# AgentGuard 创新洞察报告\n\n");
         report.push_str(&format!(
             "生成时间: {}\n\n",
             chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
@@ -280,7 +280,7 @@ mod tests {
         });
 
         let report = agent.generate_report();
-        assert!(report.contains("KIAS 创新洞察报告"));
+        assert!(report.contains("AgentGuard 创新洞察报告"));
         assert!(report.contains("Test Innovation"));
     }
 
@@ -340,7 +340,7 @@ mod tests {
         let config = InnovationAgentConfig::default();
         let agent = InnovationAgent::new(config);
         let report = agent.generate_report();
-        assert!(report.contains("KIAS 创新洞察报告"));
+        assert!(report.contains("AgentGuard 创新洞察报告"));
         assert!(report.contains("高价值洞察 (0 个)"));
     }
 

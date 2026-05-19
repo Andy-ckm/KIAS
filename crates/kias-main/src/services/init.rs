@@ -168,7 +168,7 @@ impl KiasServiceManager {
     pub async fn new(config: KiasConfig) -> KiasResult<Self> {
         Self::validate_config(&config)?;
 
-        tracing::info!("Initializing KIAS subsystems");
+        tracing::info!("Initializing AgentGuard subsystems");
 
         // ── Shutdown coordinator ───────────────────────────────────
         let shutdown = Arc::new(kias_common::graceful_shutdown::GracefulShutdown::with_defaults());
@@ -247,7 +247,7 @@ impl KiasServiceManager {
         tracing::info!("Goal engine initialized");
 
         // ── Data Store (SQLite persistence) ────────────────────────────
-        let db_path = std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
+        let db_path = std::env::var("AgentGuard_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
         let data_store = match kias_data_store::SqliteRepository::open(&db_path).await {
             Ok(store) => {
                 tracing::info!(path = %db_path, "Data store initialized (SQLite)");
@@ -265,7 +265,7 @@ impl KiasServiceManager {
         let dlq = kias_data_store::DeadLetterQueue::new(data_store.pool.clone());
         tracing::info!("Vector store, cache strategy, audit log, and DLQ initialized");
 
-        tracing::info!("All KIAS subsystems initialized successfully");
+        tracing::info!("All AgentGuard subsystems initialized successfully");
 
         let started_at = Instant::now();
 
@@ -436,7 +436,7 @@ pub struct KiasServices {
 ///
 /// Prefer [`KiasServiceManager::new`] for new code.
 pub async fn init_services() -> KiasResult<KiasServices> {
-    tracing::info!("Initializing KIAS services (legacy mode)");
+    tracing::info!("Initializing AgentGuard services (legacy mode)");
 
     let services = KiasServices {
         api_server: true,

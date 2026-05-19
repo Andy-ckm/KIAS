@@ -1,7 +1,7 @@
-# KIAS 核心开发需求 — 用 KIAS 开发 KIAS
+# AgentGuard 核心开发需求 — 用 AgentGuard 开发 AgentGuard
 
 ## 需求来源
-用户明确要求：用 KIAS 系统来管理自身的开发，形成正向循环。
+用户明确要求：用 AgentGuard 系统来管理自身的开发，形成正向循环。
 参考 Codex (OpenAI) 和 CloudDM 的设计思维。
 
 ## P0 — 核心执行引擎
@@ -70,14 +70,14 @@
 - 告警规则
 
 ### 10. 自循环开发模式
-- 用 KIAS 管理 KIAS 开发
+- 用 AgentGuard 管理 AgentGuard 开发
 - 自动化测试和部署
 - 代码审查自动化
 - 发布管理
 
 ## 开发工作流
 ```
-需求 → KIAS Agent 分析 → 制定计划 → 实现代码 → 测试 → 审查 → 部署
+需求 → AgentGuard Agent 分析 → 制定计划 → 实现代码 → 测试 → 审查 → 部署
                     ↑                                              |
                     └──────────── 反馈循环 ←───────────────────────┘
 ```

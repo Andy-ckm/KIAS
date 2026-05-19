@@ -1,16 +1,16 @@
-# KIAS 核心目标
+# AgentGuard 核心目标
 
 > 更新日期：2026-05-18
 
 ## 一句话定位
 
-**KIAS = Long-running Agents 的基石**
+**AgentGuard = Long-running Agents 的基石**
 
 ## 为什么是"基石"
 
 算力网时代，维持庞大算力网运转，必须依赖智能体。基于 ReAct 或 MCP 机制的长周期智能体（Long-running Agents），是企业级验证、授权、自动化运维的核心执行单元。
 
-KIAS 不是聊天机器人，不是一次性脚本执行器。KIAS 是让 Agent 能**持续运行、自主决策、自我修复**的基础设施。
+AgentGuard 不是聊天机器人，不是一次性脚本执行器。AgentGuard 是让 Agent 能**持续运行、自主决策、自我修复**的基础设施。
 
 ## 核心能力矩阵
 
@@ -28,7 +28,7 @@ KIAS 不是聊天机器人，不是一次性脚本执行器。KIAS 是让 Agent 
 ## 三个战略阶段
 
 ### 阶段一：Dogfooding（当前）
-用 KIAS 开发 KIAS。验证 Long-running 能力。
+用 AgentGuard 开发 AgentGuard。验证 Long-running 能力。
 - ✅ 自主开发循环（cron jobs）
 - ✅ 任务队列系统
 - ✅ Runtime Loop (OODA)
@@ -54,7 +54,7 @@ KIAS 不是聊天机器人，不是一次性脚本执行器。KIAS 是让 Agent 
 1. **开源** — 私有化部署，不锁定
 2. **Rust** — 性能 + 安全，适合 Long-running
 3. **多模型** — 不依赖单一 LLM
-4. **自循环** — 用 KIAS 开发 KIAS，dogfooding 验证
+4. **自循环** — 用 AgentGuard 开发 AgentGuard，dogfooding 验证
 5. **企业级** — RBAC + 审计 + 沙箱 + 合规
 
 ## 关键指标

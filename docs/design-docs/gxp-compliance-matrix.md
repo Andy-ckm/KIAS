@@ -1,4 +1,4 @@
-# GxP Compliance Matrix — KIAS
+# GxP Compliance Matrix — AgentGuard
 
 > **Date**: 2026-05-18  
 > **Status**: Gap analysis (Step 3 of design methodology)  
@@ -11,7 +11,7 @@
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ Met | Requirement fully addressed by existing KIAS module |
+| ✅ Met | Requirement fully addressed by existing AgentGuard module |
 | ⚠️ Partial | Partial coverage; enhancement needed |
 | ❌ Not Met | No coverage; new module/feature required |
 
@@ -21,7 +21,7 @@
 
 ### Subpart A: General Provisions
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.01 | §11.1 | Scope — electronic records created/modified/maintained/transmitted | System-wide | ✅ Met | — |
 | CFR-11.02 | §11.2 | Implementation — electronic records in lieu of paper | System-wide | ✅ Met | — |
@@ -29,7 +29,7 @@
 
 ### Subpart B: Electronic Records — §11.10 Controls for Closed Systems
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.10a | §11.10(a) | **System validation** — accuracy, reliability, consistent performance, ability to discern invalid/altered records | `gxp_audit.rs` (hash chain verification) | ⚠️ Partial | P0 |
 | CFR-11.10b | §11.10(b) | **Record copying** — accurate, complete copies in human-readable and electronic form for FDA inspection | `GxpAuditLog::export_json()` | ⚠️ Partial | P1 |
@@ -46,13 +46,13 @@
 
 ### Subpart B: Electronic Records — §11.30 Controls for Open Systems
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
-| CFR-11.30 | §11.30 | **Open system controls** — document encryption, digital signature standards for record authenticity/integrity/confidentiality from creation to receipt | None (KIAS operates as closed system) | ❌ Not Met | P2 |
+| CFR-11.30 | §11.30 | **Open system controls** — document encryption, digital signature standards for record authenticity/integrity/confidentiality from creation to receipt | None (AgentGuard operates as closed system) | ❌ Not Met | P2 |
 
 ### Subpart B: Electronic Records — §11.50 Signature Manifestations
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.50a1 | §11.50(a)(1) | **Signer name** — printed name of signer in signed electronic record | `gxp_auth.rs` (display_name) + `ElectronicSignature.signer_id` | ✅ Met | — |
 | CFR-11.50a2 | §11.50(a)(2) | **Signature date/time** — date and time when signature was executed | `ElectronicSignature.signed_at` | ✅ Met | — |
@@ -61,13 +61,13 @@
 
 ### Subpart B: Electronic Records — §11.70 Signature/Record Linking
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.70 | §11.70 | **Signature/record linking** — signatures linked to records to prevent excision, copying, or transfer to falsify a record | `gxp_audit.rs` (signature embedded in hashed audit entry; hash chain prevents excision) | ✅ Met | — |
 
 ### Subpart C: Electronic Signatures — §11.100 General Requirements
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.100a | §11.100(a) | **Unique signatures** — each electronic signature unique to one individual, not reused/reassigned | `gxp_auth.rs` (unique user_id + display_name) + `ElectronicSignature` | ✅ Met | — |
 | CFR-11.100b | §11.100(b) | **Identity verification** — verify identity before establishing/sanctioning electronic signature | None (organizational process) | ❌ Not Met | P1 |
@@ -75,7 +75,7 @@
 
 ### Subpart C: Electronic Signatures — §11.200 Electronic Signature Components and Controls
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.200a1i | §11.200(a)(1)(i) | **Two-factor signing** — first signing uses all components; subsequent during continuous session use at least one component only executable by individual | `gxp_auth.rs` (TOTP 2FA + continuous session tracking) | ✅ Met | — |
 | CFR-11.200a1ii | §11.200(a)(1)(ii) | **Non-continuous signing** — each signing outside continuous session uses all components | None | ❌ Not Met | P0 |
@@ -85,7 +85,7 @@
 
 ### Subpart C: Electronic Signatures — §11.300 Controls for Identification Codes/Passwords
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | CFR-11.300a | §11.300(a) | **Unique combinations** — maintain uniqueness of combined identification code and password | `gxp_auth.rs` (unique username + password policy) | ✅ Met | — |
 | CFR-11.300b | §11.300(b) | **Password aging** — periodically check, recall, revise identification codes/passwords | `gxp_auth.rs` (90-day max age + history check) | ✅ Met | — |
@@ -97,7 +97,7 @@
 
 ## 2. EU Annex 11 — Computerised Systems
 
-| Req ID | Clause | Description | KIAS Module | Status | Priority |
+| Req ID | Clause | Description | AgentGuard Module | Status | Priority |
 |--------|--------|-------------|-------------|--------|----------|
 | EU-01 | 1 | **Risk Management** — risk management applied throughout lifecycle of computerised system | None | ❌ Not Met | P1 |
 | EU-02 | 2 | **Personnel** — appropriate management, business, and technical expertise | None (org policy) | ❌ Not Met | P3 |
@@ -121,19 +121,19 @@
 
 ## 3. GAMP 5 — Categorization & Validation
 
-| Req ID | Category | Description | KIAS Classification | Validation Required |
+| Req ID | Category | Description | AgentGuard Classification | Validation Required |
 |--------|----------|-------------|---------------------|-------------------|
-| GAMP-01 | Cat 1 | **Infrastructure** — operating systems, databases, network components | KIAS depends on: Linux, PostgreSQL (future), network | Validation by vendor qualification |
-| GAMP-02 | Cat 3 | **Standard Software** — off-the-shelf software with no configuration | KIAS itself is NOT Cat 3 | N/A |
-| GAMP-03 | Cat 4 | **Configured Products** — standard software with configuration | KIAS with configuration = Cat 4 aspects | Config-based testing |
-| GAMP-04 | Cat 5 | **Custom Software** — custom-developed application | **KIAS = Category 5** (custom Rust application with AI agents) | Full V-model validation required |
+| GAMP-01 | Cat 1 | **Infrastructure** — operating systems, databases, network components | AgentGuard depends on: Linux, PostgreSQL (future), network | Validation by vendor qualification |
+| GAMP-02 | Cat 3 | **Standard Software** — off-the-shelf software with no configuration | AgentGuard itself is NOT Cat 3 | N/A |
+| GAMP-03 | Cat 4 | **Configured Products** — standard software with configuration | AgentGuard with configuration = Cat 4 aspects | Config-based testing |
+| GAMP-04 | Cat 5 | **Custom Software** — custom-developed application | **AgentGuard = Category 5** (custom Rust application with AI agents) | Full V-model validation required |
 | GAMP-05 | — | **Risk-based approach** — validation scope proportional to risk | High risk: audit trail, e-signatures, change control | Risk assessment needed |
-| GAMP-06 | — | **V-Model** — user requirements → functional specs → design → build → testing | KIAS needs URS, FRS, DS, IQ, OQ, PQ | All phases required |
+| GAMP-06 | — | **V-Model** — user requirements → functional specs → design → build → testing | AgentGuard needs URS, FRS, DS, IQ, OQ, PQ | All phases required |
 | GAMP-07 | — | **Traceability** — bidirectional traceability from requirements to tests | None | ❌ Not Met | P0 |
 
-### KIAS GAMP 5 Classification: Category 5 (Custom)
+### AgentGuard GAMP 5 Classification: Category 5 (Custom)
 
-**Rationale**: KIAS is a custom-developed enterprise AI agent system with bespoke audit, approval, and signature modules. It is not off-the-shelf or configured from a standard product.
+**Rationale**: AgentGuard is a custom-developed enterprise AI agent system with bespoke audit, approval, and signature modules. It is not off-the-shelf or configured from a standard product.
 
 **Validation Requirements (Category 5)**:
 1. User Requirements Specification (URS)
@@ -148,7 +148,7 @@
 
 ## 4. ICH Q10 — Pharmaceutical Quality System
 
-| Req ID | Section | Description | KIAS Module | Status | Priority |
+| Req ID | Section | Description | AgentGuard Module | Status | Priority |
 |--------|---------|-------------|-------------|--------|----------|
 | ICH-01 | 1.4 | **Management Responsibility** — management commitment, resource allocation, organizational alignment | None (org policy) | ❌ Not Met | P3 |
 | ICH-02 | 2.2 | **Knowledge Management** — systematic approach to acquire, analyze, store, and disseminate knowledge | `graph.rs` (knowledge graph) | ⚠️ Partial | P1 |
@@ -163,7 +163,7 @@
 
 ## 5. ALCOA+ Principles
 
-| Req ID | Principle | Description | KIAS Module | Status | Priority |
+| Req ID | Principle | Description | AgentGuard Module | Status | Priority |
 |--------|-----------|-------------|-------------|--------|----------|
 | ALCOA-01 | **A**ttributable | Who performed the action and when | `GxpAuditEntry.actor_id`, `actor_type`, `timestamp` | ✅ Met | — |
 | ALCOA-02 | **L**egible | Data recorded in permanent, readable format | `GxpAuditEntry` (structured JSON via `export_json()`) | ✅ Met | — |
@@ -199,7 +199,7 @@
 | P2 | 11 | Medium — operational completeness |
 | P3 | 5 | Low — organizational/process policy |
 
-### KIAS Module Gap Map
+### AgentGuard Module Gap Map
 
 | Module | What It Covers | What's Missing |
 |--------|---------------|----------------|
@@ -222,12 +222,12 @@
 - Polymorphic `belongs_to :item` — any model can be versioned
 - Metadata injection via `controller_info` (request context) and `model.meta` (declarative)
 
-**Relevance to KIAS**:
+**Relevance to AgentGuard**:
 - ✅ `object`/`object_changes` pattern directly maps to `before_state`/`after_state` in `GxpAuditEntry`
 - ✅ `whodunnit` = `actor_id`; `event` = `GxpAuditAction`
 - ⚠️ No hash chain — PaperTrail trusts database integrity (not GxP-grade tamper detection)
 - ⚠️ No electronic signature support
-- **Takeaway**: Use PaperTrail's metadata pattern as design reference; upgrade with KIAS's SHA-256 hash chain
+- **Takeaway**: Use PaperTrail's metadata pattern as design reference; upgrade with AgentGuard's SHA-256 hash chain
 
 ### 2. DriftDB (Rust) — 135 stars
 
@@ -239,14 +239,14 @@
 - **Security Audit**: `event_id`, `timestamp`, `event_type` (enum: Login/AccessDenied/UserCreated/...), `username`, `severity`, `outcome`, `checksum` (SHA-256 per entry)
 - **RBAC**: `Permission` enum (35 variants), `Role` with `HashSet<Permission>`, `RbacManager` with grant/revoke/check
 
-**Relevance to KIAS**:
+**Relevance to AgentGuard**:
 - ✅ CRC32 per frame + SHA-256 per audit entry — integrity at two levels
-- ✅ RBAC with 35 fine-grained permissions — reference for KIAS `auth` module expansion
+- ✅ RBAC with 35 fine-grained permissions — reference for AgentGuard `auth` module expansion
 - ✅ Security audit with brute-force detection, file logging, severity levels
 - ✅ Append-only semantics (segment-based, soft deletes preserve data)
 - ✅ Time-travel via `FOR SYSTEM_TIME AS OF` SQL syntax
 - ⚠️ No hash chain linking entries (CRC32 per entry, not chained)
-- **Takeaway**: Adopt DriftDB's RBAC permission model and security audit severity/outcome patterns for KIAS
+- **Takeaway**: Adopt DriftDB's RBAC permission model and security audit severity/outcome patterns for AgentGuard
 
 ### 3. TradeMemory Protocol (Python) — 927 stars
 
@@ -262,13 +262,13 @@
 - Modifying `data_hash` directly without re-linking forwards = detected by `verify_chain`
 - Modifying a daily root requires forging SHA-256 collisions (Merkle property)
 
-**Relevance to KIAS**:
-- ✅ **Direct architectural ancestor** — KIAS `gxp_audit.rs` already uses the same `SHA256(prev_hash || content)` chain pattern
-- ✅ Merkle root aggregation — **KIAS gap**: no daily Merkle roots yet
-- ✅ RFC 3161 TSA timestamping — **KIAS gap**: no external timestamp authority integration
-- ✅ `verify_chain()` with `first_break_at` — KIAS has basic `verify_chain()` but no break location reporting
-- ✅ Idempotent append with tamper-refuse — KIAS needs this
-- **Takeaway**: Add Merkle root aggregation and TSA timestamping to KIAS Phase 2+
+**Relevance to AgentGuard**:
+- ✅ **Direct architectural ancestor** — AgentGuard `gxp_audit.rs` already uses the same `SHA256(prev_hash || content)` chain pattern
+- ✅ Merkle root aggregation — **AgentGuard gap**: no daily Merkle roots yet
+- ✅ RFC 3161 TSA timestamping — **AgentGuard gap**: no external timestamp authority integration
+- ✅ `verify_chain()` with `first_break_at` — AgentGuard has basic `verify_chain()` but no break location reporting
+- ✅ Idempotent append with tamper-refuse — AgentGuard needs this
+- **Takeaway**: Add Merkle root aggregation and TSA timestamping to AgentGuard Phase 2+
 
 ---
 
@@ -311,7 +311,7 @@
 
 ## Appendix: Source Files Analyzed
 
-### KIAS
+### AgentGuard
 - `/workspace/kias/crates/common/src/gxp_audit.rs` — GxpAuditEntry, ElectronicSignature, GxpAuditLog, hash chain
 - `/workspace/kias/docs/design-docs/gxp-compliance-architecture.md` — existing design doc
 

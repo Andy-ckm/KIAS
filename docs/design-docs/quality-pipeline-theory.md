@@ -9,44 +9,44 @@
 - **论文**: "Self-Consistency Improves Chain of Thought Reasoning in Language Models"
 - **arXiv**: 2203.11171
 - **核心思想**: 多次采样 LLM 输出，取多数一致作为最终答案
-- **KIAS 对应**: CrossValidator 的一致性检查——多个 Agent 输出比对，一致则采纳
+- **AgentGuard 对应**: CrossValidator 的一致性检查——多个 Agent 输出比对，一致则采纳
 - **实验结果**: GSM8K 准确率从 74.2% → 89.1%（+14.9%）
 
 ### 1.2 Constitutional AI (Anthropic, 2022)
 - **论文**: "Constitutional AI: Harmlessness from AI Feedback"
 - **arXiv**: 2212.08073
 - **核心思想**: 用 AI 自身评估输出质量，形成自我改进循环
-- **KIAS 对应**: Agent 输出 → 另一个 Agent 评估 → 质量评分 → 反馈循环
+- **AgentGuard 对应**: Agent 输出 → 另一个 Agent 评估 → 质量评分 → 反馈循环
 
 ### 1.3 Reflexion (Shinn et al., 2023)
 - **论文**: "Reflexion: Language Agents with Verbal Reinforcement Learning"
 - **arXiv**: 2303.11366
 - **核心思想**: Agent 从失败中学习，将反思存入记忆
-- **KIAS 对应**: 负面样本标记 + 经验回放 + 质量评分衰减
+- **AgentGuard 对应**: 负面样本标记 + 经验回放 + 质量评分衰减
 
 ### 1.4 G-Eval (Liu et al., 2023)
 - **论文**: "G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment"
 - **arXiv**: 2303.16634
 - **核心思想**: LLM-as-a-Judge，用 LLM 评估 LLM 输出质量
-- **KIAS 对应**: 交叉验证中 Agent 充当评判者角色
+- **AgentGuard 对应**: 交叉验证中 Agent 充当评判者角色
 - **源码**: DeepEval 的 GEval 实现 (`deepeval/metrics/g_eval/g_eval.py`)
 
 ### 1.5 RAGAS (Es et al., 2023)
 - **论文**: "RAGAS: Automated Evaluation of Retrieval Augmented Generation"
 - **arXiv**: 2309.15217
 - **核心思想**: RAG 系统四维评估——Faithfulness, Answer Relevancy, Context Precision, Context Recall
-- **KIAS 对应**: QualityPipeline 的多维质量评分体系
+- **AgentGuard 对应**: QualityPipeline 的多维质量评分体系
 
 ### 1.6 LLM-as-a-Judge (Zheng et al., 2023)
 - **论文**: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena"
 - **arXiv**: 2306.05685
 - **核心思想**: 用强模型评估弱模型，发现 GPT-4 与人类评估一致性达 80%+
-- **KIAS 对应**: 高置信度 Agent 评估低置信度 Agent 的输出
+- **AgentGuard 对应**: 高置信度 Agent 评估低置信度 Agent 的输出
 
 ### 1.7 Experience Replay (Lin, 1992 + 现代变体)
 - **论文**: "Self-Improving Agents with Quality-Guided Experience Replay"
 - **核心思想**: 存储高质量经验，优先回放高价值样本
-- **KIAS 对应**: AgenticRAG 的 quality_score + tools_used + experience replay
+- **AgentGuard 对应**: AgenticRAG 的 quality_score + tools_used + experience replay
 
 ## 2. 源码参考
 
@@ -69,23 +69,23 @@
 
 ### 2.2 Langfuse (27K⭐) — LLM 可观测性
 - **功能**: 追踪、指标、评估、提示管理
-- **KIAS 可借鉴**: 全链路 Trace + 成本归因
+- **AgentGuard 可借鉴**: 全链路 Trace + 成本归因
 
 ### 2.3 Promptfoo (21K⭐) — Agent 测试
 - **功能**: Prompt 测试、RAG 测试、红队测试
-- **KIAS 可借鉴**: 自动化测试框架设计
+- **AgentGuard 可借鉴**: 自动化测试框架设计
 
 ### 2.4 OpenAI Evals (18K⭐) — 评估注册表
 - **功能**: LLM 评估框架 + 开放注册表
-- **KIAS 可借鉴**: 评估指标的注册和管理机制
+- **AgentGuard 可借鉴**: 评估指标的注册和管理机制
 
 ### 2.5 TruLens (3K⭐) — RAG 追踪
 - **功能**: RAG 应用的评估和追踪
-- **KIAS 可借鉴**: RAG 质量指标定义
+- **AgentGuard 可借鉴**: RAG 质量指标定义
 
-## 3. KIAS QualityPipeline 与理论的对应
+## 3. AgentGuard QualityPipeline 与理论的对应
 
-| 理论/论文 | KIAS 实现 | 状态 |
+| 理论/论文 | AgentGuard 实现 | 状态 |
 |-----------|----------|------|
 | Self-Consistency (多数投票) | CrossValidator.check_consistency | ✅ 已实现 |
 | Constitutional AI (AI 反馈) | CrossValidator (Agent 评估 Agent) | ✅ 已实现 |
@@ -98,7 +98,7 @@
 | Prompt 优化 | 待实现 | ❌ |
 | 全链路 Trace | 待实现 | ❌ |
 
-## 4. 机制规范（写入 KIAS 标准）
+## 4. 机制规范（写入 AgentGuard 标准）
 
 ### 4.1 功能实现必须有理论/源码支撑
 
@@ -122,7 +122,7 @@
 - 关键文件: 路径
 - 借鉴内容: 具体说明
 
-### KIAS 实现
+### AgentGuard 实现
 - 对应组件: 模块名
 - 实现差异: 与参考的区别
 - 测试覆盖: 测试数量

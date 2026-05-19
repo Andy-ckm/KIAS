@@ -702,7 +702,7 @@ async fn handle_workflow(action: kias_cli::WorkflowAction, cli: &Cli) -> i32 {
 
             let body = serde_json::json!({
                 "name": def.metadata.name,
-                "description": format!("KIAS workflow: {}", def.metadata.name),
+                "description": format!("AgentGuard workflow: {}", def.metadata.name),
                 "nodes": api_nodes,
             });
 
@@ -1168,11 +1168,11 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
 
     match action {
         kias_cli::ServerAction::Start { config, daemon } => {
-            println!("{}: 启动 KIAS 服务...", "→".blue().bold());
+            println!("{}: 启动 AgentGuard 服务...", "→".blue().bold());
 
             // 确定配置文件
             let config_path = config.unwrap_or_else(|| {
-                std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string())
+                std::env::var("AgentGuard_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string())
             });
 
             // 检查配置文件是否存在
@@ -1185,7 +1185,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             // 检查是否已有实例在运行
             if let Ok(pid) = pm.read_pid() {
                 if ProcessManager::is_process_running(pid) {
-                    eprintln!("{}: KIAS 服务已在运行 (PID {})", "错误".red().bold(), pid);
+                    eprintln!("{}: AgentGuard 服务已在运行 (PID {})", "错误".red().bold(), pid);
                     eprintln!("  使用 `kias server restart` 重启");
                     return ExitCode::ServerError as i32;
                 }
@@ -1206,7 +1206,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
                         std::thread::sleep(std::time::Duration::from_millis(500));
                         if let Ok(pid) = pm.read_pid() {
                             println!(
-                                "{}: KIAS 服务已在后台启动 (PID {})",
+                                "{}: AgentGuard 服务已在后台启动 (PID {})",
                                 "✓".green().bold(),
                                 pid
                             );
@@ -1257,7 +1257,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             }
         }
         kias_cli::ServerAction::Stop => {
-            println!("{}: 停止 KIAS 服务...", "→".blue().bold());
+            println!("{}: 停止 AgentGuard 服务...", "→".blue().bold());
 
             match pm.stop() {
                 Ok(StopResult::Stopped) => {
@@ -1282,7 +1282,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             }
         }
         kias_cli::ServerAction::Status => {
-            println!("{}: KIAS 服务状态", "→".blue().bold());
+            println!("{}: AgentGuard 服务状态", "→".blue().bold());
 
             let server_url = resolve_server(_cli);
             let mut status = pm.status(&server_url);
@@ -1300,7 +1300,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             }
         }
         kias_cli::ServerAction::Restart => {
-            println!("{}: 重启 KIAS 服务...", "→".blue().bold());
+            println!("{}: 重启 AgentGuard 服务...", "→".blue().bold());
 
             // Step 1: Stop
             match pm.stop() {
@@ -1321,7 +1321,7 @@ async fn handle_server(action: kias_cli::ServerAction, _cli: &Cli) -> i32 {
             // Step 2: Start (foreground)
             println!("  正在重新启动...");
             let config_path =
-                std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string());
+                std::env::var("AgentGuard_CONFIG").unwrap_or_else(|_| "config/kias.toml".to_string());
 
             let _ = pm.write_pid();
             let status = std::process::Command::new("kias-main")

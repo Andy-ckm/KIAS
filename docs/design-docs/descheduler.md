@@ -1,6 +1,6 @@
 # Descheduler Design Document
 
-> K8S-inspired agent rebalancing system for KIAS
+> K8S-inspired agent rebalancing system for AgentGuard
 
 ## 1. Problem Statement
 

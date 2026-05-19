@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Permission that a skill may require to execute.
 ///
-/// Inspired by MCP capability declarations and KIAS agent sandbox types.
+/// Inspired by MCP capability declarations and AgentGuard agent sandbox types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SkillPermission {
     /// Outbound network access (HTTP, TCP, etc.)

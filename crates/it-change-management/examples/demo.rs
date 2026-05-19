@@ -6,7 +6,7 @@ use chrono::Utc;
 use kias_it_change_management::*;
 
 fn main() {
-    println!("=== KIAS IT变更管理系统演示 ===\n");
+    println!("=== AgentGuard IT变更管理系统演示 ===\n");
 
     // 创建变更管理器
     let mut manager = ItChangeManager::new();

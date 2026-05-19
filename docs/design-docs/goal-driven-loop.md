@@ -1,4 +1,4 @@
-# KIAS 借鉴 Claude Code /goal 和 Ralph Loop
+# AgentGuard 借鉴 Claude Code /goal 和 Ralph Loop
 
 > 参考来源：Claude Code /goal 命令、Ralph Loop 设计模式
 > 关键词：目标驱动、裁判分离、双模型评估
@@ -93,7 +93,7 @@
 
 ---
 
-## KIAS 整合计划
+## AgentGuard 整合计划
 
 ### Phase 1：目标驱动循环
 - [ ] 实现 /goal 命令

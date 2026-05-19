@@ -1,6 +1,6 @@
-# KIAS 文档索引
+# AgentGuard 文档索引
 
-> 快速查找和访问KIAS项目的所有文档
+> 快速查找和访问AgentGuard项目的所有文档
 
 ## 📚 核心文档
 
@@ -65,7 +65,7 @@
 - [descheduler.md](design-docs/descheduler.md) - 反调度器设计
 - [goal-driven-loop.md](design-docs/goal-driven-loop.md) - 目标驱动循环设计
 - [kanban-system.md](design-docs/kanban-system.md) - 看板系统设计
-- [kias-cli.md](design-docs/kias-cli.md) - KIAS CLI设计
+- [kias-cli.md](design-docs/kias-cli.md) - AgentGuard CLI设计
 - [knowledge-system.md](design-docs/knowledge-system.md) - 知识系统设计
 - [langgraph-engine.md](design-docs/langgraph-engine.md) - LangGraph引擎设计
 - [minimax-agent-team.md](design-docs/minimax-agent-team.md) - MiniMax Agent团队设计
@@ -134,7 +134,7 @@
 3. **紧急问题**：通过邮件或即时通讯联系
 
 ### 贡献指南
-1. **Fork仓库**：Fork KIAS仓库
+1. **Fork仓库**：Fork AgentGuard仓库
 2. **创建分支**：创建特性或修复分支
 3. **提交代码**：提交代码和文档
 4. **创建PR**：创建Pull Request
@@ -207,7 +207,7 @@
 
 ## 🎉 总结
 
-KIAS文档索引提供了项目所有文档的快速查找和访问。通过这个索引，开发者可以：
+AgentGuard文档索引提供了项目所有文档的快速查找和访问。通过这个索引，开发者可以：
 
 1. **快速入门**：快速了解项目概况和架构
 2. **日常参考**：方便查找设计文档和开发指南
@@ -215,4 +215,4 @@ KIAS文档索引提供了项目所有文档的快速查找和访问。通过这�
 4. **质量保证**：查看测试覆盖和变更影响
 5. **知识传承**：完整的架构和设计知识
 
-这个文档索引是KIAS项目可追溯性体系的重要组成部分，确保项目透明、可追踪、可维护。
+这个文档索引是AgentGuard项目可追溯性体系的重要组成部分，确保项目透明、可追踪、可维护。

@@ -4,7 +4,7 @@
 
 ## 1. 概述
 
-KIAS WebSocket 系统从基础的 EventBus + 订阅过滤升级为生产级实时推送系统，
+AgentGuard WebSocket 系统从基础的 EventBus + 订阅过滤升级为生产级实时推送系统，
 新增连接注册表、事件回放缓冲、心跳保活、统计端点四大核心能力。
 
 ## 2. 架构

@@ -15,9 +15,9 @@
 
 ---
 
-## 映射到 KIAS
+## 映射到 AgentGuard
 
-| 文件管理步骤 | KIAS 模块 | 状态 |
+| 文件管理步骤 | AgentGuard 模块 | 状态 |
 |-------------|----------|------|
 | 分类、识别 | EntityExtractor（零LLM正则提取） | ✅ 已完成 |
 | 创建 | EntityPage 结构（Compiled Truth + Timeline） | 📋 Phase 2 |
@@ -27,7 +27,7 @@
 | 执行 | DreamConsolidator + Minions | 📋 Phase 2 |
 | 控制 | 版本控制 + 变更追踪 | ❌ 缺失 |
 
-| 对象概念 | KIAS 映射 | 说明 |
+| 对象概念 | AgentGuard 映射 | 说明 |
 |---------|----------|------|
 | 唯一标识项 | EntityPage.id | 每个实体有唯一 ID |
 | 文档/零件/CAD | EntityType 枚举 | Person/Company/Concept/Project/Meeting/Document |
@@ -39,7 +39,7 @@
 ## 缺失能力（需设计）
 
 ### 1. 审批流转
-当前 KIAS 知识层没有"审阅→批准→执行"的流转机制。知识写入后直接生效。
+当前 AgentGuard 知识层没有"审阅→批准→执行"的流转机制。知识写入后直接生效。
 
 **建议**：为 EntityPage 增加 `approval_state` 字段：
 ```rust

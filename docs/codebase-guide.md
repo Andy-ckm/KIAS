@@ -1,4 +1,4 @@
-# KIAS 代码库详解
+# AgentGuard 代码库详解
 
 > 系统代码库完整说明，用于故障排除和 Bug 修复
 
@@ -634,9 +634,9 @@ graph_db_path = "./data/knowledge_graph.db"
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `KIAS_CONFIG` | 配置文件路径 | `config/default.toml` |
+| `AgentGuard_CONFIG` | 配置文件路径 | `config/default.toml` |
 | `RUST_LOG` | 日志级别 | `info` |
-| `KIAS_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
+| `AgentGuard_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > 来源: [Peakstone-Labs/sembr](https://github.com/Peakstone-Labs/sembr) v1.0
 > 日期: 2026-05-17
-> 作者: KIAS Research Agent
+> 作者: AgentGuard Research Agent
 > 前置: docs/research/sembr-analysis.md（初步分析）
 
 ---
@@ -41,7 +41,7 @@ Phase 6: 服务启动 + 健康检查验证
 
 **关键设计**: 安装文档用**指令式语言**写给 Agent 而非人类，Agent 读 INSTALL.md 就能自主完成全部部署。公网部署还有 PUBLIC_INSTALL.md 分支（DNS 检查、Caddy/TLS、ufw 防火墙）。
 
-**KIAS 对标**: KIAS 有 `scripts/start-control-plane.sh` 但缺少 Agent 可读的 INSTALL.md。需要补充。
+**AgentGuard 对标**: AgentGuard 有 `scripts/start-control-plane.sh` 但缺少 Agent 可读的 INSTALL.md。需要补充。
 
 ### 层 2: Agent Skills 包 (agent/sembr/)
 
@@ -57,7 +57,7 @@ Phase 6: 服务启动 + 健康检查验证
 
 **关键设计**: Skills 包是**标准格式**（[Agent Skills](https://agentskills.io) 规范），Claude Code 可自动加载（`cp -r agent/sembr ~/.claude/skills/sembr`），其他平台也可直接使用。
 
-**KIAS 对标**: KIAS 有 `crates/skills/` 技能注册表但未对齐此标准格式。
+**AgentGuard 对标**: AgentGuard 有 `crates/skills/` 技能注册表但未对齐此标准格式。
 
 ### 层 3: Agent Fire API (/api/external/intents/{id}/fire)
 
@@ -229,7 +229,7 @@ sembr: 10 intents × 365 days × $0.014 = $51.10/年
 
 ---
 
-## 6. KIAS 映射与升级方案
+## 6. AgentGuard 映射与升级方案
 
 ### 6.1 SkillMatcher 向量化升级
 
@@ -340,7 +340,7 @@ impl SiliconFlowEmbedder {
 docs/agent-install/
 ├── INSTALL.md          # 6 阶段 Agent 安装指南
 │   ├── Phase 1: 环境检查（Rust/etcd/SQLite）
-│   ├── Phase 2: 构建 KIAS（cargo build --release）
+│   ├── Phase 2: 构建 AgentGuard（cargo build --release）
 │   ├── Phase 3: 配置生成（~/.kias_env）
 │   ├── Phase 4: 控制平面启动
 │   ├── Phase 5: 节点代理注册
@@ -366,11 +366,11 @@ docs/agent-install/
 
 ## 8. 关键洞察
 
-1. **Reverse RAG 的本质是"查询实体化"**: 意图不是临时查询，而是一等实体——可命名、编辑、调度、版本化。KIAS 的 Agent 匹配也可以这样：任务描述不是一次性查询，而是可复用的匹配模式。
+1. **Reverse RAG 的本质是"查询实体化"**: 意图不是临时查询，而是一等实体——可命名、编辑、调度、版本化。AgentGuard 的 Agent 匹配也可以这样：任务描述不是一次性查询，而是可复用的匹配模式。
 
 2. **Fire API 的精髓是"无副作用诊断"**: Agent 可以安全地"试探"而不产生任何实际影响。这对于 A2A 协作至关重要——Agent 可以在分配任务前先"预览"哪些 Agent 能处理。
 
-3. **成本优化的核心是"免费嵌入 + 按需 LLM"**: 嵌入层用免费模型（BGE-M3/SiliconFlow），LLM 只在命中后触发。KIAS 的 Agent 匹配也可以遵循此模式——语义匹配免费，实际任务分配才消耗资源。
+3. **成本优化的核心是"免费嵌入 + 按需 LLM"**: 嵌入层用免费模型（BGE-M3/SiliconFlow），LLM 只在命中后触发。AgentGuard 的 Agent 匹配也可以遵循此模式——语义匹配免费，实际任务分配才消耗资源。
 
 4. **Agent-first 不只是 API 设计**: 从安装文档（INSTALL.md 写给 Agent 看）到 Skills 包（标准格式可被自动加载）到 Fire API（同步无副作用），每一层都为 Agent 消费而优化。
 

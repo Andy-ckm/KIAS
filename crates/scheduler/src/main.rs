@@ -5,7 +5,7 @@ use std::sync::Arc;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Scheduler");
+    tracing::info!("Starting AgentGuard Scheduler");
 
     let strategy = Arc::new(RoundRobin::new());
     let engine = SchedulerEngine::new(strategy);
@@ -23,6 +23,6 @@ async fn main() -> anyhow::Result<()> {
         println!("Task {} -> {}", task_id, selected);
     }
 
-    tracing::info!("KIAS Scheduler finished");
+    tracing::info!("AgentGuard Scheduler finished");
     Ok(())
 }

@@ -1,4 +1,4 @@
-# KIAS 借鉴 MiniMax Agent Team 设计
+# AgentGuard 借鉴 MiniMax Agent Team 设计
 
 > 参考来源：MiniMax Agent Team 官方技术博客
 > 链接：https://mp.weixin.qq.com/s/TIL7o92f71DsPPLWT4_37A
@@ -7,7 +7,7 @@
 
 ### 单 Agent 四大痛点
 
-| 痛点 | 描述 | KIAS 解决方案 |
+| 痛点 | 描述 | AgentGuard 解决方案 |
 |------|------|--------------|
 | **中途停摆** | 上下文焦虑，做 3 件就停 | Engine 驱动，确定性状态机 |
 | **越跑越笨** | 偏差累积，无法自检 | Worker-Verifier 对抗机制 |
@@ -160,7 +160,7 @@ Agent 与人类同权，共用一组动词：
 
 ### 三类成本
 
-| 成本类型 | 描述 | KIAS 控制策略 |
+| 成本类型 | 描述 | AgentGuard 控制策略 |
 |----------|------|--------------|
 | **交接成本** | Agent 间信息传递 | 结构化文件和摘要通信 |
 | **共享成本** | 所有 Agent 看到所有信息 | 按需加载，只看相关摘要 |
@@ -183,7 +183,7 @@ Agent 与人类同权，共用一组动词：
 
 ---
 
-## KIAS 整合计划
+## AgentGuard 整合计划
 
 ### Phase 1：基础框架（当前）
 - [x] 创建 Owner、Worker、Verifier 抽象

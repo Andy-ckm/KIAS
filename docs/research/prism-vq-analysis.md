@@ -1,4 +1,4 @@
-# PRISM-VQ 深度分析：映射到 KIAS Agent 调度与知识聚类
+# PRISM-VQ 深度分析：映射到 AgentGuard Agent 调度与知识聚类
 
 > **论文**: Vector-Quantized Discrete Latent Factors Meet Financial Priors
 > **arXiv**: 2605.13407 (2026-05-13)
@@ -80,16 +80,16 @@ FiLM(x) = γ · x + β
 
 ---
 
-## 3. 映射到 KIAS 系统
+## 3. 映射到 AgentGuard 系统
 
 ### 3.1 VQ → Agent 能力聚类
 
-**问题**: KIAS 中 Agent 能力描述是连续的（技能向量），如何高效匹配？
+**问题**: AgentGuard 中 Agent 能力描述是连续的（技能向量），如何高效匹配？
 
 **映射方案**:
 
 ```
-PRISM-VQ                          KIAS
+PRISM-VQ                          AgentGuard
 ─────────────────────────────────────────────────
 截面特征 (N 股票 × D 特征)   →    Agent 能力矩阵 (N_agents × D_skills)
 VQ Codebook (K 码本)         →    能力原型 (K 个代表性 Agent 类型)
@@ -161,7 +161,7 @@ impl VQClusterScheduler {
 **映射方案**:
 
 ```
-PRISM-VQ                          KIAS
+PRISM-VQ                          AgentGuard
 ─────────────────────────────────────────────────
 MoE Experts (N 个专家)       →    调度策略池 (RR/LL/RA/CA/VQ)
 离散码路由                    →    任务类型 → 策略选择
@@ -216,7 +216,7 @@ impl MoESchedulerRouter {
 **映射方案**:
 
 ```
-PRISM-VQ                          KIAS
+PRISM-VQ                          AgentGuard
 ─────────────────────────────────────────────────
 先验因子 (Fama-French)        →    Agent 先验 (历史成功率、延迟、可靠性)
 学习因子 (VQ latent)          →    实时信号 (当前负载、队列深度)
@@ -327,7 +327,7 @@ Task Request
 
 PRISM-VQ 的核心洞察：**在低信噪比环境中，离散表示比连续表示更鲁棒**。
 
-对 KIAS 的启示：
+对 AgentGuard 的启示：
 - Agent 能力描述不应是无限精度的浮点向量
 - 离散化形成自然聚类，简化匹配复杂度
 - 新 Agent 自动归类，无需人工标签
@@ -336,7 +336,7 @@ PRISM-VQ 的核心洞察：**在低信噪比环境中，离散表示比连续表
 
 离散码同时作为**潜在因子**和**路由信号**，避免了额外的路由网络。
 
-对 KIAS 的启示：
+对 AgentGuard 的启示：
 - 任务分类码可同时用于：(1) 描述任务类型 (2) 选择调度策略
 - 一个 embedding 完成两件事，减少计算开销
 
@@ -344,7 +344,7 @@ PRISM-VQ 的核心洞察：**在低信噪比环境中，离散表示比连续表
 
 FiLM 提供了一个优雅的框架来融合领域知识和数据驱动信号。
 
-对 KIAS 的启示：
+对 AgentGuard 的启示：
 - 调度决策不应纯靠历史统计，也不应纯靠实时信号
 - 自适应权重让系统在不同环境下自动调整
 - 新节点冷启动时依赖先验，成熟后逐渐信任数据
@@ -365,7 +365,7 @@ FiLM 提供了一个优雅的框架来融合领域知识和数据驱动信号。
 
 ## 7. 结论
 
-PRISM-VQ 为 KIAS 提供了三个可落地的技术方向：
+PRISM-VQ 为 AgentGuard 提供了三个可落地的技术方向：
 
 1. **VQ 聚类调度** → Agent 能力离散化，O(1) 匹配
 2. **MoE 策略路由** → 任务驱动的多策略融合
@@ -373,4 +373,4 @@ PRISM-VQ 为 KIAS 提供了三个可落地的技术方向：
 
 **建议优先级**: VQ 聚类 > FiLM 先验 > MoE 路由
 
-VQ 聚类最直接解决当前 KIAS 的 Agent 匹配效率问题，且实现最简单。
+VQ 聚类最直接解决当前 AgentGuard 的 Agent 匹配效率问题，且实现最简单。

@@ -9,7 +9,7 @@ use services::KiasServiceManager;
 #[command(
     name = "kias",
     version,
-    about = "KIAS - Kubernetes-inspired Intelligent Agent System"
+    about = "AgentGuard - Kubernetes-inspired Intelligent Agent System"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
             start_server(host, port).await?;
         }
         Some(Commands::Status) => {
-            println!("KIAS Status: Running");
+            println!("AgentGuard Status: Running");
             println!("Version: {}", env!("CARGO_PKG_VERSION"));
         }
         Some(Commands::Health) => {
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
-    tracing::info!("Starting KIAS System");
+    tracing::info!("Starting AgentGuard System");
 
     // Load configuration (uses defaults if no config file found).
     let config = kias_common::KiasConfig::load().unwrap_or_default();
@@ -115,7 +115,7 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
         }
     });
 
-    tracing::info!("KIAS System started successfully");
+    tracing::info!("AgentGuard System started successfully");
     tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
     // Wait for shutdown signal.
@@ -128,7 +128,7 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
 
     // Graceful shutdown.
     manager.shutdown().await?;
-    tracing::info!("KIAS System shut down gracefully");
+    tracing::info!("AgentGuard System shut down gracefully");
 
     // Abort API server.
     api_handle.abort();

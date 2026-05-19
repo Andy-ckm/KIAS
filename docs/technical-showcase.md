@@ -1,4 +1,4 @@
-# KIAS 技术深度剖析：AI Agent 集群调度系统
+# AgentGuard 技术深度剖析：AI Agent 集群调度系统
 
 > **Kubernetes-like Intelligent Agent Scheduling System**  
 > Rust 实现 · 21 个 Crate · 75,000+ 行代码 · 完整的 Agent 编排栈
@@ -24,7 +24,7 @@
 
 ## 1. 系统全景
 
-KIAS 不是一个简单的任务队列。它是一个借鉴 Kubernetes 控制平面架构、DeepSeek 缓存优化和 ANOLISA 可观测性理念构建的 **AI Agent 集群调度系统**。
+AgentGuard 不是一个简单的任务队列。它是一个借鉴 Kubernetes 控制平面架构、DeepSeek 缓存优化和 ANOLISA 可观测性理念构建的 **AI Agent 集群调度系统**。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -64,7 +64,7 @@ KIAS 不是一个简单的任务队列。它是一个借鉴 Kubernetes 控制平
 
 ### 实现
 
-KIAS 的 CacheAwareScheduler 将 **DeepSeek 风格的 Prefix Caching** 引入调度决策层：
+AgentGuard 的 CacheAwareScheduler 将 **DeepSeek 风格的 Prefix Caching** 引入调度决策层：
 
 ```rust
 // crates/scheduler/src/algorithms/cache_aware.rs:94-114
@@ -92,7 +92,7 @@ fn cache_aware_score(
 
 ### 为什么重要
 
-这是 **调度器层面唯一将 LLM 推理特性纳入决策的方案**。传统 K8S 调度器只看 CPU/Memory/GPU，不看 KV Cache 状态。KIAS 的 `cache_weight` 参数（0.0 = 纯负载均衡，1.0 = 纯缓存优先）让运维人员可以按业务特征调节。
+这是 **调度器层面唯一将 LLM 推理特性纳入决策的方案**。传统 K8S 调度器只看 CPU/Memory/GPU，不看 KV Cache 状态。AgentGuard 的 `cache_weight` 参数（0.0 = 纯负载均衡，1.0 = 纯缓存优先）让运维人员可以按业务特征调节。
 
 ---
 
@@ -106,7 +106,7 @@ LLM 应用的工作流不是线性的：有条件分支、循环重试、并行�
 
 ### 实现
 
-KIAS 实现了一个完整的 LangGraph 风格状态图引擎，支持四种边类型：
+AgentGuard 实现了一个完整的 LangGraph 风格状态图引擎，支持四种边类型：
 
 ```rust
 // crates/langgraph-engine/src/graph.rs:38-55
@@ -212,7 +212,7 @@ impl ErasedChannel {
 
 ### 实现
 
-KIAS 实现了三层记忆架构：
+AgentGuard 实现了三层记忆架构：
 
 ```rust
 // crates/team-engine/src/memory.rs:339-362
@@ -276,7 +276,7 @@ pub fn build_context(&self, entries: &[MemoryEntry]) -> String {
 
 ### 实现
 
-KIAS 借鉴 MiniMax 的设计，实现了 **Worker-Verifier 对抗机制**：
+AgentGuard 借鉴 MiniMax 的设计，实现了 **Worker-Verifier 对抗机制**：
 
 ```rust
 // crates/team-engine/src/verifier.rs:5-11
@@ -320,7 +320,7 @@ AI Agent 的自主权管理是一个被严重忽视的问题。全自主模式�
 
 ### 实现
 
-KIAS 实现了 Codex CLI 风格的三模式自主度控制：
+AgentGuard 实现了 Codex CLI 风格的三模式自主度控制：
 
 ```rust
 // crates/autonomy-controller/src/ladder.rs
@@ -382,7 +382,7 @@ LLM 应用中常见的模式是「执行-评估-反馈-再执行」。但大多�
 
 ### 实现
 
-KIAS 将这个模式抽象为 `GoalLoopRunner`：
+AgentGuard 将这个模式抽象为 `GoalLoopRunner`：
 
 ```rust
 // crates/goal-engine/src/loop_runner.rs:106-108
@@ -434,7 +434,7 @@ pub async fn resume(&self, goal: Goal, checkpoint: GoalCheckpoint) -> KiasResult
 
 ### 实现
 
-KIAS 实现了 K8S Descheduler 风格的反调度器：
+AgentGuard 实现了 K8S Descheduler 风格的反调度器：
 
 ```rust
 // crates/scheduler/src/descheduler/engine.rs:21-24
@@ -485,7 +485,7 @@ Agent 互联需要标准化协议；Agent 执行外部工具需要安全隔离�
 
 ### A2A 协议实现
 
-KIAS 实现了 Google A2A（Agent-to-Agent）协议的完整数据模型：
+AgentGuard 实现了 Google A2A（Agent-to-Agent）协议的完整数据模型：
 
 ```rust
 // crates/common/src/a2a.rs:15-39
@@ -548,7 +548,7 @@ pub struct SandboxSnapshot {
 
 ### 为什么重要
 
-- **协议标准**：A2A 是 Google 提出的 Agent 互操作标准，KIAS 是少数实现了完整数据模型的 Rust 项目
+- **协议标准**：A2A 是 Google 提出的 Agent 互操作标准，AgentGuard 是少数实现了完整数据模型的 Rust 项目
 - **5 种隔离级别**：从轻量（Process）到强隔离（Firecracker VM），按安全需求选择
 - **MCP 完整实现**：含 OAuth 2.0 认证、RBAC、熔断器、限流器、凭证管理、热重载
 
@@ -564,7 +564,7 @@ LLM 系统日志中经常泄露敏感数据：IP 地址、邮箱、JWT Token。�
 
 ### 实现
 
-KIAS 在基础设施层实现了 **零信任脱敏**：
+AgentGuard 在基础设施层实现了 **零信任脱敏**：
 
 ```rust
 // crates/common/src/data_mask.rs:84-97
@@ -638,4 +638,4 @@ L3: api-server, kias-main
 
 ---
 
-*KIAS — 不是又一个 Agent 框架，而是 Agent 集群的基础设施。*
+*AgentGuard — 不是又一个 Agent 框架，而是 Agent 集群的基础设施。*

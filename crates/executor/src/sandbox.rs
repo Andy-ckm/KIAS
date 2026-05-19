@@ -38,7 +38,7 @@ impl Default for SandboxPolicy {
             timeout: Duration::from_secs(30),
             max_memory_bytes: 512 * 1024 * 1024, // 512MB
             max_output_bytes: 1024 * 1024,       // 1MB
-            env_whitelist: vec!["KIAS_".to_string(), "PATH".to_string()],
+            env_whitelist: vec!["AgentGuard_".to_string(), "PATH".to_string()],
             capture_stderr: true,
             workdir: None,
             env_vars: HashMap::new(),

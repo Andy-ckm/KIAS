@@ -1,16 +1,16 @@
-# KIAS 知识管理系统
+# AgentGuard 知识管理系统
 
 > 借鉴 LLM Wiki + GBrain + Obsidian-Wiki，实现 Agent 知识的自组织与自进化
 
 ## 核心定位
 
-KIAS 知识管理系统 = **LLM Wiki 的三层架构** + **GBrain 的混合检索** + **Agent 集群调度**
+AgentGuard 知识管理系统 = **LLM Wiki 的三层架构** + **GBrain 的混合检索** + **Agent 集群调度**
 
 ## 架构设计
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         KIAS Knowledge System                               │
+│                         AgentGuard Knowledge System                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -82,12 +82,12 @@ rules:
 - 架构合规性验证
 
 ## 知识来源
-- [[projects/kias/arch.md]] - KIAS 架构设计
+- [[projects/kias/arch.md]] - AgentGuard 架构设计
 - [[skills/rust-best-practices.md]] - Rust 最佳实践
 - [[references/rust-security.md]] - Rust 安全指南
 
 ## 最后更新
-2026-05-13: 添加了 KIAS 项目的审查规则
+2026-05-13: 添加了 AgentGuard 项目的审查规则
 ```
 
 #### Index Layer（索引层）
@@ -326,10 +326,10 @@ kias knowledge watch --path ./knowledge/
 ### 知识查询
 ```bash
 # 查询知识
-kias knowledge query "KIAS 的调度算法有哪些？"
+kias knowledge query "AgentGuard 的调度算法有哪些？"
 
 # 查询并展示来源
-kias knowledge query "KIAS 的调度算法有哪些？" --show-sources
+kias knowledge query "AgentGuard 的调度算法有哪些？" --show-sources
 
 # 查询相关实体
 kias knowledge query --entity "kias-scheduler"

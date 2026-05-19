@@ -1,4 +1,4 @@
-# KIAS IT变更管理系统 - 部署指南
+# AgentGuard IT变更管理系统 - 部署指南
 
 ## 生产环境部署
 
@@ -16,8 +16,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
+git clone https://github.com/Andy-ckm/AgentGuard.git
+cd AgentGuard
 
 # 编译
 cargo build --release -p kias-it-change-management
@@ -82,7 +82,7 @@ sudo chown -R kias:kias /var/lib/kias /var/log/kias
 ```bash
 cat > /etc/systemd/system/kias-it-change.service << EOF
 [Unit]
-Description=KIAS IT Change Management Service
+Description=AgentGuard IT Change Management Service
 After=network.target
 
 [Service]
@@ -215,7 +215,7 @@ ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
 ssh-copy-id root@target-server
 
 # 复制Playbooks
-cp -r /path/to/KIAS/crates/it-change-management/playbooks/* /etc/kias/playbooks/
+cp -r /path/to/AgentGuard/crates/it-change-management/playbooks/* /etc/kias/playbooks/
 ```
 
 #### 9.2 OpenSCAP配置

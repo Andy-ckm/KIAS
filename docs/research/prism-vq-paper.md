@@ -13,8 +13,8 @@
 - S&P 500: RankIC 0.0141, Sharpe 0.67 (费后)
 - 去掉 VQ 后 S&P 500 RankIC 变负 (-0.0024)
 
-## KIAS 映射
-| PRISM-VQ | KIAS |
+## AgentGuard 映射
+| PRISM-VQ | AgentGuard |
 |----------|------|
 | VQ Codebook (512 codes) | Agent 状态离散化原型 |
 | 两阶段解耦 | Agent 画像 → 调度决策 |

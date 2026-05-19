@@ -136,7 +136,7 @@ impl SandboxExecutor {
         }
 
         // 设置环境变量限制
-        cmd.env("KIAS_SANDBOX", "true");
+        cmd.env("AgentGuard_SANDBOX", "true");
 
         let timeout = self.config.timeout_secs.unwrap_or(60);
 
@@ -289,8 +289,8 @@ impl SandboxExecutor {
         full_cmd.push_str(&cmd_args.join(" "));
 
         cmd.arg(&full_cmd);
-        cmd.env("KIAS_SANDBOX", "true");
-        cmd.env("KIAS_NAMESPACE_ISOLATED", "true");
+        cmd.env("AgentGuard_SANDBOX", "true");
+        cmd.env("AgentGuard_NAMESPACE_ISOLATED", "true");
 
         match tokio::time::timeout(std::time::Duration::from_secs(timeout), cmd.output()).await {
             Ok(Ok(output)) => SandboxResult {

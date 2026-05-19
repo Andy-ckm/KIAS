@@ -2,7 +2,7 @@
 
 > 来源：知乎文章 2034060661008957046
 > 日期：2026-05-18
-> 用途：**KIAS 的目标业务场景**
+> 用途：**AgentGuard 的目标业务场景**
 
 ## 一、核心论点
 
@@ -27,7 +27,7 @@ SAP 企业级 AI 执行的三个支柱：
 - Knowledge Graph 提供跨系统关联
 - 数据治理：谁有权访问什么数据
 
-**KIAS 映射**：KIAS 的 data-store + knowledge-graph 需要支持：
+**AgentGuard 映射**：AgentGuard 的 data-store + knowledge-graph 需要支持：
 - 多数据源接入（SAP、数据库、API）
 - 知识图谱（实体关系、因果链路）
 - 数据治理（RBAC + 审计）
@@ -38,7 +38,7 @@ SAP 企业级 AI 执行的三个支柱：
 - AI Agent 只能执行被授权的操作
 - 所有 AI 操作必须有审计日志
 
-**KIAS 现状**：已有 RBAC + 审计日志。✅
+**AgentGuard 现状**：已有 RBAC + 审计日志。✅
 
 ### 支柱 3：Joule Studio — 让客户自己构建 AI Agent
 
@@ -46,7 +46,7 @@ SAP 企业级 AI 执行的三个支柱：
 - 自定义 Agent 技能
 - 测试 + 部署 + 监控
 
-**KIAS 映射**：
+**AgentGuard 映射**：
 - workflow-engine 可以做 Agent 编排
 - skills 可以做自定义技能
 - **缺可视化界面**（CLI → Web UI）
@@ -63,8 +63,8 @@ SAP 选这三个领域做自主执行：
 
 **共同特点**：**高结构化 + 高规则性 + 高重复性**
 
-**KIAS 借鉴**：
-- KIAS 的 autonomy-controller 应该优先支持这三类场景
+**AgentGuard 借鉴**：
+- AgentGuard 的 autonomy-controller 应该优先支持这三类场景
 - 工作流模板应该预置 Finance/Logistics/HR 的标准流程
 - Agent 技能库应该有领域专用技能
 
@@ -79,7 +79,7 @@ SAP 选这三个领域做自主执行：
 3. AI 执行需要"权限框架"
 4. AI 执行需要"审计日志"
 
-**KIAS 现状**：
+**AgentGuard 现状**：
 - autonomy-controller 有执行能力 ✅
 - 有 RBAC 权限框架 ✅
 - 有审计日志 ✅
@@ -94,16 +94,16 @@ SAP 选这三个领域做自主执行：
 2. 开放给合作伙伴（Joule Studio）
 3. 开放给客户自建（Joule Studio Pro）
 
-**KIAS 路径**：开源框架 → 企业级 AI 平台
+**AgentGuard 路径**：开源框架 → 企业级 AI 平台
 
 **步骤**：
-1. 用 KIAS 自己开发 KIAS（dogfooding）✅
+1. 用 AgentGuard 自己开发 AgentGuard（dogfooding）✅
 2. 开放给开发者（CLI + API）
 3. 开放给企业（Web UI + 可视化编排）
 
-## 六、可直接映射到 KIAS 的设计
+## 六、可直接映射到 AgentGuard 的设计
 
-| SAP 设计 | KIAS 映射 | 实现状态 |
+| SAP 设计 | AgentGuard 映射 | 实现状态 |
 |----------|-----------|----------|
 | Business Data Cloud | data-store + knowledge | 部分完成 |
 | Knowledge Graph | knowledge crate | 基础完成 |

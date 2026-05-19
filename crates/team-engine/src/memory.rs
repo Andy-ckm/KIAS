@@ -726,7 +726,7 @@ mod tests {
         let mut ltm = LongTermMemory::new(1000);
         ltm.store(
             "a1",
-            "KIAS uses Rust for performance",
+            "AgentGuard uses Rust for performance",
             vec!["tech".to_string()],
         );
         ltm.store(

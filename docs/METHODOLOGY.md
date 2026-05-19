@@ -1,4 +1,4 @@
-# KIAS 顶层方法论 — 完整原则体系
+# AgentGuard 顶层方法论 — 完整原则体系
 
 > **铁律：先评估，再开发。不评估不动手。**
 > 基于钱学森系统工程理论 + 马斯克第一性原则。
@@ -51,14 +51,14 @@
 #### 2.1 回归本质
 > "把事情归结到最基本的真理，然后从那里开始推理。" —— Elon Musk
 
-**在 KIAS 中的应用**：
+**在 AgentGuard 中的应用**：
 - 不问"别人怎么做"，问"本质是什么"
 - 不问"能不能做"，问"为什么不能做"
 - 不问"怎么做"，问"为什么要这么做"
 
 **示例**：
 ```
-问题：KIAS 需要统一检索引擎吗？
+问题：AgentGuard 需要统一检索引擎吗？
 第一性原则思考：
   1. 检索的本质是什么？
      → 从知识库中找到最相关的信息
@@ -74,8 +74,8 @@
 #### 2.2 质疑一切假设
 > "不要因为别人这么做了，就认为这是对的。" —— Elon Musk
 
-**在 KIAS 中的应用**：
-- 质疑"业界标准"：真的适合 KIAS 吗？
+**在 AgentGuard 中的应用**：
+- 质疑"业界标准"：真的适合 AgentGuard 吗？
 - 质疑"最佳实践"：真的最优吗？
 - 质疑"必须做"：真的必须吗？
 
@@ -85,17 +85,17 @@
 第一性原则质疑：
   1. 向量搜索的本质是什么？
      → 语义相似度计算
-  2. KIAS 的场景需要语义相似吗？
+  2. AgentGuard 的场景需要语义相似吗？
      → 代码/技术文档，关键词匹配更精准
   3. 向量搜索的成本？
      → 需要 embedding 模型，计算成本高
-结论：KIAS 场景下，关键词匹配可能更合适
+结论：AgentGuard 场景下，关键词匹配可能更合适
 ```
 
 #### 2.3 从物理定律出发
 > "物理定律是唯一不能违反的。" —— Elon Musk
 
-**在 KIAS 中的应用**：
+**在 AgentGuard 中的应用**：
 - 尊重物理定律：计算有成本，存储有上限，网络有延迟
 - 尊重数学规律：复杂度理论，信息论
 - 尊重工程规律：没有银弹，权衡取舍
@@ -108,7 +108,7 @@
      → O(V+E)，V=节点数，E=边数
   2. 实时的要求？
      → <100ms
-  3. KIAS 的知识库规模？
+  3. AgentGuard 的知识库规模？
      → 预计 10K+ 节点
   4. 能否在 100ms 内完成？
      → 可能不行，需要缓存或预计算
@@ -213,9 +213,9 @@ Layer 2: Orchestration   → model-router + workflow-engine + team-engine + goal
 Layer 1: Runtime         → tool-executor + mcp-protocol + sandbox + agent-runtime
 ```
 
-#### 4.4 KIAS 的 Harness 架构映射
+#### 4.4 AgentGuard 的 Harness 架构映射
 
-| Harness 要素 | 理论来源 | KIAS 模块 | 状态 |
+| Harness 要素 | 理论来源 | AgentGuard 模块 | 状态 |
 |-------------|---------|----------|------|
 | 模型选择路由 | Harness 公式1 | model-router + tier_routing | ✅ |
 | Prompt/技能 | Harness 4.3 | skills + quality_pipeline | ✅ |
@@ -228,7 +228,7 @@ Layer 1: Runtime         → tool-executor + mcp-protocol + sandbox + agent-runt
 | 仿真测试 | harnesslabs/arbiter | N/A | ❌ 未实现 |
 | 执行防火墙 | OpenClaw | sandbox (容器级) | ⚠️ 非系统调用级 |
 
-#### 4.5 KIAS Harness 独特优势
+#### 4.5 AgentGuard Harness 独特优势
 
 1. **集群级 Harness**：不仅单 Agent，而是集群调度 + Agent Harness 融合
 2. **声明式 API**：借鉴 K8S，Harness 配置即代码
@@ -240,7 +240,7 @@ Layer 1: Runtime         → tool-executor + mcp-protocol + sandbox + agent-runt
 
 > 如果 Harness 控制模型选择，甚至基于 Harness 数据增训模型，灵魂到底属于谁？
 
-**KIAS 的答案**：灵魂在 Harness。模型是可替换的执行器，Harness（skills + memory + approval + audit + knowledge）才是 Agent 的身份和能力。更换模型不影响 Agent 的本质；更换 Harness 则改变 Agent 的行为。
+**AgentGuard 的答案**：灵魂在 Harness。模型是可替换的执行器，Harness（skills + memory + approval + audit + knowledge）才是 Agent 的身份和能力。更换模型不影响 Agent 的本质；更换 Harness 则改变 Agent 的行为。
 
 **实践证据**：
 - model-router：Harness 决定用哪个模型，模型不知道自己被选中
@@ -287,7 +287,7 @@ Harness = 约束 + 参照 + 验证
 验证：分阶段检查，确保符合预期
 ```
 
-### 2.3 KIAS 的四层 Harness
+### 2.3 AgentGuard 的四层 Harness
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -307,7 +307,7 @@ Harness = 约束 + 参照 + 验证
 
 ### 2.4 Harness 在开发中的应用
 
-| 开发阶段 | Harness 应用 | KIAS 模块 |
+| 开发阶段 | Harness 应用 | AgentGuard 模块 |
 |---------|-------------|----------|
 | 需求分析 | 约束：定义功能边界 | skills |
 | 设计阶段 | 参照：提供已有实现 | knowledge |
@@ -379,7 +379,7 @@ Q4: 为什么需要快速验证？
 A4: 因为迭代速度决定竞争力
   ↓
 Q5: 为什么迭代速度这么重要？
-A5: 因为KIAS的核心价值是"用得越久越智能"，需要快速验证进化效果
+A5: 因为AgentGuard的核心价值是"用得越久越智能"，需要快速验证进化效果
   ↓
 结论：可视化是刚需，不是装饰
 ```
@@ -477,7 +477,7 @@ L3: api-server, kias-main
 
 ### 知识注入
 - 论文、代码、经验、最佳实践 → RAG 知识库
-- 注入前必须评估：这个知识对 KIAS 有什么价值？
+- 注入前必须评估：这个知识对 AgentGuard 有什么价值？
 
 ### 知识使用
 - 开发新功能前，先搜索知识库
@@ -538,7 +538,7 @@ L3: api-server, kias-main
 
 ---
 
-**本方法论是 KIAS 开发的强制执行原则。违反本方法论的 PR 不予合并。**
+**本方法论是 AgentGuard 开发的强制执行原则。违反本方法论的 PR 不予合并。**
 
 *最后更新：2026-05-17*
 
@@ -619,9 +619,9 @@ done
 
 3. **定义清楚一个问题，这个问题就解决了 95%** — 大多数团队在"证明 AI 有用"，而不是"用 AI 解决业务问题"。
 
-### 6.3 KIAS 的灵魂定义
+### 6.3 AgentGuard 的灵魂定义
 
-**KIAS = 专为重度监管与复杂架构打造的 AI Agent 合规免疫系统**
+**AgentGuard = 专为重度监管与复杂架构打造的 AI Agent 合规免疫系统**
 
 核心问题：让高管和干系人，敢于在核心生产环境里使用 AI Agent。
 
@@ -638,7 +638,7 @@ done
 
 ### 6.5 反模式清单
 
-| 反模式 | 症状 | KIAS 教训 |
+| 反模式 | 症状 | AgentGuard 教训 |
 |--------|------|----------|
 | 局部战术勤奋 | 代码行数很多，业务价值为零 | 5369 行死代码 |
 | Vibe Coding 上生产 | 生成代码快，但不符合工程规范 | 先生成再接入=顺序反了 |

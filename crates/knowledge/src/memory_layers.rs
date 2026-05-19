@@ -476,7 +476,7 @@ impl DreamConsolidator {
         let memories = self.memories.read().await;
         let mut lines: Vec<String> = Vec::new();
 
-        lines.push("# KIAS Memory Index\n".to_string());
+        lines.push("# AgentGuard Memory Index\n".to_string());
         lines.push(format!(
             "Last updated: {}\n",
             chrono::Utc::now().to_rfc3339()

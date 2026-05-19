@@ -300,7 +300,7 @@ impl SelfImprovementManager {
     /// 生成改进报告
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str("# KIAS 自改进循环报告\n\n");
+        report.push_str("# AgentGuard 自改进循环报告\n\n");
         report.push_str(&format!(
             "生成时间: {}\n\n",
             chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
@@ -415,7 +415,7 @@ mod tests {
     fn test_generate_report() {
         let manager = SelfImprovementManager::new();
         let report = manager.generate_report();
-        assert!(report.contains("KIAS 自改进循环报告"));
+        assert!(report.contains("AgentGuard 自改进循环报告"));
     }
 
     #[test]

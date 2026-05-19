@@ -1,4 +1,4 @@
-# KIAS 开发者维护指南
+# AgentGuard 开发者维护指南
 
 > 为后期开发者提供完整的维护和开发指南
 
@@ -291,8 +291,8 @@ heaptrack target/debug/kias
 cargo build --release
 
 # 2. 配置环境变量
-export KIAS_ENV=production
-export KIAS_LOG_LEVEL=info
+export AgentGuard_ENV=production
+export AgentGuard_LOG_LEVEL=info
 
 # 3. 运行服务
 ./target/release/kias --config config/production.toml

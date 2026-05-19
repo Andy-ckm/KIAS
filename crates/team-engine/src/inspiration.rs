@@ -575,7 +575,7 @@ mod tests {
             InspirationSource::GitHubTrending,
             "New Rust Agent Framework",
             "A new framework with interesting design...",
-            "Related to KIAS architecture",
+            "Related to AgentGuard architecture",
             "Consider adopting their plugin system",
             0.8,
         );
@@ -800,11 +800,11 @@ mod tests {
     async fn test_inspiration_stream_context_update() {
         let stream = InspirationStream::new(InspirationStreamConfig::default());
         stream
-            .set_task_context("Building a new scheduler for KIAS".to_string())
+            .set_task_context("Building a new scheduler for AgentGuard".to_string())
             .await;
         assert_eq!(
             *stream.task_context.read().await,
-            "Building a new scheduler for KIAS"
+            "Building a new scheduler for AgentGuard"
         );
     }
 

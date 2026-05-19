@@ -293,7 +293,7 @@ impl A2aTaskStore {
 pub async fn well_known_agent_card() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "id": "kias-server",
-        "name": "KIAS Agent Scheduler",
+        "name": "AgentGuard Agent Scheduler",
         "description": "Kubernetes-like Intelligent Agent Scheduling System — manages, routes, and orchestrates AI agent tasks across a cluster",
         "protocolVersion": "1.0",
         "version": env!("CARGO_PKG_VERSION"),
@@ -336,7 +336,7 @@ pub async fn well_known_agent_card() -> Json<serde_json::Value> {
             "required": true
         },
         "provider": {
-            "organization": "KIAS",
+            "organization": "AgentGuard",
             "url": "https://github.com/kias-project"
         }
     }))
@@ -356,7 +356,7 @@ pub async fn list_agent_cards(
             serde_json::json!({
                 "id": agent.id,
                 "name": agent.spec.name,
-                "description": format!("KIAS agent: {}", agent.spec.name),
+                "description": format!("AgentGuard agent: {}", agent.spec.name),
                 "protocolVersion": "1.0",
                 "version": "0.1.0",
                 "url": format!("http://localhost:8080/a2a/v1/agents/{}", agent.id),
@@ -428,7 +428,7 @@ pub async fn get_agent_card(
     Ok(Json(serde_json::json!({
         "id": agent.id,
         "name": agent.spec.name,
-        "description": format!("KIAS agent: {}", agent.spec.name),
+        "description": format!("AgentGuard agent: {}", agent.spec.name),
         "protocolVersion": "1.0",
         "version": "0.1.0",
         "url": format!("http://localhost:8080/a2a/v1/agents/{}", agent.id),
@@ -530,7 +530,7 @@ pub async fn send_task(
             message: Some(A2aMessage {
                 role: A2aRole::Agent,
                 parts: vec![A2aPart::Text {
-                    text: "Task processed successfully by KIAS".to_string(),
+                    text: "Task processed successfully by AgentGuard".to_string(),
                     metadata: None,
                 }],
                 is_final: true,
@@ -545,7 +545,7 @@ pub async fn send_task(
             updated.messages.push(A2aMessage {
                 role: A2aRole::Agent,
                 parts: vec![A2aPart::Text {
-                    text: "Task processed successfully by KIAS".to_string(),
+                    text: "Task processed successfully by AgentGuard".to_string(),
                     metadata: None,
                 }],
                 is_final: true,
@@ -556,7 +556,7 @@ pub async fn send_task(
                 id: Uuid::new_v4().to_string(),
                 name: Some("result".to_string()),
                 parts: vec![A2aPart::Text {
-                    text: "Task output from KIAS agent scheduler".to_string(),
+                    text: "Task output from AgentGuard agent scheduler".to_string(),
                     metadata: None,
                 }],
                 metadata: HashMap::new(),
@@ -849,7 +849,7 @@ pub async fn fire_agent(
             message: Some(A2aMessage {
                 role: A2aRole::Agent,
                 parts: vec![A2aPart::Text {
-                    text: "Fire request processed by KIAS (target: auto)".to_string(),
+                    text: "Fire request processed by AgentGuard (target: auto)".to_string(),
                     metadata: None,
                 }],
                 is_final: true,
@@ -863,7 +863,7 @@ pub async fn fire_agent(
             updated.messages.push(A2aMessage {
                 role: A2aRole::Agent,
                 parts: vec![A2aPart::Text {
-                    text: "Fire request processed by KIAS (target: auto)".to_string(),
+                    text: "Fire request processed by AgentGuard (target: auto)".to_string(),
                     metadata: None,
                 }],
                 is_final: true,
@@ -1182,7 +1182,7 @@ mod tests {
     fn test_well_known_card_structure() {
         let card = serde_json::json!({
             "id": "kias-server",
-            "name": "KIAS Agent Scheduler",
+            "name": "AgentGuard Agent Scheduler",
             "protocolVersion": "1.0",
             "capabilities": {
                 "streaming": true,

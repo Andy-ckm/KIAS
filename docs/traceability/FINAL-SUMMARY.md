@@ -1,4 +1,4 @@
-# KIAS 项目可追溯性体系建立完成
+# AgentGuard 项目可追溯性体系建立完成
 
 > 透明、可追踪、可维护的AI开发文档体系
 
@@ -74,7 +74,7 @@ docs/design-docs/
 ├── delegation-protocol.md       # 委托协议设计
 ├── goal-driven-loop.md          # 目标驱动循环设计
 ├── kanban-system.md             # 看板系统设计
-├── kias-cli.md                  # KIAS CLI设计
+├── kias-cli.md                  # AgentGuard CLI设计
 ├── knowledge-system.md          # 知识系统设计
 ├── langgraph-engine.md          # LangGraph引擎设计
 ├── websocket-realtime-push.md   # WebSocket实时推送设计
@@ -222,7 +222,7 @@ CR-XXX    模块依赖   风险等级    测试覆盖    监控指标
 3. **紧急问题**：通过邮件或即时通讯联系
 
 ### 贡献指南
-1. **Fork仓库**：Fork KIAS仓库
+1. **Fork仓库**：Fork AgentGuard仓库
 2. **创建分支**：创建特性或修复分支
 3. **提交代码**：提交代码和文档
 4. **创建PR**：创建Pull Request
@@ -251,7 +251,7 @@ CR-XXX    模块依赖   风险等级    测试覆盖    监控指标
 
 ## 🎉 总结
 
-KIAS项目通过完整的可追溯性文档体系，实现了：
+AgentGuard项目通过完整的可追溯性文档体系，实现了：
 
 1. **透明性**：所有决策和实现都有记录
 2. **可追踪性**：从需求到实现的完整追踪
@@ -261,10 +261,10 @@ KIAS项目通过完整的可追溯性文档体系，实现了：
 6. **团队协作**：清晰的协作流程和规范
 7. **持续改进**：基于反馈的持续改进机制
 
-这个文档体系是KIAS项目成功的重要保障，也是后期维护和发展的坚实基础。通过透明、可追踪、可维护的AI开发，KIAS项目能够持续交付高质量的企业级AI Agent框架。
+这个文档体系是AgentGuard项目成功的重要保障，也是后期维护和发展的坚实基础。通过透明、可追踪、可维护的AI开发，AgentGuard项目能够持续交付高质量的企业级AI Agent框架。
 
 ---
 
 **文档版本**：1.0.0  
 **最后更新**：2026-05-15  
-**维护者**：KIAS开发团队
+**维护者**：AgentGuard开发团队

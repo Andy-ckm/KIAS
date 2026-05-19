@@ -1,8 +1,8 @@
-# KIAS Dogfooding — 用 KIAS 开发 KIAS
+# AgentGuard Dogfooding — 用 AgentGuard 开发 AgentGuard
 
 ## 概述
 
-KIAS 系统采用 dogfooding 模式进行开发——使用 KIAS 自身来管理和驱动 KIAS 的开发工作。
+AgentGuard 系统采用 dogfooding 模式进行开发——使用 AgentGuard 自身来管理和驱动 AgentGuard 的开发工作。
 
 ## Agent 定义
 

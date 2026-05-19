@@ -30,7 +30,7 @@ fn bench_sandbox_creation(c: &mut Criterion) {
             timeout: Duration::from_secs(60),
             max_memory_bytes: 1024 * 1024 * 1024,
             max_output_bytes: 2 * 1024 * 1024,
-            env_whitelist: vec!["KIAS_".to_string(), "PATH".to_string()],
+            env_whitelist: vec!["AgentGuard_".to_string(), "PATH".to_string()],
             capture_stderr: true,
             workdir: None,
             env_vars: HashMap::new(),

@@ -1,8 +1,8 @@
-# KIAS 创新路线图 — 基于主流 AI Agent 框架最新特性研究
+# AgentGuard 创新路线图 — 基于主流 AI Agent 框架最新特性研究
 
 > **研究日期**: 2026-05-16
 > **研究范围**: LangGraph v1.2, CrewAI v1.14, AutoGen v0.7, Semantic Kernel v1.42, OpenAI Agents SDK v0.17, Google ADK v1.33
-> **筛选标准**: 生产可用 ✅ | KIAS 尚未实现 ✅ | Rust 可行 ✅
+> **筛选标准**: 生产可用 ✅ | AgentGuard 尚未实现 ✅ | Rust 可行 ✅
 
 ---
 
@@ -10,7 +10,7 @@
 
 对 6 大主流 AI Agent 框架的最新版本（截至 2026 年 5 月）进行了深度分析，包括 release notes、架构设计、新特性等。以下 10 个特性经过严格筛选，确保：
 1. 在生产环境中有实际价值
-2. KIAS 当前代码库中尚未实现
+2. AgentGuard 当前代码库中尚未实现
 3. 使用 Rust 实现技术上可行
 
 ---
@@ -25,8 +25,8 @@ LangGraph 在 v1.2 中引入了两个关键能力：
 - **节点级错误处理器**: 每个 StateGraph 节点可以注册独立的 `error_handler`，当节点执行失败时，由 handler 决定是重试、跳过、还是路由到降级路径，而非直接中断整个图执行。
 - **宿主崩溃恢复 (Durable Resume)**: 当宿主进程崩溃后重启，通过 checkpoint 中的 writes history 自动恢复到崩溃前的执行状态，实现"断点续跑"。关键机制是 `get_writes_history` API + `DeltaChannel` 增量快照。
 
-### KIAS 差距分析
-KIAS 的 `workflow-engine` 有 checkpoint 持久化和重试机制，但：
+### AgentGuard 差距分析
+AgentGuard 的 `workflow-engine` 有 checkpoint 持久化和重试机制，但：
 - 错误处理是引擎级的，不是节点级的（无法为单个节点定义独立的错误恢复策略）
 - 检查点是全量快照，没有增量持久化
 - 没有跨宿主崩溃的自动恢复能力
@@ -65,8 +65,8 @@ LangGraph 引入了 `StreamingTransformer` 基础设施，允许在图执行过�
 - 用户可以注册 transformer 函数，在流式数据到达客户端之前进行过滤、聚合、格式化
 - 支持多种投影模式：custom（自定义）、updates（节点更新）、checkpoints（检查点）、debug（调试）、tasks（任务）
 
-### KIAS 差距分析
-KIAS 的 workflow-engine 和 langgraph-engine 都是"执行完返回结果"模式，没有流式输出能力。对于 LLM 类任务，用户无法实时看到生成进度。
+### AgentGuard 差距分析
+AgentGuard 的 workflow-engine 和 langgraph-engine 都是"执行完返回结果"模式，没有流式输出能力。对于 LLM 类任务，用户无法实时看到生成进度。
 
 ### 实现方案
 ```
@@ -105,8 +105,8 @@ CrewAI 和 OpenAI Agents SDK 都引入了标准化的 HITL 机制：
 - **CrewAI**: Flow 执行到关键节点时自动暂停，发送审批请求，支持"pre-review"（预审）和"distillation"（精炼确认）两种模式。HITL resume 后触发 `flow_finished` 事件。
 - **OpenAI Agents SDK**: 通过 `approval_func` 回调，让外部系统决定是否批准工具调用。支持保留审批拒绝原因，用于审计。
 
-### KIAS 差距分析
-KIAS 的 workflow-engine 有 `HumanApproval` 节点类型，但是：
+### AgentGuard 差距分析
+AgentGuard 的 workflow-engine 有 `HumanApproval` 节点类型，但是：
 - 只支持简单的人工审批节点，没有 pre-review 模式
 - 没有审批策略 DSL（无法定义自动审批规则）
 - 没有审批历史和审计追踪
@@ -149,8 +149,8 @@ AutoGen 在 v0.6 中引入了 GraphFlow 的可调用条件边：
 - 条件函数接收当前状态，返回布尔值决定是否走该边
 - 支持 DAG 拓扑，多个 agent 并行或串行执行
 
-### KIAS 差距分析
-KIAS 的 langgraph-engine 有条件边（`ConditionalEdge`），但实现是基于简单字符串匹配或枚举值路由。没有支持自定义闭包/函数作为条件的机制。
+### AgentGuard 差距分析
+AgentGuard 的 langgraph-engine 有条件边（`ConditionalEdge`），但实现是基于简单字符串匹配或枚举值路由。没有支持自定义闭包/函数作为条件的机制。
 
 ### 实现方案
 ```
@@ -192,8 +192,8 @@ AutoGen 引入了 `Agent-as-Tool` 模式：
 - 被封装 Agent 执行完成后，结果作为工具返回值传回调用方
 - 支持 `TeamTool` 模式——将一个 Agent 团队封装为单个工具
 
-### KIAS 差距分析
-KIAS 的 team-engine 支持 Owner-Worker-Verifier 三角色，但：
+### AgentGuard 差距分析
+AgentGuard 的 team-engine 支持 Owner-Worker-Verifier 三角色，但：
 - Agent 之间只能通过 team 内部协议通信
 - 没有"将 Agent 注册为工具"的能力
 - 无法实现 Agent 层级嵌套调用
@@ -237,8 +237,8 @@ OpenAI Agents SDK 引入了会话历史压缩机制：
 - 压缩失败时自动恢复原始历史（`restore after compaction replacement failures`）
 - 支持 reasoning 内容的持久化（保留推理过程用于审计）
 
-### KIAS 差距分析
-KIAS 的 team-engine 有三层记忆系统，但没有会话历史压缩能力。当 Agent 处理长对话时，容易超出 token 限制。
+### AgentGuard 差距分析
+AgentGuard 的 team-engine 有三层记忆系统，但没有会话历史压缩能力。当 Agent 处理长对话时，容易超出 token 限制。
 
 ### 实现方案
 ```
@@ -274,8 +274,8 @@ AutoGen 和 Google ADK 都采用了 OpenTelemetry 的 GenAI Semantic Convention�
 - 标准化的 trace 格式可以无缝对接 Jaeger、Grafana Tempo 等工具
 - 支持环境变量控制是否启用 tracing
 
-### KIAS 差距分析
-KIAS 有 Prometheus 指标和基础的 tracing，但：
+### AgentGuard 差距分析
+AgentGuard 有 Prometheus 指标和基础的 tracing，但：
 - 没有遵循 GenAI Semantic Convention 标准
 - 没有 Agent 级别的 trace span（create/invoke/tool_call）
 - trace 数据格式不标准化，无法与其他 Agent 框架互通
@@ -295,7 +295,7 @@ KIAS 有 Prometheus 指标和基础的 tracing，但：
    gen_ai.agent.name, gen_ai.agent.id, gen_ai.system,
    gen_ai.request.model, gen_ai.usage.input_tokens, gen_ai.usage.output_tokens
 3. 集成 opentelemetry-rust SDK
-4. 支持环境变量 KIAS_OTEL_ENABLED 控制开关
+4. 支持环境变量 AgentGuard_OTEL_ENABLED 控制开关
 
 预计工作量: 10h
 收益: 标准化可观测性，与 Jaeger/Grafana 无缝集成，跨框架互操作
@@ -315,8 +315,8 @@ Google ADK 引入了 `BufferableSessionService`：
 - 支持 flush 策略：定时刷新、达到阈值刷新、手动刷新
 - 崩溃时通过 WAL 恢复未刷新的数据
 
-### KIAS 差距分析
-KIAS 的 data-store 直接读写 SQLite，每次状态变更都会触发磁盘 I/O。在高并发场景下，这会成为性能瓶颈。
+### AgentGuard 差距分析
+AgentGuard 的 data-store 直接读写 SQLite，每次状态变更都会触发磁盘 I/O。在高并发场景下，这会成为性能瓶颈。
 
 ### 实现方案
 ```
@@ -354,8 +354,8 @@ Google 发布了 A2A (Agent-to-Agent) 协议标准，CrewAI 已率先实现：
 - 支持跨系统、跨框架的 Agent 互操作
 - 与 MCP 互补：MCP 管理工具，A2A 管理 Agent 间通信
 
-### KIAS 差距分析
-KIAS 的 a2a_router 已实现了内部的 5 种路由策略，但：
+### AgentGuard 差距分析
+AgentGuard 的 a2a_router 已实现了内部的 5 种路由策略，但：
 - 没有遵循 Google A2A 协议标准
 - Agent Card 格式不标准
 - 无法与外部 A2A 兼容系统互操作
@@ -402,8 +402,8 @@ CrewAI 为 Flow 引入了声明式持久化：
 - 恢复时从指定快照继续执行（`restoreFromStateId`）
 - 通过 TUI/API 检查 Flow checkpoint 并恢复
 
-### KIAS 差距分析
-KIAS 的 workflow-engine 有 checkpoint 机制，但是：
+### AgentGuard 差距分析
+AgentGuard 的 workflow-engine 有 checkpoint 机制，但是：
 - 没有"声明式"持久化（无法指定哪些状态需要持久化）
 - 没有按 Flow 实例的快照管理和恢复
 - 没有从 UI 层面查看和选择 checkpoint 的能力

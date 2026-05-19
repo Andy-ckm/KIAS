@@ -30,7 +30,7 @@ impl TaskExecutor for SimpleExecutor {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Executor Service");
+    tracing::info!("Starting AgentGuard Executor Service");
 
     let executor = Box::new(SimpleExecutor);
     let runtime = TaskRuntime::new(executor);
@@ -51,6 +51,6 @@ async fn main() -> anyhow::Result<()> {
         result.task_id, result.status
     );
 
-    tracing::info!("KIAS Executor Service finished");
+    tracing::info!("AgentGuard Executor Service finished");
     Ok(())
 }

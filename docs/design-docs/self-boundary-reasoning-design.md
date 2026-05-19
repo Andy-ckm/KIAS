@@ -2,11 +2,11 @@
 
 > 来源: all-agentic-architectures #18 Reflexive Metacognitive Agent
 > 日期: 2026-05-18
-> 状态: KIAS 架构补充设计
+> 状态: AgentGuard 架构补充设计
 
 ## 1. 它要解决什么问题？
 
-KIAS 的 tier_routing 按任务复杂度选模型（简单→小模型，复杂→大模型），但缺少一个更根本的判断：**这个任务我到底该不该做？**
+AgentGuard 的 tier_routing 按任务复杂度选模型（简单→小模型，复杂→大模型），但缺少一个更根本的判断：**这个任务我到底该不该做？**
 
 当前 tier_routing 的盲区：
 - 不知道自己不擅长什么（置信度估计缺失）
@@ -112,7 +112,7 @@ Self-boundary Reasoning 在 tier_routing **之前**执行：
 
 ```rust
 impl SelfModel {
-    /// 从 KIAS 的知识库自动构建自我模型
+    /// 从 AgentGuard 的知识库自动构建自我模型
     pub fn from_knowledge_base(kb: &KnowledgeBase) -> Self {
         Self {
             knowledge_domains: kb.get_domain_list(),
@@ -178,9 +178,9 @@ Task: {}
 | 高风险主题匹配粗糙 | 正常任务被误判为高风险 | 语义匹配替代关键词匹配 |
 | escalation 过多 | 人工负担过重 | 分级 escalation + 自动学习 |
 
-## 7. KIAS 对接
+## 7. AgentGuard 对接
 
-| KIAS 模块 | 对接方式 |
+| AgentGuard 模块 | 对接方式 |
 |-----------|---------|
 | tier_routing | Self-boundary 在其之前执行，决定是否需要模型选择 |
 | scheduler | 任务调度时考虑 agent 能力边界 |

@@ -674,7 +674,7 @@ async fn execute_intent(intent: &Intent, state: &AppState) -> (Vec<NlAction>, St
             };
             (
                 vec![action],
-                "✓ KIAS 服务运行正常".to_string(),
+                "✓ AgentGuard 服务运行正常".to_string(),
                 vec!["查看集群状态".to_string()],
             )
         }
@@ -726,7 +726,7 @@ async fn execute_intent(intent: &Intent, state: &AppState) -> (Vec<NlAction>, St
             };
             (
                 vec![action],
-                "KIAS 自然语言命令支持:\n\
+                "AgentGuard 自然语言命令支持:\n\
                  - 列出所有 agent / list agents\n\
                  - 创建一个名为 xxx 的 agent\n\
                  - 删除 agent xxx\n\

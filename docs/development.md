@@ -1,8 +1,8 @@
-# KIAS 开发文档（持续更新）
+# AgentGuard 开发文档（持续更新）
 
 ## 项目概述
 
-KIAS (Kubernetes-Inspired Agent System) 是一个企业级 AI Agent 集群系统。
+AgentGuard (Kubernetes-Inspired Agent System) 是一个企业级 AI Agent 集群系统。
 
 ## 核心设计（借鉴来源）
 
@@ -125,7 +125,7 @@ kias/
 
 ### 发现的参考项目
 
-| 项目 | Stars | 创新点 | 对KIAS的启发 |
+| 项目 | Stars | 创新点 | 对AgentGuard的启发 |
 |------|-------|--------|-------------|
 | **Plano** | 6.4k | AI-native proxy + data plane | Agent 网络层设计 |
 | **microsandbox** | 6k | 安全沙箱执行 | Sandbox Executor ✅ |

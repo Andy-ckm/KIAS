@@ -1,4 +1,4 @@
-# KIAS 创新点集成计划
+# AgentGuard 创新点集成计划
 
 > 最后更新：2026-05-14 07:48
 
@@ -97,7 +97,7 @@
 ### 16. Prometheus 指标端点（Sprint 5 新增）🆕
 - **来源**: Prometheus 文本格式规范
 - **实现**: `monitor/src/prometheus.rs`
-- **效果**: 标准 Prometheus /metrics 端点，15 个 KIAS 标准指标名
+- **效果**: 标准 Prometheus /metrics 端点，15 个 AgentGuard 标准指标名
 - **测试**: 新增 11 个测试通过
 
 ### 17. A2A 智能任务路由（Sprint 5 新增）🆕
@@ -178,14 +178,14 @@
 - **概念**: 标准化 LLM 工具接口，支持工具发现、调用、结果返回
 - **集成方案**:
   - 在 `skills/` 中实现 MCP Server/Client
-  - 将 KIAS Skills 注册为 MCP 工具
+  - 将 AgentGuard Skills 注册为 MCP 工具
   - 在 `executor/` 中支持 MCP 工具调用
 - **预计工作量**: 6h
 - **预计收益**: 与任何 MCP 兼容 LLM 无缝集成
 
-#### ~~2. MCP Server for KIAS~~ ✅ 已集成 (Sprint 7, 创新点 #22)
+#### ~~2. MCP Server for AgentGuard~~ ✅ 已集成 (Sprint 7, 创新点 #22)
 - **来源**: Anthropic MCP (2025)
-- **概念**: 将 KIAS 注册为 MCP Server，暴露 Agent 管理、调度、监控能力为 MCP 工具
+- **概念**: 将 AgentGuard 注册为 MCP Server，暴露 Agent 管理、调度、监控能力为 MCP 工具
 - **实现**: `mcp-protocol/` crate，Tool/Resource/Prompt 三大注册中心
 
 #### 3. A2A Agent Cards

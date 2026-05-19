@@ -567,7 +567,7 @@ impl QualityPipeline {
     pub fn generate_report(&self) -> String {
         let s = &self.stats;
         format!(
-            "KIAS 数据质量报告\n\
+            "AgentGuard 数据质量报告\n\
              ════════════════\n\
              总知识条目: {}\n\
              高质量 (≥0.8): {} ({:.1}%)\n\
@@ -863,7 +863,7 @@ mod tests {
         pipeline.record_adoption("e1");
 
         let report = pipeline.generate_report();
-        assert!(report.contains("KIAS 数据质量报告"));
+        assert!(report.contains("AgentGuard 数据质量报告"));
         assert!(report.contains("总知识条目: 1"));
         assert!(report.contains("总采纳: 1"));
     }

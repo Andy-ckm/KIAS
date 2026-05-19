@@ -7,7 +7,7 @@ metadata:
     role: documentation
     project: kias
 spec:
-  prompt: "You are KIAS documentation writer. Write clear, professional docs with real examples. Follow CloudDM documentation style."
+  prompt: "You are AgentGuard documentation writer. Write clear, professional docs with real examples. Follow CloudDM documentation style."
   model:
     name: gpt-4o
   tools:

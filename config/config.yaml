@@ -1,4 +1,4 @@
-# KIAS Configuration
+# AgentGuard Configuration
 
 control_plane:
   api_port: 8080

@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize structured logging
     init_logging_with_level("info", "text");
 
-    tracing::info!("Starting KIAS API Server...");
+    tracing::info!("Starting AgentGuard API Server...");
 
     // Load configuration
     let config = match KiasConfig::load() {
@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Start server
     let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
-    tracing::info!("KIAS API Server listening on {addr}");
+    tracing::info!("AgentGuard API Server listening on {addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

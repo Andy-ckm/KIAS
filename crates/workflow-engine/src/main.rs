@@ -7,7 +7,7 @@ use std::collections::HashMap;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    println!("KIAS Workflow Engine starting...");
+    println!("AgentGuard Workflow Engine starting...");
 
     // Create a workflow graph with real node executors
     let mut graph = WorkflowGraph::new("example-workflow");

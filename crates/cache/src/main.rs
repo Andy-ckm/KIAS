@@ -6,7 +6,7 @@ use kias_cache::{CacheHub, LRUStrategy};
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Cache Service");
+    tracing::info!("Starting AgentGuard Cache Service");
 
     let strategy = Box::new(LRUStrategy::new());
     let hub = CacheHub::new(strategy);
@@ -25,6 +25,6 @@ async fn main() -> anyhow::Result<()> {
         println!("Cache hit: {:?}", String::from_utf8_lossy(&cached.value));
     }
 
-    tracing::info!("KIAS Cache Service finished");
+    tracing::info!("AgentGuard Cache Service finished");
     Ok(())
 }

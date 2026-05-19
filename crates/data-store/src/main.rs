@@ -10,7 +10,7 @@ use tracing::info;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let db_path = std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
+    let db_path = std::env::var("AgentGuard_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
     let url = format!("sqlite:{db_path}?mode=rwc");
 
     info!("Connecting to database: {db_path}");

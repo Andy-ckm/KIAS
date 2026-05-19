@@ -35,7 +35,7 @@ impl DataSourceCollector for GitHubTrendingCollector {
         
         let response = self.client
             .get(url)
-            .header("User-Agent", "KIAS-Innovation-Agent")
+            .header("User-Agent", "AgentGuard-Innovation-Agent")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
             .await

@@ -82,15 +82,15 @@ Layer 1: Runtime (运行时)
 2. **Harness 决定信息流**：Agent 的搜索质量取决于 Harness 如何组织工具调用序列
 3. **分层检索**：先粗粒度过滤（grep），再细粒度理解（LLM），比纯向量搜索更高效
 
-**对 KIAS 的映射**：
-| 论文概念 | KIAS 模块 | 应用 |
+**对 AgentGuard 的映射**：
+| 论文概念 | AgentGuard 模块 | 应用 |
 |---------|----------|------|
 | Agent Harness | kias-main | 统一 Agent 运行时编排 |
 | Grep-like search | knowledge/retriever | TF-IDF + 关键词匹配，已实现 |
 | 分层检索 | knowledge/agentic_rag | AgenticRAG 粗→细漏斗 |
 | 工具编排 | tool-executor + mcp-protocol | 标准化工具调用 |
 
-**KIAS 行动项**：
+**AgentGuard 行动项**：
 1. **[高]** 评估 AgenticRAG 是否需要增加 grep-like 快速过滤层
 2. **[中]** 在 retriever.rs 中增加代码搜索专用策略
 
@@ -103,15 +103,15 @@ Layer 1: Runtime (运行时)
 2. **可靠性保证**：每个执行步骤有验证门禁
 3. **轻量化**：Harness 不应成为性能瓶颈
 
-**对 KIAS 的映射**：
-| CAX-Agent 设计 | KIAS 模块 | 对应关系 |
+**对 AgentGuard 的映射**：
+| CAX-Agent 设计 | AgentGuard 模块 | 对应关系 |
 |---------------|----------|---------|
 | 解析层 | knowledge/entity_extractor | 实体抽取 |
 | 执行层 | tool-executor + sandbox | 工具执行 + 沙箱 |
 | 验证层 | team-engine/verifier | Worker-Verifier 对抗 |
 | 轻量化 | scheduler 优化 | 资源感知调度 |
 
-**KIAS 行动项**：
+**AgentGuard 行动项**：
 1. **[中]** 研究 tool-executor 的验证门禁机制
 2. **[低]** 评估 Harness 轻量化策略对延迟的影响
 
@@ -119,7 +119,7 @@ Layer 1: Runtime (运行时)
 
 **核心论点**：Agent 演化需要稳定接口来组织证据（候选方案、反馈、轨迹），而非固定的流程或通用 Agent。
 
-**对 KIAS 的映射**（详见 [agentic-evolution-analysis.md](agentic-evolution-analysis.md)）：
+**对 AgentGuard 的映射**（详见 [agentic-evolution-analysis.md](agentic-evolution-analysis.md)）：
 1. workflow-engine: 演化反馈循环
 2. goal-engine: 目标驱动迭代
 3. auto-loop: 代码演化
@@ -141,10 +141,10 @@ arbiter/
 └── auditing/    # 审计日志
 ```
 
-**KIAS 借鉴**：
+**AgentGuard 借鉴**：
 - 设计/仿真/审计三位一体的 Agent 开发范式
 - 多 Agent 协调的审计日志机制
-- **差距**：KIAS 有 gxp_audit 做审计，但缺少仿真测试环境
+- **差距**：AgentGuard 有 gxp_audit 做审计，但缺少仿真测试环境
 
 ### 3.2 1jehuang/jcode ⭐6,116 (Rust)
 
@@ -155,10 +155,10 @@ arbiter/
 - Harness 模式：Agent 作为可嵌入组件
 - 插件化工具系统
 
-**KIAS 借鉴**：
+**AgentGuard 借鉴**：
 - Agent harness 设计模式：Agent = 可嵌入的 Harness + 可替换的 Model
 - Rust 实现参考：cargo workspace 结构、async runtime 设计
-- **差距**：KIAS 更偏集群调度，jcode 更偏单 Agent 编码
+- **差距**：AgentGuard 更偏集群调度，jcode 更偏单 Agent 编码
 
 ### 3.3 OpenClaw
 
@@ -169,10 +169,10 @@ arbiter/
 - 策略驱动的命令治理
 - Agent 执行沙箱
 
-**KIAS 借鉴**：
-- 沙箱安全机制 → KIAS sandbox 模块
-- 策略驱动执行 → KIAS autonomy-controller
-- **差距**：KIAS sandbox 是容器级隔离，OpenClaw 是系统调用级
+**AgentGuard 借鉴**：
+- 沙箱安全机制 → AgentGuard sandbox 模块
+- 策略驱动执行 → AgentGuard autonomy-controller
+- **差距**：AgentGuard sandbox 是容器级隔离，OpenClaw 是系统调用级
 
 ### 3.4 moosestack ⭐578
 
@@ -183,18 +183,18 @@ arbiter/
 - ClickHouse + Redpanda 数据管道
 - 嵌入式 Agent 模式
 
-**KIAS 借鉴**：
+**AgentGuard 借鉴**：
 - Harness 作为能力封装层的模式
 - 嵌入式 Agent 集成方式
-- **差距**：KIAS 是独立集群系统，moosestack 是嵌入式库
+- **差距**：AgentGuard 是独立集群系统，moosestack 是嵌入式库
 
 ---
 
-## 四、KIAS Harness 架构全景映射
+## 四、AgentGuard Harness 架构全景映射
 
 ### 4.1 完整映射表
 
-| Harness 要素 | 理论来源 | KIAS 模块 | 实现状态 | 备注 |
+| Harness 要素 | 理论来源 | AgentGuard 模块 | 实现状态 | 备注 |
 |-------------|---------|----------|---------|------|
 | **模型选择路由** | Harness 公式1 | model-router + tier_routing | ✅ 已实现 | 任务复杂度→最优模型 |
 | **Prompt/技能优化** | Harness 4.3 | skills + quality_pipeline | ✅ 已实现 | 技能文件 + 竞技场评估 |
@@ -208,9 +208,9 @@ arbiter/
 | **执行防火墙** | OpenClaw | sandbox | ⚠️ 部分实现 | 容器级，非系统调用级 |
 | **嵌入式 Harness** | moosestack/jcode | kias-main | ✅ 已实现 | 可嵌入式 Agent 运行时 |
 
-### 4.2 KIAS 独特优势
+### 4.2 AgentGuard 独特优势
 
-KIAS 相比其他 Harness 实现的独特优势：
+AgentGuard 相比其他 Harness 实现的独特优势：
 
 1. **集群级 Harness**：不仅单 Agent Harness，而是集群调度 + Agent Harness 的融合
 2. **声明式 API**：借鉴 K8S 的声明式管理，Harness 配置即代码
@@ -220,7 +220,7 @@ KIAS 相比其他 Harness 实现的独特优势：
 
 ### 4.3 与其他 Harness 框架的对比
 
-| 维度 | KIAS | jcode | OpenClaw | moosestack | arbiter |
+| 维度 | AgentGuard | jcode | OpenClaw | moosestack | arbiter |
 |------|------|-------|----------|------------|---------|
 | 语言 | Rust | Rust | - | - | - |
 | 定位 | 集群调度 | 编码 Agent | 沙箱安全 | 数据分析 | 仿真审计 |
@@ -256,9 +256,9 @@ KIAS 相比其他 Harness 实现的独特优势：
 - Harness：主动选择，决定策略
 - **结论**：Harness 拥有控制权
 
-### 5.3 KIAS 的实践答案
+### 5.3 AgentGuard 的实践答案
 
-KIAS 通过以下机制实践"灵魂在 Harness"：
+AgentGuard 通过以下机制实践"灵魂在 Harness"：
 
 1. **model-router**：Harness 决定用哪个模型，模型不知道自己被选中
 2. **skills**：Harness 定义 Agent 的能力边界，模型只是执行器
@@ -268,7 +268,7 @@ KIAS 通过以下机制实践"灵魂在 Harness"：
 
 ---
 
-## 六、KIAS 行动项汇总
+## 六、AgentGuard 行动项汇总
 
 ### 高优先级
 1. 在 AgenticRAG 中增加 grep-like 快速过滤层（来源：2605.15184）
@@ -281,7 +281,7 @@ KIAS 通过以下机制实践"灵魂在 Harness"：
 
 ### 低优先级
 6. 评估 Harness 轻量化策略对调度延迟的影响
-7. 研究嵌入式 Harness 模式用于 KIAS-as-library 场景
+7. 研究嵌入式 Harness 模式用于 AgentGuard-as-library 场景
 
 ---
 

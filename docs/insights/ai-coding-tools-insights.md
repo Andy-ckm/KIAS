@@ -12,24 +12,24 @@ AI 编程工具的竞争，正在从"谁能写代码"，变成"谁能替代工�
 1. **智能体视图**（5月12日）— 实时看到 AI 在干什么：任务拆解、执行进度
 2. **快速模式**（5月13日）— 响应延迟大幅降低
 
-**KIAS 启示**：任务拆解可视化是刚需，KIAS 需要实现
+**AgentGuard 启示**：任务拆解可视化是刚需，AgentGuard 需要实现
 
 ### Replit（双轨并行）
 1. **并行编程智能体**（5月12日）— 多 Agent 并行处理不同代码模块
 2. **一键导入**（5月15日）— 项目迁移门槛接近零
 
-**KIAS 启示**：多 Agent 并行是趋势，KIAS 已有 team-engine
+**AgentGuard 启示**：多 Agent 并行是趋势，AgentGuard 已有 team-engine
 
 ### OpenAI（代码安全）
 - 专门找代码漏洞的预览模型
 - 移动端远程编程工具
 
-**KIAS 启示**：安全检测是刚需，KIAS 已有 SecAgent
+**AgentGuard 启示**：安全检测是刚需，AgentGuard 已有 SecAgent
 
 ### 手机端生成 APP
 - 完全不懂技术的普通人，在手机上就能直接生成完整 APP
 
-**KIAS 启示**：编程门槛消失，KIAS 需要支持非技术用户
+**AgentGuard 启示**：编程门槛消失，AgentGuard 需要支持非技术用户
 
 ## 深层洞察
 
@@ -37,27 +37,27 @@ AI 编程工具的竞争，正在从"谁能写代码"，变成"谁能替代工�
 - AI 分身在腾讯 WorkBuddy 担任产品顾问
 - Claude Code 与飞书结合：财务对账、日程管理
 
-**KIAS 启示**：Agent 不只是写代码，还要能做顾问、管公司
+**AgentGuard 启示**：Agent 不只是写代码，还要能做顾问、管公司
 
 ### 2. 10 个用 AI 水平等级
 - 从"从没用过 AI"到"AI 与人深度协作产出顶级成果"
 - 工具越强大，人和人之间的能力差距反而会越来越大
 
-**KIAS 启示**：需要支持不同水平的用户（新手→专家）
+**AgentGuard 启示**：需要支持不同水平的用户（新手→专家）
 
 ### 3. 云端化重塑硬件逻辑
 - 模型运行在云端，本地硬件只需要单核性能
 - Claude Code 实测能把 Mac 单核打满到 99.8%
 
-**KIAS 启示**：KIAS 应该支持云端部署，降低本地硬件要求
+**AgentGuard 启示**：AgentGuard 应该支持云端部署，降低本地硬件要求
 
 ### 4. 云厂商系统性布局
 - AWS 支持免账号调用 Claude
 - 云厂商在 AI 编程生态里系统性布局
 
-**KIAS 启示**：KIAS 应该支持多云部署（AWS、Azure、GCP）
+**AgentGuard 启示**：AgentGuard 应该支持多云部署（AWS、Azure、GCP）
 
-## KIAS 下一步行动
+## AgentGuard 下一步行动
 
 1. **任务拆解可视化** — 实现智能体视图
 2. **多 Agent 并行** — 强化 team-engine

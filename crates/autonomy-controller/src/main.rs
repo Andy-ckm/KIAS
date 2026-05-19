@@ -4,7 +4,7 @@ use kias_autonomy_controller::{AutonomyController, AutonomyLevel, ToolPermission
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    println!("KIAS Autonomy Controller starting...");
+    println!("AgentGuard Autonomy Controller starting...");
 
     let mut controller = AutonomyController::new();
 

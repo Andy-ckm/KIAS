@@ -1,4 +1,4 @@
-# KIAS IT 变更管理系统 - 使用指南
+# AgentGuard IT 变更管理系统 - 使用指南
 
 > 医药/医疗器械企业IT系统变更管理
 > 符合 FDA 21 CFR Part 11, EU Annex 11, GAMP 5
@@ -188,7 +188,7 @@ let cmd = manager.generate_ansible_command(&task);
 
 ### FDA 21 CFR Part 11
 
-| 条款 | 要求 | KIAS实现 |
+| 条款 | 要求 | AgentGuard实现 |
 |------|------|----------|
 | §11.10(e) | 审计追踪 | SHA-256哈希链，不可篡改 |
 | §11.50 | 电子签名含义 | SignatureMeaning枚举 |
@@ -198,7 +198,7 @@ let cmd = manager.generate_ansible_command(&task);
 
 ### GAMP 5
 
-| 验证级别 | 说明 | KIAS支持 |
+| 验证级别 | 说明 | AgentGuard支持 |
 |----------|------|----------|
 | IQ | 安装确认 | ValidationLevel::InstallationQualification |
 | OQ | 运行确认 | ValidationLevel::OperationalQualification |
@@ -281,4 +281,4 @@ cargo test --workspace
 
 - **市场空白**：没有专注医药GxP合规的开源变更管理平台
 - **商业产品价格**：TrackWise/Veeva数十万美元起
-- **KIAS优势**：开源、合规、可定制、Rust高性能
+- **AgentGuard优势**：开源、合规、可定制、Rust高性能

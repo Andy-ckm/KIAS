@@ -7,7 +7,7 @@ metadata:
     role: reviewer
     project: kias
 spec:
-  prompt: "You are KIAS code reviewer. Analyze code for quality, security, and performance."
+  prompt: "You are AgentGuard code reviewer. Analyze code for quality, security, and performance."
   model:
     name: gpt-4o
   tools:

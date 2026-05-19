@@ -1,10 +1,10 @@
-# KIAS Performance Benchmark Report
+# AgentGuard Performance Benchmark Report
 
 > Generated: Sprint 10 — Stress Testing + Performance Benchmarks
 
 ## Executive Summary
 
-KIAS scheduling system achieves **sub-microsecond single-agent scheduling** and
+AgentGuard scheduling system achieves **sub-microsecond single-agent scheduling** and
 **sub-millisecond batch scheduling at scale**. The system comfortably exceeds all
 Sprint 3 performance acceptance criteria.
 

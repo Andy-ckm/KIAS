@@ -1,6 +1,6 @@
 # Agent 协作协议 - CrewAI 委托代理
 
-> 设计文档 | KIAS Team Engine
+> 设计文档 | AgentGuard Team Engine
 
 ## 1. 概述
 

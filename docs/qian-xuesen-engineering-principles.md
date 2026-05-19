@@ -1,4 +1,4 @@
-# 钱学森系统工程理论 — KIAS 指导原则
+# 钱学森系统工程理论 — AgentGuard 指导原则
 
 > "系统工程是组织管理的技术。" —— 钱学森
 
@@ -11,9 +11,9 @@
 | 简单系统 | 少量元素，确定性关系 | 钟表、电路 |
 | 简单巨系统 | 元素多，但同质 | 热力学、流体力学 |
 | **复杂巨系统** | 元素多、异质、多层次、非线性 | 社会、经济、**AI Agent 系统** |
-| **开放的复杂巨系统** | 与环境有物质/能量/信息交换 | 互联网、**KIAS** |
+| **开放的复杂巨系统** | 与环境有物质/能量/信息交换 | 互联网、**AgentGuard** |
 
-**KIAS 定位**：KIAS 是一个开放的复杂巨系统——多层次（Shell/Agent/Workflow）、异质（LLM/RAG/Sandbox/Storage）、非线性（Agent 间交互产生涌现行为）、开放（接入外部 LLM、工具、人类反馈）。
+**AgentGuard 定位**：AgentGuard 是一个开放的复杂巨系统——多层次（Shell/Agent/Workflow）、异质（LLM/RAG/Sandbox/Storage）、非线性（Agent 间交互产生涌现行为）、开放（接入外部 LLM、工具、人类反馈）。
 
 ### 1.2 三个核心特征
 
@@ -66,8 +66,8 @@
 └──────────────────────────────────────────────────────────┘
 ```
 
-**KIAS 映射**：
-| 研讨厅要素 | KIAS 对应 |
+**AgentGuard 映射**：
+| 研讨厅要素 | AgentGuard 对应 |
 |-----------|----------|
 | 专家知识 | RAG 知识库（论文/经验/代码）|
 | 数据信息 | 向量存储 + 结构化数据 |
@@ -92,15 +92,15 @@
 时间维（生命周期）:
   规划 → 方案 → 研制 → 生产 → 安装 → 运行 → 更新
   ─────────────────────────────────────────────────→
-  KIAS: Intent → Shell → Agent → Task → Execute → Verify → Learn
+  AgentGuard: Intent → Shell → Agent → Task → Execute → Verify → Learn
 
 逻辑维（思维过程）:
   明确问题 → 目标选择 → 系统综合 → 系统分析 → 优化 → 决策 → 实施
-  KIAS:  Detect  → Analyze  → Plan   → CodeGen → Verify → Deploy → Learn
+  AgentGuard:  Detect  → Analyze  → Plan   → CodeGen → Verify → Deploy → Learn
 
 知识维（所需知识）:
   工程/医学/建筑/管理/社会/法律...
-  KIAS:  LLM/RAG/Sandbox/MCP/Storage/Security/...
+  AgentGuard:  LLM/RAG/Sandbox/MCP/Storage/Security/...
 ```
 
 ### 3.2 从定性到定量的渐进式开发
@@ -124,7 +124,7 @@
   • 学习型工作流（经验回放）
 ```
 
-## 四、KIAS 工程原则（基于钱学森理论）
+## 四、AgentGuard 工程原则（基于钱学森理论）
 
 ### 原则 1: 整体性原则（System Thinking）
 
@@ -155,7 +155,7 @@
 > "复杂系统必须分层。" —— 钱学森
 
 ```
-KIAS 层次结构:
+AgentGuard 层次结构:
   Shell 层 — 模板+参数+意图（调度）
     Agent 层 — 角色+能力+约束（执行）
       Workflow 层 — 步骤+条件+分支（编排）
@@ -188,11 +188,11 @@ KIAS 层次结构:
 - **测试覆盖**：不只是 assert(true)，要验证行为
 - **文档同步**：代码变更必须同步文档
 
-## 五、钱学森 vs KIAS 对照表
+## 五、钱学森 vs AgentGuard 对照表
 
-| 钱学森理论 | KIAS 实现 | 状态 |
+| 钱学森理论 | AgentGuard 实现 | 状态 |
 |-----------|----------|------|
-| 开放的复杂巨系统 | KIAS 多层次架构 | ✅ 已定义 |
+| 开放的复杂巨系统 | AgentGuard 多层次架构 | ✅ 已定义 |
 | 综合集成研讨厅 | RAG + LLM + Human 闭环 | 🔧 部分实现 |
 | 从定性到定量 | 规则→混合→学习 三阶段 | 🔧 阶段 2 |
 | 反馈控制 | InspirationStream + QualityPipeline | ✅ 已实现 |
@@ -212,5 +212,5 @@ KIAS 层次结构:
 
 ---
 
-*本文档作为 KIAS 项目的顶层指导原则，所有设计决策必须符合上述七项原则。*
+*本文档作为 AgentGuard 项目的顶层指导原则，所有设计决策必须符合上述七项原则。*
 *违反原则需要书面 justification，并记录在 `docs/decisions/` 目录下。*

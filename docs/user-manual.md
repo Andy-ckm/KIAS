@@ -1,4 +1,4 @@
-# KIAS 用户使用手册
+# AgentGuard 用户使用手册
 
 > Production-grade AI Agent cluster orchestration built in Rust
 
@@ -31,8 +31,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
+git clone https://github.com/Andy-ckm/AgentGuard.git
+cd AgentGuard
 
 # 2. 编译
 cargo build --release
@@ -111,10 +111,10 @@ schedule_minutes = 20
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `KIAS_HOST` | 监听地址 | `0.0.0.0` |
-| `KIAS_PORT` | 监听端口 | `8080` |
-| `KIAS_DB_URL` | 数据库连接 | `sqlite:kias.db` |
-| `KIAS_API_KEY` | API密钥 | 无 |
+| `AgentGuard_HOST` | 监听地址 | `0.0.0.0` |
+| `AgentGuard_PORT` | 监听端口 | `8080` |
+| `AgentGuard_DB_URL` | 数据库连接 | `sqlite:kias.db` |
+| `AgentGuard_API_KEY` | API密钥 | 无 |
 
 ### 敏感信息处理
 
@@ -311,7 +311,7 @@ let config = AgenticRAGConfig {
 
 ### 七层记忆架构
 
-KIAS实现了基于Claude Code和AgentScope的分层记忆系统：
+AgentGuard实现了基于Claude Code和AgentScope的分层记忆系统：
 
 | 层级 | 名称 | 功能 | 成本 |
 |------|------|------|------|
@@ -381,7 +381,7 @@ if consolidator.should_dream().await {
 
 ### 概述
 
-KIAS用KIAS开发KIAS，形成飞轮：
+AgentGuard用AgentGuard开发AgentGuard，形成飞轮：
 
 ```
 Detect → Analyze → Plan → Generate → Verify → Deploy → Learn

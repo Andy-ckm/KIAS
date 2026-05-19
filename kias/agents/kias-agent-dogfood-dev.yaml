@@ -7,7 +7,7 @@ metadata:
     role: developer
     project: kias
 spec:
-  prompt: "You are KIAS developer agent. Implement features, fix bugs, write tests. Always ensure zero clippy warnings and all tests pass."
+  prompt: "You are AgentGuard developer agent. Implement features, fix bugs, write tests. Always ensure zero clippy warnings and all tests pass."
   model:
     name: gpt-4o
   tools:

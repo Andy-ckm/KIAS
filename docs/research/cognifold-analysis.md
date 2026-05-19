@@ -11,15 +11,15 @@
 
 **核心创新**：将互补学习系统（CLS）理论扩展到 Agent 记忆架构，实现"认知折叠"——类似大脑在海马体和新皮层之间巩固记忆的过程。
 
-## 对 KIAS 的映射价值
+## 对 AgentGuard 的映射价值
 
 ### 1. 记忆层架构 (crates/knowledge/src/memory_layers.rs)
-- **三层记忆系统**：KIAS 已有 WorkingMemory → EpisodicMemory → SemanticMemory
+- **三层记忆系统**：AgentGuard 已有 WorkingMemory → EpisodicMemory → SemanticMemory
 - **Cognifold 启示**：可增加"主动折叠"机制，让 Agent 在空闲时自动整理经验
 - **实现方向**：在 memory_layers.rs 中增加 `CognitiveFolder` 异步任务
 
 ### 2. 知识图谱自动构建 (crates/knowledge/src/graph.rs)
-- Cognifold 的"自涌现认知结构"与 KIAS KnowledgeGraph 的自动实体提取一致
+- Cognifold 的"自涌现认知结构"与 AgentGuard KnowledgeGraph 的自动实体提取一致
 - 可借鉴其"渐进式抽象"策略优化 entity_extractor
 
 ### 3. Agent 自主性 (crates/autonomy-controller/)
@@ -32,7 +32,7 @@
 - **始终在线**：不依赖查询触发，持续后台处理
 - **渐进抽象**：从低级事件逐步构建高级概念
 
-## KIAS 行动项
+## AgentGuard 行动项
 
 1. **[高]** 在 memory_layers.rs 中设计 CognitiveFolder trait
 2. **[中]** 研究 CLS 理论如何映射到三层记忆的转换策略

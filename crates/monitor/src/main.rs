@@ -5,7 +5,7 @@ use kias_monitor::{MetricsCollector, TelemetryCollector};
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Monitor Service");
+    tracing::info!("Starting AgentGuard Monitor Service");
 
     let mut telemetry = TelemetryCollector::new();
     let mut metrics = MetricsCollector::new();
@@ -38,6 +38,6 @@ async fn main() -> anyhow::Result<()> {
         stats.error_rate * 100.0
     );
 
-    tracing::info!("KIAS Monitor Service finished");
+    tracing::info!("AgentGuard Monitor Service finished");
     Ok(())
 }

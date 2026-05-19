@@ -622,7 +622,7 @@ mod tests {
             body: serde_json::json!({
                 "MsgId": "12345",
                 "MsgType": "text",
-                "Content": "Hello KIAS",
+                "Content": "Hello AgentGuard",
                 "FromUserName": "user_001",
                 "ToUserName": "kias_bot",
                 "CreateTime": 1700000000
@@ -717,7 +717,7 @@ mod tests {
         assert_eq!(msg.receiver_id, Some("kias_bot".to_string()));
         assert_eq!(msg.timestamp, 1700000000);
         match &msg.content {
-            MessageContent::Text(t) => assert_eq!(t, "Hello KIAS"),
+            MessageContent::Text(t) => assert_eq!(t, "Hello AgentGuard"),
             _ => panic!("Expected Text content"),
         }
     }

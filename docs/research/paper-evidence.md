@@ -1,4 +1,4 @@
-# KIAS 定位论文支撑
+# AgentGuard 定位论文支撑
 
 > 最后更新：2026-05-18
 > 目标：为"医疗/器械行业 AI 知识中枢"定位提供学术支撑
@@ -17,11 +17,11 @@
 | Deloitte: "Digital Transformation in Medical Devices" (2024) | 73% 的医疗器械企业报告"文档检索效率低"是主要痛点 |
 | "Medical Device Apps: An Introduction to Regulatory Affairs for Developers" (JMIR, 2020) | 医疗器械应用的监管事务入门，为开发者提供合规参考 |
 | "New regulation of medical devices in the EU: impact in dermatology" (JEADV, 2021) | EU MDR 对皮肤科医疗器械的影响，证明法规变化带来的合规挑战 |
-| "Medical Device Regulation and current challenges for the implementation of new technologies" (Current Directions in Biomedical Engineering, 2020) | 医疗器械法规和新技术实施的挑战，为 KIAS 的合规需求提供证据 |
-| ISO 14971: "Medical devices - application of risk management to medical devices" (2018) | 医疗器械风险管理标准，为 KIAS 的预演机制提供标准支撑 |
-| IEC 62304: "Medical device software - software life cycle processes" (2006) | 医疗器械软件生命周期标准，为 KIAS 的软件合规提供参考 |
-| "Post market surveillance in the german medical device sector – current state and future perspectives" (Health Policy, 2017) | 德国医疗器械市场后监管现状，为 KIAS 的合规需求提供证据 |
-| "The Role of Massive Databases in the Post-market Clinical Follow-up of Medical Devices" (2022) | 大数据在医疗器械上市后临床随访中的作用，为 KIAS 的知识管理提供应用场景 |
+| "Medical Device Regulation and current challenges for the implementation of new technologies" (Current Directions in Biomedical Engineering, 2020) | 医疗器械法规和新技术实施的挑战，为 AgentGuard 的合规需求提供证据 |
+| ISO 14971: "Medical devices - application of risk management to medical devices" (2018) | 医疗器械风险管理标准，为 AgentGuard 的预演机制提供标准支撑 |
+| IEC 62304: "Medical device software - software life cycle processes" (2006) | 医疗器械软件生命周期标准，为 AgentGuard 的软件合规提供参考 |
+| "Post market surveillance in the german medical device sector – current state and future perspectives" (Health Policy, 2017) | 德国医疗器械市场后监管现状，为 AgentGuard 的合规需求提供证据 |
+| "The Role of Massive Databases in the Post-market Clinical Follow-up of Medical Devices" (2022) | 大数据在医疗器械上市后临床随访中的作用，为 AgentGuard 的知识管理提供应用场景 |
 
 ### 1.2 知识提取挑战
 
@@ -90,7 +90,7 @@
 | "AI-driven pharmaceutical manufacturing: Revolutionizing quality control and process optimization" (Journal of Smart Manufacturing Systems, 2024) | AI 驱动的制药制造，证明 AI 在质量控制中的应用和合规需求 |
 | "Artificial intelligence-driven pharmaceutical industry: A paradigm shift in drug discovery, formulation development, manufacturing, quality control, and post-market surveillance" (European Journal of Pharmaceutical Sciences, 2024) | AI 驱动的制药行业变革，涵盖质量控制和合规挑战 |
 | "The Artificial Intelligence-Powered New Era in Pharmaceutical Research and Development: A Review" (AAPS PharmSciTech, 2024) | AI 驱动的制药研发新时代，为合规提供参考 |
-| "AI Agents in Clinical Medicine: A Systematic Review" (medRxiv, 2025) | AI Agent 在临床医学中的系统综述，为 KIAS 的合规需求提供最新证据 |
+| "AI Agents in Clinical Medicine: A Systematic Review" (medRxiv, 2025) | AI Agent 在临床医学中的系统综述，为 AgentGuard 的合规需求提供最新证据 |
 
 ---
 
@@ -111,7 +111,7 @@
 | Kumaran et al., "Learning to Reinvent Memory" (2023) | 人类记忆巩固机制启发 AI 记忆系统设计 |
 | Modarressi et al., "RET-LLM: Towards a General Read-Write Memory for Large Language Models" (2023) | LLM 记忆系统需要读写分离和知识提炼 |
 | Zhong et al., "MemoryBank: Enhancing Large Language Models with Long-Term Memory" (2023) | 长期记忆系统需要遗忘机制和知识更新 |
-| "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models" (arXiv, 2024) | 受海马体启发的 LLM 长期记忆系统，为 KIAS 的知识进化提供理论支撑 |
+| "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models" (arXiv, 2024) | 受海马体启发的 LLM 长期记忆系统，为 AgentGuard 的知识进化提供理论支撑 |
 | "Large language models encode clinical knowledge" (Nature, 2023) | LLM 编码临床知识，证明 LLM 在医疗知识管理中的潜力 |
 
 ---
@@ -137,11 +137,11 @@
 
 ---
 
-## 六、KIAS 定位的论文支撑总结
+## 六、AgentGuard 定位的论文支撑总结
 
 ### 核心论点与支撑
 
-| KIAS 论点 | 支撑论文 | 证据强度 |
+| AgentGuard 论点 | 支撑论文 | 证据强度 |
 |----------|---------|---------|
 | 医疗文档管理是痛点 | FDA Guidance, McKinsey, Deloitte | ⭐⭐⭐ 强 |
 | 知识图谱能解决文档检索 | Himmelstein 2017, Rotmensch 2017, Microsoft GraphRAG 2024 | ⭐⭐⭐ 强 |
@@ -150,14 +150,14 @@
 | 持续学习需要记忆巩固 | Parisi 2019, Modarressi 2023, Zhong 2023 | ⭐⭐ 中等 |
 | GraphRAG 优于传统 RAG | Microsoft 2024, Edge 2024 | ⭐⭐⭐ 强 |
 
-### KIAS 创新点与论文差距
+### AgentGuard 创新点与论文差距
 
-| 创新点 | 现有论文 | KIAS 差异化 |
+| 创新点 | 现有论文 | AgentGuard 差异化 |
 |--------|---------|------------|
-| 零 LLM 知识图谱 | 多数论文依赖 LLM 做实体提取 | KIAS 用正则+字符串匹配，零成本 |
-| 知识自动进化 | 持续学习论文多关注模型参数 | KIAS 关注知识层进化，非模型层 |
-| 合规审计链 | 审计追踪论文多关注数据 | KIAS 关注 Agent 操作审计 |
-| 预演机制 | 少有论文讨论 Agent 操作预演 | KIAS side_effect_gate 是创新 |
+| 零 LLM 知识图谱 | 多数论文依赖 LLM 做实体提取 | AgentGuard 用正则+字符串匹配，零成本 |
+| 知识自动进化 | 持续学习论文多关注模型参数 | AgentGuard 关注知识层进化，非模型层 |
+| 合规审计链 | 审计追踪论文多关注数据 | AgentGuard 关注 Agent 操作审计 |
+| 预演机制 | 少有论文讨论 Agent 操作预演 | AgentGuard side_effect_gate 是创新 |
 
 ---
 

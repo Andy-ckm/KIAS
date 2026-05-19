@@ -1,10 +1,10 @@
 # Data Layer Architecture
 
-> KIAS Data Store — Unified persistence layer for all domain entities
+> AgentGuard Data Store — Unified persistence layer for all domain entities
 
 ## Overview
 
-The `kias-data-store` crate provides a complete data layer for KIAS, offering:
+The `kias-data-store` crate provides a complete data layer for AgentGuard, offering:
 
 1. **Structured Database** — SQLite-backed CRUD for all domain entities
 2. **Vector Storage** — Persistent vector embeddings with in-memory HNSW search

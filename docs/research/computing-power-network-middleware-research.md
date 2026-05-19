@@ -8,9 +8,9 @@
 
 ## 摘要
 
-本报告围绕 KIAS 定位的三大核心能力——**异构调度**、**分布式Agent长周期运行**、**AIOps**——进行系统性调研。结合学术论文、开源项目、行业趋势和 KIAS 当前代码库，提出架构演进建议和开发任务清单。
+本报告围绕 AgentGuard 定位的三大核心能力——**异构调度**、**分布式Agent长周期运行**、**AIOps**——进行系统性调研。结合学术论文、开源项目、行业趋势和 AgentGuard 当前代码库，提出架构演进建议和开发任务清单。
 
-**核心结论**：KIAS 已具备 60-70% 的基础能力，但需要在三个方向做深度增强：
+**核心结论**：AgentGuard 已具备 60-70% 的基础能力，但需要在三个方向做深度增强：
 1. 异构调度需要从"Agent 分层"升级到"全栈算力感知"
 2. 长周期运行需要从"单节点恢复"升级到"分布式状态机"
 3. AIOps 需要从"健康检查"升级到"预测式自愈"
@@ -28,7 +28,7 @@
 
 #### 关键项目对比
 
-| 项目 | Stars | 核心能力 | KIAS 可借鉴 |
+| 项目 | Stars | 核心能力 | AgentGuard 可借鉴 |
 |------|-------|---------|-------------|
 | [Volcano](https://github.com/volcano-sh/volcano) | 4.5k | K8S 批调度、Gang Scheduling、队列管理 | 任务队列调度策略 |
 | [Koordinator](https://github.com/koordinator-sh/koordinator) | 2.8k | 混部调度、QoS 感知、资源画像 | 资源画像 + QoS 分级 |
@@ -39,14 +39,14 @@
 
 #### 学术前沿
 
-| 论文 | 核心思想 | KIAS 启发 |
+| 论文 | 核心思想 | AgentGuard 启发 |
 |------|---------|----------|
 | PrfaaS (Moonshot AI) | 选择性卸载 + 带宽感知 + 缓存感知 | Agent 能力分层、智能路由 |
 | APWA (2605.15132) | 分布式并行 Agent 工作流 | 分布式 DAG 执行 |
 | Concurrency without Model Changes (2605.15077) | Future-based 异步工具调用 | Agent 并发工具执行 |
 | GraphFlow (2605.14968) | 形式化可验证工作流 | 工作流正确性验证 |
 
-### 1.2 KIAS 当前状态评估
+### 1.2 AgentGuard 当前状态评估
 
 | 能力 | 模块 | 状态 | 差距分析 |
 |------|------|------|---------|
@@ -100,7 +100,7 @@ Long-running Agents 的核心挑战：
 
 #### 关键项目对比
 
-| 项目 | 核心能力 | 长周期运行支撑 | KIAS 可借鉴 |
+| 项目 | 核心能力 | 长周期运行支撑 | AgentGuard 可借鉴 |
 |------|---------|--------------|-------------|
 | [Temporal](https://github.com/temporalio/temporal) | 分布式工作流引擎、持久化执行 | ✅ 强 | 持久化工作流、Activity 重试 |
 | [Prefect](https://github.com/PrefectHQ/prefect) | 数据流编排、检查点、恢复 | ✅ 强 | 检查点策略 |
@@ -111,14 +111,14 @@ Long-running Agents 的核心挑战：
 
 #### 学术前沿
 
-| 论文 | 核心思想 | KIAS 启发 |
+| 论文 | 核心思想 | AgentGuard 启发 |
 |------|---------|----------|
 | APWA (2605.15132) | 分布式并行 Agent 工作流架构 | 分布式执行模型 |
 | Orchard (2605.15040) | 开源 Agent 建模框架 | Agent 抽象模型 |
 | FutureSim (2605.15188) | 事件回放评估自适应 Agent | Agent 评估基准 |
 | Digital Twin Sync (2605.14625) | 移动 AI 网络数字孪生同步 | 分布式状态同步 |
 
-### 2.2 KIAS 当前状态评估
+### 2.2 AgentGuard 当前状态评估
 
 | 能力 | 模块 | 状态 | 差距分析 |
 |------|------|------|---------|
@@ -181,7 +181,7 @@ L0: 日志收集 — 收集系统日志和指标
 
 #### 关键项目对比
 
-| 项目 | 核心能力 | AIOps 层级 | KIAS 可借鉴 |
+| 项目 | 核心能力 | AIOps 层级 | AgentGuard 可借鉴 |
 |------|---------|-----------|-------------|
 | [Prometheus + Grafana](https://prometheus.io) | 指标收集 + 可视化 | L0-L1 | 指标采集架构 |
 | [PagerDuty](https://www.pagerduty.com) | 事件管理 + 告警 | L1 | 事件路由 |
@@ -193,14 +193,14 @@ L0: 日志收集 — 收集系统日志和指标
 
 #### 学术前沿
 
-| 领域 | 关键论文/方法 | KIAS 启发 |
+| 领域 | 关键论文/方法 | AgentGuard 启发 |
 |------|-------------|----------|
 | 异常检测 | Isolation Forest, LOF, Autoencoder | 多维度异常检测 |
 | 根因分析 | 因果图、贝叶斯网络、图神经网络 | 故障传播图 |
 | 预测性维护 | LSTM、Prophet、时序预测 | 资源需求预测 |
 | 自动修复 | 强化学习、策略梯度 | 自愈策略学习 |
 
-### 3.2 KIAS 当前状态评估
+### 3.2 AgentGuard 当前状态评估
 
 | 能力 | 模块 | AIOps 层级 | 差距分析 |
 |------|------|-----------|---------|
@@ -285,7 +285,7 @@ Agent 分配 → Controller（生命周期管理）
 
 ### 4.3 与竞品对比
 
-| 维度 | K8S | Temporal | Volcano | KIAS（目标） |
+| 维度 | K8S | Temporal | Volcano | AgentGuard（目标） |
 |------|-----|---------|---------|-------------|
 | 管理对象 | 容器 | 工作流 | 批任务 | Agent |
 | 调度粒度 | Pod | Activity | Job | Agent + Task |
@@ -345,11 +345,11 @@ Agent 分配 → Controller（生命周期管理）
 
 ## 七、总结
 
-### KIAS 的差异化定位
+### AgentGuard 的差异化定位
 
-KIAS 不是另一个 K8S，不是另一个 Temporal，不是另一个 Prometheus。
+AgentGuard 不是另一个 K8S，不是另一个 Temporal，不是另一个 Prometheus。
 
-**KIAS = 算力网时代的 Agent 操作系统**
+**AgentGuard = 算力网时代的 Agent 操作系统**
 
 独特价值：
 1. **唯一同时覆盖调度 + 运行时 + AIOps 的 Agent 平台**

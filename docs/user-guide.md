@@ -1,4 +1,4 @@
-# KIAS 用户使用说明
+# AgentGuard 用户使用说明
 
 > Kubernetes-like Intelligent Agent Scheduling System
 > 专业 AI Agent 集群调度系统
@@ -24,8 +24,8 @@ docker run -d \
 # 启动节点代理
 docker run -d \
   --name kias-node-1 \
-  -e KIAS_NODE_ID=node-1 \
-  -e KIAS_CONTROL_PLANE=http://control-plane:8080 \
+  -e AgentGuard_NODE_ID=node-1 \
+  -e AgentGuard_CONTROL_PLANE=http://control-plane:8080 \
   kias/node-agent:latest
 ```
 
@@ -249,10 +249,10 @@ kias knowledge watch --path ./knowledge/
 #### 查询知识
 ```bash
 # 查询知识
-kias knowledge query "KIAS 的调度算法有哪些？"
+kias knowledge query "AgentGuard 的调度算法有哪些？"
 
 # 查询并显示来源
-kias knowledge query "KIAS 的调度算法有哪些？" --show-sources
+kias knowledge query "AgentGuard 的调度算法有哪些？" --show-sources
 
 # 查询实体关系
 kias knowledge graph query --entity "kias-scheduler"
@@ -425,12 +425,12 @@ path = "/metrics"
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `KIAS_CONFIG` | 配置文件路径 | `~/.kias/config.toml` |
-| `KIAS_API_HOST` | API 监听地址 | `0.0.0.0` |
-| `KIAS_API_PORT` | API 监听端口 | `8080` |
-| `KIAS_LOG_LEVEL` | 日志级别 | `info` |
-| `KIAS_DB_PATH` | SQLite 数据库路径 | `kias.db` |
-| `KIAS_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
+| `AgentGuard_CONFIG` | 配置文件路径 | `~/.kias/config.toml` |
+| `AgentGuard_API_HOST` | API 监听地址 | `0.0.0.0` |
+| `AgentGuard_API_PORT` | API 监听端口 | `8080` |
+| `AgentGuard_LOG_LEVEL` | 日志级别 | `info` |
+| `AgentGuard_DB_PATH` | SQLite 数据库路径 | `kias.db` |
+| `AgentGuard_ETCD_ENDPOINTS` | etcd 地址 | `http://localhost:2379` |
 
 ---
 

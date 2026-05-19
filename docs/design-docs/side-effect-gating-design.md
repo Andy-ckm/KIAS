@@ -2,11 +2,11 @@
 
 > 来源: all-agentic-architectures #17 Dry-Run Harness
 > 日期: 2026-05-18
-> 状态: KIAS 架构补充设计
+> 状态: AgentGuard 架构补充设计
 
 ## 1. 它要解决什么问题？
 
-KIAS 的 auto-loop 可以自动生成代码、修改文件、执行命令——但没有一个机制在执行前预演副作用。
+AgentGuard 的 auto-loop 可以自动生成代码、修改文件、执行命令——但没有一个机制在执行前预演副作用。
 
 GxP 合规场景的刚需：
 - 修改生产配置前必须预演影响范围
@@ -184,9 +184,9 @@ dry-run 记录必须写入 gxp_audit 的不可变审计链：
 | 预演信息泄漏 | preview 内容暴露敏感数据 | preview 脱敏 + 权限控制 |
 | 过度保守 | 大量操作被拒 | 可调阈值 + 历史统计 |
 
-## 7. KIAS 对接
+## 7. AgentGuard 对接
 
-| KIAS 模块 | 对接方式 |
+| AgentGuard 模块 | 对接方式 |
 |-----------|---------|
 | approval.rs | 文档审批流程复用 |
 | gxp_audit.rs | 审计链记录 dry-run 和执行 |
@@ -197,4 +197,4 @@ dry-run 记录必须写入 gxp_audit 的不可变审计链：
 
 ## 8. 优先级
 
-**P0 — GxP 合规必需**。没有 dry-run 机制，KIAS 在受监管行业的执行力是裸奔的。
+**P0 — GxP 合规必需**。没有 dry-run 机制，AgentGuard 在受监管行业的执行力是裸奔的。

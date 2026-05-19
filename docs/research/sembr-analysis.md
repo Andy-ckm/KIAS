@@ -20,8 +20,8 @@
 | 自部署 | ❌ | ❌ | ❌ | ❌ | ✅ |
 | 独立分析 | ⚠️ | ⚠️ | ❌ | ⚠️ | ✅ |
 
-## KIAS 映射
-| Sembr | KIAS | 行动 |
+## AgentGuard 映射
+| Sembr | AgentGuard | 行动 |
 |-------|------|------|
 | 意图语义匹配 | SkillMatcher | 升级为向量匹配 |
 | BGE-M3 免费嵌入 | knowledge 层 | 接入免费嵌入模型 |
@@ -35,8 +35,8 @@
 - 10 意图 × 24 轮 × 365 天 ≈ 8.8 万次，但嵌入免费+LLM按需=极低成本
 - 对比 Perplexity 每次查询都收费
 
-## KIAS 待落地
+## AgentGuard 待落地
 1. SkillMatcher 向量化 — 用 HNSW 做意图→技能语义匹配
 2. A2A /fire 端点 — Agent 标准化调用接口
-3. Agent 自部署文档 — INSTALL.md for KIAS
+3. Agent 自部署文档 — INSTALL.md for AgentGuard
 4. 免费嵌入层接入 — SiliconFlow/Ollama BGE-M3

@@ -240,7 +240,7 @@ impl KiasConfig {
     /// from the path in the `KIAS_CONFIG` env var, with env-var overrides.
     pub fn load() -> Result<Self, KiasError> {
         let config_path =
-            std::env::var("KIAS_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
+            std::env::var("AgentGuard_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
         Self::from_file(&config_path)
     }
 
@@ -269,7 +269,7 @@ impl KiasConfig {
 
         // Layer environment variables prefixed with `KIAS_` on top.
         let builder = builder.add_source(
-            config::Environment::with_prefix("KIAS")
+            config::Environment::with_prefix("AgentGuard")
                 .prefix_separator("_")
                 .separator("__"),
         );

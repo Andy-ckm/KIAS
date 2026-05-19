@@ -307,10 +307,10 @@ mod tests {
     #[tokio::test]
     async fn test_research_worker_with_query() {
         let mut task = make_task("t1");
-        task.context = serde_json::json!({"query": "What is KIAS?"});
+        task.context = serde_json::json!({"query": "What is AgentGuard?"});
         let worker = ResearchWorker::new("researcher");
         let result = worker.execute(&task).await.unwrap();
-        assert!(result.contains("What is KIAS?"));
+        assert!(result.contains("What is AgentGuard?"));
     }
 
     #[tokio::test]

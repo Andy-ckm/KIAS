@@ -1,11 +1,11 @@
 # Kimi WebBridge：Agent 浏览器自动化分析
 
 > 来源：微信公众号 2026-05-18
-> 用途：KIAS web 工具层设计参考
+> 用途：AgentGuard web 工具层设计参考
 
 ## 一、核心能力
 
-| 能力 | 描述 | KIAS 映射 |
+| 能力 | 描述 | AgentGuard 映射 |
 |------|------|-----------|
 | 搜索 | 跨平台搜索（X、Reddit、HN） | web-search 工具 |
 | 滚动/点击/输入 | 模拟人类操作 | browser 工具 |
@@ -28,7 +28,7 @@
 
 **开放生态**：WebBridge 不只服务 Kimi，兼容 Claude Code、Codex、Cursor、Hermes。
 
-**KIAS 借鉴**：
+**AgentGuard 借鉴**：
 1. web-browser 工具需要支持 MCP 协议（标准接口）
 2. 浏览器操作结果需要结构化（不只是截图）
 3. 工作流录制 → Skill 自动生成

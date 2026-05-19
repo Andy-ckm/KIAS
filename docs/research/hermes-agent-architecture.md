@@ -2,7 +2,7 @@
 
 > 来源：知乎文章 2034051084671567728
 > 日期：2026-05-18
-> 用途：**KIAS 的设计参考蓝图**
+> 用途：**AgentGuard 的设计参考蓝图**
 
 ## 一、核心架构
 
@@ -27,8 +27,8 @@ GEPA 离线优化（进化搜索）
 - **运行时加载**：每个消息注入到 system prompt
 - **热更新**：修改文件即可，无需重启
 
-**KIAS 差距**：KIAS 的 agent 定义是 YAML（team-engine），没有独立的"灵魂"文件。
-**借鉴点**：给 KIAS Agent 加 `SOUL.md`，作为身份层的声明式定义。
+**AgentGuard 差距**：AgentGuard 的 agent 定义是 YAML（team-engine），没有独立的"灵魂"文件。
+**借鉴点**：给 AgentGuard Agent 加 `SOUL.md`，作为身份层的声明式定义。
 
 ### 2.2 Runtime Loop — 运行时循环
 
@@ -43,12 +43,12 @@ GEPA 离线优化（进化搜索）
 - 上下文窗口管理（压缩旧对话）
 - 工具结果自动注入回 LLM
 
-**KIAS 差距**：KIAS 的 controller 是单次执行，没有循环反馈。
+**AgentGuard 差距**：AgentGuard 的 controller 是单次执行，没有循环反馈。
 **借鉴点**：controller 需要支持"执行→观察→调整→再执行"的循环。
 
 ### 2.3 三层记忆体系
 
-| 层级 | Hermes | KIAS 现状 | 差距 |
+| 层级 | Hermes | AgentGuard 现状 | 差距 |
 |------|--------|-----------|------|
 | 短期 | 对话上下文 | 无（每次新会话） | **缺对话状态** |
 | 中期 | `MEMORY.md`（用户画像+环境） | 无 | **缺用户画像** |
@@ -59,7 +59,7 @@ GEPA 离线优化（进化搜索）
 - 中期记忆 = 用户偏好、环境事实、工具特性（持久化注入）
 - 长期记忆 = 技能库（可复用的多步骤流程）
 
-**KIAS 借鉴**：
+**AgentGuard 借鉴**：
 1. 给每个 Agent 加 `MEMORY.md`，存储用户偏好
 2. 技能系统支持自动生成（不只是手动定义）
 3. 记忆分层注入到 prompt
@@ -77,7 +77,7 @@ Curator 定期扫描 → 清理过期/错误 Skill
 GEPA 离线优化 → 进化搜索最优版本 → PR 提交
 ```
 
-**KIAS 差距**：
+**AgentGuard 差距**：
 - skills 是静态定义的，没有自动生成
 - 没有 Curator 健康检查
 - 没有 GEPA 式优化
@@ -99,10 +99,10 @@ GEPA 离线优化 → 进化搜索最优版本 → PR 提交
 5. 约束门：测试 100%、文件 <15KB、缓存兼容、语义不漂移
 6. 胜出版本以 PR 提交
 
-**KIAS 借鉴**：
-- 用 KIAS 自己的 workflow-engine 跑 GEPA 流程
+**AgentGuard 借鉴**：
+- 用 AgentGuard 自己的 workflow-engine 跑 GEPA 流程
 - 执行痕迹存 SQLite audit log
-- 约束门可以用 KIAS 的质量门禁（cargo test + clippy）
+- 约束门可以用 AgentGuard 的质量门禁（cargo test + clippy）
 
 ## 四、多 Agent 架构
 
@@ -111,14 +111,14 @@ GEPA 离线优化 → 进化搜索最优版本 → PR 提交
 - 可以创建：程序员、研究员、设计师
 - 定时任务 + 自然语言描述
 
-**KIAS 差距**：
+**AgentGuard 差距**：
 - team-engine 有多 Agent，但没有 profile 隔离
 - 没有定时任务的自然语言描述
 - 没有 Agent 间的消息传递
 
-## 五、可直接映射到 KIAS 的设计
+## 五、可直接映射到 AgentGuard 的设计
 
-| Hermes 设计 | KIAS 映射 | 实现难度 |
+| Hermes 设计 | AgentGuard 映射 | 实现难度 |
 |-------------|-----------|----------|
 | SOUL.md | agent 定义 YAML + 热加载 | 低 |
 | MEMORY.md | agent 内存（SQLite + prompt 注入） | 中 |

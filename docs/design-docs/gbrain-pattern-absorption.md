@@ -1,4 +1,4 @@
-# GBrain 模式吸收方案 — KIAS Knowledge 层增强
+# GBrain 模式吸收方案 — AgentGuard Knowledge 层增强
 
 > 来源：GBrain (Garry Tan, YC) 开源 Agent 记忆系统
 > 参考：https://github.com/garrytan/gbrain (14,000+ Stars)
@@ -13,7 +13,7 @@
 
 | 维度 | 评估 |
 |------|------|
-| 解决什么问题 | 当前 KIAS 知识是扁平文档，无法区分"当前认知"和"历史证据" |
+| 解决什么问题 | 当前 AgentGuard 知识是扁平文档，无法区分"当前认知"和"历史证据" |
 | 不做会怎样 | 检索返回过时信息，Agent 无法判断哪条是最新的 |
 | 核心价值 | **高** — 直接提升检索质量 |
 | 用户场景 | "Alice 现在在哪家公司？" → 需要 Compiled Truth，不是所有时间线 |
@@ -55,7 +55,7 @@
 
 ---
 
-## Step 2: 审视 — KIAS 现有能力
+## Step 2: 审视 — AgentGuard 现有能力
 
 ### knowledge crate 现状（8,578 行）
 
@@ -70,7 +70,7 @@
 | `retriever.rs` | 527 | 检索器 | 已完善 |
 | `context_manager.rs` | 934 | Token 计数, 压缩, 多会话 | 已完善 |
 | `quality_pipeline.rs` | 994 | 质量管线 | 已完善 |
-| `inspiration_stream.rs` | 775 | 灵感流 | KIAS 特色 |
+| `inspiration_stream.rs` | 775 | 灵感流 | AgentGuard 特色 |
 
 ### 关键发现
 
@@ -493,7 +493,7 @@ pub struct MinionResult {
 
 ### 3.5 与现有模块的集成点
 
-| GBrain 模式 | KIAS 现有模块 | 集成方式 |
+| GBrain 模式 | AgentGuard 现有模块 | 集成方式 |
 |-------------|--------------|---------|
 | Compiled Truth | `memory.rs` MemoryEntry | 扩展为 EntityPage |
 | Timeline | `memory.rs` MemoryEntry | 新增 timeline 字段 |
@@ -507,11 +507,11 @@ pub struct MinionResult {
 
 | GBrain 特性 | 为什么不做的理由 |
 |-------------|-----------------|
-| Markdown 真值源 | KIAS 用 SQLite + 内存，Markdown 是展示层不是存储层 |
-| Bun/TS 运行时 | KIAS 是 Rust，不需要 JS 运行时 |
-| 34 个技能文件 | KIAS 的 Skills 系统已有自己的结构 |
-| MCP Server 模式 | KIAS 的 MCP 已有自己的实现 |
-| PGLite 嵌入式 PG | KIAS 用 SQLite + HNSW，不需要 PG |
+| Markdown 真值源 | AgentGuard 用 SQLite + 内存，Markdown 是展示层不是存储层 |
+| Bun/TS 运行时 | AgentGuard 是 Rust，不需要 JS 运行时 |
+| 34 个技能文件 | AgentGuard 的 Skills 系统已有自己的结构 |
+| MCP Server 模式 | AgentGuard 的 MCP 已有自己的实现 |
+| PGLite 嵌入式 PG | AgentGuard 用 SQLite + HNSW，不需要 PG |
 
 ---
 
@@ -557,7 +557,7 @@ pub struct MinionResult {
 
 ### 马斯克第一性原则
 - [x] 回归本质：知识管理的核心是"知道什么是最新的" + "实体之间有什么关系"
-- [x] 质疑假设：不照搬 Markdown 存储，用 SQLite + 内存更适合 KIAS
+- [x] 质疑假设：不照搬 Markdown 存储，用 SQLite + 内存更适合 AgentGuard
 - [x] 物理定律：正则提取零成本，比 LLM 提取快 1000x
 
 ### 论文/源码支撑

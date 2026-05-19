@@ -1,4 +1,4 @@
-# KIAS 缓存策略
+# AgentGuard 缓存策略
 
 > 借鉴 DeepSeek 的 KV Cache 优化，降低 Agent 运行成本
 
@@ -155,7 +155,7 @@ cache:
   namespace: default
 ```
 
-> **注意**：KIAS 当前不依赖 Redis。缓存层使用 SQLite 持久化 + 内存 LRU。分布式缓存（Redis）是未来扩展方向。
+> **注意**：AgentGuard 当前不依赖 Redis。缓存层使用 SQLite 持久化 + 内存 LRU。分布式缓存（Redis）是未来扩展方向。
 
 ## 缓存命中策略
 

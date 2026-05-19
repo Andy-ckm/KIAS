@@ -1,4 +1,4 @@
-# KIAS 论文研究库
+# AgentGuard 论文研究库
 
 更新时间: 2026-05-19 (09:10)
 
@@ -792,7 +792,7 @@
 
 ## 研究分析报告
 
-| 论文 | 分析报告 | KIAS 映射 |
+| 论文 | 分析报告 | AgentGuard 映射 |
 |------|----------|-----------|
 | Harness Engineering 综合 | [harness-engineering-analysis.md](../research/harness-engineering-analysis.md) | Harness 五层架构、灵魂之争、全模块映射 |
 | Cognifold (2605.13438) | [cognifold-analysis.md](../research/cognifold-analysis.md) | 记忆层架构、主动折叠 |

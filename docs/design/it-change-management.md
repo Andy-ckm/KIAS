@@ -188,7 +188,7 @@ Draft → Submitted → UnderReview → Approved → Implementing → Implemente
 
 ### 3.4 第四阶段：集成功能（4小时）
 
-1. 集成到KIAS
+1. 集成到AgentGuard
 2. Web界面
 3. API文档
 4. 测试用例

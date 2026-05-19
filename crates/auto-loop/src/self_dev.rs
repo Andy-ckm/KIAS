@@ -336,7 +336,7 @@ mod tests {
 
         // 应该记录了经验
         let report = mgr.get_learner_report();
-        assert!(report.contains("KIAS 经验积累报告"));
+        assert!(report.contains("AgentGuard 经验积累报告"));
     }
 
     #[test]

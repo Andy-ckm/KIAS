@@ -495,7 +495,7 @@ async fn handle_socket(
     let welcome = serde_json::json!({
         "type": "connected",
         "connection_id": conn_id,
-        "message": "KIAS WebSocket connected. Send {\"subscribe\": [...]} to filter events.",
+        "message": "AgentGuard WebSocket connected. Send {\"subscribe\": [...]} to filter events.",
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
     if let Err(e) = sender.send(Message::Text(welcome.to_string())).await {

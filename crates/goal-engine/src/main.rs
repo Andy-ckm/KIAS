@@ -4,7 +4,7 @@ use kias_goal_engine::{DefaultEvaluator, Goal, GoalLoopRunner};
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Goal Engine");
+    tracing::info!("Starting AgentGuard Goal Engine");
 
     // 创建目标（借鉴 Claude Code /goal）
     let mut goal = Goal::new("test/auth 下所有测试通过，lint 干净");
@@ -32,6 +32,6 @@ async fn main() -> anyhow::Result<()> {
     println!("Goal status: {:?}", result.status);
     println!("Rounds: {}", result.current_round);
 
-    tracing::info!("KIAS Goal Engine finished");
+    tracing::info!("AgentGuard Goal Engine finished");
     Ok(())
 }

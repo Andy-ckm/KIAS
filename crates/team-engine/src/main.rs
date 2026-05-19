@@ -9,7 +9,7 @@ use kias_team_engine::{
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Team Engine");
+    tracing::info!("Starting AgentGuard Team Engine");
 
     // 创建 Team（Owner-Worker-Verifier 架构）
     let owner = Box::new(DefaultOwner::new());
@@ -28,6 +28,6 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Result: {}", result);
 
-    tracing::info!("KIAS Team Engine finished");
+    tracing::info!("AgentGuard Team Engine finished");
     Ok(())
 }

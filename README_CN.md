@@ -1,35 +1,35 @@
 <p align="center">
-  <a href="https://github.com/Andy-ckm/KIAS/blob/main/LICENSE">
+  <a href="https://github.com/Andy-ckm/AgentGuard/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS/actions">
+  <a href="https://github.com/Andy-ckm/AgentGuard/actions">
     <img src="https://img.shields.io/badge/tests-1464%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
     <img src="https://img.shields.io/badge/crates-21-purple.svg" alt="Crates">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
     <img src="https://img.shields.io/badge/LOC-75K%2B-blue.svg" alt="Lines of Code">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
+    <img src="https://img.shields.io/github/stars/Andy-ckm/AgentGuard?style=social" alt="Stars">
   </a>
 </p>
 
 <p align="center">
-  <img src="docs/logo/kias-logo.svg" alt="KIAS" width="420">
+  <img src="docs/logo/kias-logo.svg" alt="AgentGuard" width="420">
 </p>
 
-<h1 align="center">KIAS</h1>
+<h1 align="center">AgentGuard</h1>
 <p align="center"><strong>Kubernetes-like Intelligent Agent Scheduling</strong></p>
 <p align="center">用 Rust 构建的生产级 AI Agent 集群调度框架</p>
 
 ---
 
-## 为什么需要 KIAS
+## 为什么需要 AgentGuard
 
 你的 Agent 在笔记本上跑得很顺畅，推到生产环境就出问题：
 
@@ -45,7 +45,7 @@
                                                  └──────────────────────┘
 ```
 
-**KIAS 解决的就是这个落差。** 它为 Agent 提供生产环境必需的基础设施，让你专注于 Agent 逻辑本身。
+**AgentGuard 解决的就是这个落差。** 它为 Agent 提供生产环境必需的基础设施，让你专注于 Agent 逻辑本身。
 
 ---
 
@@ -53,7 +53,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                          KIAS 平台架构                                    │
+│                          AgentGuard 平台架构                                    │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
@@ -92,7 +92,7 @@
 
 **问题：** 进程一崩，Agent 运行了几小时的推理结果全部归零。
 
-**方案：** KIAS 采用 **SQLite + WAL 模式** 持久化所有 Agent 状态。参考 K8s 的 etcd 设计理念，但用 SQLite 替代——单文件部署、零运维、ACID 事务保证。每个 Agent 的完整状态（上下文、工具调用历史、中间推理结果）都会写入磁盘。进程重启后自动恢复到崩溃前的位置。
+**方案：** AgentGuard 采用 **SQLite + WAL 模式** 持久化所有 Agent 状态。参考 K8s 的 etcd 设计理念，但用 SQLite 替代——单文件部署、零运维、ACID 事务保证。每个 Agent 的完整状态（上下文、工具调用历史、中间推理结果）都会写入磁盘。进程重启后自动恢复到崩溃前的位置。
 
 ```rust
 // Agent 状态自动持久化，无需手动管理
@@ -110,14 +110,14 @@ let agent = AgentBuilder::new("my-agent")
 
 ```
 传统方式:  请求 → Agent → 报错 → 系统挂掉 → 人工重启
-KIAS:     请求 → Agent → 报错 → DLQ → 指数退避重试 → 熔断保护 → 自动恢复
+AgentGuard:     请求 → Agent → 报错 → DLQ → 指数退避重试 → 熔断保护 → 自动恢复
 ```
 
 ### 3. 多 Agent 协作 — 不是单打独斗
 
 **问题：** 复杂任务需要多个 Agent 协作，但现有框架只支持单 Agent 运行。
 
-**方案：** KIAS 提供三种协作模式：
+**方案：** AgentGuard 提供三种协作模式：
 
 | 模式 | 机制 | 适用场景 |
 |------|------|---------|
@@ -197,7 +197,7 @@ model = "gpt-5.5"          # 或 "claude-opus-4.7", "deepseek-v4-pro"
 ### 安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Andy-ckm/KIAS/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Andy-ckm/AgentGuard/main/install.sh | sh
 ```
 
 ### 配置
@@ -269,7 +269,7 @@ make bench                                 # 性能基准测试
 
 ## 硬件要求
 
-### KIAS 框架本身
+### AgentGuard 框架本身
 
 | 配置 | CPU | 内存 | 磁盘 |
 |------|-----|------|------|
@@ -289,7 +289,7 @@ make bench                                 # 性能基准测试
 
 ## 与同类项目对比
 
-| 特性 | KIAS | LangGraph (Python) | CrewAI | AutoGen |
+| 特性 | AgentGuard | LangGraph (Python) | CrewAI | AutoGen |
 |------|------|--------------------|--------|---------|
 | **语言** | Rust | Python | Python | Python |
 | **状态持久化** | SQLite + Checkpoint | 内存（需外部存储） | 无 | 无 |
@@ -345,12 +345,12 @@ kias/
 
 ## License
 
-Copyright © 2024 KIAS Contributors
+Copyright © 2024 AgentGuard Contributors
 
 本项目使用 **MIT License**，详见 [LICENSE](LICENSE)。
 
 ---
 
 <p align="center">
-  <sub>Made with ❤️ by the KIAS Team</sub>
+  <sub>Made with ❤️ by the AgentGuard Team</sub>
 </p>

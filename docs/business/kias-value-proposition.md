@@ -1,10 +1,10 @@
-# KIAS — AI Agent 合规免疫系统
+# AgentGuard — AI Agent 合规免疫系统
 
 > 让受监管行业的企业，敢于在核心生产环境里使用 AI Agent。
 
 ## 一句话
 
-**你的 AI Agent 能通过 FDA 审计吗？KIAS 让答案变成"能"。**
+**你的 AI Agent 能通过 FDA 审计吗？AgentGuard 让答案变成"能"。**
 
 ## 问题
 
@@ -17,9 +17,9 @@
 
 ## 解决方案
 
-KIAS 是一个 **AI Agent 合规免疫系统**，它不是替代 LangChain/CrewAI，而是在任何 Agent 框架之上，加一层合规壳：
+AgentGuard 是一个 **AI Agent 合规免疫系统**，它不是替代 LangChain/CrewAI，而是在任何 Agent 框架之上，加一层合规壳：
 
-| 合规要求 | KIAS 模块 | 对应标准 |
+| 合规要求 | AgentGuard 模块 | 对应标准 |
 |---------|----------|---------|
 | 不可篡改审计链 | gxp_audit（SHA-256 哈希链） | 21 CFR Part 11 / EU Annex 11 |
 | 电子签名 + 2FA | gxp_auth（TOTP） | 21 CFR Part 11 §11.50 |
@@ -31,18 +31,18 @@ KIAS 是一个 **AI Agent 合规免疫系统**，它不是替代 LangChain/CrewA
 
 在制药企业的 CCR 流程中，一个系统变更需要：
 
-1. **变更请求** → KIAS approval 模块自动创建审批流
-2. **影响评估** → KIAS side_effect_gate 自动 dry-run 预演变更影响
-3. **审批决策** → KIAS gxp_auth 要求审批人电子签名（TOTP 2FA）
-4. **执行变更** → KIAS auto-loop 执行，每步记录审计日志
-5. **验证确认** → KIAS verifier 自动验证变更结果
-6. **审计报告** → KIAS gxp_audit 生成 SHA-256 哈希链审计报告
+1. **变更请求** → AgentGuard approval 模块自动创建审批流
+2. **影响评估** → AgentGuard side_effect_gate 自动 dry-run 预演变更影响
+3. **审批决策** → AgentGuard gxp_auth 要求审批人电子签名（TOTP 2FA）
+4. **执行变更** → AgentGuard auto-loop 执行，每步记录审计日志
+5. **验证确认** → AgentGuard verifier 自动验证变更结果
+6. **审计报告** → AgentGuard gxp_audit 生成 SHA-256 哈希链审计报告
 
 **全程：0 人工审计日志整理，100% 自动生成合规报告。**
 
 ## 差异化
 
-| 维度 | LangChain/CrewAI | KIAS |
+| 维度 | LangChain/CrewAI | AgentGuard |
 |------|-----------------|------|
 | 审计链 | ❌ 无 | ✅ SHA-256 不可篡改 |
 | 电子签名 | ❌ 无 | ✅ TOTP 2FA |
@@ -64,4 +64,4 @@ KIAS 是一个 **AI Agent 合规免疫系统**，它不是替代 LangChain/CrewA
 
 ## 联系方式
 
-GitHub: https://github.com/Andy-ckm/KIAS
+GitHub: https://github.com/Andy-ckm/AgentGuard

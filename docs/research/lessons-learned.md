@@ -1,4 +1,4 @@
-# KIAS 从开源项目学到的教训与经验
+# AgentGuard 从开源项目学到的教训与经验
 
 > 最后更新: 2026-05-18
 > 来源: GBrain、Harness Engineering、飞书 CLI、all-agentic-architectures (17种架构)
@@ -7,14 +7,14 @@
 ## 一、核心教训（按优先级排序）
 
 ### 1. 测试通过 ≠ 功能生效
-**来源**: KIAS 自身审计发现
+**来源**: AgentGuard 自身审计发现
 **教训**: 写模块 → 写测试 → 测试通过 → 就以为完了。但没有接入主循环的模块是死代码。
 **行动**: 每个新模块必须有明确的"接入点"（哪个函数调用它），接入后必须验证调用链。
 
 ### 2. 控制流设计 > Prompt Engineering
 **来源**: all-agentic-architectures
 **教训**: Agent 架构的本质不是 prompt，而是控制流。状态有没有被正确建模、控制流有没有被显式表达、错误能不能被局部截断、副作用能不能被关进闸门、系统知不知道自己什么时候该停。
-**行动**: KIAS 的每个模块都必须回答六个问题：解决什么问题、State是什么、拓扑是什么、Router怎么工作、失败模式是什么、什么时候升级。
+**行动**: AgentGuard 的每个模块都必须回答六个问题：解决什么问题、State是什么、拓扑是什么、Router怎么工作、失败模式是什么、什么时候升级。
 
 ### 3. 每一代架构增加一种控制能力
 **来源**: all-agentic-architectures
@@ -24,12 +24,12 @@
 ### 4. 灵魂在 Harness，不在 Model
 **来源**: Harness Engineering
 **教训**: Agent = Model + Harness。模型是可替换的执行器，Harness（skills + memory + approval + audit + knowledge）才是 Agent 的身份和能力。
-**行动**: KIAS 的差异化在 Harness 层，不是模型层。model-router 解决模型选择，但 skills/memory/audit 才是核心价值。
+**行动**: AgentGuard 的差异化在 Harness 层，不是模型层。model-router 解决模型选择，但 skills/memory/audit 才是核心价值。
 
 ### 5. Markdown + Git 是人类与 AI 共享的真值源
 **来源**: GBrain
 **教训**: 用 Markdown 文件存储实体知识，Git 做版本控制。人类和 AI 共享同一份真值源。数据库崩了从 Git 重建。
-**行动**: KIAS 的知识层应该以 Markdown 为真值源，数据库为索引层。
+**行动**: AgentGuard 的知识层应该以 Markdown 为真值源，数据库为索引层。
 
 ### 6. 零 LLM 调用的知识图谱
 **来源**: GBrain
@@ -39,16 +39,16 @@
 ### 7. 夜间巩固循环（Dream Cycle）
 **来源**: GBrain
 **教训**: 白天收集信号，晚上 Minions 跑确定性任务（去重、充实、重建索引），0 token 成本。
-**行动**: KIAS 的 auto-loop 应该区分"需要 LLM 的任务"和"确定性任务"，后者用代码直接跑。
+**行动**: AgentGuard 的 auto-loop 应该区分"需要 LLM 的任务"和"确定性任务"，后者用代码直接跑。
 
 ### 8. 连接层是落地瓶颈
 **来源**: 飞书 CLI
-**教训**: 模型不是瓶颈，连接才是。KIAS 的 MCP 模块已完成，但工具连接层（飞书/钉钉/企微/Slack）还没做。
+**教训**: 模型不是瓶颈，连接才是。AgentGuard 的 MCP 模块已完成，但工具连接层（飞书/钉钉/企微/Slack）还没做。
 **行动**: 飞书 CLI 接入作为第一个企业级集成场景。
 
 ### 9. 三层 CLI 架构验证了 Skills 设计
 **来源**: 飞书 CLI
-**教训**: Shortcut → API Command → Raw API 三层。KIAS 的 Skills 系统是同一模式。
+**教训**: Shortcut → API Command → Raw API 三层。AgentGuard 的 Skills 系统是同一模式。
 **行动**: Skills 设计方向正确，继续深化。
 
 ### 10. 验证驱动重规划（PEV）
@@ -66,9 +66,9 @@
 **教训**: Self-boundary Reasoning — 知道自己擅长什么、不擅长什么，据此选择亲自做、调工具、还是交给人。在医疗/法律/金融场景，最强的能力是"拒绝"。
 **行动**: self_boundary 已实现，已接入 auto-loop start_loop。
 
-## 二、架构演化全景（17种架构 → KIAS 映射）
+## 二、架构演化全景（17种架构 → AgentGuard 映射）
 
-| # | 架构 | 核心能力 | KIAS 模块 | 状态 |
+| # | 架构 | 核心能力 | AgentGuard 模块 | 状态 |
 |---|------|---------|----------|------|
 | 1 | Reflection | 生成+评估+修正 | quality_pipeline | ✅ 已有 |
 | 2 | Tool Use | 结构化世界交互 | tool-executor + MCP | ✅ 已有 |
@@ -89,7 +89,7 @@
 
 ## 三、失败模式清单（从17种架构学到的）
 
-| 架构 | 典型失败模式 | KIAS 缓解措施 |
+| 架构 | 典型失败模式 | AgentGuard 缓解措施 |
 |------|------------|-------------|
 | Reflection | 不能验证 refiner 是否真的修好了 | verifier 阶段 |
 | Tool Use | 工具名幻觉、参数类型错误、序列化边界 | MCP 标准化协议 |
@@ -115,7 +115,7 @@
 Agent = Model + Harness
 ```
 
-| 公式要素 | KIAS 模块 | 状态 |
+| 公式要素 | AgentGuard 模块 | 状态 |
 |---------|----------|------|
 | 模型集 M | model-router | ✅ |
 | 选模型 m* | scheduler + tier_routing | ✅ |

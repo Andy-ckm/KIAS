@@ -2,7 +2,7 @@
 
 > 来源: all-agentic-architectures 项目 (agno 实现)
 > 日期: 2026-05-18
-> 状态: KIAS 架构方法论参考
+> 状态: AgentGuard 架构方法论参考
 
 ## 统一分析框架（六个固定问题）
 
@@ -16,7 +16,7 @@
 
 ## 演化路径：逐步添加控制能力
 
-| # | 阶段 | 新增能力 | 核心解释 | 代表架构 | KIAS 对应 |
+| # | 阶段 | 新增能力 | 核心解释 | 代表架构 | AgentGuard 对应 |
 |---|------|---------|---------|---------|----------|
 | 1 | 单次生成 | 基础 LLM 调用 | 输入→输出，无控制流 | Direct | — |
 | 2 | Reflection | 生成+评估+修正 | generator + critic + refiner 三阶段 | Reflection | quality_pipeline ✅ |
@@ -65,7 +65,7 @@
 | Multi-Agent | 角色边界模糊、通信开销爆炸、死锁 |
 | Side-effect Gating | 过度保守：dry-run 通过但真实环境有差异 |
 
-## KIAS 架构覆盖度评估
+## AgentGuard 架构覆盖度评估
 
 **已覆盖（8/17）**: Reflection, Tool Use, ReAct, Planning, Multi-Agent, Meta-Controller, Long-term Memory, 部分 PEV
 

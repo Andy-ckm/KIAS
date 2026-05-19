@@ -1,4 +1,4 @@
-# KIAS IT 变更管理系统
+# AgentGuard IT 变更管理系统
 
 > 医药/医疗器械企业IT系统变更管理
 > 符合 FDA 21 CFR Part 11, EU Annex 11, GAMP 5
@@ -58,7 +58,7 @@ manager.close_change(&change.id, "it.admin", None, None).unwrap();
 
 ## 合规标准
 
-| 标准 | 要求 | KIAS实现 |
+| 标准 | 要求 | AgentGuard实现 |
 |------|------|----------|
 | FDA 21 CFR Part 11 §11.10(e) | 审计追踪 | SHA-256哈希链 |
 | FDA 21 CFR Part 11 §11.50 | 电子签名含义 | SignatureMeaning枚举 |
@@ -107,7 +107,7 @@ Submitted → EmergencyImplemented → Verifying → Verified → Closed
 
 - **市场空白**：没有专注医药GxP合规的开源变更管理平台
 - **商业产品价格**：TrackWise/Veeva数十万美元起
-- **KIAS优势**：开源、合规、可定制、Rust高性能
+- **AgentGuard优势**：开源、合规、可定制、Rust高性能
 
 ## 文档
 

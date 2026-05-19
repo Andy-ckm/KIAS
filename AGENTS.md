@@ -110,7 +110,7 @@ crates/
 ├── auto-loop/           # 自循环开发引擎
 ├── autonomy-controller/ # 三模式自主度控制
 ├── im-integration/      # IM 集成（微信/飞书/钉钉）
-├── kias-cli/            # KIAS CLI 工具
+├── kias-cli/            # AgentGuard CLI 工具
 ├── llm-engine/          # LLM 推理引擎
 ├── model-router/        # 模型路由（多 provider）
 ├── tool-executor/       # 工具执行器
@@ -171,8 +171,8 @@ crates/
 ### 环境配置
 ```bash
 # ~/.kias_env（启动脚本自动 source）
-KIAS_ETCD_ENDPOINTS=http://localhost:2379
-KIAS_LOG_LEVEL=debug
+AgentGuard_ETCD_ENDPOINTS=http://localhost:2379
+AgentGuard_LOG_LEVEL=debug
 ```
 
 ### 验证闭环

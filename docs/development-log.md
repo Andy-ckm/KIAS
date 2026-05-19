@@ -200,7 +200,7 @@ cargo test --workspace -- --nocapture 2>&1 | tail -5
 
 - ✅ **架构演进记录**
   - `docs/traceability/architecture-evolution.md`
-  - 记录KIAS架构的演变过程
+  - 记录AgentGuard架构的演变过程
 
 - ✅ **开发者维护指南**
   - `docs/traceability/developer-guide.md`

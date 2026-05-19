@@ -10,8 +10,8 @@ services:
       - kias-data:/app/data
       - ./config:/app/config:ro
     environment:
-      - KIAS_LOG_LEVEL=info
-      - KIAS_DB_PATH=/app/data/kias.db
+      - AgentGuard_LOG_LEVEL=info
+      - AgentGuard_DB_PATH=/app/data/kias.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]

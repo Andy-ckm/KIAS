@@ -16,9 +16,9 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "kias",
-    about = "KIAS - Enterprise Agent Management Platform CLI",
+    about = "AgentGuard - Enterprise Agent Management Platform CLI",
     version,
-    long_about = "KIAS CLI 是企业级 Agent 管理工具，支持声明式 Agent 定义、运行、部署和管理。\n超越阿里云 AgentRun CLI，提供更好的企业特性。"
+    long_about = "AgentGuard CLI 是企业级 Agent 管理工具，支持声明式 Agent 定义、运行、部署和管理。\n超越阿里云 AgentRun CLI，提供更好的企业特性。"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -41,11 +41,11 @@ pub struct Cli {
     pub config: Option<String>,
 
     /// KIAS API Server 地址
-    #[arg(long, global = true, env = "KIAS_SERVER")]
+    #[arg(long, global = true, env = "AgentGuard_SERVER")]
     pub server: Option<String>,
 
     /// API Key
-    #[arg(long, global = true, env = "KIAS_API_KEY")]
+    #[arg(long, global = true, env = "AgentGuard_API_KEY")]
     pub api_key: Option<String>,
 
     /// 详细输出

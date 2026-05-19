@@ -463,9 +463,9 @@ litellm.logging_callback_manager.add_litellm_callback(selector)
 
 这种设计实现了 **策略与路由逻辑的解耦**：路由选择器不需要直接调用 LLM，而是通过回调被动收集统计信息。
 
-## 14. 与 KIAS Scheduler 的对比参考
+## 14. 与 AgentGuard Scheduler 的对比参考
 
-| 维度 | LiteLLM Router | KIAS Scheduler |
+| 维度 | LiteLLM Router | AgentGuard Scheduler |
 |------|---------------|----------------|
 | 语言 | Python | Rust |
 | 路由策略 | 6 种 (simple-shuffle/least-busy/usage/latency/cost) | 4 种 (RR/LL/RA/CA) |

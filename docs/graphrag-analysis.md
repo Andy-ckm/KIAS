@@ -1,4 +1,4 @@
-# Microsoft GraphRAG 深度分析 — KIAS 集成方案
+# Microsoft GraphRAG 深度分析 — AgentGuard 集成方案
 
 > 论文: "From Local to Global: A Graph RAG Approach to Query-Focused Summarization"
 > 来源: Microsoft Research, 2024
@@ -50,9 +50,9 @@ Global Search (全局查询):
   适用: 全局性问题 ("整体趋势是什么?")
 ```
 
-## 二、GraphRAG vs KIAS RAG 对比
+## 二、GraphRAG vs AgentGuard RAG 对比
 
-| 维度 | GraphRAG | KIAS 当前 RAG |
+| 维度 | GraphRAG | AgentGuard 当前 RAG |
 |------|----------|---------------|
 | **检索方式** | 图遍历 + 社区摘要 | 关键词 + 向量混合 |
 | **知识表示** | 实体-关系图谱 | 扁平文档 chunks |
@@ -63,7 +63,7 @@ Global Search (全局查询):
 | **成本** | 高（需要 LLM 提取实体） | 低（向量化即可） |
 | **延迟** | 高（图构建耗时） | 低（实时搜索） |
 
-## 三、KIAS 集成方案（渐进式）
+## 三、AgentGuard 集成方案（渐进式）
 
 ### Phase 1: 增强现有 RAG（低成本，高收益）
 
@@ -122,7 +122,7 @@ Global Search (全局查询):
      Global: 社区摘要→Map-Reduce→综合
 ```
 
-## 四、KIAS 实施计划
+## 四、AgentGuard 实施计划
 
 ### 4.1 Phase 1 实施（本周）
 
@@ -135,8 +135,8 @@ pub struct QueryRewriter {
 impl QueryRewriter {
     /// LLM 改写用户查询为多个子问题
     pub async fn rewrite(&self, query: &str) -> Vec<String> {
-        // "KIAS 的调度算法有哪些优势?"
-        // → ["KIAS 调度算法是什么", "调度算法的优势", "与其他调度器对比"]
+        // "AgentGuard 的调度算法有哪些优势?"
+        // → ["AgentGuard 调度算法是什么", "调度算法的优势", "与其他调度器对比"]
     }
 }
 
@@ -269,7 +269,7 @@ impl GlobalSearch {
 
 **不直接移植 GraphRAG 的原因**：
 - GraphRAG 索引成本高（大量 LLM 调用）
-- KIAS 主要是代码/技术文档，实体关系相对简单
+- AgentGuard 主要是代码/技术文档，实体关系相对简单
 - 渐进式更符合钱学森"从定性到定量"方法论
 
 ---

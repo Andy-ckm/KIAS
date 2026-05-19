@@ -1,8 +1,8 @@
-# KIAS Data Layer Architecture
+# AgentGuard Data Layer Architecture
 
 ## Overview
 
-The KIAS data layer provides unified persistence for the entire system via the `kias-data-store` crate (L1). It follows the architecture principle of depending only on `kias-common` (L0), making it available to all L2+ crates.
+The AgentGuard data layer provides unified persistence for the entire system via the `kias-data-store` crate (L1). It follows the architecture principle of depending only on `kias-common` (L0), making it available to all L2+ crates.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -121,7 +121,7 @@ Access via:
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `KIAS_DB_PATH` | `kias.db` | SQLite database file path |
+| `AgentGuard_DB_PATH` | `kias.db` | SQLite database file path |
 
 ## Quality Standards
 

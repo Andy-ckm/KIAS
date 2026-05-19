@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("Starting KIAS Controller with Runtime Loop");
+    tracing::info!("Starting AgentGuard Controller with Runtime Loop");
 
     // ── Build initial state ──
     let state = Arc::new(Mutex::new(ControllerState {
@@ -85,6 +85,6 @@ async fn main() -> anyhow::Result<()> {
     );
     println!("  Agents tracked:   {}", final_state.agents.len());
 
-    tracing::info!("KIAS Controller finished");
+    tracing::info!("AgentGuard Controller finished");
     Ok(())
 }

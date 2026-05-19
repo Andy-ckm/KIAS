@@ -1,4 +1,4 @@
-# KIAS NL 输入界面 — 竞品参考分析
+# AgentGuard NL 输入界面 — 竞品参考分析
 
 > 日期: 2026-05-16
 > 参考源码: /mnt/reference-projects/{dify, coze-studio, assistant-ui}
@@ -59,7 +59,7 @@ web/app/components/base/chat/
 // - 语音输入（js-audio-recorder）
 ```
 
-### KIAS 可借鉴
+### AgentGuard 可借鉴
 1. **Chat 组件三层结构**：核心聊天 → 带历史 → 可嵌入
 2. **输入框**：textarea + 文件 + 语音 + 命令历史
 3. **Agent 回答**：推理过程、工具调用详情、引用
@@ -92,7 +92,7 @@ web/app/components/base/chat/
 └─────────────────────────────────────────────────────┘
 ```
 
-### KIAS 可借鉴
+### AgentGuard 可借鉴
 1. **分屏 Agent IDE**：左边配置，右边实时预览
 2. **Adapter 模式**：所有组件通过 adapter 解耦
 3. **Bot Detail Store**：统一的 Agent 状态管理
@@ -123,13 +123,13 @@ ThreadPrimitive.Root           # 顶层容器
     ComposerPrimitive.Dictate  # 语音输入
 ```
 
-### KIAS 可借鉴
+### AgentGuard 可借鉴
 1. **无样式原语**：最大灵活度，可以用自己的设计系统
 2. **Runtime 适配器**：支持多种 LLM 后端
 3. **工具系统**：makeAssistantTool / makeAssistantToolUI
 4. **模板系统**：快速启动不同场景
 
-## 5. KIAS NL 界面设计方案
+## 5. AgentGuard NL 界面设计方案
 
 ### 推荐技术栈
 - **React 18 + TypeScript + Tailwind CSS**（与 Dify 对齐）
@@ -139,7 +139,7 @@ ThreadPrimitive.Root           # 顶层容器
 
 ### 页面结构
 ```
-KIAS Dashboard
+AgentGuard Dashboard
 ├── /                           # 首页 — NL 输入入口
 │   └── ChatInput               # 大输入框："描述你的需求..."
 │       ├── 建议卡片            # "创建 Agent" / "构建 Workflow" / "查看状态"
@@ -170,11 +170,11 @@ KIAS Dashboard
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  KIAS — 智能体调度平台                                     │
+│  AgentGuard — 智能体调度平台                                     │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐  │
 │  │                                                    │  │
-│  │     描述你的需求，KIAS 自动为你组装智能体...          │  │
+│  │     描述你的需求，AgentGuard 自动为你组装智能体...          │  │
 │  │                                                    │  │
 │  │     ┌────────┐  ┌────────┐  ┌────────┐            │  │
 │  │     │创建 Agent│ │构建流程 │  │查看状态 │            │  │
@@ -198,7 +198,7 @@ KIAS Dashboard
 ### Phase 1: NL 输入组件（基于 assistant-ui）
 - [ ] 安装 @assistant-ui/react + @assistant-ui/react-ai-sdk
 - [ ] 自定义 Thread/Message/Composer 组件
-- [ ] 接入 KIAS NL API
+- [ ] 接入 AgentGuard NL API
 
 ### Phase 2: Agent Shell 技能
 - [ ] Shell YAML schema

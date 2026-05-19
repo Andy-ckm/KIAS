@@ -1,26 +1,26 @@
 1|<p align="center">
-  <a href="https://github.com/Andy-ckm/KIAS/blob/main/LICENSE">
+  <a href="https://github.com/Andy-ckm/AgentGuard/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS/actions">
+  <a href="https://github.com/Andy-ckm/AgentGuard/actions">
     <img src="https://img.shields.io/badge/tests-2307%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
     <img src="https://img.shields.io/badge/crates-26-purple.svg" alt="Crates">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
     <img src="https://img.shields.io/badge/LOC-110K%2B-blue.svg" alt="Lines of Code">
   </a>
-  <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/github/stars/Andy-ckm/KIAS?style=social" alt="Stars">
+  <a href="https://github.com/Andy-ckm/AgentGuard">
+    <img src="https://img.shields.io/github/stars/Andy-ckm/AgentGuard?style=social" alt="Stars">
   </a>
 </p>
 
 <p align="center">
-  <img src="docs/logo/kias-logo.svg" alt="KIAS" width="420">
+  <img src="docs/logo/kias-logo.svg" alt="AgentGuard" width="420">
 </p>
 
 <h1 align="center">AgentGuard</h1>
@@ -127,7 +127,7 @@ Strict unidirectional dependencies. No cross-layer imports.
 
 Traditional schedulers (Round Robin, Least Loaded) are blind to LLM inference characteristics — they don't know whether a node has already cached a specific system prompt's KV Cache. A cache miss means recomputing the entire prefix, wasting ~90% of GPU compute.
 
-KIAS introduces **DeepSeek-style Prefix Caching** into the scheduling decision layer:
+AgentGuard introduces **DeepSeek-style Prefix Caching** into the scheduling decision layer:
 
 ```rust
 // crates/scheduler/src/algorithms/cache_aware.rs
@@ -157,7 +157,7 @@ This is the only scheduling solution that incorporates LLM inference characteris
 
 LLM workflows are not linear — they require conditional branching, loops, parallel subtasks, and interrupt-resume semantics. Existing DAG engines (Airflow, Temporal) are either too heavy or lack LLM-specific interrupt-resume support.
 
-KIAS implements a complete LangGraph-style state graph engine with four edge types:
+AgentGuard implements a complete LangGraph-style state graph engine with four edge types:
 
 ```rust
 // crates/langgraph-engine/src/graph.rs
@@ -179,7 +179,7 @@ Build-time validation via `build()` detects unreachable nodes and missing entry 
 
 **File:** [`crates/workflow-engine/src/typed_state.rs`](crates/workflow-engine/src/typed_state.rs)
 
-LangGraph's core abstraction is the TypedDict + Reducer pattern. In Python, this relies on type hints (runtime checks). KIAS leverages Rust's type system to guarantee state merge correctness at compile time.
+LangGraph's core abstraction is the TypedDict + Reducer pattern. In Python, this relies on type hints (runtime checks). AgentGuard leverages Rust's type system to guarantee state merge correctness at compile time.
 
 ```rust
 // crates/workflow-engine/src/typed_state.rs
@@ -203,7 +203,7 @@ Five built-in reducers: `Replace`, `Append`, `Merge` (shallow HashMap merge), `K
 
 The core bottleneck in multi-agent collaboration is not communication — it's memory. Agents lose context after task completion, forcing redundant re-computation.
 
-KIAS implements a three-layer memory architecture:
+AgentGuard implements a three-layer memory architecture:
 
 | Layer | Eviction Strategy | Purpose |
 |-------|-------------------|---------|
@@ -230,7 +230,7 @@ pub struct MemoryManager {
 
 Single-agent output quality is uncontrollable. Even with Chain of Thought, LLMs generate incorrect code, miss edge cases, and produce hallucinations.
 
-KIAS implements an adversarial Worker-Verifier mechanism:
+AgentGuard implements an adversarial Worker-Verifier mechanism:
 
 ```rust
 // crates/team-engine/src/verifier.rs
@@ -253,7 +253,7 @@ The `ShellCheck` rule runs actual test commands (e.g., `cargo test`, `python -m 
 
 **File:** [`crates/autonomy-controller/src/autonomy.rs`](crates/autonomy-controller/src/autonomy.rs), [`crates/autonomy-controller/src/ladder.rs`](crates/autonomy-controller/src/ladder.rs)
 
-Full autonomy is dangerous; full confirmation is inefficient. KIAS implements Codex CLI-style three-mode autonomy control with a complete decision pipeline:
+Full autonomy is dangerous; full confirmation is inefficient. AgentGuard implements Codex CLI-style three-mode autonomy control with a complete decision pipeline:
 
 ```
 Tool Policy Check → Rate Limit Check → Budget Check → Autonomy Level Judgment → Audit Log
@@ -278,7 +278,7 @@ pub enum AutonomyLevel {
 
 The "execute → evaluate → feedback → re-execute" pattern is ubiquitous in LLM applications. Most frameworks implement this as ad-hoc while loops in application code, lacking standardization, checkpoints, cancellation, and observability.
 
-KIAS abstracts this as `GoalLoopRunner` with separated executor-evaluator roles:
+AgentGuard abstracts this as `GoalLoopRunner` with separated executor-evaluator roles:
 
 ```rust
 // crates/goal-engine/src/loop_runner.rs
@@ -301,7 +301,7 @@ pub trait RoundExecutor: Send + Sync {
 
 Schedulers decide where to place work; they don't decide when to move it. Over time, clusters develop: underutilized nodes wasting resources, anti-affinity constraints violated, agent replicas concentrated on few nodes.
 
-KIAS implements a K8s Descheduler-style engine with three built-in strategies:
+AgentGuard implements a K8s Descheduler-style engine with three built-in strategies:
 
 | Strategy | File | Purpose |
 |----------|------|---------|
@@ -356,7 +356,7 @@ Sandbox snapshots support state restore with `IsolationLevel` (Session / User / 
 
 LLM system logs frequently leak sensitive data: IP addresses, email addresses, JWT tokens. Traditional post-hoc masking or logging framework plugins are error-prone.
 
-KIAS implements **zero-trust masking** at the infrastructure layer:
+AgentGuard implements **zero-trust masking** at the infrastructure layer:
 
 ```rust
 // crates/common/src/data_mask.rs
@@ -379,7 +379,7 @@ pub fn redact_log_message(msg: &str) -> String {
 
 Traditional agent development follows a single-threaded execute → evaluate loop. The developer (or agent) builds, then checks if it works. This misses the opportunity for parallel insight discovery — while building, external knowledge sources may surface better approaches that could redirect effort before it's wasted.
 
-KIAS introduces a **Builder-Thinker dual-flow architecture** inspired by MiniMax Mavis's Worker-Verifier adversarial pattern, extended with a third **Thinker** role:
+AgentGuard introduces a **Builder-Thinker dual-flow architecture** inspired by MiniMax Mavis's Worker-Verifier adversarial pattern, extended with a third **Thinker** role:
 
 ```
 Builder ──→ Produces code
@@ -412,13 +412,13 @@ if adopted {
 
 **Relevance scoring** uses keyword overlap between insight tags and the current task context. `max_per_cycle` prevents insight flooding. `min_relevance` filters noise. All insights are persisted with adopt/dismiss outcomes for the DreamConsolidator to learn from during sleep cycles.
 
-This is the mechanism that enabled KIAS to absorb ideas from AgenticRAG, Claude Code's memory architecture, AgentScope's Workspace concept, and MiniMax Mavis's Worker-Verifier pattern — all discovered and integrated during active development, not in a separate research phase.
+This is the mechanism that enabled AgentGuard to absorb ideas from AgenticRAG, Claude Code's memory architecture, AgentScope's Workspace concept, and MiniMax Mavis's Worker-Verifier pattern — all discovered and integrated during active development, not in a separate research phase.
 
 ---
 
 ## Node-Level Error Handling
 
-KIAS provides fault tolerance at every layer of the stack:
+AgentGuard provides fault tolerance at every layer of the stack:
 
 ```
 Request → Agent → Failure → DLQ → Exponential Backoff Retry → Circuit Breaker → Auto Recovery
@@ -498,7 +498,7 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 | **Disk** | 500 MB (binary) | 2+ GB (with SQLite data) |
 | **Network** | Outbound HTTPS | Required for LLM API calls |
 
-> KIAS is a single binary (~30 MB). No runtime dependencies (no JVM, no Node, no Python).
+> AgentGuard is a single binary (~30 MB). No runtime dependencies (no JVM, no Node, no Python).
 > SQLite is embedded. No external database required for single-node deployment.
 
 ### Dependencies
@@ -515,7 +515,7 @@ See [Local Model Comparison Guide](docs/local-model-comparison.md) for specifica
 
 ```bash
 # Download and install
-curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.deb
+curl -LO https://github.com/Andy-ckm/AgentGuard/releases/latest/download/kias-amd64.deb
 sudo dpkg -i kias-amd64.deb
 
 # Start as systemd service
@@ -530,7 +530,7 @@ journalctl -u kias -f
 
 ```bash
 # Download and install
-curl -LO https://github.com/Andy-ckm/KIAS/releases/latest/download/kias-amd64.rpm
+curl -LO https://github.com/Andy-ckm/AgentGuard/releases/latest/download/kias-amd64.rpm
 sudo rpm -i kias-amd64.rpm
 
 # Start as systemd service
@@ -550,8 +550,8 @@ docker run -d --name kias -p 8080:8080 ghcr.io/andy-ckm/kias:latest
 
 ```bash
 # 1. Clone
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
+git clone https://github.com/Andy-ckm/AgentGuard.git
+cd AgentGuard
 
 # 2. Build
 cargo build --release

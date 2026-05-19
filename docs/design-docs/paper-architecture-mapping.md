@@ -1,8 +1,8 @@
-# 论文架构→KIAS模块映射分析
+# 论文架构→AgentGuard模块映射分析
 
 > 生成日期: 2026-05-18
-> 论文来源: KIAS autonomous loop 自动下载的 arXiv 论文
-> 分析目标: 提取架构模式，映射到 KIAS 现有模块，识别差距与建议
+> 论文来源: AgentGuard autonomous loop 自动下载的 arXiv 论文
+> 分析目标: 提取架构模式，映射到 AgentGuard 现有模块，识别差距与建议
 
 ---
 
@@ -76,17 +76,17 @@
 | 前置条件验证 | 执行前验证上下文满足所有前置条件 | ∀π ∈ Πpre(sk), π(C) = ⊤ |
 | 可重放审计 | ProcessEvent 事件链支持回放审计 | 完整执行轨迹持久化 |
 
-### KIAS映射
+### AgentGuard映射
 
-| 论文模式 | KIAS模块 | 差距 | 建议 |
+| 论文模式 | AgentGuard模块 | 差距 | 建议 |
 |----------|----------|------|------|
-| GoalStage FSM | `workflow-engine` (node/edge/state) | KIAS有DAG图但缺少**业务阶段约束**；无Λ(intent-stage binding)概念 | 在workflow-engine中增加StageConstraint层，为每个node绑定合法阶段集 |
-| IntentRouter | `model-router` (router.rs) | KIAS model-router做模型选择而非意图路由；缺少GRPO训练的专用路由器 | 扩展model-router支持意图分类模式，或新建intent-router子模块 |
-| SkillRegistry 三级分类 | `skills` (registry/skill) | KIAS SkillRegistry有registry但无风险分级(L0/L1/L2)和渐进披露 | 在Skill结构体中增加risk_level字段和disclosure_policy |
-| Πpre 前置条件 | `workflow-engine` (approval.rs) | KIAS有ApprovalPolicy但它是审批策略，非前置条件验证 | 新增PreconditionValidator trait，每个skill定义前置条件集 |
-| StateAwareDispatcher | `workflow-engine` (dispatcher.rs) | KIAS Dispatcher做Agent选择，不做阶段过滤 | 在dispatcher中增加stage_filter: 在选择技能前先过滤掉当前阶段不允许的技能 |
-| GoalManager 共享记忆 | `agent-runtime` (session_memory) | KIAS记忆是per-session的，缺少按goal_id范围化的共享程序记忆 | 扩展SessionMemory支持goal-scoped共享状态 |
-| ProcessEvent审计 | `data-governance` (audit_middleware) | KIAS有审计中间件但缺少可重放的流程事件轨迹 | 增加ProcessEvent类型，记录完整的状态机转换链 |
+| GoalStage FSM | `workflow-engine` (node/edge/state) | AgentGuard有DAG图但缺少**业务阶段约束**；无Λ(intent-stage binding)概念 | 在workflow-engine中增加StageConstraint层，为每个node绑定合法阶段集 |
+| IntentRouter | `model-router` (router.rs) | AgentGuard model-router做模型选择而非意图路由；缺少GRPO训练的专用路由器 | 扩展model-router支持意图分类模式，或新建intent-router子模块 |
+| SkillRegistry 三级分类 | `skills` (registry/skill) | AgentGuard SkillRegistry有registry但无风险分级(L0/L1/L2)和渐进披露 | 在Skill结构体中增加risk_level字段和disclosure_policy |
+| Πpre 前置条件 | `workflow-engine` (approval.rs) | AgentGuard有ApprovalPolicy但它是审批策略，非前置条件验证 | 新增PreconditionValidator trait，每个skill定义前置条件集 |
+| StateAwareDispatcher | `workflow-engine` (dispatcher.rs) | AgentGuard Dispatcher做Agent选择，不做阶段过滤 | 在dispatcher中增加stage_filter: 在选择技能前先过滤掉当前阶段不允许的技能 |
+| GoalManager 共享记忆 | `agent-runtime` (session_memory) | AgentGuard记忆是per-session的，缺少按goal_id范围化的共享程序记忆 | 扩展SessionMemory支持goal-scoped共享状态 |
+| ProcessEvent审计 | `data-governance` (audit_middleware) | AgentGuard有审计中间件但缺少可重放的流程事件轨迹 | 增加ProcessEvent类型，记录完整的状态机转换链 |
 
 ---
 
@@ -161,16 +161,16 @@ Agent调用
 | 编译产物跨模型复用 | 强模型编译→弱模型运行时使用 | 小模型准确率提升 |
 | 回退胶囊 | 无法编译的部分保留原始源材料 | 不丢失能力 |
 
-### KIAS映射
+### AgentGuard映射
 
-| 论文模式 | KIAS模块 | 差距 | 建议 |
+| 论文模式 | AgentGuard模块 | 差距 | 建议 |
 |----------|----------|------|------|
-| 技能编译 | `skills` (pipeline/distillation) | KIAS有pipeline和distillation但都是运行时概念，无离线编译 | 新增`skill-compiler`子模块：输入SKILL.md → 输出boundary contract JSON |
+| 技能编译 | `skills` (pipeline/distillation) | AgentGuard有pipeline和distillation但都是运行时概念，无离线编译 | 新增`skill-compiler`子模块：输入SKILL.md → 输出boundary contract JSON |
 | Boundary Contract | `skills` (skill.rs SkillConfig) | SkillConfig是运行时配置，不是编译产物 | 定义CompiledSkill结构体：{operators, inputs, policies, fallback} |
-| 渐进式披露 | `skills` (registry) | KIAS registry暴露完整skill元数据，无分层披露 | 在SkillRegistry查询中增加disclosure_level参数(L0摘要/L1完整) |
-| Source-Shape分类 | `skills` (builtin.rs) | KIAS内置技能是硬编码的，无自动分类 | 增加skill classifier：自动识别skill类型(描述/工作流/检查清单) |
-| 操作符调度器 | `workflow-engine` (executor.rs) | KIAS executor执行node，但不区分typed操作vs LLM推理 | 在executor中增加operator_type判断：Deterministic直接执行，Generative调LLM |
-| 缓存编译产物 | `cache` (strategy.rs) | KIAS有缓存策略但未用于技能编译产物 | 增加skill artifact缓存层，按skill hash缓存编译结果 |
+| 渐进式披露 | `skills` (registry) | AgentGuard registry暴露完整skill元数据，无分层披露 | 在SkillRegistry查询中增加disclosure_level参数(L0摘要/L1完整) |
+| Source-Shape分类 | `skills` (builtin.rs) | AgentGuard内置技能是硬编码的，无自动分类 | 增加skill classifier：自动识别skill类型(描述/工作流/检查清单) |
+| 操作符调度器 | `workflow-engine` (executor.rs) | AgentGuard executor执行node，但不区分typed操作vs LLM推理 | 在executor中增加operator_type判断：Deterministic直接执行，Generative调LLM |
+| 缓存编译产物 | `cache` (strategy.rs) | AgentGuard有缓存策略但未用于技能编译产物 | 增加skill artifact缓存层，按skill hash缓存编译结果 |
 
 ---
 
@@ -222,15 +222,15 @@ Agent调用
 | 安全审批门控 | 工具调用需用户批准(auto-approve可选) | human-on-the-loop |
 | 远程MCP透明化 | 远程实验 = 远程MCP server | 无需修改客户端 |
 
-### KIAS映射
+### AgentGuard映射
 
-| 论文模式 | KIAS模块 | 差距 | 建议 |
+| 论文模式 | AgentGuard模块 | 差距 | 建议 |
 |----------|----------|------|------|
-| MCP-as-Abstraction | `mcp-protocol` (client/server) | KIAS已有完整MCP实现！包括server、client、transport、auth等 | ✅ 已覆盖。可参考NIMO的tool discovery模式增强现有实现 |
-| Tool Discovery→自动UI | `skills` (web_recorder) / `agent-view` | KIAS有web recorder和agent-view dashboard，但不从MCP tool定义自动生成UI | 新增MCP tool → UI block自动生成器 |
-| 安全审批门控 | `autonomy-controller` + `workflow-engine` (approval) | KIAS有三模式自主度和审批策略 | ✅ 已覆盖。可参考NIMO的auto-approve toggle设计 |
-| 统一人机接口 | `api-server` + `im-integration` | KIAS有API server和IM集成，但人机接口未统一 | 统一api-server和IM bot的tool调用路径 |
-| 远程MCP透明化 | `mcp-protocol` (transport) | KIAS MCP支持stdio/HTTP+SSE/内存传输 | ✅ 已覆盖 |
+| MCP-as-Abstraction | `mcp-protocol` (client/server) | AgentGuard已有完整MCP实现！包括server、client、transport、auth等 | ✅ 已覆盖。可参考NIMO的tool discovery模式增强现有实现 |
+| Tool Discovery→自动UI | `skills` (web_recorder) / `agent-view` | AgentGuard有web recorder和agent-view dashboard，但不从MCP tool定义自动生成UI | 新增MCP tool → UI block自动生成器 |
+| 安全审批门控 | `autonomy-controller` + `workflow-engine` (approval) | AgentGuard有三模式自主度和审批策略 | ✅ 已覆盖。可参考NIMO的auto-approve toggle设计 |
+| 统一人机接口 | `api-server` + `im-integration` | AgentGuard有API server和IM集成，但人机接口未统一 | 统一api-server和IM bot的tool调用路径 |
+| 远程MCP透明化 | `mcp-protocol` (transport) | AgentGuard MCP支持stdio/HTTP+SSE/内存传输 | ✅ 已覆盖 |
 
 ---
 
@@ -287,22 +287,22 @@ Agent提出意图 It
 3. **Non-escalation**: 执行范围 ⊆ 证明边界
 4. **Evidence Completeness**: 每个意图 → 恰好一条完整证据链
 
-### KIAS映射
+### AgentGuard映射
 
-| 论文模式 | KIAS模块 | 差距 | 建议 |
+| 论文模式 | AgentGuard模块 | 差距 | 建议 |
 |----------|----------|------|------|
-| Justification Proof | `autonomy-controller` (policy) | KIAS有ToolPolicy但无结构化证明对象 | 新增JustificationProof结构体：{intent, context, policy_basis, risk, boundary} |
-| 共识验证(Evaluation Swarm) | `controller` (reconciler) | KIAS reconciler做状态调和，不做多评估者共识 | 新增ConsensusValidator trait，支持N-of-M评估者模式 |
-| Execution Identity(临时) | `mcp-protocol` (credentials) | KIAS有credential管理但基于长期凭证 | 增加EphemeralIdentity：从approved proof派生，有TTL和scope约束 |
-| Evidence Chain(不可变) | `data-governance` (audit_middleware) | KIAS有审计中间件但非append-only证据链 | 升级审计系统为不可变证据链，记录完整证明→批准→执行→结果生命周期 |
-| 非升级约束 | `autonomy-controller` (ladder) | KIAS有自主度分级但无scope边界检查 | 增加ScopeBoundary：执行身份的scope必须⊆证明中声明的边界 |
-| 意图治理(非直接执行) | `workflow-engine` (approval) | KIAS有审批但Agent仍可直接执行 | 引入intent-governed mutation模式：Agent提交意图而非直接调用工具 |
+| Justification Proof | `autonomy-controller` (policy) | AgentGuard有ToolPolicy但无结构化证明对象 | 新增JustificationProof结构体：{intent, context, policy_basis, risk, boundary} |
+| 共识验证(Evaluation Swarm) | `controller` (reconciler) | AgentGuard reconciler做状态调和，不做多评估者共识 | 新增ConsensusValidator trait，支持N-of-M评估者模式 |
+| Execution Identity(临时) | `mcp-protocol` (credentials) | AgentGuard有credential管理但基于长期凭证 | 增加EphemeralIdentity：从approved proof派生，有TTL和scope约束 |
+| Evidence Chain(不可变) | `data-governance` (audit_middleware) | AgentGuard有审计中间件但非append-only证据链 | 升级审计系统为不可变证据链，记录完整证明→批准→执行→结果生命周期 |
+| 非升级约束 | `autonomy-controller` (ladder) | AgentGuard有自主度分级但无scope边界检查 | 增加ScopeBoundary：执行身份的scope必须⊆证明中声明的边界 |
+| 意图治理(非直接执行) | `workflow-engine` (approval) | AgentGuard有审批但Agent仍可直接执行 | 引入intent-governed mutation模式：Agent提交意图而非直接调用工具 |
 
 ---
 
 ## 5. 综合映射矩阵
 
-### 论文模式→KIAS模块交叉表
+### 论文模式→AgentGuard模块交叉表
 
 | 论文模式 | skills | workflow-engine | autonomy-controller | mcp-protocol | data-governance | controller | agent-runtime |
 |----------|--------|-----------------|---------------------|--------------|-----------------|------------|---------------|
@@ -319,9 +319,9 @@ Agent提出意图 It
 
 > ★★★ = 强相关/主要映射目标 | ★★ = 中等相关 | ★ = 弱相关/辅助 | ✅ = 已实现
 
-### KIAS现有能力评估
+### AgentGuard现有能力评估
 
-| KIAS模块 | 行数 | 核心能力 | 论文覆盖度 |
+| AgentGuard模块 | 行数 | 核心能力 | 论文覆盖度 |
 |----------|------|----------|------------|
 | workflow-engine | ~7K | DAG编排、审批、检查点、看板 | SDOF 40%, SkillSmith 20% |
 | skills | ~6K | 注册、组合、流水线、蒸馏、Web录制 | SkillSmith 30%, SDOF 20% |
@@ -414,7 +414,7 @@ SkillSmith (技能编译)    DTF (证明派生授权)
   └──── NIMO (MCP统一层) ──┘
          │
          ▼
-    KIAS mcp-protocol (已有基础)
+    AgentGuard mcp-protocol (已有基础)
 ```
 
 三篇论文(SDOF/SkillSmith/DTF)从不同角度解决同一核心问题：**如何约束Agent的执行自由度**。
@@ -423,4 +423,4 @@ SkillSmith (技能编译)    DTF (证明派生授权)
 - DTF: 通过证明-共识-派生授权链
 - NIMO: 通过MCP统一抽象层(已有)
 
-KIAS当前最缺的是前三者的约束机制，最不缺的是NIMO的MCP抽象层。
+AgentGuard当前最缺的是前三者的约束机制，最不缺的是NIMO的MCP抽象层。

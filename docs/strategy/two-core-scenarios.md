@@ -1,8 +1,8 @@
-# KIAS 两大核心场景
+# AgentGuard 两大核心场景
 
 ## 钱学森系统工程视角
 
-KIAS 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系统的本质是：
+AgentGuard 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系统的本质是：
 
 ```
 输入（任务/目标）→ 处理（Agent 集群协作）→ 输出（结果/价值）
@@ -20,7 +20,7 @@ KIAS 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系
 
 ### 核心能力矩阵
 
-| 能力 | 对标 K8s 概念 | KIAS 实现 |
+| 能力 | 对标 K8s 概念 | AgentGuard 实现 |
 |------|-------------|-----------|
 | 声明式定义 | YAML Deployment | Agent YAML manifest，定义期望状态 |
 | 自动调度 | kube-scheduler | AgentScheduler，基于能力/负载/亲和性分配任务 |
@@ -53,7 +53,7 @@ KIAS 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系
 
 ### 核心能力矩阵
 
-| 能力 | 描述 | KIAS 实现 |
+| 能力 | 描述 | AgentGuard 实现 |
 |------|------|-----------|
 | Agent 自创建 | 根据需求自动生成 Agent 定义 | AgentFactory + 模板系统 |
 | Workflow 自编排 | 任务自动拆解为 DAG | WorkflowEngine + DAG 引擎 |
@@ -107,7 +107,7 @@ KIAS 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系
 
 ## 与现有产品对比
 
-| 维度 | K8s | Hermes Agent | KIAS |
+| 维度 | K8s | Hermes Agent | AgentGuard |
 |------|-----|-------------|------|
 | 管理对象 | 容器 | 单 Agent | Agent 集群 |
 | 编排方式 | 声明式 YAML | Prompt 驱动 | 声明式 YAML + Prompt |
@@ -116,4 +116,4 @@ KIAS 是 Long-running Agents 的基础设施。从系统工程角度，Agent 系
 | Skill 系统 | 无 | 文件 Skill | 版本化 Skill + 自提取 |
 | 适用场景 | 微服务 | 个人助手 | 企业级 Agent 基础设施 |
 
-KIAS = K8s 的编排哲学 + Hermes 的 Skill 系统 + 自循环开发能力
+AgentGuard = K8s 的编排哲学 + Hermes 的 Skill 系统 + 自循环开发能力

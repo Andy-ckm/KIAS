@@ -402,7 +402,7 @@ impl Learner {
     /// 生成学习报告
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str("# KIAS 经验积累报告\n\n");
+        report.push_str("# AgentGuard 经验积累报告\n\n");
         report.push_str(&format!(
             "生成时间: {}\n\n",
             chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
@@ -727,7 +727,7 @@ mod tests {
         learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
 
         let report = learner.generate_report();
-        assert!(report.contains("KIAS 经验积累报告"));
+        assert!(report.contains("AgentGuard 经验积累报告"));
         assert!(report.contains("总经验数: 1"));
     }
 }

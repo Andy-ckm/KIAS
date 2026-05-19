@@ -1,4 +1,4 @@
-# KIAS 推荐 Agent Skills 配置
+# AgentGuard 推荐 Agent Skills 配置
 
 > 基于字节跳动 TRAE 团队《2026 企业级 AI 编程实践手册》Top 10 Skills
 
@@ -322,7 +322,7 @@ output:
 
 ## Skills 安装配置
 
-### KIAS Agent Skills 配置文件
+### AgentGuard Agent Skills 配置文件
 
 ```yaml
 # config/agent-skills.yaml

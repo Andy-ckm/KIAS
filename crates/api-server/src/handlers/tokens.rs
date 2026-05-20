@@ -1165,4 +1165,171 @@ mod tests {
         assert_eq!(result.total_output_tokens, sum_output);
         assert_eq!(result.total_tokens, sum_total);
     }
+
+    #[tokio::test]
+    async fn test_token_time_series_total_equals_input_plus_output() {
+        let state = test_state().await;
+        let result = token_analytics(State(state)).await;
+        for ts in &result.time_series {
+            assert_eq!(ts.total_tokens, ts.input_tokens + ts.output_tokens);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_token_time_series_timestamp_format() {
+        let state = test_state().await;
+        let result = token_analytics(State(state)).await;
+        for ts in &result.time_series {
+            // Format should be HH:MM
+            assert_eq!(ts.timestamp.len(), 5);
+            assert_eq!(ts.timestamp.as_bytes()[2], b':');
+        }
+    }
+
+    #[test]
+    fn test_token_usage_serialize_fields() {
+        let usage = TokenUsage {
+            agent_id: "a1".to_string(),
+            agent_name: "my-agent".to_string(),
+            input_tokens: 1000,
+            output_tokens: 500,
+            total_tokens: 1500,
+            estimated_cost: 0.0045,
+            request_count: 3,
+        };
+        let json = serde_json::to_value(&usage).unwrap();
+        assert_eq!(json["agent_id"], "a1");
+        assert_eq!(json["agent_name"], "my-agent");
+        assert_eq!(json["input_tokens"], 1000);
+        assert_eq!(json["output_tokens"], 500);
+        assert_eq!(json["total_tokens"], 1500);
+        assert_eq!(json["request_count"], 3);
+    }
+
+    #[test]
+    fn test_token_time_series_serialize_fields() {
+        let ts = TokenTimeSeries {
+            timestamp: "14:00".to_string(),
+            input_tokens: 3000,
+            output_tokens: 1000,
+            total_tokens: 4000,
+        };
+        let json = serde_json::to_value(&ts).unwrap();
+        assert_eq!(json["timestamp"], "14:00");
+        assert_eq!(json["input_tokens"], 3000);
+        assert_eq!(json["total_tokens"], 4000);
+    }
+
+    #[test]
+    fn test_token_analytics_serialize_fields() {
+        let analytics = TokenAnalytics {
+            total_input_tokens: 10000,
+            total_output_tokens: 5000,
+            total_tokens: 15000,
+            total_cost: 0.045,
+            total_requests: 30,
+            per_agent: vec![],
+            time_series: vec![],
+        };
+        let json = serde_json::to_value(&analytics).unwrap();
+        assert_eq!(json["total_input_tokens"], 10000);
+        assert_eq!(json["total_output_tokens"], 5000);
+        assert_eq!(json["total_tokens"], 15000);
+        assert_eq!(json["total_cost"], 0.045);
+        assert_eq!(json["total_requests"], 30);
+    }
+
+    #[tokio::test]
+    async fn test_token_empty_state_time_series_nonzero() {
+        let state = test_state().await;
+        let result = token_analytics(State(state)).await;
+        // Even with no agents, time_series should have data (agent_count defaults to 1)
+        for ts in &result.time_series {
+            assert!(ts.total_tokens > 0, "time series entries should be > 0 with default agent_count=1");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_token_analytics_cost_is_non_negative() {
+        let state = test_state().await;
+        let result = token_analytics(State(state)).await;
+        assert!(result.total_cost >= 0.0);
+        for usage in &result.per_agent {
+            assert!(usage.estimated_cost >= 0.0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_token_per_agent_input_output_ratio() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            let spec = AgentSpec {
+                name: "ratio-agent".to_string(),
+                image: "img".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Running;
+            agents.insert(agent.id.clone(), agent);
+        }
+        let result = token_analytics(State(state)).await;
+        let usage = &result.per_agent[0];
+        // Running: base=15000, input=15000*3*1/4=11250, output=15000*1/4=3750
+        // Ratio should be ~3:1
+        assert_eq!(usage.input_tokens, 11250);
+        assert_eq!(usage.output_tokens, 3750);
+        assert_eq!(usage.total_tokens, 15000);
+    }
+
+    #[tokio::test]
+    async fn test_token_per_agent_request_count_nonzero_for_running() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use std::collections::HashMap;
+
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            let spec = AgentSpec {
+                name: "req-agent".to_string(),
+                image: "img".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Running;
+            agents.insert(agent.id.clone(), agent);
+        }
+        let result = token_analytics(State(state)).await;
+        assert!(result.per_agent[0].request_count > 0);
+        // Running: base=15000, requests = 15000/500*1 = 30
+        assert_eq!(result.per_agent[0].request_count, 30);
+    }
+
+    #[test]
+    fn test_token_usage_debug_format() {
+        let usage = TokenUsage {
+            agent_id: "a1".to_string(),
+            agent_name: "test".to_string(),
+            input_tokens: 100,
+            output_tokens: 50,
+            total_tokens: 150,
+            estimated_cost: 0.001,
+            request_count: 1,
+        };
+        let debug = format!("{:?}", usage);
+        assert!(debug.contains("TokenUsage"));
+        assert!(debug.contains("agent_id"));
+        assert!(debug.contains("input_tokens"));
+    }
 }

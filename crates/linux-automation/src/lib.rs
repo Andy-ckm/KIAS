@@ -16,6 +16,7 @@ pub mod audit;
 pub mod backup_recovery;
 pub mod config;
 pub mod config_mgmt;
+pub mod disk_management;
 pub mod docker_ops;
 pub mod error;
 pub mod executor;

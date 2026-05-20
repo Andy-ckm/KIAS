@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 16:45
+# 更新时间: 2026-05-20 17:05
 
-iteration: 45
-last_run: "2026-05-20T16:45:00Z"
-last_commit: "43d3177"
+iteration: 46
+last_run: "2026-05-20T17:05:00Z"
+last_commit: "00c3f06"
 status: active
 
 # 各模块状态
@@ -38,31 +38,29 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 512
+    tests: 521
     status: IMPROVING
-    next_step: "handlers/a2a.rs(18) or handlers/context.rs(11) 提测"
+    next_step: "metrics.rs(13) or scheduler.rs(14) or tokens.rs(13) 提测"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 4078
+  total_tests: 4084
   linux_automation_tests: 525
-  api_server_tests: 512
+  api_server_tests: 521
   data_governance_tests: 146
   clippy_warnings: 0
-  disk_percent: 75
+  disk_percent: 71
 
 # 本次迭代成果
-iteration_44:
-  module: api-server/handlers/agents.rs
-  new_tests: 8
+iteration_46:
+  module: api-server/handlers/context.rs
+  new_tests: 9
   features:
-    - "invoke_agent nonexistent agent → 404"
-    - "labels/env metadata preservation"
-    - "resource_request (cpu/memory/gpu) field roundtrip"
-    - "pagination overflow → empty items"
-    - "status transitions: Pending→Running→Succeeded→Failed"
-    - "default status is Pending with node_id=None, restart_count=0"
-    - "name validation: 129 chars → rejected"
-    - "delete then update → 404"
-  total: 4078 tests, 0 clippy
+    - "add_message returns default response values (message_count/tokens/compression)"
+    - "empty content edge case"
+    - "get_context_stats all 9 zero-default fields verified"
+    - "compress_session all zero defaults"
+    - "deserialization errors: missing content/role"
+    - "ContextStatsResponse field-level JSON verification"
+  total: 4084 tests, 0 clippy

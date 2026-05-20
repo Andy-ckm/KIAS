@@ -348,4 +348,323 @@ mod tests {
             std::time::Duration::from_secs(300)
         );
     }
+
+    // ============================================================
+    // SshSession tests
+    // ============================================================
+
+    #[test]
+    fn test_ssh_session_debug() {
+        let session = SshSession {
+            host: "server1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            key_path: None,
+            connected: false,
+            last_used: chrono::Utc::now(),
+        };
+        let debug = format!("{:?}", session);
+        assert!(debug.contains("SshSession"));
+        assert!(debug.contains("server1"));
+    }
+
+    #[test]
+    fn test_ssh_session_with_key_path() {
+        let session = SshSession {
+            host: "server1".to_string(),
+            port: 22,
+            username: "deploy".to_string(),
+            key_path: Some(std::path::PathBuf::from("/home/deploy/.ssh/id_ed25519")),
+            connected: true,
+            last_used: chrono::Utc::now(),
+        };
+        assert!(session.key_path.is_some());
+        assert!(session.connected);
+        assert_eq!(session.username, "deploy");
+    }
+
+    // ============================================================
+    // TaskExecutor creation tests
+    // ============================================================
+
+    #[test]
+    fn test_executor_with_ssh_key_path() {
+        let tmp = TempDir::new().unwrap();
+        let config = LinuxAutomationConfig {
+            database_path: tmp.path().join("test.db"),
+            playbook_dir: tmp.path().join("playbooks"),
+            ssh_key_path: Some(tmp.path().join("id_rsa")),
+            log_dir: tmp.path().join("logs"),
+            target_hosts: vec!["server1".to_string()],
+            compliance_tool: ComplianceTool::Lynis,
+        };
+        let executor = TaskExecutor::new(&config).unwrap();
+        assert!(executor.ssh_key_path.is_some());
+        assert!(executor.sessions.is_empty());
+        assert_eq!(executor.max_sessions, 10);
+    }
+
+    // ============================================================
+    // AutomationStatistics tests
+    // ============================================================
+
+    #[test]
+    fn test_automation_statistics_with_values() {
+        let stats = AutomationStatistics {
+            total_tasks: 100,
+            successful_tasks: 85,
+            failed_tasks: 10,
+            pending_tasks: 5,
+            compliance_score: 92.5,
+            audit_entries: 500,
+            last_scan_time: Some(Utc::now()),
+        };
+        assert_eq!(stats.total_tasks, 100);
+        assert_eq!(stats.successful_tasks, 85);
+        assert_eq!(stats.failed_tasks, 10);
+        assert!(stats.last_scan_time.is_some());
+    }
+
+    #[test]
+    fn test_automation_statistics_clone() {
+        let stats = AutomationStatistics {
+            total_tasks: 50,
+            successful_tasks: 45,
+            failed_tasks: 3,
+            pending_tasks: 2,
+            compliance_score: 88.0,
+            audit_entries: 200,
+            last_scan_time: None,
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.total_tasks, stats.total_tasks);
+        assert_eq!(cloned.compliance_score, stats.compliance_score);
+    }
+
+    #[test]
+    fn test_automation_statistics_debug() {
+        let stats = AutomationStatistics {
+            total_tasks: 10,
+            successful_tasks: 8,
+            failed_tasks: 1,
+            pending_tasks: 1,
+            compliance_score: 95.0,
+            audit_entries: 50,
+            last_scan_time: None,
+        };
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("AutomationStatistics"));
+        assert!(debug.contains("10"));
+    }
+
+    // ============================================================
+    // HostResult tests
+    // ============================================================
+
+    #[test]
+    fn test_host_result_creation() {
+        let hr = HostResult {
+            host: "server1".to_string(),
+            status: TaskStatus::Success,
+            stdout: "ok".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration_ms: 150,
+        };
+        assert_eq!(hr.host, "server1");
+        assert_eq!(hr.exit_code, 0);
+        assert_eq!(hr.duration_ms, 150);
+    }
+
+    #[test]
+    fn test_host_result_clone() {
+        let hr = HostResult {
+            host: "server1".to_string(),
+            status: TaskStatus::Failed,
+            stdout: String::new(),
+            stderr: "error".to_string(),
+            exit_code: 1,
+            duration_ms: 500,
+        };
+        let cloned = hr.clone();
+        assert_eq!(cloned.host, hr.host);
+        assert_eq!(cloned.exit_code, hr.exit_code);
+    }
+
+    #[test]
+    fn test_host_result_debug() {
+        let hr = HostResult {
+            host: "server1".to_string(),
+            status: TaskStatus::Success,
+            stdout: "output".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration_ms: 100,
+        };
+        let debug = format!("{:?}", hr);
+        assert!(debug.contains("HostResult"));
+        assert!(debug.contains("server1"));
+    }
+
+    // ============================================================
+    // AutomationResult tests
+    // ============================================================
+
+    #[test]
+    fn test_automation_result_creation() {
+        let result = AutomationResult {
+            task_id: Uuid::new_v4(),
+            task_type: "test".to_string(),
+            status: TaskStatus::Success,
+            started_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            host_results: vec![],
+            summary: "done".to_string(),
+            audit_trail: vec![],
+        };
+        assert_eq!(result.task_type, "test");
+        assert_eq!(result.status, TaskStatus::Success);
+    }
+
+    #[test]
+    fn test_automation_result_clone() {
+        let result = AutomationResult {
+            task_id: Uuid::new_v4(),
+            task_type: "test".to_string(),
+            status: TaskStatus::Failed,
+            started_at: Utc::now(),
+            completed_at: None,
+            host_results: vec![],
+            summary: "failed".to_string(),
+            audit_trail: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.task_type, result.task_type);
+        assert_eq!(cloned.status, result.status);
+    }
+
+    #[test]
+    fn test_automation_result_debug() {
+        let result = AutomationResult {
+            task_id: Uuid::new_v4(),
+            task_type: "test".to_string(),
+            status: TaskStatus::Running,
+            started_at: Utc::now(),
+            completed_at: None,
+            host_results: vec![],
+            summary: "running".to_string(),
+            audit_trail: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("AutomationResult"));
+    }
+
+    // ============================================================
+    // TaskType serialization
+    // ============================================================
+
+    #[test]
+    fn test_task_type_serialization_roundtrip() {
+        let types = vec![
+            TaskType::ComplianceScan {
+                profile: "cis".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::PatchInstall {
+                packages: vec!["vim".to_string()],
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::ConfigDeploy {
+                playbook: "test.yml".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::SecurityUpdate {
+                hosts: vec!["h1".to_string()],
+            },
+            TaskType::CustomCommand {
+                command: "ls".to_string(),
+                hosts: vec!["h1".to_string()],
+            },
+        ];
+        for tt in types {
+            let json = serde_json::to_string(&tt).unwrap();
+            let deserialized: TaskType = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&deserialized).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    // ============================================================
+    // TaskPriority & TaskStatus tests
+    // ============================================================
+
+    #[test]
+    fn test_task_priority_variants() {
+        let priorities = vec![
+            TaskPriority::Low,
+            TaskPriority::Normal,
+            TaskPriority::High,
+            TaskPriority::Critical,
+        ];
+        assert_eq!(priorities.len(), 4);
+    }
+
+    #[test]
+    fn test_task_priority_partial_eq() {
+        assert_eq!(TaskPriority::Low, TaskPriority::Low);
+        assert_ne!(TaskPriority::Low, TaskPriority::High);
+        assert_ne!(TaskPriority::Normal, TaskPriority::Critical);
+    }
+
+    #[test]
+    fn test_task_priority_serialization() {
+        let priorities = vec![
+            TaskPriority::Low,
+            TaskPriority::Normal,
+            TaskPriority::High,
+            TaskPriority::Critical,
+        ];
+        for p in priorities {
+            let json = serde_json::to_string(&p).unwrap();
+            let deserialized: TaskPriority = serde_json::from_str(&json).unwrap();
+            assert_eq!(p, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_task_status_variants() {
+        let statuses = vec![
+            TaskStatus::Pending,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Failed,
+            TaskStatus::PartialSuccess,
+            TaskStatus::Cancelled,
+        ];
+        assert_eq!(statuses.len(), 6);
+    }
+
+    #[test]
+    fn test_task_status_partial_eq() {
+        assert_eq!(TaskStatus::Success, TaskStatus::Success);
+        assert_ne!(TaskStatus::Success, TaskStatus::Failed);
+        assert_ne!(TaskStatus::Pending, TaskStatus::Running);
+    }
+
+    #[test]
+    fn test_task_status_serialization() {
+        let statuses = vec![
+            TaskStatus::Pending,
+            TaskStatus::Running,
+            TaskStatus::Success,
+            TaskStatus::Failed,
+            TaskStatus::PartialSuccess,
+            TaskStatus::Cancelled,
+        ];
+        for s in statuses {
+            let json = serde_json::to_string(&s).unwrap();
+            let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(s, deserialized);
+        }
+    }
 }

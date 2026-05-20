@@ -1,10 +1,15 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (19:22)
+更新时间: 2026-05-20 (20:33)
 
-## 论文列表 (273 篇)
+## 论文列表 (278 篇)
 
-### 已下载论文 (270 篇)
+### 已下载论文 (275 篇)
+- ✅ 2605.20055.pdf (Towards LLM-Assisted Architecture Recovery for Real-World ROS~2 Systems)
+- ✅ 2605.20049.pdf (Does Code Cleanliness Affect Coding Agents? A Controlled Minimal-Pair Study)
+- ✅ 2605.19988.pdf (A Case for Agentic Tuning: From Documentation to Action in PostgreSQL)
+- ✅ 2605.19782.pdf (Prior Knowledge or Search? A Study of LLM Agents in Hardware-Aware Code Optimization)
+- ✅ 2605.19779.pdf (Distribution-Free Uncertainty Quantification for Continuous AI Agent Evaluation)
 - ✅ 2605.20173.pdf (A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents)
 - ✅ 2605.20086.pdf (What Do Evolutionary Coding Agents Evolve?)
 - ✅ 2605.20075.pdf (CopT: Contrastive On-Policy Thinking with Continuous Spaces for General and Agentic Reasoning)
@@ -285,6 +290,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.20055]** Towards LLM-Assisted Architecture Recovery for Real-World ROS~2 Systems: An Agent-Based Multi-Level Approach to Hierarchical Structural Architecture Reconstruction
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: architecture recovery, ROS2, multi-level, LLM-assisted, structural reconstruction
+   - 链接: https://arxiv.org/abs/2605.20055
+   - 状态: ✅ 已下载 (1.3MB)
+
+**[2605.20049]** Does Code Cleanliness Affect Coding Agents? A Controlled Minimal-Pair Study
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: code cleanliness, coding agents, controlled study, minimal-pair, software quality
+   - 链接: https://arxiv.org/abs/2605.20049
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.19988]** A Case for Agentic Tuning: From Documentation to Action in PostgreSQL
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agentic tuning, PostgreSQL, documentation, action, database agents
+   - 链接: https://arxiv.org/abs/2605.19988
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.19782]** Prior Knowledge or Search? A Study of LLM Agents in Hardware-Aware Code Optimization
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: prior knowledge, search, hardware-aware, code optimization, LLM agents
+   - 链接: https://arxiv.org/abs/2605.19782
+   - 状态: ✅ 已下载 (1.1MB)
+
+**[2605.19779]** Distribution-Free Uncertainty Quantification for Continuous AI Agent Evaluation
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: uncertainty quantification, agent evaluation, distribution-free, continuous monitoring
+   - 链接: https://arxiv.org/abs/2605.19779
+   - 状态: ✅ 已下载 (0.4MB)
 
 **[2605.19755]** Operationalising Artificial Intelligence Bills of Materials (AIBOMs) for Verifiable AI Provenance and Lifecycle Assurance
    - 日期: 2026-05 | 分类: cs.AI

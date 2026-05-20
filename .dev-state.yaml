@@ -1,62 +1,54 @@
-# AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 20:30
-
-iteration: 50
-last_run: "2026-05-20T20:30:00Z"
-last_commit: "ae7c8f6"
-status: active
-
-# 各模块状态
-modules:
-  linux-automation:
-    tests: 525
-    target_tests: 120
-    status: DONE ✅
-    production_unwrap: 0
-    next_step: "R038 网络监控 or api-server继续提测"
-    blockers: []
-
-  document-management:
-    tests: 112
-    target_tests: 100
-    status: DONE ✅
-    production_unwrap: 0
-    next_step: "已达标"
-
-  it-change-management:
-    tests: 202
-    target_tests: 200
-    status: DONE ✅
-    production_unwrap: 0
-    next_step: "已达标"
-
-  data-governance:
-    tests: 146
-    target_tests: 60
-    status: DONE ✅
-    production_unwrap: 0
-    next_step: "已达标"
-
-  api-server:
-    tests: 550
-    status: IMPROVING
-    next_step: "agents.rs invoke测试 or scheduler.rs 边界测试"
-    blockers: []
-
-# 质量指标
-quality:
-  total_tests: 4203
-  linux_automation_tests: 525
-  api_server_tests: 550
-  data_governance_tests: 146
-  clippy_warnings: 0
-  disk_percent: 83
-
-# 本次迭代成果
+iteration: 51
 iteration_50:
+  features:
+  - 'workflows.rs: +17 tests — status serialize/deserialize(PascalCase 5 variants),
+    invalid variant rejection, WorkflowNode roundtrip, Workflow roundtrip, CreateWorkflowRequest
+    defaults, mixed status list, delete-twice-fails, long name, special chars, order
+    preserved, subworkflow node type, summary/exec serialization'
+  - 'tokens.rs: +8 tests — TokenUsage/TimeSeries/Analytics serialization, multi-agent
+    sorted by total, Unknown agent base tokens, high restart multiplier(5x), time_series
+    length=24, totals match per-agent sum'
   module: api-server/handlers/{workflows,tokens}
   new_tests: 25
-  features:
-    - "workflows.rs: +17 tests — status serialize/deserialize(PascalCase 5 variants), invalid variant rejection, WorkflowNode roundtrip, Workflow roundtrip, CreateWorkflowRequest defaults, mixed status list, delete-twice-fails, long name, special chars, order preserved, subworkflow node type, summary/exec serialization"
-    - "tokens.rs: +8 tests — TokenUsage/TimeSeries/Analytics serialization, multi-agent sorted by total, Unknown agent base tokens, high restart multiplier(5x), time_series length=24, totals match per-agent sum"
   total: 4203 tests, 0 clippy
+last_commit: HEAD
+last_run: '2026-05-20T20:33:00Z'
+modules:
+  api-server:
+    blockers: []
+    next_step: agents.rs invoke测试 or scheduler.rs 边界测试
+    status: IMPROVING
+    tests: 550
+  data-governance:
+    next_step: 已达标
+    production_unwrap: 0
+    status: DONE ✅
+    target_tests: 60
+    tests: 146
+  document-management:
+    next_step: 已达标
+    production_unwrap: 0
+    status: DONE ✅
+    target_tests: 100
+    tests: 112
+  it-change-management:
+    next_step: 已达标
+    production_unwrap: 0
+    status: DONE ✅
+    target_tests: 200
+    tests: 202
+  linux-automation:
+    blockers: []
+    next_step: R038 网络监控 or api-server继续提测
+    production_unwrap: 0
+    status: DONE ✅
+    target_tests: 120
+    tests: 525
+quality:
+  api_server_tests: 550
+  clippy_warnings: 0
+  data_governance_tests: 146
+  disk_percent: 83
+  linux_automation_tests: 525
+  total_tests: 4203
+status: active

@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 14:20
+# 更新时间: 2026-05-20 14:40
 
-iteration: 39
-last_run: "2026-05-20T14:20:00Z"
-last_commit: "d2e5b7f"
+iteration: 40
+last_run: "2026-05-20T14:40:00Z"
+last_commit: "de87a78"
 status: active
 
 # 各模块状态
@@ -38,25 +38,27 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 481
+    tests: 498
     status: IMPROVING
-    next_step: "handlers/tokens.rs(7/508), handlers/nodes.rs(9), handlers/context.rs(11)"
+    next_step: "handlers/nodes.rs(9), handlers/context.rs(11), handlers/agents.rs(17)"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 3981
+  total_tests: 3987
   linux_automation_tests: 525
-  api_server_tests: 481
+  api_server_tests: 498
   clippy_warnings: 0
-  disk_percent: 79
+  disk_percent: 50
 
 # 本次迭代成果
-iteration_39:
-  module: api-server/scheduler.rs
-  new_tests: 8
+iteration_40:
+  module: api-server/tokens.rs
+  new_tests: 6
   features:
-    - "scheduler.rs: 7 -> 14 tests (+8)"
-    - "New: avg_restart, Scheduled status, mixed success rate, multi-node"
-    - "New: single agent boundary, sort order verification, decision fields"
-    - "0 clippy warnings, 3981 total tests"
+    - "tokens.rs: 7 → 13 tests (+6)"
+    - "New: Failed/Unknown/Scheduled status exact value tests"
+    - "New: all 6 AgentStatus variants aggregated test"
+    - "New: time series structure + input/output ratio validation"
+    - "New: cost consistency (total_cost == sum per_agent)"
+    - "0 clippy warnings"

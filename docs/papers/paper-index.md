@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (07:10)
+更新时间: 2026-05-20 (08:30)
 
-## 论文列表 (201 篇)
+## 论文列表 (206 篇)
 
-### 已下载论文 (195 篇)
+### 已下载论文 (200 篇)
 - ✅ 2603.01283.pdf (The Informational Cost of Agency: A Bounded Measure of Interaction Efficiency for Deployed RL)
 - ✅ 2605.01283.pdf (Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning)
 - ✅ 2605.12581.pdf (Ensuring Logic in the Fog: Sound POMDP Synthesis with LTL Objectives)
@@ -193,6 +193,11 @@
 - ✅ 2605.16300.pdf (Consent Chain Degradation in Embodied Multi-Agent Systems)
 - ✅ 2605.17065.pdf (PyraVid: Hierarchical Multimodal Memory for Long-Horizon Video Reasoning)
 
+- ✅ 2605.15520.pdf (On the Fragility of Data Attribution When Learning Is Distributed)
+- ✅ 2605.15846.pdf (RoadmapBench: Evaluating Long-Horizon Agentic Software Development Across Version Upgrades)
+- ✅ 2605.15734.pdf (Can We Trust AI-Inferred User States: A Psychometric Framework for Validating Reliability)
+- ✅ 2605.16052.pdf (Reasoners or Translators: Contamination-aware Evaluation and Neuro-Symbolic Robustness in Tax Law)
+- ✅ 2605.15341.pdf (LEAP: Trajectory-Level Evaluation of LLMs in Iterative Scientific Design)
 ### 待下载论文 (6 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
 - ✅ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
@@ -209,6 +214,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.15520]** On the Fragility of Data Attribution When Learning Is Distributed
+   - 日期: 2026-05-20 | 分类: cs.LG, cs.AI
+   - 主题: data attribution, distributed learning, governance, auditing, machine learning
+   - 链接: https://arxiv.org/abs/2605.15520
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2605.15846]** RoadmapBench: Evaluating Long-Horizon Agentic Software Development Across Version Upgrades
+   - 日期: 2026-05-20 | 分类: cs.SE, cs.AI
+   - 主题: coding agents, benchmark, long-horizon, software development, version upgrades
+   - 链接: https://arxiv.org/abs/2605.15846
+   - 状态: ✅ 已下载 (5.9MB)
+
+**[2605.15734]** Can We Trust AI-Inferred User States: A Psychometric Framework for Validating Reliability
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.HC
+   - 主题: trust, validation, user states, psychometric, LLM classification, reliability
+   - 链接: https://arxiv.org/abs/2605.15734
+   - 状态: ✅ 已下载 (1.6MB)
+
+**[2605.16052]** Reasoners or Translators: Contamination-aware Evaluation and Neuro-Symbolic Robustness in Tax Law
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.CL
+   - 主题: legal reasoning, evaluation, contamination, neuro-symbolic, LLM robustness
+   - 链接: https://arxiv.org/abs/2605.16052
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.15341]** LEAP: Trajectory-Level Evaluation of LLMs in Iterative Scientific Design
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.CL
+   - 主题: trajectory evaluation, LLM, iterative design, autonomous laboratories, scientific reasoning
+   - 链接: https://arxiv.org/abs/2605.15341
+   - 状态: ✅ 已下载 (1.2MB)
 
 **[2605.12981]** Protocol-Driven Development: Governing Generated Software Through Invariants and Continuous Evidence
    - 日期: 2026-05-17 | 分类: cs.SE, cs.AI

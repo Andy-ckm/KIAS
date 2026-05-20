@@ -1,10 +1,14 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (18:10)
+更新时间: 2026-05-20 (19:22)
 
-## 论文列表 (269 篇)
+## 论文列表 (273 篇)
 
-### 已下载论文 (266 篇)
+### 已下载论文 (270 篇)
+- ✅ 2605.20173.pdf (A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents)
+- ✅ 2605.20086.pdf (What Do Evolutionary Coding Agents Evolve?)
+- ✅ 2605.20075.pdf (CopT: Contrastive On-Policy Thinking with Continuous Spaces for General and Agentic Reasoning)
+- ✅ 2605.20072.pdf (Probing Embodied LLMs: When Higher Observation Fidelity Hurts Problem Solving)
 - ✅ 2605.19597.pdf (LLMEval-Logic: A Solver-Verified Chinese Benchmark for Logical Reasoning of LLMs with Adversarial Hardening)
 - ✅ 2605.19377.pdf (The Evaluation Game: Beyond Static LLM Benchmarking)
 - ✅ 2605.19270.pdf (DECOR: Auditing LLM Deception via Information Manipulation Theory)
@@ -1959,6 +1963,38 @@
     - 链接: https://arxiv.org/abs/2605.19597
     - 状态: ✅ 已下载 (0.3MB)
     - 核心观点: 中文逻辑推理基准，通过对抗硬化提升LLM推理评估可靠性
+
+82. **[2605.20173]** A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+    - 主题: runtime architecture, agent deployment, pattern selection, production systems
+    - 链接: https://arxiv.org/abs/2605.20173
+    - 状态: ✅ 已下载 (0.5MB)
+    - 核心观点: 生产级LLM Agent运行时架构模式选择方法论，提供可组合的架构决策框架
+
+83. **[2605.20086]** What Do Evolutionary Coding Agents Evolve?
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+    - 主题: evolutionary agents, code generation, agent evolution, software engineering
+    - 链接: https://arxiv.org/abs/2605.20086
+    - 状态: ✅ 已下载 (0.5MB)
+    - 核心观点: 研究进化式编码Agent的演化行为，揭示Agent自主进化中的模式与边界
+
+84. **[2605.20075]** CopT: Contrastive On-Policy Thinking with Continuous Spaces for General and Agentic Reasoning
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.LG
+    - 主题: contrastive learning, on-policy reasoning, continuous spaces, agentic reasoning
+    - 链接: https://arxiv.org/abs/2605.20075
+    - 状态: ✅ 已下载 (1.1MB)
+    - 核心观点: 对比式在策略思考方法，通过连续空间提升Agent通用推理能力
+
+85. **[2605.20072]** Probing Embodied LLMs: When Higher Observation Fidelity Hurts Problem Solving
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.RO
+    - 主题: embodied agents, observation fidelity, problem solving, LLM grounding
+    - 链接: https://arxiv.org/abs/2605.20072
+    - 状态: ✅ 已下载 (0.6MB)
+    - 核心观点: 探究具身LLM中观察保真度与问题解决的反直觉关系
 
 ---
 

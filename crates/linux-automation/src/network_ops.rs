@@ -1643,6 +1643,9 @@ mod tests {
         let output = "Proto Recv-Q Send-Q Local Address:Port    Peer Address:Port  Process\ntcp   0      0      127.0.0.1:6379         0.0.0.0:*          users:((\"redis-server\",pid=999,fd=6))\n";
         let conns = NetworkManager::parse_connections(output, &None);
         assert_eq!(conns.len(), 1);
-        assert_eq!(conns[0].process, Some("users:((\"redis-server\",pid=999,fd=6))".to_string()));
+        assert_eq!(
+            conns[0].process,
+            Some("users:((\"redis-server\",pid=999,fd=6))".to_string())
+        );
     }
 }

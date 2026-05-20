@@ -38,12 +38,7 @@ mod tests {
             .route("/test", get(|| async { "ok" }))
             .route(
                 "/fail",
-                get(|| async {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "error",
-                    )
-                }),
+                get(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "error") }),
             )
             .layer(axum::middleware::from_fn(logging_middleware))
     }
@@ -52,12 +47,7 @@ mod tests {
     async fn test_logging_passes_through_200() {
         let app = create_logging_router();
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -67,12 +57,7 @@ mod tests {
     async fn test_logging_passes_through_500() {
         let app = create_logging_router();
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/fail")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/fail").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -96,10 +81,7 @@ mod tests {
     #[tokio::test]
     async fn test_logging_preserves_method() {
         let app = Router::new()
-            .route(
-                "/post-only",
-                axum::routing::post(|| async { "posted" }),
-            )
+            .route("/post-only", axum::routing::post(|| async { "posted" }))
             .layer(axum::middleware::from_fn(logging_middleware));
         // GET to a POST-only route should return 405
         let resp = app

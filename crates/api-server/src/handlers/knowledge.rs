@@ -361,12 +361,15 @@ mod tests {
         let state = test_state().await;
         let req = IngestRequest {
             title: "Rust Guide".to_string(),
-            content: "Rust is a systems programming language focused on safety and performance.".to_string(),
+            content: "Rust is a systems programming language focused on safety and performance."
+                .to_string(),
             tags: vec!["rust".to_string(), "programming".to_string()],
             source_type: "doc".to_string(),
             source_url: None,
         };
-        let result = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        let result = ingest_document(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert!(!result.document_id.is_empty());
         assert!(result.chunks_created > 0);
         assert_eq!(result.status, "ingested");
@@ -404,7 +407,10 @@ mod tests {
     async fn test_ingest_long_document_chunks() {
         let state = test_state().await;
         // Create content with many lines to trigger chunking (>500 chars)
-        let long_content = (0..50).map(|i| format!("Line {} about Rust programming and systems.", i)).collect::<Vec<_>>().join("\n");
+        let long_content = (0..50)
+            .map(|i| format!("Line {} about Rust programming and systems.", i))
+            .collect::<Vec<_>>()
+            .join("\n");
         let req = IngestRequest {
             title: "Long Doc".to_string(),
             content: long_content,
@@ -413,7 +419,11 @@ mod tests {
             source_url: None,
         };
         let result = ingest_document(State(state), Json(req)).await.unwrap();
-        assert!(result.chunks_created >= 2, "Long doc should produce multiple chunks, got {}", result.chunks_created);
+        assert!(
+            result.chunks_created >= 2,
+            "Long doc should produce multiple chunks, got {}",
+            result.chunks_created
+        );
     }
 
     #[tokio::test]
@@ -433,7 +443,9 @@ mod tests {
             source_type: "doc".to_string(),
             source_url: None,
         };
-        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        let _ = ingest_document(State(state.clone()), Json(req))
+            .await
+            .unwrap();
 
         let result = list_documents(State(state)).await;
         assert_eq!(result["total"], 1);
@@ -444,7 +456,10 @@ mod tests {
         let state = test_state().await;
         let result = search_knowledge(
             State(state),
-            Query(SearchQuery { q: "nonexistent".to_string(), limit: Some(10) }),
+            Query(SearchQuery {
+                q: "nonexistent".to_string(),
+                limit: Some(10),
+            }),
         )
         .await;
         assert_eq!(result.total, 0);
@@ -460,11 +475,16 @@ mod tests {
             source_type: "doc".to_string(),
             source_url: None,
         };
-        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        let _ = ingest_document(State(state.clone()), Json(req))
+            .await
+            .unwrap();
 
         let result = search_knowledge(
             State(state),
-            Query(SearchQuery { q: "rust ownership".to_string(), limit: Some(10) }),
+            Query(SearchQuery {
+                q: "rust ownership".to_string(),
+                limit: Some(10),
+            }),
         )
         .await;
         assert!(result.total > 0);
@@ -483,12 +503,17 @@ mod tests {
                 source_type: "doc".to_string(),
                 source_url: None,
             };
-            let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+            let _ = ingest_document(State(state.clone()), Json(req))
+                .await
+                .unwrap();
         }
 
         let result = search_knowledge(
             State(state),
-            Query(SearchQuery { q: "content topic".to_string(), limit: Some(2) }),
+            Query(SearchQuery {
+                q: "content topic".to_string(),
+                limit: Some(2),
+            }),
         )
         .await;
         assert!(result.total <= 2);
@@ -504,11 +529,16 @@ mod tests {
             source_type: "doc".to_string(),
             source_url: None,
         };
-        let _ = ingest_document(State(state.clone()), Json(req)).await.unwrap();
+        let _ = ingest_document(State(state.clone()), Json(req))
+            .await
+            .unwrap();
 
         let result = search_knowledge(
             State(state),
-            Query(SearchQuery { q: "UniqueTitle12345".to_string(), limit: Some(10) }),
+            Query(SearchQuery {
+                q: "UniqueTitle12345".to_string(),
+                limit: Some(10),
+            }),
         )
         .await;
         assert!(result.total > 0);

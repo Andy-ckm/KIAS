@@ -493,9 +493,12 @@ mod handler_tests {
         let state = test_state().await;
         // Create 5 agents
         for i in 0..5 {
-            let _ = create_agent(State(state.clone()), Json(test_spec(&format!("p-agent-{i}"))))
-                .await
-                .unwrap();
+            let _ = create_agent(
+                State(state.clone()),
+                Json(test_spec(&format!("p-agent-{i}"))),
+            )
+            .await
+            .unwrap();
         }
         // Page 1: 2 items
         let pagination = PaginationParams {

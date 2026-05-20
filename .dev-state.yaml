@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 15:25
+# 更新时间: 2026-05-20 15:45
 
-iteration: 42
-last_run: "2026-05-20T15:25:00Z"
-last_commit: "132bf15"
+iteration: 43
+last_run: "2026-05-20T15:45:00Z"
+last_commit: "f947929"
 status: active
 
 # 各模块状态
@@ -31,12 +31,12 @@ modules:
     next_step: "已达标"
 
   data-governance:
-    tests: 121
+    tests: 146
     target_tests: 60
     status: DONE ✅
     production_unwrap: 0
     next_step: "已达标"
-    note: "AccountabilityGraph +32 (arXiv:2412.08765) + ImmutableAuditTrail +21 (arXiv:2503.19876)"
+    note: "AccountabilityGraph +32 (arXiv:2412.08765) + ImmutableAuditTrail +21 (arXiv:2503.19876) + GovernanceFramework +25 (arXiv:2508.15014)"
 
   api-server:
     tests: 504
@@ -46,23 +46,23 @@ modules:
 
 # 质量指标
 quality:
-  total_tests: 4045
+  total_tests: 4070
   linux_automation_tests: 525
   api_server_tests: 504
-  data_governance_tests: 121
+  data_governance_tests: 146
   clippy_warnings: 0
-  disk_percent: 50
+  disk_percent: 74
 
 # 本次迭代成果
-iteration_42:
-  module: data-governance/accountability.rs (paper-driven)
-  paper: "arXiv:2503.19876 Immutable Audit Trails for Autonomous Agent Actions"
-  new_tests: 21
+iteration_43:
+  module: data-governance/governance.rs (paper-driven)
+  paper: "arXiv:2508.15014 Towards Safe and Ethical Agentic AI"
+  new_tests: 25
   features:
-    - "ImmutableAuditTrail: hash-chain integrity with SignedAuditEntry"
-    - "4-property verification: Completeness/Integrity/NonRepudiation/CausalCoherence"
-    - "Tamper detection: modifying any entry invalidates subsequent hashes"
-    - "Export snapshot for inspection/auditing"
-    - "data-governance: 100 -> 121 tests (+21)"
-    - "Total: 4045 tests, 0 clippy"
-  research_queue_update: "arXiv:2503.19876 status: pending -> done"
+    - "EDPManager: Ethical Decision Points with severity thresholds"
+    - "AgentGovernanceChain: multi-agent delegation chain tracking"
+    - "SafetyConstraintPropagator: global + agent-specific constraint inheritance"
+    - "4-layer governance: RiskAssessment/PreventiveControls/RealTimeMonitoring/Accountability"
+    - "data-governance: 121 -> 146 tests (+25)"
+    - "Total: ~4070 tests, 0 clippy"
+  research_queue_update: "arXiv:2508.15014 status: pending -> done"

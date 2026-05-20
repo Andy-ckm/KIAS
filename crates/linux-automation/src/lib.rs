@@ -11,11 +11,13 @@
 //! - R024: 服务器初始化（软件安装/用户配置/安全加固）
 //! - R025: Docker 容器运维管理
 //! - R026: Kubernetes 集群运维
+//! - R035: 定时任务管理（crontab + systemd timer）
 
 pub mod audit;
 pub mod backup_recovery;
 pub mod config;
 pub mod config_mgmt;
+pub mod cron_manager;
 pub mod disk_management;
 pub mod docker_ops;
 pub mod error;
@@ -302,6 +304,38 @@ impl LinuxAutomation {
                 AutomationResult {
                     task_id,
                     task_type: "ServiceOps".to_string(),
+                    status: if all_results.iter().all(|r| r.success) {
+                        TaskStatus::Success
+                    } else if errors_count > 0 && all_results.iter().any(|r| r.success) {
+                        TaskStatus::PartialSuccess
+                    } else {
+                        TaskStatus::Failed
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::CronOps { hosts, action } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let result = cron_manager::CronManager::execute(
+                        &self.executor,
+                        host,
+                        action,
+                        &self.audit,
+                    )
+                    .await?;
+                    all_results.push(result);
+                }
+                let errors_count: usize = all_results.iter().map(|r| r.errors.len()).sum();
+                let summary = format!("定时任务管理 {} 台主机, {} 错误", hosts_count, errors_count);
+                AutomationResult {
+                    task_id,
+                    task_type: "CronOps".to_string(),
                     status: if all_results.iter().all(|r| r.success) {
                         TaskStatus::Success
                     } else if errors_count > 0 && all_results.iter().any(|r| r.success) {

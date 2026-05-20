@@ -1091,6 +1091,458 @@ mod tests {
         assert_eq!(decision.timestamp, "2026-05-20T12:00:00Z");
     }
 
+    // === Serialization roundtrip tests ===
+
+    #[test]
+    fn test_scheduler_algorithm_serialize() {
+        let algo = SchedulerAlgorithm {
+            name: "Round Robin".to_string(),
+            description: "Simple round-robin".to_string(),
+        };
+        let json = serde_json::to_string(&algo).unwrap();
+        assert!(json.contains("Round Robin"));
+        assert!(json.contains("Simple round-robin"));
+        // Verify field names are camelCase (default serde)
+        assert!(json.contains("name"));
+        assert!(json.contains("description"));
+    }
+
+    #[test]
+    fn test_queue_depth_serialize() {
+        let qd = QueueDepth {
+            pending: 5,
+            scheduled: 3,
+            running: 10,
+        };
+        let json = serde_json::to_string(&qd).unwrap();
+        assert!(json.contains("pending"));
+        assert!(json.contains("scheduled"));
+        assert!(json.contains("running"));
+        assert!(json.contains(":5"));
+        assert!(json.contains(":3"));
+        assert!(json.contains(":10"));
+    }
+
+    #[test]
+    fn test_scheduling_throughput_serialize() {
+        let tp = SchedulingThroughput {
+            total_scheduled: 100,
+            total_completed: 80,
+            total_failed: 10,
+            success_rate: 80.0,
+            avg_restart_count: 1.5,
+        };
+        let json = serde_json::to_string(&tp).unwrap();
+        assert!(json.contains("total_scheduled"));
+        assert!(json.contains("total_completed"));
+        assert!(json.contains("total_failed"));
+        assert!(json.contains("success_rate"));
+        assert!(json.contains("avg_restart_count"));
+        assert!(json.contains("80.0"));
+        assert!(json.contains("1.5"));
+    }
+
+    #[test]
+    fn test_scheduling_decision_serialize() {
+        let decision = SchedulingDecision {
+            agent_id: "agent-123".to_string(),
+            agent_name: "my-agent".to_string(),
+            assigned_node: Some("node-1".to_string()),
+            status: "Running".to_string(),
+            priority: "high".to_string(),
+            timestamp: "2026-05-20T12:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&decision).unwrap();
+        assert!(json.contains("agent_id"));
+        assert!(json.contains("agent_name"));
+        assert!(json.contains("assigned_node"));
+        assert!(json.contains("agent-123"));
+        assert!(json.contains("my-agent"));
+        assert!(json.contains("node-1"));
+    }
+
+    #[test]
+    fn test_scheduling_decision_none_node_serialize() {
+        let decision = SchedulingDecision {
+            agent_id: "agent-456".to_string(),
+            agent_name: "unassigned-agent".to_string(),
+            assigned_node: None,
+            status: "Pending".to_string(),
+            priority: "low".to_string(),
+            timestamp: "2026-05-20T10:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&decision).unwrap();
+        // None should serialize as null
+        assert!(json.contains("null"));
+        assert!(json.contains("unassigned-agent"));
+    }
+
+    #[test]
+    fn test_node_utilization_serialize() {
+        let nu = NodeUtilization {
+            node_id: "node-1".to_string(),
+            node_name: "node-1".to_string(),
+            agent_count: 5,
+            running_count: 3,
+            status: "Ready".to_string(),
+        };
+        let json = serde_json::to_string(&nu).unwrap();
+        assert!(json.contains("node_id"));
+        assert!(json.contains("node_name"));
+        assert!(json.contains("agent_count"));
+        assert!(json.contains("running_count"));
+        assert!(json.contains("status"));
+        assert!(json.contains(":5"));
+        assert!(json.contains(":3"));
+    }
+
+    #[test]
+    fn test_scheduler_status_serialize_full() {
+        let status = SchedulerStatus {
+            current_algorithm: SchedulerAlgorithm {
+                name: "WRR".to_string(),
+                description: "desc".to_string(),
+            },
+            queue_depth: QueueDepth {
+                pending: 1,
+                scheduled: 2,
+                running: 3,
+            },
+            throughput: SchedulingThroughput {
+                total_scheduled: 10,
+                total_completed: 5,
+                total_failed: 2,
+                success_rate: 50.0,
+                avg_restart_count: 0.5,
+            },
+            node_utilization: vec![NodeUtilization {
+                node_id: "n1".to_string(),
+                node_name: "n1".to_string(),
+                agent_count: 3,
+                running_count: 2,
+                status: "Ready".to_string(),
+            }],
+            recent_decisions: vec![SchedulingDecision {
+                agent_id: "a1".to_string(),
+                agent_name: "agent".to_string(),
+                assigned_node: Some("n1".to_string()),
+                status: "Running".to_string(),
+                priority: "medium".to_string(),
+                timestamp: "2026-05-20T12:00:00Z".to_string(),
+            }],
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        // All top-level fields present
+        assert!(json.contains("current_algorithm"));
+        assert!(json.contains("queue_depth"));
+        assert!(json.contains("throughput"));
+        assert!(json.contains("node_utilization"));
+        assert!(json.contains("recent_decisions"));
+    }
+
+    // === Edge case tests ===
+
+    #[tokio::test]
+    async fn test_unassigned_agents_not_in_node_utilization() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let mut agents = HashMap::new();
+        // 2 agents with node_id = None (unassigned)
+        for i in 0..2 {
+            let spec = AgentSpec {
+                name: format!("unassigned-{}", i),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Pending;
+            // node_id is None by default
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        // 2 pending agents counted in queue_depth
+        assert_eq!(result.queue_depth.pending, 2);
+        // But no nodes → no node_utilization entries
+        assert_eq!(result.node_utilization.len(), 0);
+        // Decisions still include unassigned agents
+        assert_eq!(result.recent_decisions.len(), 2);
+        for d in &result.recent_decisions {
+            assert_eq!(d.assigned_node, None);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mixed_statuses_on_same_node() {
+        use crate::models::agent::{Agent, AgentSpec};
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let mut agents = HashMap::new();
+        // 4 agents on node-1: 2 running, 1 failed, 1 pending
+        for (name, status) in [
+            ("run-1", AgentStatus::Running),
+            ("run-2", AgentStatus::Running),
+            ("fail-1", AgentStatus::Failed),
+            ("pend-1", AgentStatus::Pending),
+        ] {
+            let spec = AgentSpec {
+                name: name.to_string(),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = status;
+            agent.node_id = Some("node-1".to_string());
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "node-1".to_string(),
+            Node {
+                id: "node-1".to_string(),
+                name: "node-1".to_string(),
+                status: NodeStatus::Ready,
+                resources: ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                allocatable: ResourceCapacity {
+                    cpu: "8".to_string(),
+                    memory: "16Gi".to_string(),
+                    gpu: "1".to_string(),
+                },
+                labels: Default::default(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                last_heartbeat: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(nodes)),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.node_utilization.len(), 1);
+        let nu = &result.node_utilization[0];
+        assert_eq!(nu.agent_count, 4); // all 4 assigned to node-1
+        assert_eq!(nu.running_count, 2); // only 2 are Running
+        assert_eq!(result.queue_depth.pending, 1);
+        assert_eq!(result.queue_depth.running, 2);
+        assert_eq!(result.throughput.total_failed, 1);
+    }
+
+    #[tokio::test]
+    async fn test_all_succeeded_100_percent() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let mut agents = HashMap::new();
+        for i in 0..5 {
+            let spec = AgentSpec {
+                name: format!("ok-{}", i),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            };
+            let mut agent = Agent::from_spec(spec);
+            agent.status = AgentStatus::Succeeded;
+            agents.insert(agent.id.clone(), agent);
+        }
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(agents)),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.throughput.success_rate, 100.0);
+        assert_eq!(result.throughput.total_completed, 5);
+        assert_eq!(result.throughput.total_failed, 0);
+        assert_eq!(result.queue_depth.pending, 0);
+        assert_eq!(result.queue_depth.scheduled, 0);
+        assert_eq!(result.queue_depth.running, 0);
+    }
+
+    #[tokio::test]
+    async fn test_node_status_format_in_utilization() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "node-ready".to_string(),
+            Node {
+                id: "node-ready".to_string(),
+                name: "node-ready".to_string(),
+                status: NodeStatus::Ready,
+                resources: ResourceCapacity {
+                    cpu: "4".to_string(),
+                    memory: "8Gi".to_string(),
+                    gpu: "0".to_string(),
+                },
+                allocatable: ResourceCapacity {
+                    cpu: "4".to_string(),
+                    memory: "8Gi".to_string(),
+                    gpu: "0".to_string(),
+                },
+                labels: Default::default(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                last_heartbeat: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        let state = AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(nodes)),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        };
+
+        let result = scheduler_status(State(state)).await;
+        assert_eq!(result.node_utilization.len(), 1);
+        // Status is Debug-formatted: "Ready"
+        assert_eq!(result.node_utilization[0].status, "Ready");
+    }
+
     use std::sync::Arc;
     use tokio::sync::RwLock;
 }

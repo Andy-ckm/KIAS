@@ -566,4 +566,185 @@ mod tests {
             assert!(result.is_ok(), "Algorithm '{}' should be valid", algo);
         }
     }
+
+    // === Additional edge case tests ===
+
+    #[tokio::test]
+    async fn test_get_config_all_sections_present() {
+        let state = test_state().await;
+        let result = get_config(State(state)).await;
+        // Verify all config sections have non-default-looking values
+        assert!(!result.logging.format.is_empty());
+        assert!(result.controller.heartbeat_interval_secs > 0);
+        assert!(result.controller.failure_timeout_secs > 0);
+        assert!(result.agentsight.metrics_port > 0);
+        assert!(result.cache_hub.max_entries > 0);
+        assert!(result.cache_hub.ttl_secs > 0);
+        assert!(!result.knowledge.embedding_model.is_empty());
+        assert!(!result.storage.cache_mode.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_config_tls_default_false() {
+        let state = test_state().await;
+        let result = get_config(State(state)).await;
+        assert!(!result.api_server.tls);
+    }
+
+    #[tokio::test]
+    async fn test_get_config_auth_disabled_default() {
+        let state = test_state().await;
+        let result = get_config(State(state)).await;
+        assert!(!result.api_server.auth_enabled);
+    }
+
+    #[tokio::test]
+    async fn test_update_config_non_admin_rejected() {
+        let state = test_state().await;
+        let claims = crate::auth::Claims {
+            sub: "viewer-user".to_string(),
+            role: crate::auth::Role::Viewer,
+            exp: 9999999999,
+            iat: 1000000000,
+            iss: "kias".to_string(),
+        };
+        let update = ConfigUpdateRequest {
+            logging_level: Some("debug".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(
+            State(state),
+            Some(axum::extract::Extension(claims)),
+            Json(update),
+        )
+        .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_update_config_operator_rejected() {
+        let state = test_state().await;
+        let claims = crate::auth::Claims {
+            sub: "operator-user".to_string(),
+            role: crate::auth::Role::Operator,
+            exp: 9999999999,
+            iat: 1000000000,
+            iss: "kias".to_string(),
+        };
+        let update = ConfigUpdateRequest {
+            logging_level: Some("warn".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(
+            State(state),
+            Some(axum::extract::Extension(claims)),
+            Json(update),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_config_admin_allowed() {
+        let state = test_state().await;
+        let claims = crate::auth::Claims {
+            sub: "admin-user".to_string(),
+            role: crate::auth::Role::Admin,
+            exp: 9999999999,
+            iat: 1000000000,
+            iss: "kias".to_string(),
+        };
+        let update = ConfigUpdateRequest {
+            logging_level: Some("debug".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let result = update_config(
+            State(state),
+            Some(axum::extract::Extension(claims)),
+            Json(update),
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_config_audit_log_multiple_updates() {
+        let state = test_state().await;
+        // First update
+        let update1 = ConfigUpdateRequest {
+            logging_level: Some("debug".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let _ = update_config(State(state.clone()), None, Json(update1)).await;
+        // Second update
+        let update2 = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: Some("round_robin".to_string()),
+            scheduler_interval_ms: None,
+        };
+        let _ = update_config(State(state.clone()), None, Json(update2)).await;
+        // Verify both are in audit log
+        let result = config_audit_log(State(state)).await;
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|e| e.outcome == "Success"));
+    }
+
+    #[tokio::test]
+    async fn test_update_config_response_has_changes_array() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: Some("error".to_string()),
+            scheduler_algorithm: Some("least_loaded".to_string()),
+            scheduler_interval_ms: Some(1000),
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        assert!(result.is_ok());
+        let (_, body) = result.unwrap();
+        let changes = body.get("changes").unwrap().as_array().unwrap();
+        assert_eq!(changes.len(), 3);
+        assert!(changes.iter().any(|c| c.as_str().unwrap().contains("error")));
+        assert!(changes.iter().any(|c| c.as_str().unwrap().contains("least_loaded")));
+        assert!(changes.iter().any(|c| c.as_str().unwrap().contains("1000")));
+    }
+
+    #[tokio::test]
+    async fn test_config_audit_log_entry_fields() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: Some("warn".to_string()),
+            scheduler_algorithm: None,
+            scheduler_interval_ms: None,
+        };
+        let _ = update_config(State(state.clone()), None, Json(update)).await;
+        let result = config_audit_log(State(state)).await;
+        assert_eq!(result.len(), 1);
+        let entry = &result[0];
+        assert!(!entry.id.is_empty());
+        assert!(!entry.timestamp.is_empty());
+        assert_eq!(entry.actor, "system"); // no claims = system
+        assert_eq!(entry.action, "ConfigChange");
+        assert_eq!(entry.resource_type, "config");
+        assert_eq!(entry.resource_id, "global");
+        assert_eq!(entry.outcome, "Success");
+        assert!(entry.details.contains("warn"));
+    }
+
+    #[tokio::test]
+    async fn test_update_config_interval_u32_max() {
+        let state = test_state().await;
+        let update = ConfigUpdateRequest {
+            logging_level: None,
+            scheduler_algorithm: None,
+            scheduler_interval_ms: Some(u64::MAX),
+        };
+        let result = update_config(State(state), None, Json(update)).await;
+        // u32::MAX is valid (non-zero)
+        assert!(result.is_ok());
+    }
 }

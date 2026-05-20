@@ -875,7 +875,7 @@ mod tests {
     #[test]
     fn test_extract_fields_basic() {
         let line = "2024-01-01 12:00:00 [ERROR] myapp - something failed";
-        let (ts, level, source, msg) = LogManager::extract_fields(line, "ERROR");
+        let (ts, level, _source, msg) = LogManager::extract_fields(line, "ERROR");
         assert!(!ts.is_empty());
         assert_eq!(level, "ERROR");
         assert!(msg.contains("something failed"));
@@ -884,7 +884,7 @@ mod tests {
     #[test]
     fn test_extract_fields_syslog() {
         let line = "Jan  1 12:00:00 server sshd[1234]: Connection closed";
-        let (ts, level, source, msg) = LogManager::extract_fields(line, "INFO");
+        let (ts, level, _source, _msg) = LogManager::extract_fields(line, "INFO");
         assert!(ts.contains("Jan"));
         assert_eq!(level, "INFO");
     }
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_log_action_all_variants() {
-        let actions = vec![
+        let actions = [
             LogAction::Search {
                 path: "/var/log/syslog".to_string(),
                 pattern: "error".to_string(),

@@ -512,4 +512,192 @@ mod tests {
         assert_eq!(result.total_agents, 3);
         assert_eq!(result.running_agents, 2);
     }
+
+    #[tokio::test]
+    async fn test_metrics_summary_node_count() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            for i in 0..3 {
+                nodes.insert(
+                    format!("n{}", i),
+                    Node {
+                        id: format!("n{}", i),
+                        name: format!("node-{}", i),
+                        status: NodeStatus::Ready,
+                        resources: ResourceCapacity::default(),
+                        allocatable: ResourceCapacity::default(),
+                        labels: HashMap::new(),
+                        created_at: "2026-01-01".into(),
+                        last_heartbeat: "2026-01-01".into(),
+                    },
+                );
+            }
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.node_count, 3);
+        assert_eq!(result.agent_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_with_restart_count() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            let mut agent = make_agent("a1", "flaky-agent", AgentStatus::Running);
+            agent.restart_count = 7;
+            agent.start_time = Some("2026-05-20T10:00:00Z".to_string());
+            agent.node_id = Some("node-2".to_string());
+            agents.insert("a1".into(), agent);
+        }
+        let result = agent_metrics(State(state), Path("a1".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.restart_count, 7);
+        assert_eq!(result.start_time, Some("2026-05-20T10:00:00Z".to_string()));
+        assert_eq!(result.node_id, Some("node-2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_no_start_time() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            let mut agent = make_agent("a1", "pending-agent", AgentStatus::Pending);
+            agent.start_time = None;
+            agent.node_id = None;
+            agents.insert("a1".into(), agent);
+        }
+        let result = agent_metrics(State(state), Path("a1".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.status, AgentStatus::Pending);
+        assert!(result.start_time.is_none());
+        assert!(result.node_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_failed_status() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "crashed", AgentStatus::Failed),
+            );
+        }
+        let result = agent_metrics(State(state), Path("a1".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.status, AgentStatus::Failed);
+        assert_eq!(result.name, "crashed");
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_no_agents_with_nodes() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "node-1".to_string(),
+                    status: NodeStatus::Ready,
+                    resources: ResourceCapacity {
+                        cpu: "8".into(),
+                        memory: "16Gi".into(),
+                        gpu: "2".into(),
+                    },
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "healthy");
+        assert_eq!(result.nodes.len(), 1);
+        assert_eq!(result.nodes[0].cpu, "8");
+        assert_eq!(result.nodes[0].gpu, "2");
+        assert_eq!(result.total_agents, 0);
+        assert_eq!(result.running_agents, 0);
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_all_not_ready() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            for i in 0..3 {
+                nodes.insert(
+                    format!("n{}", i),
+                    Node {
+                        id: format!("n{}", i),
+                        name: format!("node-{}", i),
+                        status: NodeStatus::NotReady,
+                        resources: ResourceCapacity::default(),
+                        allocatable: ResourceCapacity::default(),
+                        labels: HashMap::new(),
+                        created_at: "2026-01-01".into(),
+                        last_heartbeat: "2026-01-01".into(),
+                    },
+                );
+            }
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "degraded");
+        assert_eq!(result.nodes.len(), 3);
+        for node in &result.nodes {
+            assert_eq!(node.status, "NotReady");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_scheduled_status() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "sched-1", AgentStatus::Scheduled),
+            );
+            agents.insert(
+                "a2".into(),
+                make_agent("a2", "sched-2", AgentStatus::Scheduled),
+            );
+            agents.insert(
+                "a3".into(),
+                make_agent("a3", "run-1", AgentStatus::Running),
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.task_stats.scheduled, 2);
+        assert_eq!(result.task_stats.running, 1);
+        assert_eq!(result.task_stats.pending, 0);
+        assert_eq!(result.agent_count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_unknown_status() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "unknown-1", AgentStatus::Unknown),
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.task_stats.unknown, 1);
+        assert_eq!(result.task_stats.pending, 0);
+        assert_eq!(result.task_stats.running, 0);
+    }
 }

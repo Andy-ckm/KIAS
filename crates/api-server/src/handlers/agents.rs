@@ -473,4 +473,111 @@ mod handler_tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap().data.status, AgentStatus::Running);
     }
+
+    #[tokio::test]
+    async fn test_update_status_nonexistent_agent_fails() {
+        let state = test_state().await;
+        let result = update_agent_status(
+            State(state),
+            Path("nonexistent".to_string()),
+            Json(AgentStatus::Running),
+        )
+        .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_list_agents_pagination() {
+        let state = test_state().await;
+        // Create 5 agents
+        for i in 0..5 {
+            let _ = create_agent(State(state.clone()), Json(test_spec(&format!("p-agent-{i}"))))
+                .await
+                .unwrap();
+        }
+        // Page 1: 2 items
+        let pagination = PaginationParams {
+            page: Some(1),
+            per_page: Some(2),
+        };
+        let result = list_agents(State(state.clone()), Query(pagination)).await;
+        assert_eq!(result.total, 5);
+        assert_eq!(result.items.len(), 2);
+
+        // Page 2: 2 items
+        let pagination = PaginationParams {
+            page: Some(2),
+            per_page: Some(2),
+        };
+        let result = list_agents(State(state.clone()), Query(pagination)).await;
+        assert_eq!(result.total, 5);
+        assert_eq!(result.items.len(), 2);
+
+        // Page 3: 1 item (remaining)
+        let pagination = PaginationParams {
+            page: Some(3),
+            per_page: Some(2),
+        };
+        let result = list_agents(State(state), Query(pagination)).await;
+        assert_eq!(result.total, 5);
+        assert_eq!(result.items.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_empty_name_fails() {
+        let state = test_state().await;
+        let spec = test_spec("");
+        let result = create_agent(State(state), Json(spec)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_agent_summary_fields_in_list() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("summary-test")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        // Update status to Running so we can verify it in the summary
+        let _ = update_agent_status(
+            State(state.clone()),
+            Path(id.clone()),
+            Json(AgentStatus::Running),
+        )
+        .await;
+
+        let pagination = PaginationParams {
+            page: Some(1),
+            per_page: Some(10),
+        };
+        let result = list_agents(State(state), Query(pagination)).await;
+        assert_eq!(result.items.len(), 1);
+        let summary = &result.items[0];
+        assert_eq!(summary.id, id);
+        assert_eq!(summary.name, "summary-test");
+        assert_eq!(summary.status, AgentStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_returns_201() {
+        let state = test_state().await;
+        let (status, _) = create_agent(State(state), Json(test_spec("created")))
+            .await
+            .unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn test_delete_agent_returns_success_message() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("msg-test")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        let result = delete_agent(State(state), Path(id)).await.unwrap();
+        assert!(result.message.contains("msg-test"));
+        assert!(result.message.contains("deleted successfully"));
+    }
 }

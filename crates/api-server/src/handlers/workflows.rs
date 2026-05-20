@@ -467,4 +467,251 @@ mod tests {
         let status = WorkflowStatus::default();
         assert_eq!(status, WorkflowStatus::Draft);
     }
+
+    // ── Serialization / model tests ──────────────────────────────────
+
+    #[test]
+    fn test_workflow_status_serialize_pascal_case() {
+        assert_eq!(serde_json::to_string(&WorkflowStatus::Draft).unwrap(), "\"Draft\"");
+        assert_eq!(serde_json::to_string(&WorkflowStatus::Running).unwrap(), "\"Running\"");
+        assert_eq!(serde_json::to_string(&WorkflowStatus::Completed).unwrap(), "\"Completed\"");
+        assert_eq!(serde_json::to_string(&WorkflowStatus::Failed).unwrap(), "\"Failed\"");
+        assert_eq!(serde_json::to_string(&WorkflowStatus::Cancelled).unwrap(), "\"Cancelled\"");
+    }
+
+    #[test]
+    fn test_workflow_status_deserialize_pascal_case() {
+        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Draft\"").unwrap(), WorkflowStatus::Draft);
+        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Running\"").unwrap(), WorkflowStatus::Running);
+        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Completed\"").unwrap(), WorkflowStatus::Completed);
+        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Failed\"").unwrap(), WorkflowStatus::Failed);
+        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Cancelled\"").unwrap(), WorkflowStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_workflow_status_invalid_variant_fails() {
+        assert!(serde_json::from_str::<WorkflowStatus>("\"Pending\"").is_err());
+        assert!(serde_json::from_str::<WorkflowStatus>("\"unknown\"").is_err());
+    }
+
+    #[test]
+    fn test_workflow_node_roundtrip() {
+        let node = WorkflowNode {
+            id: "n1".to_string(),
+            name: "fetch".to_string(),
+            node_type: "http".to_string(),
+            config: serde_json::json!({"url": "https://example.com", "method": "GET"}),
+            dependencies: vec!["n0".to_string()],
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let deserialized: WorkflowNode = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "n1");
+        assert_eq!(deserialized.name, "fetch");
+        assert_eq!(deserialized.node_type, "http");
+        assert_eq!(deserialized.dependencies, vec!["n0"]);
+    }
+
+    #[test]
+    fn test_workflow_node_empty_dependencies() {
+        let node = WorkflowNode {
+            id: "root".to_string(),
+            name: "start".to_string(),
+            node_type: "shell".to_string(),
+            config: serde_json::json!({"command": "echo ok"}),
+            dependencies: vec![],
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        assert!(json.contains("\"dependencies\":[]"));
+    }
+
+    #[test]
+    fn test_workflow_roundtrip() {
+        let wf = Workflow {
+            id: "wf-123".to_string(),
+            name: "test".to_string(),
+            description: "desc".to_string(),
+            status: WorkflowStatus::Running,
+            nodes: vec![],
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            started_at: Some("2026-01-01T00:01:00Z".to_string()),
+            completed_at: None,
+            execution_count: 5,
+        };
+        let json = serde_json::to_string(&wf).unwrap();
+        let deserialized: Workflow = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "wf-123");
+        assert_eq!(deserialized.status, WorkflowStatus::Running);
+        assert_eq!(deserialized.execution_count, 5);
+        assert!(deserialized.started_at.is_some());
+        assert!(deserialized.completed_at.is_none());
+    }
+
+    #[test]
+    fn test_create_workflow_request_defaults() {
+        let json_str = r#"{"name":"minimal"}"#;
+        let req: CreateWorkflowRequest = serde_json::from_str(json_str).unwrap();
+        assert_eq!(req.name, "minimal");
+        assert!(req.description.is_empty());
+        assert!(req.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_create_workflow_request_with_nodes() {
+        let json_str = r#"{
+            "name":"pipeline",
+            "description":"data pipeline",
+            "nodes":[{"id":"a","name":"step","node_type":"shell","config":{},"dependencies":[]}]
+        }"#;
+        let req: CreateWorkflowRequest = serde_json::from_str(json_str).unwrap();
+        assert_eq!(req.name, "pipeline");
+        assert_eq!(req.nodes.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_list_workflows_mixed_statuses() {
+        let state = test_state().await;
+
+        // Create 4 workflows and manually change their statuses
+        let mut ids = Vec::new();
+        for name in ["draft-wf", "running-wf", "completed-wf", "failed-wf"] {
+            let req = CreateWorkflowRequest {
+                name: name.to_string(),
+                description: String::new(),
+                nodes: vec![],
+            };
+            let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+            ids.push(wf.id.clone());
+        }
+
+        // Manually change statuses via workflows map
+        {
+            let mut wfs = state.workflows.write().await;
+            if let Some(wf) = wfs.get_mut(&ids[1]) {
+                wf.status = WorkflowStatus::Running;
+            }
+            if let Some(wf) = wfs.get_mut(&ids[2]) {
+                wf.status = WorkflowStatus::Completed;
+            }
+            if let Some(wf) = wfs.get_mut(&ids[3]) {
+                wf.status = WorkflowStatus::Failed;
+            }
+        }
+
+        let summary = list_workflows(State(state)).await;
+        assert_eq!(summary.total, 4);
+        assert_eq!(summary.draft, 1);
+        assert_eq!(summary.running, 1);
+        assert_eq!(summary.completed, 1);
+        assert_eq!(summary.failed, 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_same_workflow_twice_fails() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "once".to_string(),
+            description: String::new(),
+            nodes: vec![],
+        };
+        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone())).await.unwrap();
+        let result = delete_workflow(State(state.clone()), Path(wf.id.clone())).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_workflow_name_too_long() {
+        let state = test_state().await;
+        let long_name = "x".repeat(300);
+        let req = CreateWorkflowRequest {
+            name: long_name,
+            description: String::new(),
+            nodes: vec![],
+        };
+        let result = create_workflow(State(state), Json(req)).await;
+        // Should succeed — no length limit enforced on workflow names
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_workflow_special_characters_name() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "workflow-测试_2026.special@v2".to_string(),
+            description: "special chars".to_string(),
+            nodes: vec![],
+        };
+        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        assert_eq!(wf.name, "workflow-测试_2026.special@v2");
+    }
+
+    #[tokio::test]
+    async fn test_list_workflows_order_preserved() {
+        let state = test_state().await;
+        for name in ["alpha", "beta", "gamma"] {
+            let req = CreateWorkflowRequest {
+                name: name.to_string(),
+                description: String::new(),
+                nodes: vec![],
+            };
+            let _ = create_workflow(State(state.clone()), Json(req)).await;
+        }
+        let summary = list_workflows(State(state)).await;
+        assert_eq!(summary.workflows.len(), 3);
+        // All created workflows should be present
+        let names: Vec<&str> = summary.workflows.iter().map(|w| w.name.as_str()).collect();
+        assert!(names.contains(&"alpha"));
+        assert!(names.contains(&"beta"));
+        assert!(names.contains(&"gamma"));
+    }
+
+    #[tokio::test]
+    async fn test_create_workflow_with_subworkflow_node_type() {
+        let state = test_state().await;
+        let req = CreateWorkflowRequest {
+            name: "composite".to_string(),
+            description: "nested workflow".to_string(),
+            nodes: vec![WorkflowNode {
+                id: "sw1".to_string(),
+                name: "sub".to_string(),
+                node_type: "subworkflow".to_string(),
+                config: serde_json::json!({"workflow_id": "other-wf-id"}),
+                dependencies: vec![],
+            }],
+        };
+        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        assert_eq!(wf.nodes[0].node_type, "subworkflow");
+    }
+
+    #[test]
+    fn test_workflow_summary_serialize() {
+        let summary = WorkflowSummary {
+            total: 5,
+            running: 2,
+            completed: 1,
+            failed: 1,
+            draft: 1,
+            workflows: vec![],
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("\"total\":5"));
+        assert!(json.contains("\"running\":2"));
+    }
+
+    #[test]
+    fn test_workflow_execution_serialize() {
+        let exec = WorkflowExecution {
+            workflow_id: "wf-1".to_string(),
+            workflow_name: "test".to_string(),
+            status: WorkflowStatus::Completed,
+            nodes_total: 3,
+            nodes_completed: 3,
+            nodes_failed: 0,
+            duration_ms: Some(1500),
+        };
+        let json = serde_json::to_string(&exec).unwrap();
+        assert!(json.contains("\"nodes_total\":3"));
+        assert!(json.contains("\"duration_ms\":1500"));
+    }
 }

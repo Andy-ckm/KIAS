@@ -697,4 +697,227 @@ mod tests {
         assert_eq!(result.task_stats.pending, 0);
         assert_eq!(result.task_stats.running, 0);
     }
+
+    #[tokio::test]
+    async fn test_metrics_summary_nodes_only_no_agents() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "node-1".to_string(),
+                    status: NodeStatus::Ready,
+                    resources: ResourceCapacity::default(),
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.node_count, 1);
+        assert_eq!(result.agent_count, 0);
+        assert_eq!(result.task_stats.pending, 0);
+        assert_eq!(result.task_stats.running, 0);
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_succeeded_status() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "done-agent", AgentStatus::Succeeded),
+            );
+        }
+        let result = agent_metrics(State(state), Path("a1".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.status, AgentStatus::Succeeded);
+        assert_eq!(result.name, "done-agent");
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_not_found_returns_404() {
+        let state = test_state().await;
+        let result = agent_metrics(State(state), Path("ghost-agent".to_string())).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+        assert!(err.message.contains("ghost-agent"));
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_task_stats_sum_equals_agent_count() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert("a1".into(), make_agent("a1", "a1", AgentStatus::Running));
+            agents.insert("a2".into(), make_agent("a2", "a2", AgentStatus::Pending));
+            agents.insert("a3".into(), make_agent("a3", "a3", AgentStatus::Failed));
+            agents.insert("a4".into(), make_agent("a4", "a4", AgentStatus::Succeeded));
+        }
+        let result = metrics_summary(State(state)).await;
+        let stats_sum = result.task_stats.pending
+            + result.task_stats.scheduled
+            + result.task_stats.running
+            + result.task_stats.succeeded
+            + result.task_stats.failed
+            + result.task_stats.unknown;
+        assert_eq!(stats_sum, result.agent_count);
+    }
+
+    #[tokio::test]
+    async fn test_agent_metrics_timestamps_preserved() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            let mut agent = make_agent("a1", "timed-agent", AgentStatus::Running);
+            agent.created_at = "2026-01-15T08:00:00Z".to_string();
+            agent.updated_at = "2026-05-20T21:00:00Z".to_string();
+            agent.start_time = Some("2026-01-15T08:05:00Z".to_string());
+            agents.insert("a1".into(), agent);
+        }
+        let result = agent_metrics(State(state), Path("a1".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(result.created_at, "2026-01-15T08:00:00Z");
+        assert_eq!(result.updated_at, "2026-05-20T21:00:00Z");
+        assert_eq!(result.start_time, Some("2026-01-15T08:05:00Z".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_node_resources_in_health() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "gpu-node".to_string(),
+                    status: NodeStatus::Ready,
+                    resources: ResourceCapacity {
+                        cpu: "32".into(),
+                        memory: "128Gi".into(),
+                        gpu: "4".into(),
+                    },
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.nodes.len(), 1);
+        assert_eq!(result.nodes[0].cpu, "32");
+        assert_eq!(result.nodes[0].memory, "128Gi");
+        assert_eq!(result.nodes[0].gpu, "4");
+        assert_eq!(result.nodes[0].name, "gpu-node");
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_single_agent() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(
+                "solo".into(),
+                make_agent("solo", "solo-agent", AgentStatus::Running),
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.agent_count, 1);
+        assert_eq!(result.task_stats.running, 1);
+        assert_eq!(result.task_stats.pending, 0);
+    }
+
+    #[tokio::test]
+    async fn test_cluster_status_draining_nodes() {
+        use crate::models::node::{Node, NodeStatus, ResourceCapacity};
+
+        let state = test_state().await;
+        {
+            let mut nodes = state.nodes.write().await;
+            nodes.insert(
+                "n1".into(),
+                Node {
+                    id: "n1".to_string(),
+                    name: "draining-node".to_string(),
+                    status: NodeStatus::Draining,
+                    resources: ResourceCapacity::default(),
+                    allocatable: ResourceCapacity::default(),
+                    labels: HashMap::new(),
+                    created_at: "2026-01-01".into(),
+                    last_heartbeat: "2026-01-01".into(),
+                },
+            );
+        }
+        let result = cluster_status(State(state)).await;
+        assert_eq!(result.overall, "degraded");
+        assert_eq!(result.nodes[0].status, "Draining");
+    }
+
+    #[tokio::test]
+    async fn test_metrics_summary_no_double_count() {
+        let state = test_state().await;
+        {
+            let mut agents = state.agents.write().await;
+            // Insert same ID twice — second should overwrite
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "first", AgentStatus::Pending),
+            );
+            agents.insert(
+                "a1".into(),
+                make_agent("a1", "second", AgentStatus::Running),
+            );
+        }
+        let result = metrics_summary(State(state)).await;
+        assert_eq!(result.agent_count, 1);
+        assert_eq!(result.task_stats.running, 1);
+        assert_eq!(result.task_stats.pending, 0);
+    }
+
+    #[test]
+    fn test_task_stats_debug_format() {
+        let stats = TaskStats {
+            pending: 1,
+            scheduled: 2,
+            running: 3,
+            succeeded: 4,
+            failed: 5,
+            unknown: 6,
+        };
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("pending"));
+        assert!(debug.contains("scheduled"));
+        assert!(debug.contains("running"));
+        assert!(debug.contains("succeeded"));
+        assert!(debug.contains("failed"));
+        assert!(debug.contains("unknown"));
+    }
+
+    #[test]
+    fn test_cluster_status_serialize_overall_field() {
+        let status = ClusterStatus {
+            overall: "degraded".to_string(),
+            nodes: vec![],
+            total_agents: 0,
+            running_agents: 0,
+        };
+        let json = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["overall"], "degraded");
+        assert_eq!(json["total_agents"], 0);
+        assert_eq!(json["running_agents"], 0);
+    }
 }

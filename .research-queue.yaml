@@ -252,16 +252,26 @@ research_queue:
   - id: R031
     topic: "用户和权限管理自动化"
     keywords: ["Linux user management automation", "SSH key management", "sudo management", "access control automation"]
-    status: pending
+    status: done
     priority: high
-    findings: ""
+    findings: |
+      实现: user_management.rs (38 tests)
+      UserManager引擎, 12种UserAction
+      用户CRUD/锁定解锁/用户组/sudo权限/文件权限检查
+      AgentGuard差异化: 操作审计+权限策略可配置
 
   - id: R032
     topic: "网络配置和故障排查"
     keywords: ["Linux network troubleshooting", "network configuration automation", "DNS/DHCP/firewall management"]
-    status: pending
+    status: done
     priority: high
-    findings: ""
+    findings: |
+      实现: network_ops.rs (59 tests)
+      NetworkManager引擎, 17种NetworkAction
+      接口管理/路由配置/DNS诊断/连通性测试/防火墙管理/端口扫描/带宽测试
+      解析函数: parse_ping/parse_dig_ips/parse_dig_records/parse_connections/parse_iptables/parse_routes/parse_interfaces
+      Bug fix: parse_connections状态字段从parts[1]修正为parts[0](匹配ss输出格式)
+      AgentGuard差异化: 网络诊断→根因分析→自动修复→合规审计
 
   - id: R033
     topic: "服务管理（systemd/nginx/mysql/redis）"
@@ -282,9 +292,12 @@ research_queue:
   - id: R034
     topic: "磁盘管理和存储运维"
     keywords: ["Linux disk management", "LVM automation", "storage monitoring", "disk cleanup automation"]
-    status: pending
+    status: done
     priority: medium
-    findings: ""
+    findings: |
+      实现: disk_management.rs (26 tests)
+      DiskManager引擎, 磁盘使用/inode/LVM/SMART监控
+      AgentGuard差异化: 磁盘操作审计+自动清理建议
 
   - id: R035
     topic: "定时任务管理（cron/systemd timer）"

@@ -787,6 +787,8 @@ mod tests {
             message: "   ".to_string(), // whitespace only → treated as empty
             message_type: "text".to_string(),
             conversation_id: None,
+            metadata: None,
+            timestamp: None,
         };
         let result = im_webhook(State(state), Json(req)).await;
         assert!(result.is_ok());
@@ -805,6 +807,8 @@ mod tests {
             message: "show status".to_string(),
             message_type: "text".to_string(),
             conversation_id: None,
+            metadata: None,
+            timestamp: None,
         };
         let result = im_webhook(State(state), Json(req)).await;
         assert!(result.is_ok());
@@ -828,18 +832,20 @@ mod tests {
         let result = wechat_webhook(State(state), Json(raw)).await;
         assert!(result.is_ok());
         let resp = result.unwrap().0;
-        assert!(resp["success"].as_bool().unwrap());
-        assert!(resp["reply"].as_str().is_some());
+        // WechatAdapter format_response returns {"MsgType": "text", "Content": reply}
+        assert_eq!(resp["MsgType"], "text");
+        assert!(resp["Content"].as_str().unwrap().len() > 0);
     }
 
     #[tokio::test]
-    async fn test_handler_wechat_webhook_invalid_payload() {
+    async fn test_handler_wechat_webhook_defaults() {
         let state = handler_test_state().await;
+        // WechatAdapter always returns Ok — uses unwrap_or defaults for missing fields
         let raw = json!({ "invalid": "no required fields" });
         let result = wechat_webhook(State(state), Json(raw)).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert_eq!(resp["MsgType"], "text");
     }
 
     #[tokio::test]
@@ -854,8 +860,9 @@ mod tests {
         let result = telegram_webhook(State(state), Json(raw)).await;
         assert!(result.is_ok());
         let resp = result.unwrap().0;
-        assert!(resp["success"].as_bool().unwrap());
-        assert!(resp["reply"].as_str().is_some());
+        // TelegramAdapter format_response returns {"text": reply, "parse_mode": ...}
+        assert!(resp["text"].as_str().unwrap().len() > 0);
+        assert_eq!(resp["parse_mode"], "HTML");
     }
 
     #[tokio::test]
@@ -903,7 +910,9 @@ mod tests {
         let result = feishu_webhook(State(state), Json(raw)).await;
         assert!(result.is_ok());
         let resp = result.unwrap().0;
-        assert!(resp["success"].as_bool().unwrap());
+        // FeishuAdapter format_response returns {"msg_type": "text", "content": {"text": reply}}
+        assert_eq!(resp["msg_type"], "text");
+        assert!(resp["content"]["text"].as_str().unwrap().len() > 0);
     }
 
     #[tokio::test]

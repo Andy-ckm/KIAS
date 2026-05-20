@@ -1,10 +1,17 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-21 (00:21)
+更新时间: 2026-05-21 (06:45)
 
-## 论文列表 (285 篇)
+## 论文列表 (292 篇)
 
-### 已下载论文 (282 篇)
+### 已下载论文 (289 篇)
+- ✅ 2605.14744.pdf (Mechanical Enforcement for LLM Governance: Evidence of Governance-Task Decoupling)
+- ✅ 2605.14454.pdf (LiSA: Lifelong Safety Adaptation via Conservative Policy Induction)
+- ✅ 2605.14212.pdf (MetaAgent-X: Breaking the Ceiling of Automatic Multi-Agent Systems via End-to-End RL)
+- ✅ 2605.18988.pdf (Surviving the Unseen: Predictive Defense for Novel Multi-Turn Multimodal Attacks)
+- ✅ 2605.16436.pdf (The End of Trust: How Agentic AI Breaks Security Assumptions)
+- ✅ 2605.14460.pdf (Exploiting LLM Agent Supply Chains via Payload-less Skills)
+- ✅ 2605.14271.pdf (Auditing Agent Harness Safety)
 - ✅ 2605.19240.pdf (CASPIAN: Online Detection and Attribution of Cascade Attacks in LLM Multi-Agent Systems via Cross-Channel Causal Monitoring)
 - ✅ 2605.19351.pdf (PAVE: A Cognitive Architecture for Legitimate Violation in Generative Agent Societies)
 - ✅ 2605.19915.pdf (LLM Agents Make Collective Belief Dynamics Programmable: Challenges and Research Directions)
@@ -2100,6 +2107,69 @@
     - 状态: ✅ 已下载 (0.4MB)
     - 核心观点: 形式化框架描述Agent能从知识图谱中证明什么、需要什么先验知识、如何桥接本体差异
     - AgentGuard映射: knowledge模块可采用此框架实现Agent能力的形式化描述和自动发现
+
+93. **[2605.14744]** Mechanical Enforcement for LLM Governance: Evidence of Governance-Task Decoupling
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.AI, cs.CE
+    - 主题: LLM governance, mechanical enforcement, compliance verification, financial regulation
+    - 链接: https://arxiv.org/abs/2605.14744
+    - 状态: ✅ 已下载 (1.1MB)
+    - 核心观点: 现有LLM治理依赖模型自身解释自然语言策略，存在principal-agent失败风险。提出"机械执行"方法将治理约束从模型解释中解耦，实现可验证的合规性
+    - AgentGuard映射: autonomy-controller模块可引入机械执行层，将合规策略编译为可验证规则而非依赖LLM自解释；data-governance可采用治理-任务解耦架构
+
+94. **[2605.14454]** LiSA: Lifelong Safety Adaptation via Conservative Policy Induction
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.AI, cs.CL
+    - 主题: safety guardrails, lifelong adaptation, policy induction, agent safety
+    - 链接: https://arxiv.org/abs/2605.14454
+    - 状态: ✅ 已下载 (1.9MB)
+    - 核心观点: Agent从聊天界面转向读取私有数据、调用工具、执行多步工作流时，guardrail失败不再只是质量问题而是安全事件。提出保守策略归纳的终身安全适应方法
+    - AgentGuard映射: autonomy-controller的ladder模块可采用保守策略归纳实现渐进式安全适应；guardrail机制可随部署环境终身学习而非静态规则
+
+95. **[2605.14212]** MetaAgent-X: Breaking the Ceiling of Automatic Multi-Agent Systems via End-to-End RL
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.MA
+    - 主题: multi-agent orchestration, automatic workflow generation, reinforcement learning
+    - 链接: https://arxiv.org/abs/2605.14212
+    - 状态: ✅ 已下载 (1.3MB)
+    - 核心观点: 现有自动多Agent系统仅部分自适应，提出端到端RL训练元级设计器+执行级Agent的双层优化，突破自动MAS性能天花板
+    - AgentGuard映射: scheduler模块可引入端到端RL优化调度策略；workflow-engine可采用双层架构实现自动工作流生成而非手动DAG定义
+
+96. **[2605.18988]** Surviving the Unseen: Predictive Defense for Novel Multi-Turn Multimodal Attacks
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.CR
+    - 主题: multimodal attack defense, multi-turn adversarial, predictive guardrails
+    - 链接: https://arxiv.org/abs/2605.18988
+    - 状态: ✅ 已下载 (0.4MB)
+    - 核心观点: 多模态LLM集成到自主Agent工作流后，攻击者使用渐进式跨模态扰动绕过逐轮guardrail。提出预测性防御机制在攻击完成前识别威胁模式
+    - AgentGuard映射: monitor模块可集成预测性防御，在多轮对话中实时检测渐进式攻击模式而非仅做单轮过滤
+
+97. **[2605.16436]** The End of Trust: How Agentic AI Breaks Security Assumptions
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.CR
+    - 主题: trust models, security assumptions, agentic AI threats, impersonation at scale
+    - 链接: https://arxiv.org/abs/2605.16436
+    - 状态: ✅ 已下载 (0.6MB)
+    - 核心观点: Agentic AI打破了数字交互的信任假设——攻击者不再需要在欺骗保真度和规模间取舍，AI可以同时实现高保真+大规模欺骗
+    - AgentGuard映射: controller的reputation系统需要重新设计信任模型；data-governance需考虑Agent身份验证和行为可信度评估
+
+98. **[2605.14460]** Exploiting LLM Agent Supply Chains via Payload-less Skills
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.CR
+    - 主题: supply chain security, skill marketplace, payload-less attack, agent security
+    - 链接: https://arxiv.org/abs/2605.14460
+    - 状态: ✅ 已下载 (1.0MB)
+    - 核心观点: 无载荷技能攻击——恶意技能不需要携带恶意payload，通过操纵技能描述和行为语义即可劫持Agent行为
+    - AgentGuard映射: skills模块必须实现技能签名验证和行为沙箱隔离；skill注册表需要语义安全审计而非仅检查payload
+
+99. **[2605.14271]** Auditing Agent Harness Safety
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+    - 主题: harness safety audit, tool dispatch security, context isolation
+    - 链接: https://arxiv.org/abs/2605.14271
+    - 状态: ✅ 已下载 (13.0MB)
+    - 核心观点: Agent执行harness可能在返回正确答案的同时访问未授权资源或泄露上下文给错误Agent。提出harness安全审计框架，检查工具调度、资源分配、消息路由的安全性
+    - AgentGuard映射: tool-executor需实现工具调用的权限审计；api-server的中间件层可集成harness安全检查，确保工具调度不越权
 
 ---
 

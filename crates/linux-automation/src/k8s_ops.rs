@@ -444,4 +444,342 @@ mod tests {
         let pods = K8sOps::parse_pods(output);
         assert!(pods.is_empty());
     }
+
+    // ============================================================
+    // K8sNode tests
+    // ============================================================
+
+    #[test]
+    fn test_k8s_node_clone() {
+        let node = K8sNode {
+            name: "node1".to_string(),
+            status: "Ready".to_string(),
+            roles: "worker".to_string(),
+            age: "10d".to_string(),
+            version: "v1.29.0".to_string(),
+            cpu: "8".to_string(),
+            memory: "16Gi".to_string(),
+        };
+        let cloned = node.clone();
+        assert_eq!(cloned.name, node.name);
+        assert_eq!(cloned.version, node.version);
+    }
+
+    #[test]
+    fn test_k8s_node_debug() {
+        let node = K8sNode {
+            name: "node1".to_string(),
+            status: "Ready".to_string(),
+            roles: "control-plane".to_string(),
+            age: "5d".to_string(),
+            version: "v1.28.0".to_string(),
+            cpu: "4".to_string(),
+            memory: "8Gi".to_string(),
+        };
+        let debug = format!("{:?}", node);
+        assert!(debug.contains("K8sNode"));
+        assert!(debug.contains("node1"));
+    }
+
+    #[test]
+    fn test_k8s_node_serialization() {
+        let node = K8sNode {
+            name: "node1".to_string(),
+            status: "Ready".to_string(),
+            roles: "worker".to_string(),
+            age: "3d".to_string(),
+            version: "v1.28.0".to_string(),
+            cpu: "4".to_string(),
+            memory: "8Gi".to_string(),
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let deserialized: K8sNode = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, node.name);
+        assert_eq!(deserialized.cpu, "4");
+    }
+
+    // ============================================================
+    // K8sPod tests
+    // ============================================================
+
+    #[test]
+    fn test_k8s_pod_clone() {
+        let pod = K8sPod {
+            name: "web".to_string(),
+            namespace: "default".to_string(),
+            ready: "1/1".to_string(),
+            status: "Running".to_string(),
+            restarts: 0,
+            age: "5d".to_string(),
+            cpu: Some("100m".to_string()),
+            memory: Some("128Mi".to_string()),
+        };
+        let cloned = pod.clone();
+        assert_eq!(cloned.name, pod.name);
+        assert_eq!(cloned.restarts, pod.restarts);
+    }
+
+    #[test]
+    fn test_k8s_pod_debug() {
+        let pod = K8sPod {
+            name: "db".to_string(),
+            namespace: "prod".to_string(),
+            ready: "1/1".to_string(),
+            status: "Running".to_string(),
+            restarts: 2,
+            age: "1d".to_string(),
+            cpu: None,
+            memory: None,
+        };
+        let debug = format!("{:?}", pod);
+        assert!(debug.contains("K8sPod"));
+        assert!(debug.contains("db"));
+    }
+
+    #[test]
+    fn test_k8s_pod_serialization() {
+        let pod = K8sPod {
+            name: "web".to_string(),
+            namespace: "default".to_string(),
+            ready: "1/1".to_string(),
+            status: "Running".to_string(),
+            restarts: 0,
+            age: "5d".to_string(),
+            cpu: Some("200m".to_string()),
+            memory: Some("256Mi".to_string()),
+        };
+        let json = serde_json::to_string(&pod).unwrap();
+        let deserialized: K8sPod = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "web");
+        assert_eq!(deserialized.cpu, Some("200m".to_string()));
+    }
+
+    #[test]
+    fn test_k8s_pod_none_resources() {
+        let pod = K8sPod {
+            name: "pending".to_string(),
+            namespace: "default".to_string(),
+            ready: "0/1".to_string(),
+            status: "Pending".to_string(),
+            restarts: 0,
+            age: "10m".to_string(),
+            cpu: None,
+            memory: None,
+        };
+        assert!(pod.cpu.is_none());
+        assert!(pod.memory.is_none());
+    }
+
+    // ============================================================
+    // K8sOpsResult tests
+    // ============================================================
+
+    #[test]
+    fn test_k8s_ops_result_clone() {
+        let result = K8sOpsResult {
+            context: "prod".to_string(),
+            action: K8sAction::ClusterHealth,
+            status: TaskStatus::Success,
+            nodes: vec![],
+            pods: vec![],
+            output: "ok".to_string(),
+            recommendations: vec!["建议1".to_string()],
+            audit_trail: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.context, result.context);
+        assert_eq!(cloned.recommendations.len(), 1);
+    }
+
+    #[test]
+    fn test_k8s_ops_result_debug() {
+        let result = K8sOpsResult {
+            context: "test".to_string(),
+            action: K8sAction::NodeStatus,
+            status: TaskStatus::Failed,
+            nodes: vec![],
+            pods: vec![],
+            output: "error".to_string(),
+            recommendations: vec![],
+            audit_trail: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("K8sOpsResult"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_k8s_ops_result_serialization() {
+        let result = K8sOpsResult {
+            context: "staging".to_string(),
+            action: K8sAction::ClusterHealth,
+            status: TaskStatus::Success,
+            nodes: vec![K8sNode {
+                name: "node1".to_string(),
+                status: "Ready".to_string(),
+                roles: "worker".to_string(),
+                age: "5d".to_string(),
+                version: "v1.28.0".to_string(),
+                cpu: "4".to_string(),
+                memory: "8Gi".to_string(),
+            }],
+            pods: vec![],
+            output: "ok".to_string(),
+            recommendations: vec![],
+            audit_trail: vec![],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: K8sOpsResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.context, "staging");
+        assert_eq!(deserialized.nodes.len(), 1);
+    }
+
+    // ============================================================
+    // K8sAction tests
+    // ============================================================
+
+    #[test]
+    fn test_k8s_action_clone() {
+        let action = K8sAction::PodStatus {
+            namespace: Some("default".to_string()),
+        };
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_k8s_action_debug() {
+        let action = K8sAction::ClusterHealth;
+        let debug = format!("{:?}", action);
+        assert_eq!(debug, "ClusterHealth");
+    }
+
+    #[test]
+    fn test_k8s_action_partial_eq() {
+        assert_eq!(K8sAction::ClusterHealth, K8sAction::ClusterHealth);
+        assert_eq!(K8sAction::NodeStatus, K8sAction::NodeStatus);
+        assert_ne!(K8sAction::ClusterHealth, K8sAction::NodeStatus);
+        assert_eq!(
+            K8sAction::PodStatus {
+                namespace: Some("a".to_string())
+            },
+            K8sAction::PodStatus {
+                namespace: Some("a".to_string())
+            }
+        );
+        assert_ne!(
+            K8sAction::PodStatus {
+                namespace: Some("a".to_string())
+            },
+            K8sAction::PodStatus {
+                namespace: Some("b".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn test_k8s_action_all_variants_serialization() {
+        let actions = vec![
+            K8sAction::ClusterHealth,
+            K8sAction::NodeStatus,
+            K8sAction::PodStatus {
+                namespace: Some("default".to_string()),
+            },
+            K8sAction::PodStatus { namespace: None },
+            K8sAction::TroubleshootFailedPods {
+                namespace: Some("kube-system".to_string()),
+            },
+            K8sAction::ResourceUsage { namespace: None },
+            K8sAction::Events {
+                namespace: Some("default".to_string()),
+                limit: 20,
+            },
+            K8sAction::Describe {
+                resource_type: "pod".to_string(),
+                name: "web".to_string(),
+                namespace: Some("default".to_string()),
+            },
+            K8sAction::Delete {
+                resource_type: "pod".to_string(),
+                name: "web".to_string(),
+                namespace: Some("default".to_string()),
+                force: true,
+            },
+            K8sAction::Kubectl {
+                args: vec!["get".to_string(), "nodes".to_string()],
+            },
+        ];
+        for action in actions {
+            let json = serde_json::to_string(&action).unwrap();
+            let deserialized: K8sAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(action, deserialized);
+        }
+    }
+
+    // ============================================================
+    // parse_nodes edge cases
+    // ============================================================
+
+    #[test]
+    fn test_parse_nodes_with_error_line() {
+        let output = "error: connection refused\nnode1   Ready   worker   5d   v1.28.0   4   8Gi";
+        let nodes = K8sOps::parse_nodes(output);
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].name, "node1");
+    }
+
+    #[test]
+    fn test_parse_nodes_insufficient_fields() {
+        let output = "node1   Ready   worker";
+        let nodes = K8sOps::parse_nodes(output);
+        assert!(nodes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_nodes_multiple() {
+        let output = "master1  Ready  control-plane  30d  v1.28.0  8  16Gi\nworker1  Ready  <none>         30d  v1.28.0  16  32Gi\nworker2  Ready  <none>         30d  v1.28.0  16  32Gi";
+        let nodes = K8sOps::parse_nodes(output);
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[0].roles, "control-plane");
+        assert_eq!(nodes[1].name, "worker1");
+    }
+
+    // ============================================================
+    // parse_pods edge cases
+    // ============================================================
+
+    #[test]
+    fn test_parse_pods_with_error_line_filtered() {
+        let output = "error: some error\nweb   1/1   Running   0   5d";
+        let pods = K8sOps::parse_pods(output);
+        assert_eq!(pods.len(), 1);
+        assert_eq!(pods[0].name, "web");
+    }
+
+    #[test]
+    fn test_parse_pods_insufficient_fields() {
+        let output = "web   1/1";
+        let pods = K8sOps::parse_pods(output);
+        assert!(pods.is_empty());
+    }
+
+    #[test]
+    fn test_parse_pods_high_restart_count() {
+        let output = "crashing-pod   0/1   CrashLoopBackOff   150   2d";
+        let pods = K8sOps::parse_pods(output);
+        assert_eq!(pods.len(), 1);
+        assert_eq!(pods[0].restarts, 150);
+        assert_eq!(pods[0].status, "CrashLoopBackOff");
+    }
+
+    #[test]
+    fn test_parse_pods_all_namespaces_multiple() {
+        let output = "kube-system   coredns-abc   1/1   Running   0   30d\ndefault   web-xyz   1/1   Running   0   5d\nmonitoring   grafana   1/1   Running   2   10d";
+        let pods = K8sOps::parse_pods(output);
+        assert_eq!(pods.len(), 3);
+        assert_eq!(pods[0].namespace, "kube-system");
+        assert_eq!(pods[1].namespace, "default");
+        assert_eq!(pods[2].namespace, "monitoring");
+        assert_eq!(pods[2].restarts, 2);
+    }
 }

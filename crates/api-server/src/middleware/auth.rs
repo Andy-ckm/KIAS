@@ -151,7 +151,7 @@ mod tests {
     use axum::Router;
     use tower::ServiceExt;
 
-    use crate::auth::{generate_token, create_claims, JwtConfig, Role};
+    use crate::auth::{create_claims, generate_token, JwtConfig, Role};
     use crate::AppState;
 
     async fn test_state_auth_disabled() -> AppState {

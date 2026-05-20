@@ -55,7 +55,7 @@ impl Default for TierRoutingState {
 // ─── Request/Response types ──────────────────────────────────────────────
 
 /// Request to evaluate a task for routing
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct EvaluateRequest {
     /// Task description
     pub description: String,
@@ -866,5 +866,189 @@ mod tests {
         let result = evaluate_task(State(state), Json(req)).await.unwrap();
         // High priority + complex should route to Strong
         assert_eq!(result.recommended_tier, "Strong");
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_response_has_all_fields() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "test".to_string(),
+            input_tokens: 50,
+            requires_tools: false,
+            has_context: false,
+            priority: 3,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let result = evaluate_task(State(state), Json(req)).await.unwrap();
+        assert!(!result.task_id.is_empty());
+        assert!(!result.complexity.is_empty());
+        assert!(!result.recommended_tier.is_empty());
+        assert!(!result.decision.tier.is_empty());
+        assert!(!result.decision.reason.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_evaluate_unique_task_ids() {
+        let state = test_state().await;
+        let req = EvaluateRequest {
+            description: "same task".to_string(),
+            input_tokens: 100,
+            requires_tools: false,
+            has_context: false,
+            priority: 3,
+            cost_budget: 0.0,
+            latency_budget: 0.0,
+            metadata: HashMap::new(),
+        };
+        let r1 = evaluate_task(State(state.clone()), Json(req.clone())).await.unwrap();
+        let r2 = evaluate_task(State(state), Json(req)).await.unwrap();
+        assert_ne!(r1.task_id, r2.task_id);
+    }
+
+    #[tokio::test]
+    async fn test_batch_evaluate_mixed_complexity() {
+        let state = test_state().await;
+        let req = BatchEvaluateRequest {
+            tasks: vec![
+                EvaluateRequest {
+                    description: "hi".to_string(),
+                    input_tokens: 5,
+                    requires_tools: false,
+                    has_context: false,
+                    priority: 5,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+                EvaluateRequest {
+                    description: "Write a CSV parser".to_string(),
+                    input_tokens: 500,
+                    requires_tools: false,
+                    has_context: false,
+                    priority: 3,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+                EvaluateRequest {
+                    description: "Implement distributed consensus with fault tolerance".to_string(),
+                    input_tokens: 10000,
+                    requires_tools: true,
+                    has_context: true,
+                    priority: 1,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+            ],
+        };
+        let result = batch_evaluate(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.summary.total, 3);
+        assert_eq!(result.results.len(), 3);
+        assert!(result.summary.avg_confidence > 0.0);
+        assert!(result.summary.avg_confidence <= 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_batch_summary_avg_confidence() {
+        let state = test_state().await;
+        let req = BatchEvaluateRequest {
+            tasks: vec![
+                EvaluateRequest {
+                    description: "hello".to_string(),
+                    input_tokens: 5,
+                    requires_tools: false,
+                    has_context: false,
+                    priority: 5,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+                EvaluateRequest {
+                    description: "world".to_string(),
+                    input_tokens: 5,
+                    requires_tools: false,
+                    has_context: false,
+                    priority: 5,
+                    cost_budget: 0.0,
+                    latency_budget: 0.0,
+                    metadata: HashMap::new(),
+                },
+            ],
+        };
+        let result = batch_evaluate(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.summary.total, 2);
+        let expected_avg = (result.results[0].decision.confidence + result.results[1].decision.confidence) / 2.0;
+        assert!((result.summary.avg_confidence - expected_avg).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_evaluate_request_defaults() {
+        let json = r#"{"description":"test"}"#;
+        let req: EvaluateRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.input_tokens, 100); // default
+        assert_eq!(req.priority, 5); // default
+        assert!(!req.requires_tools);
+        assert!(!req.has_context);
+        assert_eq!(req.cost_budget, 0.0);
+        assert_eq!(req.latency_budget, 0.0);
+        assert!(req.metadata.is_empty());
+    }
+
+    #[test]
+    fn test_register_agent_request_deserialize() {
+        let json = r#"{"agent_id":"a1","tier":"strong","weight":2.0}"#;
+        let req: RegisterAgentRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.agent_id, "a1");
+        assert_eq!(req.tier, "strong");
+        assert_eq!(req.weight, 2.0);
+    }
+
+    #[test]
+    fn test_register_agent_request_default_weight() {
+        let json = r#"{"agent_id":"a1","tier":"weak"}"#;
+        let req: RegisterAgentRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.weight, 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_tier_error_response_fields() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "test".to_string(),
+            tier: "super-ultra-mega".to_string(),
+            weight: 1.0,
+        };
+        let result = register_agent(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, body) = result.unwrap_err();
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body.error.contains("super-ultra-mega"));
+        assert_eq!(body.code, "INVALID_TIER");
+    }
+
+    #[test]
+    fn test_tier_routing_state_default() {
+        let state = TierRoutingState::default();
+        // Should be constructible via Default trait
+        let _ = state.router;
+        let _ = state.pool;
+    }
+
+    #[tokio::test]
+    async fn test_register_strong_tier() {
+        let state = test_state().await;
+        let req = RegisterAgentRequest {
+            agent_id: "strong-agent".to_string(),
+            tier: "strong".to_string(),
+            weight: 3.0,
+        };
+        let result = register_agent(State(state), Json(req)).await.unwrap();
+        assert_eq!(result.tier, "Strong");
+        assert_eq!(result.weight, 3.0);
+        assert_eq!(result.agent_id, "strong-agent");
+        assert!(result.message.contains("Strong"));
     }
 }

@@ -284,4 +284,279 @@ mod tests {
             DockerAction::ListContainers { all: false }
         );
     }
+
+    // ============================================================
+    // parse_container_list edge cases
+    // ============================================================
+
+    #[test]
+    fn test_parse_container_single_line() {
+        let output = "abc123|web|nginx:latest|Up 2 days|0.0.0.0:80->80/tcp|2024-01-01";
+        let containers = DockerOps::parse_container_list(output);
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0].id, "abc123");
+        assert_eq!(containers[0].name, "web");
+        assert_eq!(containers[0].image, "nginx:latest");
+        assert_eq!(containers[0].status, "Up 2 days");
+        assert_eq!(containers[0].ports, "0.0.0.0:80->80/tcp");
+        assert_eq!(containers[0].created, "2024-01-01");
+    }
+
+    #[test]
+    fn test_parse_container_extra_fields() {
+        let output = "abc|web|nginx|Up|80/tcp|2024-01-01|extra|more";
+        let containers = DockerOps::parse_container_list(output);
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0].name, "web");
+    }
+
+    #[test]
+    fn test_parse_container_empty_ports() {
+        let output = "abc123|db|mysql:8|Exited (0)||2024-01-02";
+        let containers = DockerOps::parse_container_list(output);
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0].ports, "");
+        assert_eq!(containers[0].name, "db");
+    }
+
+    #[test]
+    fn test_parse_container_missing_created_field() {
+        // Exactly 5 fields — created defaults to ""
+        let output = "abc123|web|nginx|Up|80/tcp";
+        let containers = DockerOps::parse_container_list(output);
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0].created, "");
+    }
+
+    #[test]
+    fn test_parse_container_whitespace_lines() {
+        let output = "abc123|web|nginx|Up|80/tcp|2024-01-01\n\n  \ndef456|db|mysql|Up|3306/tcp|2024-01-02";
+        let containers = DockerOps::parse_container_list(output);
+        assert_eq!(containers.len(), 2);
+    }
+
+    // ============================================================
+    // DockerContainer tests
+    // ============================================================
+
+    #[test]
+    fn test_docker_container_none_optional_fields() {
+        let c = DockerContainer {
+            id: "abc".to_string(),
+            name: "web".to_string(),
+            image: "nginx".to_string(),
+            status: "Up".to_string(),
+            state: "running".to_string(),
+            ports: "80/tcp".to_string(),
+            created: "2024-01-01".to_string(),
+            cpu_percent: None,
+            mem_usage: None,
+        };
+        assert!(c.cpu_percent.is_none());
+        assert!(c.mem_usage.is_none());
+    }
+
+    #[test]
+    fn test_docker_container_clone() {
+        let c = DockerContainer {
+            id: "abc".to_string(),
+            name: "web".to_string(),
+            image: "nginx".to_string(),
+            status: "Up".to_string(),
+            state: "running".to_string(),
+            ports: "80/tcp".to_string(),
+            created: "2024-01-01".to_string(),
+            cpu_percent: Some(5.2),
+            mem_usage: Some("128MB".to_string()),
+        };
+        let cloned = c.clone();
+        assert_eq!(cloned.id, c.id);
+        assert_eq!(cloned.name, c.name);
+        assert_eq!(cloned.cpu_percent, c.cpu_percent);
+    }
+
+    #[test]
+    fn test_docker_container_debug() {
+        let c = DockerContainer {
+            id: "abc".to_string(),
+            name: "web".to_string(),
+            image: "nginx".to_string(),
+            status: "Up".to_string(),
+            state: "running".to_string(),
+            ports: "80/tcp".to_string(),
+            created: "2024-01-01".to_string(),
+            cpu_percent: None,
+            mem_usage: None,
+        };
+        let debug = format!("{:?}", c);
+        assert!(debug.contains("DockerContainer"));
+        assert!(debug.contains("web"));
+    }
+
+    #[test]
+    fn test_docker_container_serialization_roundtrip() {
+        let c = DockerContainer {
+            id: "abc123".to_string(),
+            name: "web".to_string(),
+            image: "nginx:latest".to_string(),
+            status: "Up 2 days".to_string(),
+            state: "running".to_string(),
+            ports: "80/tcp".to_string(),
+            created: "2024-01-01".to_string(),
+            cpu_percent: Some(3.5),
+            mem_usage: Some("256MB".to_string()),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let deserialized: DockerContainer = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, c.id);
+        assert_eq!(deserialized.name, c.name);
+        assert_eq!(deserialized.cpu_percent, Some(3.5));
+    }
+
+    // ============================================================
+    // DockerOpsResult tests
+    // ============================================================
+
+    #[test]
+    fn test_docker_ops_result_clone() {
+        let result = DockerOpsResult {
+            host: "server1".to_string(),
+            action: DockerAction::Stats,
+            status: TaskStatus::Success,
+            containers: vec![],
+            message: "ok".to_string(),
+            audit_trail: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.host, result.host);
+        assert_eq!(cloned.status, result.status);
+    }
+
+    #[test]
+    fn test_docker_ops_result_debug() {
+        let result = DockerOpsResult {
+            host: "server1".to_string(),
+            action: DockerAction::ListImages,
+            status: TaskStatus::Failed,
+            containers: vec![],
+            message: "error".to_string(),
+            audit_trail: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("DockerOpsResult"));
+        assert!(debug.contains("server1"));
+    }
+
+    #[test]
+    fn test_docker_ops_result_serialization() {
+        let result = DockerOpsResult {
+            host: "server1".to_string(),
+            action: DockerAction::Start {
+                container: "web".to_string(),
+            },
+            status: TaskStatus::Success,
+            containers: vec![],
+            message: "started".to_string(),
+            audit_trail: vec![],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: DockerOpsResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.host, "server1");
+        assert_eq!(deserialized.status, TaskStatus::Success);
+    }
+
+    // ============================================================
+    // DockerAction all variants serialization
+    // ============================================================
+
+    #[test]
+    fn test_docker_action_all_variants_serialization() {
+        let actions = vec![
+            DockerAction::ListContainers { all: true },
+            DockerAction::ListContainers { all: false },
+            DockerAction::ContainerStatus {
+                container: "web".to_string(),
+            },
+            DockerAction::Start {
+                container: "web".to_string(),
+            },
+            DockerAction::Stop {
+                container: "web".to_string(),
+            },
+            DockerAction::Restart {
+                container: "web".to_string(),
+            },
+            DockerAction::Remove {
+                container: "web".to_string(),
+                force: true,
+            },
+            DockerAction::Remove {
+                container: "web".to_string(),
+                force: false,
+            },
+            DockerAction::Logs {
+                container: "web".to_string(),
+                tail: 50,
+            },
+            DockerAction::Stats,
+            DockerAction::Prune {
+                images: true,
+                containers: true,
+                volumes: true,
+            },
+            DockerAction::ListImages,
+            DockerAction::Pull {
+                image: "alpine:3.18".to_string(),
+            },
+        ];
+        for action in actions {
+            let json = serde_json::to_string(&action).unwrap();
+            let deserialized: DockerAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(action, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_docker_action_clone() {
+        let action = DockerAction::Logs {
+            container: "web".to_string(),
+            tail: 100,
+        };
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_docker_action_debug() {
+        let action = DockerAction::Pull {
+            image: "nginx:latest".to_string(),
+        };
+        let debug = format!("{:?}", action);
+        assert!(debug.contains("Pull"));
+        assert!(debug.contains("nginx:latest"));
+    }
+
+    #[test]
+    fn test_docker_action_partial_ne_different_variants() {
+        assert_ne!(
+            DockerAction::Start {
+                container: "web".to_string()
+            },
+            DockerAction::Stop {
+                container: "web".to_string()
+            }
+        );
+        assert_ne!(
+            DockerAction::Stats,
+            DockerAction::ListImages
+        );
+        assert_ne!(
+            DockerAction::Pull {
+                image: "a".to_string()
+            },
+            DockerAction::Pull {
+                image: "b".to_string()
+            }
+        );
+    }
 }

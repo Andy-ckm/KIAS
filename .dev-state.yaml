@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 18:30
+# 更新时间: 2026-05-20 20:30
 
 iteration: 50
-last_run: "2026-05-20T18:30:00Z"
-last_commit: "a1be050"
+last_run: "2026-05-20T20:30:00Z"
+last_commit: "ae7c8f6"
 status: active
 
 # 各模块状态
@@ -13,53 +13,50 @@ modules:
     target_tests: 120
     status: DONE ✅
     production_unwrap: 0
+    next_step: "R038 网络监控 or api-server继续提测"
+    blockers: []
 
   document-management:
     tests: 112
     target_tests: 100
     status: DONE ✅
     production_unwrap: 0
+    next_step: "已达标"
 
   it-change-management:
     tests: 202
     target_tests: 200
     status: DONE ✅
     production_unwrap: 0
+    next_step: "已达标"
 
   data-governance:
     tests: 146
     target_tests: 60
     status: DONE ✅
     production_unwrap: 0
+    next_step: "已达标"
 
   api-server:
-    tests: 564
+    tests: 550
     status: IMPROVING
-    next_step: "agents.rs(invoke_agent未测试) or context.rs 提测"
+    next_step: "agents.rs invoke测试 or scheduler.rs 边界测试"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 4136
+  total_tests: 4203
   linux_automation_tests: 525
-  api_server_tests: 564
+  api_server_tests: 550
   data_governance_tests: 146
   clippy_warnings: 0
-  disk_percent: 51
+  disk_percent: 83
 
-# 本轮迭代成果 (iteration 49-50)
-iteration_49_50:
-  modules:
-    - file: auth_gxp.rs
-      new_tests: 13
-      total: 28
-      features:
-        - "login handler: success(admin/operator/viewer), invalid_password, user_not_found, lockout, user_id_match"
-        - "change_password handler: success+verify, wrong_old, weak_new, user_not_found"
-        - "verify_2fa handler: invalid_code, user_not_found"
-    - file: knowledge.rs
-      new_tests: 6
-      total: 25
-      features:
-        - "ingest_file handler: success, missing_path(400), nonexistent(500), empty(400), tags, path_as_title"
-  total: 4136 tests, 0 clippy
+# 本次迭代成果
+iteration_50:
+  module: api-server/handlers/{workflows,tokens}
+  new_tests: 25
+  features:
+    - "workflows.rs: +17 tests — status serialize/deserialize(PascalCase 5 variants), invalid variant rejection, WorkflowNode roundtrip, Workflow roundtrip, CreateWorkflowRequest defaults, mixed status list, delete-twice-fails, long name, special chars, order preserved, subworkflow node type, summary/exec serialization"
+    - "tokens.rs: +8 tests — TokenUsage/TimeSeries/Analytics serialization, multi-agent sorted by total, Unknown agent base tokens, high restart multiplier(5x), time_series length=24, totals match per-agent sum"
+  total: 4203 tests, 0 clippy

@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 17:05
+# 更新时间: 2026-05-20 14:40
 
-iteration: 46
-last_run: "2026-05-20T17:05:00Z"
-last_commit: "00c3f06"
+iteration: 47
+last_run: "2026-05-20T14:40:00Z"
+last_commit: "0083ad0"
 status: active
 
 # 各模块状态
@@ -38,29 +38,27 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 521
+    tests: 528
     status: IMPROVING
-    next_step: "metrics.rs(13) or scheduler.rs(14) or tokens.rs(13) 提测"
+    next_step: "scheduler.rs(14), tokens.rs(13), auth_gxp.rs(15), config.rs(15) 提测"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 4084
+  total_tests: 4093
   linux_automation_tests: 525
-  api_server_tests: 521
+  api_server_tests: 528
   data_governance_tests: 146
   clippy_warnings: 0
-  disk_percent: 71
+  disk_percent: 51
 
 # 本次迭代成果
-iteration_46:
-  module: api-server/handlers/context.rs
-  new_tests: 9
+iteration_47:
+  module: api-server/handlers/metrics.rs
+  new_tests: 8
   features:
-    - "add_message returns default response values (message_count/tokens/compression)"
-    - "empty content edge case"
-    - "get_context_stats all 9 zero-default fields verified"
-    - "compress_session all zero defaults"
-    - "deserialization errors: missing content/role"
-    - "ContextStatsResponse field-level JSON verification"
-  total: 4084 tests, 0 clippy
+    - "metrics.rs: 13 -> 21 tests (+8)"
+    - "Covered: node_count, restart_count>0, start_time=None, Failed/Scheduled/Unknown status"
+    - "Covered: all-NotReady cluster, no-agents-with-nodes"
+    - "Disk cleaned: 83% -> 51% (freed 12.8GB)"
+    - "Total: 4093 tests, 0 clippy"

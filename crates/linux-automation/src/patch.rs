@@ -198,4 +198,204 @@ mod tests {
         let pm = PatchManager::new(PackageManager::Zypper);
         assert_eq!(pm.build_reboot_check_command(), "zypper needs-rebooting");
     }
+
+    // ============================================================
+    // PackageManager tests
+    // ============================================================
+
+    #[test]
+    fn test_package_manager_variants() {
+        let variants = [
+            PackageManager::Yum,
+            PackageManager::Apt,
+            PackageManager::Dnf,
+            PackageManager::Zypper,
+        ];
+        assert_eq!(variants.len(), 4);
+    }
+
+    #[test]
+    fn test_package_manager_clone() {
+        let pm = PackageManager::Apt;
+        let cloned = pm.clone();
+        assert!(matches!(cloned, PackageManager::Apt));
+    }
+
+    #[test]
+    fn test_package_manager_debug() {
+        assert_eq!(format!("{:?}", PackageManager::Yum), "Yum");
+        assert_eq!(format!("{:?}", PackageManager::Apt), "Apt");
+        assert_eq!(format!("{:?}", PackageManager::Dnf), "Dnf");
+        assert_eq!(format!("{:?}", PackageManager::Zypper), "Zypper");
+    }
+
+    #[test]
+    fn test_package_manager_serialization() {
+        let variants = [
+            PackageManager::Yum,
+            PackageManager::Apt,
+            PackageManager::Dnf,
+            PackageManager::Zypper,
+        ];
+        for pm in variants {
+            let json = serde_json::to_string(&pm).unwrap();
+            let deserialized: PackageManager = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&deserialized).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    // ============================================================
+    // PatchInfo tests
+    // ============================================================
+
+    #[test]
+    fn test_patch_info_creation() {
+        let info = PatchInfo {
+            name: "openssl".to_string(),
+            current_version: "1.1.1k".to_string(),
+            available_version: "1.1.1w".to_string(),
+            severity: PatchSeverity::Critical,
+            advisory_id: "CESA-2024:0001".to_string(),
+            description: "Security fix".to_string(),
+        };
+        assert_eq!(info.name, "openssl");
+        assert!(matches!(info.severity, PatchSeverity::Critical));
+    }
+
+    #[test]
+    fn test_patch_info_clone() {
+        let info = PatchInfo {
+            name: "curl".to_string(),
+            current_version: "7.68".to_string(),
+            available_version: "7.88".to_string(),
+            severity: PatchSeverity::Important,
+            advisory_id: "CESA-2024:0002".to_string(),
+            description: "Bug fix".to_string(),
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.name, info.name);
+        assert!(matches!(cloned.severity, PatchSeverity::Important));
+    }
+
+    #[test]
+    fn test_patch_info_debug() {
+        let info = PatchInfo {
+            name: "vim".to_string(),
+            current_version: "8.1".to_string(),
+            available_version: "9.0".to_string(),
+            severity: PatchSeverity::Low,
+            advisory_id: "CESA-2024:0003".to_string(),
+            description: "Enhancement".to_string(),
+        };
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("PatchInfo"));
+        assert!(debug.contains("vim"));
+    }
+
+    #[test]
+    fn test_patch_info_serialization() {
+        let info = PatchInfo {
+            name: "nginx".to_string(),
+            current_version: "1.20".to_string(),
+            available_version: "1.24".to_string(),
+            severity: PatchSeverity::Moderate,
+            advisory_id: "CESA-2024:0004".to_string(),
+            description: "Update".to_string(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let deserialized: PatchInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.name, "nginx");
+        assert!(matches!(deserialized.severity, PatchSeverity::Moderate));
+    }
+
+    // ============================================================
+    // PatchSeverity tests
+    // ============================================================
+
+    #[test]
+    fn test_patch_severity_variants() {
+        let variants = [
+            PatchSeverity::Critical,
+            PatchSeverity::Important,
+            PatchSeverity::Moderate,
+            PatchSeverity::Low,
+        ];
+        assert_eq!(variants.len(), 4);
+    }
+
+    #[test]
+    fn test_patch_severity_clone() {
+        let s = PatchSeverity::Critical;
+        let cloned = s.clone();
+        assert!(matches!(cloned, PatchSeverity::Critical));
+    }
+
+    #[test]
+    fn test_patch_severity_debug() {
+        assert_eq!(format!("{:?}", PatchSeverity::Critical), "Critical");
+        assert_eq!(format!("{:?}", PatchSeverity::Low), "Low");
+    }
+
+    #[test]
+    fn test_patch_severity_serialization() {
+        let variants = [
+            PatchSeverity::Critical,
+            PatchSeverity::Important,
+            PatchSeverity::Moderate,
+            PatchSeverity::Low,
+        ];
+        for s in variants {
+            let json = serde_json::to_string(&s).unwrap();
+            let deserialized: PatchSeverity = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&deserialized).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    // ============================================================
+    // PatchManager edge cases
+    // ============================================================
+
+    #[test]
+    fn test_patch_manager_new_dnf() {
+        let pm = PatchManager::new(PackageManager::Dnf);
+        assert!(!pm.auto_reboot);
+        assert!(pm.exclude_packages.is_empty());
+    }
+
+    #[test]
+    fn test_patch_manager_new_zypper() {
+        let pm = PatchManager::new(PackageManager::Zypper);
+        assert!(!pm.auto_reboot);
+        assert!(pm.exclude_packages.is_empty());
+    }
+
+    #[test]
+    fn test_build_update_command_dnf_all() {
+        let pm = PatchManager::new(PackageManager::Dnf);
+        assert_eq!(pm.build_update_command(false), "dnf update -y");
+    }
+
+    #[test]
+    fn test_build_check_command_dnf() {
+        let pm = PatchManager::new(PackageManager::Dnf);
+        assert_eq!(pm.build_check_command(), "dnf check-update --security");
+    }
+
+    #[test]
+    fn test_build_reboot_check_command_dnf() {
+        let pm = PatchManager::new(PackageManager::Dnf);
+        assert_eq!(pm.build_reboot_check_command(), "needs-restarting -r");
+    }
+
+    #[test]
+    fn test_yum_and_dnf_same_commands() {
+        let yum = PatchManager::new(PackageManager::Yum);
+        let dnf = PatchManager::new(PackageManager::Dnf);
+        assert_eq!(yum.build_update_command(true), dnf.build_update_command(true));
+        assert_eq!(yum.build_update_command(false), dnf.build_update_command(false));
+        assert_eq!(yum.build_check_command(), dnf.build_check_command());
+        assert_eq!(yum.build_reboot_check_command(), dnf.build_reboot_check_command());
+    }
 }

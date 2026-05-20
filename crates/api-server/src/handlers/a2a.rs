@@ -1327,4 +1327,324 @@ mod tests {
         // deserializes correctly and has empty parts.
         assert!(req.message.parts.is_empty());
     }
+
+    // ------------------------------------------------------------------
+    // Handler-level tests (HTTP endpoint integration)
+    // ------------------------------------------------------------------
+
+    use axum::extract::{Path, Query, State};
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn handler_test_state() -> crate::AppState {
+        let config = kias_common::config::KiasConfig::default();
+        crate::AppState::new_async(config).await
+    }
+
+    async fn insert_test_task(store: &A2aTaskStore, id: &str, status: A2aTaskStatus) {
+        store
+            .insert(A2aTask {
+                id: id.to_string(),
+                status,
+                messages: vec![A2aMessage {
+                    role: A2aRole::User,
+                    parts: vec![A2aPart::Text {
+                        text: "test".to_string(),
+                        metadata: None,
+                    }],
+                    is_final: true,
+                    metadata: HashMap::new(),
+                }],
+                metadata: HashMap::new(),
+                artifacts: vec![],
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            })
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_handler_well_known_agent_card() {
+        let result = well_known_agent_card().await;
+        let card = result.0;
+        assert_eq!(card["id"], "kias-server");
+        assert_eq!(card["name"], "AgentGuard Agent Scheduler");
+        assert_eq!(card["protocolVersion"], "1.0");
+        assert_eq!(card["capabilities"]["streaming"], true);
+        assert_eq!(card["capabilities"]["pushNotifications"], true);
+        assert!(card["skills"].as_array().unwrap().len() >= 3);
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_agent_cards_empty() {
+        let state = handler_test_state().await;
+        let result = list_agent_cards(
+            State(state),
+            Query(AgentCardQuery {
+                skill: None,
+                streaming: None,
+            }),
+        )
+        .await;
+        assert_eq!(result.total, 0);
+        assert!(result.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_agent_cards_with_agents() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let state = handler_test_state().await;
+        let spec = AgentSpec {
+            name: "test-agent".to_string(),
+            image: "python:3.11".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "medium".to_string(),
+            env: HashMap::new(),
+        };
+        let agent = Agent::from_spec(spec);
+        let agent_id = agent.id.clone();
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(agent_id.clone(), agent);
+        }
+
+        let result = list_agent_cards(
+            State(state),
+            Query(AgentCardQuery {
+                skill: None,
+                streaming: None,
+            }),
+        )
+        .await;
+        assert_eq!(result.total, 1);
+        assert_eq!(result.items[0]["name"], "test-agent");
+        assert_eq!(result.items[0]["id"], agent_id);
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_agent_card_found() {
+        use crate::models::agent::{Agent, AgentSpec};
+
+        let state = handler_test_state().await;
+        let spec = AgentSpec {
+            name: "my-agent".to_string(),
+            image: "node:20".to_string(),
+            command: vec![],
+            resource_request: None,
+            labels: HashMap::new(),
+            priority: "high".to_string(),
+            env: HashMap::new(),
+        };
+        let agent = Agent::from_spec(spec);
+        let agent_id = agent.id.clone();
+        {
+            let mut agents = state.agents.write().await;
+            agents.insert(agent_id.clone(), agent);
+        }
+
+        let result = get_agent_card(State(state), Path(agent_id.clone())).await;
+        assert!(result.is_ok());
+        let card = result.unwrap().0;
+        assert_eq!(card["id"], agent_id);
+        assert_eq!(card["name"], "my-agent");
+        assert_eq!(card["status"], "Pending");
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_agent_card_not_found() {
+        let state = handler_test_state().await;
+        let result = get_agent_card(State(state), Path("nonexistent".to_string())).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_handler_send_task() {
+        let state = handler_test_state().await;
+        let body = TaskSendBody {
+            id: Some("handler-task-1".to_string()),
+            session_id: None,
+            message: A2aMessage {
+                role: A2aRole::User,
+                parts: vec![A2aPart::Text {
+                    text: "hello agent".to_string(),
+                    metadata: None,
+                }],
+                is_final: true,
+                metadata: HashMap::new(),
+            },
+            target_agent: None,
+            required_capabilities: None,
+            metadata: HashMap::new(),
+        };
+
+        let result = send_task(State(state.clone()), Json(body)).await;
+        assert!(result.is_ok());
+        let (status, _) = result.unwrap();
+        assert_eq!(status, axum::http::StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn test_handler_send_task_empty_parts() {
+        let state = handler_test_state().await;
+        let body = TaskSendBody {
+            id: None,
+            session_id: None,
+            message: A2aMessage {
+                role: A2aRole::User,
+                parts: vec![],
+                is_final: true,
+                metadata: HashMap::new(),
+            },
+            target_agent: None,
+            required_capabilities: None,
+            metadata: HashMap::new(),
+        };
+
+        let result = send_task(State(state), Json(body)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_task_found() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "get-task-1", A2aTaskStatus::Submitted).await;
+
+        let result = get_task(State(state), Path("get-task-1".to_string())).await;
+        assert!(result.is_ok());
+        let data = result.unwrap().0;
+        let task: A2aTask = serde_json::from_value(data.data.clone()).unwrap();
+        assert_eq!(task.id, "get-task-1");
+        assert_eq!(task.status, A2aTaskStatus::Submitted);
+    }
+
+    #[tokio::test]
+    async fn test_handler_get_task_not_found() {
+        let state = handler_test_state().await;
+        let result = get_task(State(state), Path("no-such-task".to_string())).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().status,
+            axum::http::StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_tasks_empty() {
+        let state = handler_test_state().await;
+        let result = list_tasks(
+            State(state),
+            Query(TaskListQuery {
+                status: None,
+                session_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(result.total, 0);
+        assert!(result.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_handler_list_tasks_with_filter() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "lt-1", A2aTaskStatus::Submitted).await;
+        insert_test_task(&state.a2a_tasks, "lt-2", A2aTaskStatus::Completed).await;
+        insert_test_task(&state.a2a_tasks, "lt-3", A2aTaskStatus::Working).await;
+
+        // All tasks
+        let all = list_tasks(
+            State(state.clone()),
+            Query(TaskListQuery {
+                status: None,
+                session_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(all.total, 3);
+
+        // Filter by status
+        let submitted = list_tasks(
+            State(state.clone()),
+            Query(TaskListQuery {
+                status: Some("submitted".to_string()),
+                session_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(submitted.total, 1);
+
+        let completed = list_tasks(
+            State(state),
+            Query(TaskListQuery {
+                status: Some("completed".to_string()),
+                session_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(completed.total, 1);
+    }
+
+    #[tokio::test]
+    async fn test_handler_cancel_task() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "cancel-1", A2aTaskStatus::Working).await;
+
+        let result = cancel_task(
+            State(state),
+            Path("cancel-1".to_string()),
+            Json(TaskCancelBody {
+                reason: Some("no longer needed".to_string()),
+            }),
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handler_cancel_terminal_task_fails() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "cancel-term", A2aTaskStatus::Completed).await;
+
+        let result = cancel_task(
+            State(state),
+            Path("cancel-term".to_string()),
+            Json(TaskCancelBody { reason: None }),
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().status,
+            axum::http::StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn test_handler_delete_task() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "del-1", A2aTaskStatus::Completed).await;
+
+        let result = delete_task(State(state.clone()), Path("del-1".to_string())).await;
+        assert!(result.is_ok());
+        // Verify deleted
+        assert!(state.a2a_tasks.get("del-1").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_handler_delete_active_task_fails() {
+        let state = handler_test_state().await;
+        insert_test_task(&state.a2a_tasks, "del-active", A2aTaskStatus::Working).await;
+
+        let result = delete_task(State(state), Path("del-active".to_string())).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().status,
+            axum::http::StatusCode::BAD_REQUEST
+        );
+    }
 }

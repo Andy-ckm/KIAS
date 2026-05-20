@@ -114,6 +114,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: ServiceAction,
     },
+    /// 定时任务管理 (R035) — crontab + systemd timer
+    CronOps {
+        hosts: Vec<String>,
+        action: CronAction,
+    },
 }
 
 /// 任务优先级
@@ -1338,6 +1343,114 @@ impl Default for DiskManagementResult {
             total_freed_human: "0B".to_string(),
             warnings: Vec::new(),
             output: String::new(),
+        }
+    }
+}
+
+/// 定时任务操作类型 (R035)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CronAction {
+    /// 列出所有 cron 任务
+    List,
+    /// 添加 cron 任务
+    Add {
+        schedule: String,
+        command: String,
+        comment: Option<String>,
+    },
+    /// 删除 cron 任务（按行号）
+    Remove { job_id: u32 },
+    /// 启用 cron 任务（取消注释）
+    Enable { job_id: u32 },
+    /// 禁用 cron 任务（注释掉）
+    Disable { job_id: u32 },
+    /// 列出 systemd 定时器
+    ListSystemdTimers,
+    /// 创建 systemd 定时器
+    CreateSystemdTimer {
+        name: String,
+        schedule: String,
+        command: String,
+    },
+    /// 删除 systemd 定时器
+    RemoveSystemdTimer { name: String },
+    /// 启用 systemd 定时器
+    EnableSystemdTimer { name: String },
+    /// 禁用 systemd 定时器
+    DisableSystemdTimer { name: String },
+}
+
+/// Cron 任务条目
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CronJobEntry {
+    /// 行号（1-based）
+    pub line_number: u32,
+    /// cron 表达式（如 "0 2 * * *"）
+    pub schedule: String,
+    /// 要执行的命令
+    pub command: String,
+    /// 注释（# 开头的行）
+    pub comment: Option<String>,
+    /// 是否启用（未被注释）
+    pub enabled: bool,
+    /// 来源（crontab / systemd）
+    pub source: CronSource,
+}
+
+/// Cron 任务来源
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CronSource {
+    /// 用户 crontab
+    Crontab,
+    /// /etc/cron.d/ 文件
+    CronD,
+    /// systemd 定时器
+    SystemdTimer,
+}
+
+/// Systemd 定时器信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SystemdTimerEntry {
+    /// 定时器名称
+    pub name: String,
+    /// 下次触发时间
+    pub next_trigger: String,
+    /// 上次触发时间
+    pub last_trigger: Option<String>,
+    /// 已用时间
+    pub elapsed: Option<String>,
+    /// 关联的 unit
+    pub unit: String,
+    /// 是否激活
+    pub active: bool,
+}
+
+/// Cron 操作结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CronOpsResult {
+    /// 执行的操作
+    pub action: String,
+    /// 是否成功
+    pub success: bool,
+    /// cron 任务列表
+    pub jobs: Vec<CronJobEntry>,
+    /// systemd 定时器列表
+    pub timers: Vec<SystemdTimerEntry>,
+    /// 输出信息
+    pub output: String,
+    /// 错误信息
+    pub errors: Vec<String>,
+}
+
+impl Default for CronOpsResult {
+    fn default() -> Self {
+        Self {
+            action: String::new(),
+            success: true,
+            jobs: Vec::new(),
+            timers: Vec::new(),
+            output: String::new(),
+            errors: Vec::new(),
         }
     }
 }

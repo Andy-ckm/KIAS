@@ -32,6 +32,7 @@
 pub mod accountability;
 pub mod audit_middleware;
 pub mod datasource;
+pub mod governance;
 pub mod handlers;
 pub mod policy;
 

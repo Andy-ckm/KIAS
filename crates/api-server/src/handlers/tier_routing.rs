@@ -589,7 +589,7 @@ mod tests {
             requires_tools: false,
             has_context: false,
             priority: 5,
-            cost_budget: 0.01,  // Very tight budget
+            cost_budget: 0.01, // Very tight budget
             latency_budget: 0.0,
             metadata: HashMap::new(),
         };
@@ -608,7 +608,7 @@ mod tests {
             has_context: false,
             priority: 5,
             cost_budget: 0.0,
-            latency_budget: 0.5,  // Very tight latency
+            latency_budget: 0.5, // Very tight latency
             metadata: HashMap::new(),
         };
         let result = evaluate_task(State(state), Json(req)).await.unwrap();
@@ -694,7 +694,8 @@ mod tests {
         let req = BatchEvaluateRequest {
             tasks: vec![
                 EvaluateRequest {
-                    description: "Implement a distributed consensus algorithm with fault tolerance".to_string(),
+                    description: "Implement a distributed consensus algorithm with fault tolerance"
+                        .to_string(),
                     input_tokens: 10000,
                     requires_tools: true,
                     has_context: true,
@@ -704,7 +705,8 @@ mod tests {
                     metadata: HashMap::new(),
                 },
                 EvaluateRequest {
-                    description: "Refactor the entire codebase with architectural changes".to_string(),
+                    description: "Refactor the entire codebase with architectural changes"
+                        .to_string(),
                     input_tokens: 8000,
                     requires_tools: true,
                     has_context: true,
@@ -788,7 +790,12 @@ mod tests {
         let state = test_state().await;
 
         // Register agents in all three tiers
-        for (id, tier) in [("w1", "weak"), ("w2", "weak"), ("m1", "mid"), ("s1", "strong")] {
+        for (id, tier) in [
+            ("w1", "weak"),
+            ("w2", "weak"),
+            ("m1", "mid"),
+            ("s1", "strong"),
+        ] {
             let req = RegisterAgentRequest {
                 agent_id: id.to_string(),
                 tier: tier.to_string(),
@@ -851,7 +858,7 @@ mod tests {
             input_tokens: 5000,
             requires_tools: true,
             has_context: true,
-            priority: 1,  // highest priority
+            priority: 1, // highest priority
             cost_budget: 0.0,
             latency_budget: 0.0,
             metadata: HashMap::new(),

@@ -332,7 +332,9 @@ mod tests {
                 },
             ],
         };
-        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let created = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert_eq!(created.nodes.len(), 3);
         assert_eq!(created.nodes[2].dependencies, vec!["n2"]);
     }
@@ -345,7 +347,9 @@ mod tests {
             description: "just a description, no nodes".to_string(),
             nodes: vec![],
         };
-        let created = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let created = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert!(created.nodes.is_empty());
         assert_eq!(created.description, "just a description, no nodes");
     }
@@ -383,13 +387,17 @@ mod tests {
                 description: String::new(),
                 nodes: vec![],
             };
-            let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+            let wf = create_workflow(State(state.clone()), Json(req))
+                .await
+                .unwrap();
             ids.push((name, wf.id.clone()));
         }
 
         // Delete the middle one
         let delete_id = &ids[1].1;
-        let _ = delete_workflow(State(state.clone()), Path(delete_id.clone())).await.unwrap();
+        let _ = delete_workflow(State(state.clone()), Path(delete_id.clone()))
+            .await
+            .unwrap();
 
         let summary = list_workflows(State(state)).await;
         assert_eq!(summary.total, 2);
@@ -444,8 +452,12 @@ mod tests {
             description: String::new(),
             nodes: vec![],
         };
-        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
-        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone())).await.unwrap();
+        let wf = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
+        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone()))
+            .await
+            .unwrap();
         let result = get_workflow(State(state), Path(wf.id.clone())).await;
         assert!(result.is_err());
     }

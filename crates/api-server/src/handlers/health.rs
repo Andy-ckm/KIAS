@@ -499,7 +499,11 @@ mod handler_tests {
         let state = test_state().await;
         let result = deep_health(State(state)).await;
         // agents_store, nodes_store, workflows_store, event_bus, memory, disk, load_average
-        assert_eq!(result.components.len(), 7, "Deep health should have 7 components");
+        assert_eq!(
+            result.components.len(),
+            7,
+            "Deep health should have 7 components"
+        );
     }
 
     #[tokio::test]
@@ -539,7 +543,10 @@ mod handler_tests {
         let names: Vec<&str> = result.components.iter().map(|c| c.name.as_str()).collect();
         assert!(names.contains(&"memory"), "Should include memory component");
         assert!(names.contains(&"disk"), "Should include disk component");
-        assert!(names.contains(&"load_average"), "Should include load_average component");
+        assert!(
+            names.contains(&"load_average"),
+            "Should include load_average component"
+        );
     }
 
     #[tokio::test]

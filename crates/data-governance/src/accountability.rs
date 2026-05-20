@@ -377,7 +377,10 @@ impl AccountabilityGraph {
     ///
     /// Follows causal edges backwards to find the originating action.
     /// Returns an AttributionResult with the full causal chain.
-    pub fn trace_root_cause(&self, action_id: &str) -> Result<AttributionResult, AccountabilityError> {
+    pub fn trace_root_cause(
+        &self,
+        action_id: &str,
+    ) -> Result<AttributionResult, AccountabilityError> {
         let _action = self
             .nodes
             .get(action_id)
@@ -404,12 +407,13 @@ impl AccountabilityGraph {
             }
         }
 
-        let root_cause_id = chain.last().cloned().unwrap_or_else(|| action_id.to_string());
+        let root_cause_id = chain
+            .last()
+            .cloned()
+            .unwrap_or_else(|| action_id.to_string());
         let root_cause = self.nodes.get(&root_cause_id);
 
-        let responsible_agent = root_cause
-            .map(|n| n.agent_id.clone())
-            .unwrap_or_default();
+        let responsible_agent = root_cause.map(|n| n.agent_id.clone()).unwrap_or_default();
 
         let confidence = if chain.len() > 1 {
             // Confidence decreases with chain length
@@ -611,7 +615,8 @@ impl AccountabilityGraph {
         let to_remove = self.nodes.len() - self.max_nodes + 100; // Remove extra for headroom
         for (id, _) in completed.iter().take(to_remove) {
             self.nodes.remove(id);
-            self.edges.retain(|e| e.cause_id != *id && e.effect_id != *id);
+            self.edges
+                .retain(|e| e.cause_id != *id && e.effect_id != *id);
         }
     }
 
@@ -853,11 +858,7 @@ impl ImmutableAuditTrail {
     }
 
     /// Append and immediately complete an action.
-    pub fn append_completed(
-        &mut self,
-        action: ActionNode,
-        outcome: ActionOutcome,
-    ) -> String {
+    pub fn append_completed(&mut self, action: ActionNode, outcome: ActionOutcome) -> String {
         let mut action = action;
         action.complete(outcome);
         self.append(action)
@@ -987,10 +988,7 @@ impl ImmutableAuditTrail {
             property: AuditProperty::NonRepudiation,
             satisfied: violations == 0,
             details: if details.is_empty() {
-                format!(
-                    "All {} entries have agent attribution",
-                    self.entries.len()
-                )
+                format!("All {} entries have agent attribution", self.entries.len())
             } else {
                 details.join("; ")
             },
@@ -1118,7 +1116,13 @@ mod tests {
 
     #[test]
     fn test_action_node_new() {
-        let node = ActionNode::new("a1", "agent-1", "read_file", "/etc/hosts", ActionSeverity::Low);
+        let node = ActionNode::new(
+            "a1",
+            "agent-1",
+            "read_file",
+            "/etc/hosts",
+            ActionSeverity::Low,
+        );
         assert_eq!(node.id, "a1");
         assert_eq!(node.agent_id, "agent-1");
         assert_eq!(node.action_type, "read_file");
@@ -1270,9 +1274,13 @@ mod tests {
     #[test]
     fn test_trace_root_cause_direct() {
         let mut graph = AccountabilityGraph::new(MonitoringMode::Reactive);
-        graph.record_action(
-            ActionNode::new("a1", "agent-1", "deploy", "prod", ActionSeverity::High),
-        );
+        graph.record_action(ActionNode::new(
+            "a1",
+            "agent-1",
+            "deploy",
+            "prod",
+            ActionSeverity::High,
+        ));
         graph.complete_action("a1", ActionOutcome::Failure);
 
         let result = graph.trace_root_cause("a1").unwrap();
@@ -1335,7 +1343,13 @@ mod tests {
     #[test]
     fn test_evaluate_risk_low_severity() {
         let graph = AccountabilityGraph::new(MonitoringMode::Proactive);
-        let action = ActionNode::new("a1", "agent-1", "read_file", "/tmp/test", ActionSeverity::Low);
+        let action = ActionNode::new(
+            "a1",
+            "agent-1",
+            "read_file",
+            "/tmp/test",
+            ActionSeverity::Low,
+        );
 
         let assessment = graph.evaluate_risk(&action);
         assert!(assessment.risk_score < 0.3);
@@ -1362,7 +1376,8 @@ mod tests {
 
     #[test]
     fn test_evaluate_risk_with_agent_failures() {
-        let mut graph = AccountabilityGraph::new(MonitoringMode::Proactive).with_risk_threshold(0.8);
+        let mut graph =
+            AccountabilityGraph::new(MonitoringMode::Proactive).with_risk_threshold(0.8);
         // Record 3 past failures for agent-1
         for i in 0..3 {
             let mut node = ActionNode::new(
@@ -1376,13 +1391,7 @@ mod tests {
             graph.record_action(node);
         }
 
-        let action = ActionNode::new(
-            "a1",
-            "agent-1",
-            "deploy",
-            "prod",
-            ActionSeverity::Medium,
-        );
+        let action = ActionNode::new("a1", "agent-1", "deploy", "prod", ActionSeverity::Medium);
         let assessment = graph.evaluate_risk(&action);
         assert!(assessment.risk_score > 0.3); // Base 0.3 + failure history
         assert!(assessment
@@ -1404,22 +1413,13 @@ mod tests {
 
         let assessment = graph.evaluate_risk(&action);
         assert!(assessment.risk_score >= 0.5); // 0.3 (medium) + 0.2 (sensitive)
-        assert!(assessment
-            .reasons
-            .iter()
-            .any(|r| r.contains("sensitive")));
+        assert!(assessment.reasons.iter().any(|r| r.contains("sensitive")));
     }
 
     #[test]
     fn test_evaluate_risk_threshold_customization() {
         let graph = AccountabilityGraph::new(MonitoringMode::Proactive).with_risk_threshold(0.5);
-        let action = ActionNode::new(
-            "a1",
-            "agent-1",
-            "deploy",
-            "prod",
-            ActionSeverity::High,
-        );
+        let action = ActionNode::new("a1", "agent-1", "deploy", "prod", ActionSeverity::High);
 
         let assessment = graph.evaluate_risk(&action);
         assert!(assessment.risk_score >= 0.6); // High severity
@@ -1589,8 +1589,7 @@ mod tests {
 
     #[test]
     fn test_graph_pruning() {
-        let mut graph =
-            AccountabilityGraph::new(MonitoringMode::Reactive).with_max_nodes(5);
+        let mut graph = AccountabilityGraph::new(MonitoringMode::Reactive).with_max_nodes(5);
 
         for i in 0..10 {
             let mut node = ActionNode::new(
@@ -1664,8 +1663,8 @@ mod tests {
 
     #[test]
     fn test_full_scenario_deployment_chain() {
-        let mut graph = AccountabilityGraph::new(MonitoringMode::Continuous)
-            .with_risk_threshold(0.7);
+        let mut graph =
+            AccountabilityGraph::new(MonitoringMode::Continuous).with_risk_threshold(0.7);
 
         // Step 1: Agent-1 modifies config
         graph.record_action(ActionNode::new(
@@ -1709,11 +1708,10 @@ mod tests {
         let attribution = graph.trace_root_cause("deploy").unwrap();
         assert_eq!(attribution.root_cause, "config-change");
         assert_eq!(attribution.responsible_agent, "agent-1");
-        assert_eq!(attribution.causal_chain, vec![
-            "config-change",
-            "build",
-            "deploy"
-        ]);
+        assert_eq!(
+            attribution.causal_chain,
+            vec!["config-change", "build", "deploy"]
+        );
 
         // Proactive risk check for a new deploy
         let new_deploy = ActionNode::new(
@@ -1751,7 +1749,13 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        let hash = trail.append(ActionNode::new("a1", "agent-1", "deploy", "prod", ActionSeverity::High));
+        let hash = trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "deploy",
+            "prod",
+            ActionSeverity::High,
+        ));
         assert!(!hash.is_empty());
         assert_eq!(trail.len(), 1);
         assert_eq!(trail.entries()[0].prev_hash, "genesis");
@@ -1764,9 +1768,27 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        let hash1 = trail.append(ActionNode::new("a1", "agent-1", "build", "ci", ActionSeverity::Medium));
-        let hash2 = trail.append(ActionNode::new("a2", "agent-2", "test", "ci", ActionSeverity::Low));
-        let hash3 = trail.append(ActionNode::new("a3", "agent-3", "deploy", "prod", ActionSeverity::Critical));
+        let hash1 = trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "build",
+            "ci",
+            ActionSeverity::Medium,
+        ));
+        let hash2 = trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "test",
+            "ci",
+            ActionSeverity::Low,
+        ));
+        let hash3 = trail.append(ActionNode::new(
+            "a3",
+            "agent-3",
+            "deploy",
+            "prod",
+            ActionSeverity::Critical,
+        ));
 
         // Chain links: each entry's prev_hash = previous entry's entry_hash
         assert_eq!(trail.entries()[0].prev_hash, "genesis");
@@ -1780,8 +1802,20 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
-        trail.append(ActionNode::new("a2", "agent-2", "write", "file:/tmp", ActionSeverity::Medium));
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
+        trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "write",
+            "file:/tmp",
+            ActionSeverity::Medium,
+        ));
 
         let result = trail.verify_integrity();
         assert!(result.satisfied);
@@ -1794,8 +1828,20 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
-        trail.append(ActionNode::new("a2", "agent-2", "write", "file:/tmp", ActionSeverity::Medium));
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
+        trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "write",
+            "file:/tmp",
+            ActionSeverity::Medium,
+        ));
 
         // Tamper with the first entry's action type
         trail.entries[0].action.action_type = "TAMPERED".to_string();
@@ -1832,8 +1878,20 @@ mod tests {
         let mut trail = ImmutableAuditTrail::new(graph);
 
         // Pending action is not terminal, so completeness doesn't require it
-        trail.append(ActionNode::new("a1", "agent-1", "build", "ci", ActionSeverity::Medium));
-        trail.graph_mut().record_action(ActionNode::new("a2", "agent-2", "deploy", "prod", ActionSeverity::Critical));
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "build",
+            "ci",
+            ActionSeverity::Medium,
+        ));
+        trail.graph_mut().record_action(ActionNode::new(
+            "a2",
+            "agent-2",
+            "deploy",
+            "prod",
+            ActionSeverity::Critical,
+        ));
 
         let result = trail.verify_completeness();
         assert!(result.satisfied); // a2 is still Pending, not terminal
@@ -1844,8 +1902,20 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
-        trail.append(ActionNode::new("a2", "agent-2", "write", "file:/tmp", ActionSeverity::Medium));
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
+        trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "write",
+            "file:/tmp",
+            ActionSeverity::Medium,
+        ));
 
         let result = trail.verify_non_repudiation();
         assert!(result.satisfied);
@@ -1857,7 +1927,13 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "", "read", "file:/etc", ActionSeverity::Low));
+        trail.append(ActionNode::new(
+            "a1",
+            "",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
 
         let result = trail.verify_non_repudiation();
         assert!(!result.satisfied);
@@ -1870,9 +1946,24 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "agent-1", "build", "ci", ActionSeverity::Medium));
-        trail.append(ActionNode::new("a2", "agent-2", "deploy", "prod", ActionSeverity::Critical));
-        trail.graph_mut().add_causal_link("a1", "a2", "deployed after build").unwrap();
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "build",
+            "ci",
+            ActionSeverity::Medium,
+        ));
+        trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "deploy",
+            "prod",
+            ActionSeverity::Critical,
+        ));
+        trail
+            .graph_mut()
+            .add_causal_link("a1", "a2", "deployed after build")
+            .unwrap();
 
         let result = trail.verify_causal_coherence();
         assert!(result.satisfied);
@@ -1884,11 +1975,20 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        trail.append(ActionNode::new("a1", "agent-1", "build", "ci", ActionSeverity::Medium));
+        trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "build",
+            "ci",
+            ActionSeverity::Medium,
+        ));
         // a2 is in the graph but NOT in the trail
         let a2 = ActionNode::new("a2", "agent-2", "deploy", "prod", ActionSeverity::Critical);
         trail.graph_mut().record_action(a2);
-        trail.graph_mut().add_causal_link("a1", "a2", "deployed after build").unwrap();
+        trail
+            .graph_mut()
+            .add_causal_link("a1", "a2", "deployed after build")
+            .unwrap();
 
         let result = trail.verify_causal_coherence();
         assert!(!result.satisfied);
@@ -1908,12 +2008,19 @@ mod tests {
         a2.complete(ActionOutcome::Success);
         trail.append(a2);
 
-        trail.graph_mut().add_causal_link("a1", "a2", "deployed after build").unwrap();
+        trail
+            .graph_mut()
+            .add_causal_link("a1", "a2", "deployed after build")
+            .unwrap();
 
         let results = trail.verify_all();
         assert_eq!(results.len(), 4);
         for r in &results {
-            assert!(r.satisfied, "Property {:?} failed: {}", r.property, r.details);
+            assert!(
+                r.satisfied,
+                "Property {:?} failed: {}",
+                r.property, r.details
+            );
         }
         assert!(trail.is_valid());
     }
@@ -1939,8 +2046,20 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        let hash1 = trail.append(ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
-        let hash2 = trail.append(ActionNode::new("a2", "agent-2", "write", "file:/tmp", ActionSeverity::Medium));
+        let hash1 = trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
+        let hash2 = trail.append(ActionNode::new(
+            "a2",
+            "agent-2",
+            "write",
+            "file:/tmp",
+            ActionSeverity::Medium,
+        ));
 
         assert_ne!(hash1, hash2);
     }
@@ -1950,10 +2069,19 @@ mod tests {
         let graph = AccountabilityGraph::new(MonitoringMode::Reactive);
         let mut trail = ImmutableAuditTrail::new(graph);
 
-        let hash1 = trail.append(ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
+        let hash1 = trail.append(ActionNode::new(
+            "a1",
+            "agent-1",
+            "read",
+            "file:/etc",
+            ActionSeverity::Low,
+        ));
 
         // Compute hash for same action with same prev_hash
-        let hash2 = SignedAuditEntry::compute_hash("genesis", &ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low));
+        let hash2 = SignedAuditEntry::compute_hash(
+            "genesis",
+            &ActionNode::new("a1", "agent-1", "read", "file:/etc", ActionSeverity::Low),
+        );
 
         assert_eq!(hash1, hash2);
     }
@@ -1982,7 +2110,11 @@ mod tests {
         assert_eq!(snap.entries[1].outcome, "Failure");
         // All properties should pass
         for p in &snap.properties {
-            assert!(p.satisfied, "Property {:?} failed: {}", p.property, p.details);
+            assert!(
+                p.satisfied,
+                "Property {:?} failed: {}",
+                p.property, p.details
+            );
         }
     }
 
@@ -1997,15 +2129,24 @@ mod tests {
 
         let hash = trail.append(action);
         assert!(!hash.is_empty());
-        assert_eq!(trail.entries()[0].action.metadata.get("version"), Some(&"1.2.3".to_string()));
+        assert_eq!(
+            trail.entries()[0].action.metadata.get("version"),
+            Some(&"1.2.3".to_string())
+        );
     }
 
     #[test]
     fn test_property_display() {
         assert_eq!(format!("{}", AuditProperty::Completeness), "Completeness");
         assert_eq!(format!("{}", AuditProperty::Integrity), "Integrity");
-        assert_eq!(format!("{}", AuditProperty::NonRepudiation), "NonRepudiation");
-        assert_eq!(format!("{}", AuditProperty::CausalCoherence), "CausalCoherence");
+        assert_eq!(
+            format!("{}", AuditProperty::NonRepudiation),
+            "NonRepudiation"
+        );
+        assert_eq!(
+            format!("{}", AuditProperty::CausalCoherence),
+            "CausalCoherence"
+        );
     }
 
     #[test]

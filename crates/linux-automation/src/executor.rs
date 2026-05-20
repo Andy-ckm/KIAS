@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_task_priority_variants() {
-        let priorities = vec![
+        let priorities = [
             TaskPriority::Low,
             TaskPriority::Normal,
             TaskPriority::High,
@@ -633,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_task_status_variants() {
-        let statuses = vec![
+        let statuses = [
             TaskStatus::Pending,
             TaskStatus::Running,
             TaskStatus::Success,

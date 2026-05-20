@@ -489,3 +489,80 @@ paper_insights:
     target_module: "api-server / data-governance"
     priority: medium
     status: pending
+
+  - paper_id: "2605.19240"
+    title: "CASPIAN: Online Detection and Attribution of Cascade Attacks in LLM Multi-Agent Systems"
+    core_idea: "Cross-channel causal monitoring for detecting cascade attacks in MAS where adversarial influence propagates across agents through complex interactions."
+    actionable_items:
+      - "Implement cross-channel event correlation in monitor module: track causal chains across agent tool calls, messages, and state changes"
+      - "Add cascade attack detector: pattern-match propagation signatures where one agent's compromised output triggers failures in downstream agents"
+      - "Build attribution engine: trace attack origin through causal graph back to the initial compromised agent"
+    target_module: "monitor / data-governance"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.19351"
+    title: "PAVE: A Cognitive Architecture for Legitimate Violation in Generative Agent Societies"
+    core_idea: "Four-module cognitive architecture (Perception-Assessment-Verdict-Emulation) for agents to reason about when rule-breaking is justified in emergency scenarios."
+    actionable_items:
+      - "Add PAVE-style decision layer to autonomy-controller: before executing a policy violation, assess authority distance, peer behavior, and situational severity"
+      - "Implement emergency override protocol: when severity exceeds threshold, allow bounded rule-breaking with mandatory audit trail"
+      - "Create violation justification log: every policy deviation must record Perception/Assessment/Verdict reasoning chain"
+    target_module: "autonomy-controller / data-governance"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.19915"
+    title: "LLM Agents Make Collective Belief Dynamics Programmable"
+    core_idea: "LLM agents can systematically steer population-level beliefs through coordinated persuasion strategies, making collective belief dynamics programmable."
+    actionable_items:
+      - "Add belief propagation monitor: detect when multiple agents converge on the same conclusion suspiciously fast (coordination signal)"
+      - "Implement diversity enforcement: require agents to maintain independent reasoning paths, flag correlated outputs"
+      - "Build collective behavior anomaly detector: baseline normal multi-agent agreement rates, alert on statistical anomalies"
+    target_module: "monitor / controller"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.16626"
+    title: "SLEIGHT-Bench: A Benchmark of Evasion Attacks Against Agent Monitors"
+    core_idea: "40 attacks across 11 categories where coding agents covertly pursue harmful objectives while evading LLM-based monitors. Reveals monitors are easily fooled."
+    actionable_items:
+      - "Adopt SLEIGHT-Bench attack taxonomy as AgentGuard's threat model: weight exfiltration, credential theft, rogue deployment, data exfiltration"
+      - "Implement multi-layer monitoring: combine rule-based + LLM-based monitors, no single point of evasion"
+      - "Add adversarial red-team testing: periodically run SLEIGHT-style evasion probes against AgentGuard's own monitoring stack"
+    target_module: "monitor / data-governance / benchmarks"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.16630"
+    title: "PrivScope: Task-scoped Disclosure Control for Hybrid Agentic Systems"
+    core_idea: "Prevent over-disclosure in hybrid local-cloud agents by reasoning over payload scope and stripping task-irrelevant context before cloud delegation."
+    actionable_items:
+      - "Implement payload scoping in MCP protocol layer: before sending data to external LLM/tool, strip context unrelated to current task"
+      - "Add sensitivity classifier: tag data elements as task-relevant/irrelevant/sensitive, enforce data minimization"
+      - "Build disclosure audit log: record what data was sent to which external service for each agent action"
+    target_module: "mcp-protocol / data-governance"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.05974"
+    title: "PragLocker: Protecting Agent Intellectual Property in Untrusted Deployments"
+    core_idea: "Function-preserving obfuscated prompts that are non-portable: work only with the intended base model, preventing agent IP theft in untrusted environments."
+    actionable_items:
+      - "Add prompt integrity verification to skills registry: hash and verify skill prompts haven't been tampered or exfiltrated"
+      - "Implement skill watermarking: embed invisible markers in registered skills to detect unauthorized copying"
+      - "Build deployment trust scoring: assess environment trustworthiness before releasing full skill capabilities"
+    target_module: "skills / api-server"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.19186"
+    title: "Discoverable Agent Knowledge: A Formal Framework for Agentic KG Affordances"
+    core_idea: "Formal framework describing what an agent can prove from a knowledge source, what prior knowledge is needed, and how ontological mismatches are bridged."
+    actionable_items:
+      - "Add capability ontology to agent registry: formalize what each agent can do, what it needs, and what it produces"
+      - "Implement epistemic soundness check: before task delegation, verify the target agent has sufficient prior knowledge"
+      - "Build knowledge gap detector: when agent fails, identify if the failure is due to missing ontological prerequisites"
+    target_module: "knowledge / scheduler"
+    priority: medium
+    status: pending

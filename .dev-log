@@ -13,3 +13,4 @@
 [2026-05-20 14:40] metrics.rs 13->21 (+8) | 四步法:Y | 测试通过:Y | 磁盘清理83->51% | 4093 total
 [2026-05-20 17:30] a2a.rs 18→33 tests (+15) — handler-level tests for all 8 HTTP endpoints | 四步法:Y | 研究:N(本轮专注测试覆盖) | 丰田五问:Y(根因:a2a.rs有11个handler函数但只有序列化/store测试，0个handler集成测试) | 钱学森:Y(整体性:discovery→agents→tasks全链路/综合集成:参考其他handler测试模式/反馈控制:dev-state驱动/层次分解:handler级集成测试/鲁棒性:404+400+terminal状态边界全覆盖/可观测性:每个endpoint独立测试/工程化:15测试) | 测试:Y(4108 passed, 0 clippy) | 下一步:im.rs(20)或knowledge.rs(19)提测
 [2026-05-20 18:10] iteration 48: im.rs webhook handler tests +9 (29 total) | 遵守四步法:Y | 测试通过:Y | 0 clippy | disk 83%→51% cleanup | next: context.rs or nl_command.rs 提测
+[2026-05-20 18:30] iteration 49-50: auth_gxp.rs +13 tests (28 total), knowledge.rs +6 tests (25 total) | 遵守四步法:Y | 测试通过:Y | 0 clippy | next: agents.rs invoke_agent

@@ -70,6 +70,9 @@ pub enum AutomationError {
     #[error("进程管理错误: {0}")]
     ProcessOperation(String),
 
+    #[error("日志管理错误: {0}")]
+    LogOperation(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }

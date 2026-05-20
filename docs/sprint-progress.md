@@ -1,3 +1,27 @@
+## Latest: 2026-05-20 17:57 (Monitoring Check)
+
+### Quality Gates
+| Check | Result |
+|-------|--------|
+| Tests | 4108 passed, 0 failed |
+| Clippy | 0 warnings (fixed 2 unused imports in a2a.rs) |
+| Disk / | 73% (11G free) - OK |
+| Disk /mnt | 64% (11G free) - OK |
+| Git | clean after commit |
+| Papers | 256 downloaded (+3 new) |
+
+### Changes Since Last Check
+- Fixed clippy: removed unused imports (Arc, RwLock) from a2a.rs test module
+- Downloaded 3 new papers: AIBOM governance, skill specifications, ContextFlow
+- Updated paper-index.md: 259 total, 256 downloaded
+
+### New Papers (2026-05-20 17:57)
+- 2605.19755: Operationalising AIBOMs for Verifiable AI Provenance (governance/compliance)
+- 2605.19362: User Comprehension Supports for LLM Agent Skill Specifications
+- 2605.19314: ContextFlow: Hierarchical Task-State Alignment for Long-Horizon Agents
+
+---
+
 ## Latest: 2026-05-20 17:17 (Monitoring Check)
 
 ### Quality Gates

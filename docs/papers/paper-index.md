@@ -1,10 +1,20 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (17:57)
+更新时间: 2026-05-20 (18:10)
 
-## 论文列表 (259 篇)
+## 论文列表 (269 篇)
 
-### 已下载论文 (256 篇)
+### 已下载论文 (266 篇)
+- ✅ 2605.19597.pdf (LLMEval-Logic: A Solver-Verified Chinese Benchmark for Logical Reasoning of LLMs with Adversarial Hardening)
+- ✅ 2605.19377.pdf (The Evaluation Game: Beyond Static LLM Benchmarking)
+- ✅ 2605.19270.pdf (DECOR: Auditing LLM Deception via Information Manipulation Theory)
+- ✅ 2605.19127.pdf (POLAR-Bench: A Diagnostic Benchmark for Privacy-Utility Trade-offs in LLM Agents)
+- ✅ 2605.18991.pdf (Agent Security is a Systems Problem)
+- ✅ 2605.18890.pdf (Stop Drawing Scientific Claims from LLM Social Simulations Without Robustness Audits)
+- ✅ 2603.11768.pdf (Governing Evolving Memory in LLM Agents: Risks, Mechanisms, and the SSGM Framework)
+- ✅ 2602.07777.pdf (Talk, Judge, Cooperate: Gossip-Driven Indirect Reciprocity in Self-Interested LLM Agents)
+- ✅ 2510.03485.pdf (Learning Efficient Guardrails for Compliance)
+- ✅ 2410.15362.pdf (Faster-GCG: Efficient Discrete Optimization Jailbreak Attacks against Aligned LLMs)
 - ✅ 2605.19755.pdf (Operationalising AIBOMs for Verifiable AI Provenance and Lifecycle Assurance)
 - ✅ 2605.19362.pdf (Toward User Comprehension Supports for LLM Agent Skill Specifications)
 - ✅ 2605.19314.pdf (ContextFlow: Hierarchical Task-State Alignment for Long-Horizon Embodied Agents)
@@ -1869,6 +1879,86 @@
     - 主题: autonomous programming, multi-model feedback, code generation
     - 链接: https://arxiv.org/abs/2605.18073
     - 状态: ✅ 已下载 (4.2MB)
+
+72. **[2605.18991]** Agent Security is a Systems Problem
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.CR, cs.AI
+    - 主题: agent security, systems security, untrusted model, security invariants
+    - 链接: https://arxiv.org/abs/2605.18991
+    - 状态: ✅ 已下载 (0.04MB)
+    - 核心观点: Agent安全必须作为系统问题处理，AI模型应被视为不可信组件，安全不变量需在系统层面强制执行
+
+73. **[2605.19270]** DECOR: Auditing LLM Deception via Information Manipulation Theory
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: LLM deception, audit, information manipulation, truthfulness
+    - 链接: https://arxiv.org/abs/2605.19270
+    - 状态: ✅ 已下载 (1.1MB)
+    - 核心观点: 通过信息操纵理论审计LLM的欺骗行为，检测遗漏事实、转移焦点、模糊含义等微妙欺骗
+
+74. **[2605.18890]** Stop Drawing Scientific Claims from LLM Social Simulations Without Robustness Audits
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: LLM simulation, robustness audit, social simulation, scientific claims
+    - 链接: https://arxiv.org/abs/2605.18890
+    - 状态: ✅ 已下载 (0.7MB)
+    - 核心观点: LLM社会模拟的科学主张需要鲁棒性审计支持，否则不可靠
+
+75. **[2603.11768]** Governing Evolving Memory in LLM Agents: Risks, Mechanisms, and the SSGM Framework
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: agent memory, memory governance, stability, safety, long-term memory
+    - 链接: https://arxiv.org/abs/2603.11768
+    - 状态: ✅ 已下载 (1.3MB)
+    - 核心观点: SSGM框架治理LLM Agent的动态演化记忆，确保稳定性和安全性
+
+76. **[2510.03485]** Learning Efficient Guardrails for Compliance
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: guardrails, compliance, policy adherence, autonomous web agents
+    - 链接: https://arxiv.org/abs/2510.03485
+    - 状态: ✅ 已下载 (0.2MB)
+    - 核心观点: PolicyGuardBench基准测试60k策略-轨迹对，评估自主Web Agent的策略合规能力
+
+77. **[2602.07777]** Talk, Judge, Cooperate: Gossip-Driven Indirect Reciprocity in Self-Interested LLM Agents
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI, cs.MA
+    - 主题: multi-agent cooperation, indirect reciprocity, reputation, gossip
+    - 链接: https://arxiv.org/abs/2602.07777
+    - 状态: ✅ 已下载 (1.9MB)
+    - 核心观点: ALIGN框架通过语言八卦网络实现自利LLM Agent间的间接互惠合作
+
+78. **[2605.19127]** POLAR-Bench: A Diagnostic Benchmark for Privacy-Utility Trade-offs in LLM Agents
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: privacy, utility trade-off, LLM agents, benchmark
+    - 链接: https://arxiv.org/abs/2605.19127
+    - 状态: ✅ 已下载 (1.7MB)
+    - 核心观点: 诊断LLM Agent的隐私-效用权衡，确保Agent在访问私有数据时遵循用户意图
+
+79. **[2605.19377]** The Evaluation Game: Beyond Static LLM Benchmarking
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: LLM benchmarking, jailbreak, adversarial robustness, fine-tuning defense
+    - 链接: https://arxiv.org/abs/2605.19377
+    - 状态: ✅ 已下载 (0.8MB)
+    - 核心观点: 超越静态基准测试，探索对抗性鲁棒性微调的理论基础
+
+80. **[2410.15362]** Faster-GCG: Efficient Discrete Optimization Jailbreak Attacks against Aligned LLMs
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.CR, cs.AI
+    - 主题: jailbreak attack, adversarial prompt, guardrail bypass, discrete optimization
+    - 链接: https://arxiv.org/abs/2410.15362
+    - 状态: ✅ 已下载 (0.7MB)
+    - 核心观点: 高效离散优化方法绕过LLM对齐防护，揭示安全漏洞
+
+81. **[2605.19597]** LLMEval-Logic: A Solver-Verified Chinese Benchmark for Logical Reasoning of LLMs with Adversarial Hardening
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-19 | 分类: cs.AI
+    - 主题: logical reasoning, benchmark, adversarial hardening, Chinese NLP
+    - 链接: https://arxiv.org/abs/2605.19597
+    - 状态: ✅ 已下载 (0.3MB)
+    - 核心观点: 中文逻辑推理基准，通过对抗硬化提升LLM推理评估可靠性
 
 ---
 

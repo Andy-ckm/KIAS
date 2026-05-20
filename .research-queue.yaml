@@ -389,4 +389,103 @@ paper_insights:
     target_module: "data-governance"
     priority: medium
     status: done
-    findings: "Implemented ImmutableAuditTrail in accountability.rs. Hash-chain integrity (DefaultHasher), 4-property verification (Completeness/Integrity/NonRepudiation/CausalCoherence), SignedAuditEntry with prev_hash chain, export_snapshot. +21 tests. data-governance: 100→121 tests."
+    findings: "Implemented ImmutableAuditTrail in accountability.rs. Hash-chain integrity (DefaultHasher), 4-property verification (Completeness/Integrity/NonRepudiation/CausalCoherence), SignedAuditEntry with prev_hash chain, export_snapshot. +21 tests. data-governance: 100->121 tests."
+
+  - paper_id: "2605.18991"
+    title: "Agent Security is a Systems Problem"
+    core_idea: "Agent security must be systems-level: treat AI model as untrusted component, enforce security invariants at system level (not just model robustness). Defense-in-depth: capability confinement + information flow control + behavioral monitoring."
+    actionable_items:
+      - "Implement capability confinement: restrict agent tool access based on task context and risk level"
+      - "Build information flow control: track data propagation across agent tool calls to prevent data exfiltration"
+      - "Add behavioral monitoring: detect anomalous agent actions (unusual tool sequences, excessive data access)"
+      - "Create security invariant enforcement layer in api-server middleware"
+    target_module: "data-governance / api-server"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.19270"
+    title: "DECOR: Auditing LLM Deception via Information Manipulation Theory"
+    core_idea: "Audit LLM deception by decomposing outputs into information manipulation types: omission, focus-shifting, meaning-obfuscation. Fine-grained attribution of deceptive strategies."
+    actionable_items:
+      - "Implement deception audit module in data-governance: classify agent outputs by manipulation type"
+      - "Add omission detection: compare agent response completeness against ground-truth context"
+      - "Build deception score: weighted combination of manipulation type severities"
+    target_module: "data-governance"
+    priority: high
+    status: pending
+
+  - paper_id: "2603.11768"
+    title: "Governing Evolving Memory in LLM Agents: SSGM Framework"
+    core_idea: "SSGM (Stability and Safety Governed Memory) framework: governs dynamic memory evolution in autonomous agents. Memory lifecycle policies, safety constraints on memory writes, stability guarantees for memory reads."
+    actionable_items:
+      - "Implement memory lifecycle policies: TTL, max-size, priority-based eviction for agent memory"
+      - "Add safety constraints on memory writes: validate, sanitize, and audit all memory mutations"
+      - "Build memory stability guarantees: prevent adversarial memory poisoning via anomaly detection"
+      - "Create MemoryGovernor component in data-governance crate"
+    target_module: "data-governance / knowledge"
+    priority: high
+    status: pending
+
+  - paper_id: "2510.03485"
+    title: "Learning Efficient Guardrails for Compliance"
+    core_idea: "PolicyGuardBench: 60k policy-trajectory pairs for evaluating autonomous web agent compliance. Guardrails must be learned from policy specifications, not hand-coded."
+    actionable_items:
+      - "Implement policy-to-guardrail compiler: translate YAML policy rules into runtime enforcement guards"
+      - "Build compliance evaluation framework: test agent trajectories against policy specifications"
+      - "Add guardrail learning: adapt enforcement strictness based on violation patterns"
+    target_module: "data-governance / autonomy-controller"
+    priority: high
+    status: pending
+
+  - paper_id: "2602.07777"
+    title: "Talk, Judge, Cooperate: Gossip-Driven Indirect Reciprocity in LLM Agents"
+    core_idea: "ALIGN framework: enables cooperation among self-interested LLM agents via linguistic gossip networks and reputation systems. Indirect reciprocity through reputation propagation."
+    actionable_items:
+      - "Implement agent reputation scoring system based on task completion quality"
+      - "Build gossip protocol: agents share reputation information about peers"
+      - "Add reputation-based task routing: prefer high-reputation agents for critical tasks"
+    target_module: "team-engine / scheduler"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.19127"
+    title: "POLAR-Bench: Privacy-Utility Trade-offs in LLM Agents"
+    core_idea: "Benchmark for evaluating agent privacy compliance: agents must follow user-defined data sharing rules even under adversarial third-party behavior."
+    actionable_items:
+      - "Implement data classification: tag agent-accessible data by sensitivity level"
+      - "Add privacy policy enforcement: restrict tool outputs based on data sensitivity and destination"
+      - "Build privacy audit trail: log all data access and sharing decisions"
+    target_module: "data-governance"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.19377"
+    title: "The Evaluation Game: Beyond Static LLM Benchmarking"
+    core_idea: "Static benchmarks are insufficient for evaluating LLM robustness. Need adversarial evaluation that evolves with attack sophistication."
+    actionable_items:
+      - "Implement dynamic security testing: generate adversarial inputs for agent tool calls"
+      - "Add continuous robustness evaluation: periodic adversarial probing of running agents"
+      - "Build attack taxonomy: catalog and automate known agent attack patterns"
+    target_module: "data-governance / benchmarks"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.18890"
+    title: "Robustness Audits for LLM Social Simulations"
+    core_idea: "LLM-based social simulations need robustness audits before drawing scientific claims. Perturbation sensitivity analysis reveals fragile conclusions."
+    actionable_items:
+      - "Implement robustness audit framework: test agent behavior consistency under input perturbations"
+      - "Add confidence scoring: quantify agent output reliability based on perturbation stability"
+    target_module: "data-governance / benchmarks"
+    priority: low
+    status: pending
+
+  - paper_id: "2410.15362"
+    title: "Faster-GCG: Efficient Jailbreak Attacks against Aligned LLMs"
+    core_idea: "Efficient discrete optimization for adversarial prompt generation. Reveals that current alignment is vulnerable to gradient-based attacks."
+    actionable_items:
+      - "Add adversarial input detection: pattern-match known jailbreak attack signatures in agent inputs"
+      - "Implement input sanitization layer: normalize and validate agent inputs before processing"
+    target_module: "api-server / data-governance"
+    priority: medium
+    status: pending

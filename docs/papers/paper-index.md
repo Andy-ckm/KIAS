@@ -1,10 +1,13 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (16:45)
+更新时间: 2026-05-20 (17:57)
 
-## 论文列表 (256 篇)
+## 论文列表 (259 篇)
 
-### 已下载论文 (253 篇)
+### 已下载论文 (256 篇)
+- ✅ 2605.19755.pdf (Operationalising AIBOMs for Verifiable AI Provenance and Lifecycle Assurance)
+- ✅ 2605.19362.pdf (Toward User Comprehension Supports for LLM Agent Skill Specifications)
+- ✅ 2605.19314.pdf (ContextFlow: Hierarchical Task-State Alignment for Long-Horizon Embodied Agents)
 - ✅ 2605.19593.pdf (Towards Multi-Model LLM Schedulers: Empirical Insights into Offloading and Preemption)
 - ✅ 2605.19035.pdf (Trustworthy Agent Network: Trust in Agent Networks Must Be Baked In, Not Bolted On)
 - ✅ 2605.19576.pdf (Library Drift: Diagnosing and Fixing a Silent Failure Mode in Self-Evolving LLM Skill Libraries)
@@ -268,6 +271,24 @@
 ---
 
 ## 全部论文清单
+
+**[2605.19755]** Operationalising Artificial Intelligence Bills of Materials (AIBOMs) for Verifiable AI Provenance and Lifecycle Assurance
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: AIBOM, AI governance, provenance, lifecycle assurance, CycloneDX, transparency
+   - 链接: https://arxiv.org/abs/2605.19755
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.19362]** Toward User Comprehension Supports for LLM Agent Skill Specifications
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: skill specifications, user comprehension, SKILL.md, agent skills, cybersecurity
+   - 链接: https://arxiv.org/abs/2605.19362
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.19314]** ContextFlow: Hierarchical Task-State Alignment for Long-Horizon Embodied Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: task-state alignment, long-horizon agents, workflow, planning, memory, execution
+   - 链接: https://arxiv.org/abs/2605.19314
+   - 状态: ✅ 已下载 (1.5MB)
 
 **[2605.19192]** Hallucination as Exploit: Evidence-Carrying Multimodal Agents
    - 日期: 2026-05 | 分类: cs.AI

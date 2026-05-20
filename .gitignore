@@ -63,6 +63,7 @@ docs/_build/
 
 # Rust
 target/
+target
 
 # Node.js
 node_modules/

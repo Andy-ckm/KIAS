@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 14:40
+# 更新时间: 2026-05-20 14:55
 
 iteration: 40
-last_run: "2026-05-20T14:40:00Z"
-last_commit: "de87a78"
+last_run: "2026-05-20T14:55:00Z"
+last_commit: "c146ade"
 status: active
 
 # 各模块状态
@@ -38,27 +38,25 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 498
+    tests: 504
     status: IMPROVING
-    next_step: "handlers/nodes.rs(9), handlers/context.rs(11), handlers/agents.rs(17)"
+    next_step: "handlers/context.rs(11), handlers/agents.rs(17), handlers/a2a.rs(18)"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 3987
+  total_tests: 3993
   linux_automation_tests: 525
-  api_server_tests: 498
+  api_server_tests: 504
   clippy_warnings: 0
   disk_percent: 50
 
 # 本次迭代成果
 iteration_40:
-  module: api-server/tokens.rs
-  new_tests: 6
+  module: api-server/tokens.rs + nodes.rs
+  new_tests: 12
   features:
-    - "tokens.rs: 7 → 13 tests (+6)"
-    - "New: Failed/Unknown/Scheduled status exact value tests"
-    - "New: all 6 AgentStatus variants aggregated test"
-    - "New: time series structure + input/output ratio validation"
-    - "New: cost consistency (total_cost == sum per_agent)"
+    - "tokens.rs: 7 → 13 tests (+6) — all 6 AgentStatus variants, ratio, cost"
+    - "nodes.rs: 9 → 15 tests (+6) — pagination edge, error status, orphan agents"
     - "0 clippy warnings"
+    - "磁盘: 80% → 50% (cargo clean)"

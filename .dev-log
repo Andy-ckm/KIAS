@@ -2,3 +2,6 @@
 [2026-05-20 11:15] api-server middleware auth.rs +14 tests, logging.rs +4 tests (3930→3948) | 四步法:Y | 研究:N(本轮专注测试覆盖) | 丰田五问:Y(根因:security-critical auth middleware只有2个role_rank测试) | 钱学森:Y(整体性:auth→role→logging全覆盖/鲁棒性:no_header/malformed/empty_bearer/错误key/错误secret全覆盖/可观测性:logging中间件验证/工程化:18测试) | 测试:Y(3948 passed, 0 clippy) | 下一步:handlers/agents.rs(11/476)或models/mod.rs(0)
 [2026-05-20 12:35] feat(api-server): agents.rs handler tests +6 | 四步法:Y | 测试通过:Y | 3954 total, 0 clippy | 下一步: context.rs/health.rs/config.rs提测
 [2026-05-20 13:46] feat(api-server): config.rs handler tests +6 (3973 total) | 四步法:Y | 研究:N(本轮专注测试覆盖) | 丰田五问:Y(根因:config.rs缺少审计日志验证和多字段更新路径) | 钱学森:Y(整体性:config+audit全链路/鲁棒性:验证错误不审计(early return)/可观测性:审计日志验证/工程化:6测试) | 测试:Y(3973 passed, 0 clippy) | 磁盘:80%→49% | 下一步:scheduler.rs(7/571)或tokens.rs(7/508)提测
+[2026-05-20 14:20] scheduler.rs 7→14 tests (+8) | 四步法:Y | 测试通过:Y | 下一步:tokens.rs提测
+[2026-05-20 14:40] tokens.rs 7→13 tests (+6) | 四步法:Y | 研究:N(本轮专注测试覆盖) | 丰田五问:Y(根因:tokens.rs缺少Failed/Unknown/Scheduled状态精确验证) | 钱学森:Y(整体性:6种AgentStatus全覆盖/综合集成:参考scheduler.rs测试模式/反馈控制:dev-state驱动/层次分解:handler级单元测试/鲁棒性:精确数值断言/可观测性:cost+time_series+ratio全覆盖/工程化:6测试) | 测试:Y(13 passed, 0 clippy) | 磁盘:80%→50% | 下一步:nodes.rs(9)或context.rs(11)提测
+[2026-05-20 14:55] nodes.rs 9→15 tests (+6) | 四步法:Y | 测试通过:Y | 0 clippy | 磁盘:80%→50% | 下一步:context.rs(11)提测

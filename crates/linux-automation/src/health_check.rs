@@ -773,4 +773,284 @@ mod tests {
         let checker = HealthChecker::new(default_thresholds());
         assert_eq!(checker.thresholds.cpu_warn_percent, 80.0);
     }
+
+    // ============================================================
+    // HealthCheckThresholds tests
+    // ============================================================
+
+    #[test]
+    fn test_thresholds_clone() {
+        let t = default_thresholds();
+        let cloned = t.clone();
+        assert_eq!(cloned.cpu_warn_percent, t.cpu_warn_percent);
+        assert_eq!(cloned.zombie_warn_count, t.zombie_warn_count);
+    }
+
+    #[test]
+    fn test_thresholds_debug() {
+        let t = default_thresholds();
+        let debug = format!("{:?}", t);
+        assert!(debug.contains("HealthCheckThresholds"));
+        assert!(debug.contains("80.0"));
+    }
+
+    #[test]
+    fn test_thresholds_serialization_roundtrip() {
+        let t = default_thresholds();
+        let json = serde_json::to_string(&t).unwrap();
+        let deserialized: HealthCheckThresholds = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.cpu_warn_percent, t.cpu_warn_percent);
+        assert_eq!(deserialized.load_crit_multiplier, t.load_crit_multiplier);
+    }
+
+    #[test]
+    fn test_thresholds_all_fields_default() {
+        let t = HealthCheckThresholds::default();
+        assert_eq!(t.cpu_warn_percent, 80.0);
+        assert_eq!(t.cpu_crit_percent, 95.0);
+        assert_eq!(t.mem_warn_percent, 80.0);
+        assert_eq!(t.mem_crit_percent, 95.0);
+        assert_eq!(t.disk_warn_percent, 80.0);
+        assert_eq!(t.disk_crit_percent, 95.0);
+        assert_eq!(t.load_warn_multiplier, 2.0);
+        assert_eq!(t.load_crit_multiplier, 4.0);
+        assert_eq!(t.swap_warn_percent, 50.0);
+        assert_eq!(t.inode_warn_percent, 80.0);
+        assert_eq!(t.zombie_warn_count, 1);
+    }
+
+    // ============================================================
+    // HealthCheckType tests
+    // ============================================================
+
+    #[test]
+    fn test_health_check_type_partial_eq() {
+        assert_eq!(HealthCheckType::Cpu, HealthCheckType::Cpu);
+        assert_ne!(HealthCheckType::Cpu, HealthCheckType::Memory);
+        assert_eq!(HealthCheckType::All, HealthCheckType::All);
+    }
+
+    #[test]
+    fn test_health_check_type_clone() {
+        let t = HealthCheckType::Disk;
+        let cloned = t.clone();
+        assert_eq!(t, cloned);
+    }
+
+    #[test]
+    fn test_health_check_type_debug() {
+        let debug = format!("{:?}", HealthCheckType::Security);
+        assert_eq!(debug, "Security");
+    }
+
+    #[test]
+    fn test_health_check_type_serialization() {
+        let types = vec![
+            HealthCheckType::Cpu,
+            HealthCheckType::Memory,
+            HealthCheckType::Disk,
+            HealthCheckType::Process,
+            HealthCheckType::Log,
+            HealthCheckType::Network,
+            HealthCheckType::Security,
+            HealthCheckType::All,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            let deserialized: HealthCheckType = serde_json::from_str(&json).unwrap();
+            assert_eq!(t, deserialized);
+        }
+    }
+
+    // ============================================================
+    // HealthStatus tests
+    // ============================================================
+
+    #[test]
+    fn test_health_status_clone() {
+        let s = HealthStatus::Warning;
+        let cloned = s.clone();
+        assert_eq!(s, cloned);
+    }
+
+    #[test]
+    fn test_health_status_debug() {
+        assert_eq!(format!("{:?}", HealthStatus::Healthy), "Healthy");
+        assert_eq!(format!("{:?}", HealthStatus::Critical), "Critical");
+    }
+
+    #[test]
+    fn test_health_status_partial_eq_all_combinations() {
+        let statuses = [
+            HealthStatus::Healthy,
+            HealthStatus::Warning,
+            HealthStatus::Critical,
+            HealthStatus::Unknown,
+        ];
+        for (i, a) in statuses.iter().enumerate() {
+            for (j, b) in statuses.iter().enumerate() {
+                if i == j {
+                    assert_eq!(a, b);
+                } else {
+                    assert_ne!(a, b);
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    // HealthCheckReport tests
+    // ============================================================
+
+    #[test]
+    fn test_report_clone() {
+        let report = HealthCheckReport {
+            host: "server1".to_string(),
+            check_time: Utc::now(),
+            overall_status: HealthStatus::Healthy,
+            checks: vec![],
+            recommendations: vec!["建议1".to_string()],
+        };
+        let cloned = report.clone();
+        assert_eq!(cloned.host, report.host);
+        assert_eq!(cloned.recommendations.len(), 1);
+    }
+
+    #[test]
+    fn test_report_debug() {
+        let report = HealthCheckReport {
+            host: "server1".to_string(),
+            check_time: Utc::now(),
+            overall_status: HealthStatus::Warning,
+            checks: vec![],
+            recommendations: vec![],
+        };
+        let debug = format!("{:?}", report);
+        assert!(debug.contains("HealthCheckReport"));
+        assert!(debug.contains("Warning"));
+    }
+
+    #[test]
+    fn test_report_with_multiple_checks() {
+        let report = HealthCheckReport {
+            host: "server1".to_string(),
+            check_time: Utc::now(),
+            overall_status: HealthStatus::Warning,
+            checks: vec![
+                HealthCheckItem {
+                    check_type: HealthCheckType::Cpu,
+                    status: HealthStatus::Healthy,
+                    metric_name: "CPU".to_string(),
+                    metric_value: "50%".to_string(),
+                    threshold: None,
+                    message: "ok".to_string(),
+                },
+                HealthCheckItem {
+                    check_type: HealthCheckType::Memory,
+                    status: HealthStatus::Warning,
+                    metric_name: "内存".to_string(),
+                    metric_value: "85%".to_string(),
+                    threshold: Some("80%".to_string()),
+                    message: "偏高".to_string(),
+                },
+            ],
+            recommendations: vec!["降低内存使用".to_string()],
+        };
+        assert_eq!(report.checks.len(), 2);
+        assert_eq!(report.recommendations.len(), 1);
+    }
+
+    // ============================================================
+    // HealthCheckItem tests
+    // ============================================================
+
+    #[test]
+    fn test_item_clone() {
+        let item = HealthCheckItem {
+            check_type: HealthCheckType::Disk,
+            status: HealthStatus::Critical,
+            metric_name: "磁盘".to_string(),
+            metric_value: "98%".to_string(),
+            threshold: Some("95%".to_string()),
+            message: "磁盘快满了".to_string(),
+        };
+        let cloned = item.clone();
+        assert_eq!(cloned.check_type, item.check_type);
+        assert_eq!(cloned.status, item.status);
+    }
+
+    #[test]
+    fn test_item_debug() {
+        let item = HealthCheckItem {
+            check_type: HealthCheckType::Process,
+            status: HealthStatus::Healthy,
+            metric_name: "进程".to_string(),
+            metric_value: "100".to_string(),
+            threshold: None,
+            message: "正常".to_string(),
+        };
+        let debug = format!("{:?}", item);
+        assert!(debug.contains("HealthCheckItem"));
+    }
+
+    #[test]
+    fn test_item_serialization_roundtrip() {
+        let item = HealthCheckItem {
+            check_type: HealthCheckType::Network,
+            status: HealthStatus::Warning,
+            metric_name: "网络".to_string(),
+            metric_value: "10ms".to_string(),
+            threshold: Some("5ms".to_string()),
+            message: "延迟偏高".to_string(),
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        let deserialized: HealthCheckItem = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.check_type, item.check_type);
+        assert_eq!(deserialized.status, item.status);
+        assert_eq!(deserialized.metric_name, item.metric_name);
+    }
+
+    #[test]
+    fn test_item_with_none_threshold() {
+        let item = HealthCheckItem {
+            check_type: HealthCheckType::Log,
+            status: HealthStatus::Healthy,
+            metric_name: "日志".to_string(),
+            metric_value: "0".to_string(),
+            threshold: None,
+            message: "无错误".to_string(),
+        };
+        assert!(item.threshold.is_none());
+    }
+
+    // ============================================================
+    // HealthChecker with custom thresholds
+    // ============================================================
+
+    #[test]
+    fn test_health_checker_custom_thresholds() {
+        let t = HealthCheckThresholds {
+            cpu_warn_percent: 90.0,
+            cpu_crit_percent: 99.0,
+            mem_warn_percent: 85.0,
+            mem_crit_percent: 98.0,
+            disk_warn_percent: 90.0,
+            disk_crit_percent: 98.0,
+            load_warn_multiplier: 3.0,
+            load_crit_multiplier: 5.0,
+            swap_warn_percent: 70.0,
+            inode_warn_percent: 90.0,
+            zombie_warn_count: 5,
+        };
+        let checker = HealthChecker::new(t);
+        assert_eq!(checker.thresholds.cpu_warn_percent, 90.0);
+        assert_eq!(checker.thresholds.zombie_warn_count, 5);
+    }
+
+    #[test]
+    fn test_health_checker_default() {
+        let checker = HealthChecker::new(HealthCheckThresholds::default());
+        assert_eq!(checker.thresholds.cpu_crit_percent, 95.0);
+        assert_eq!(checker.thresholds.swap_warn_percent, 50.0);
+    }
 }

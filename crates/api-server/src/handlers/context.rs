@@ -311,4 +311,95 @@ mod tests {
         assert_eq!(resp.compression_level, "none");
         assert_eq!(resp.message_count, 0);
     }
+
+    #[tokio::test]
+    async fn test_add_message_returns_default_response_values() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "user".to_string(),
+            content: "test content".to_string(),
+        };
+        let result = add_message(State(state), Path("s1".to_string()), Json(req)).await;
+        // add_message always returns these defaults (no context_manager = no counting)
+        assert_eq!(result.message_count, 0);
+        assert_eq!(result.total_tokens, 0);
+        assert_eq!(result.compression_level, "none");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_empty_content() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "user".to_string(),
+            content: "".to_string(),
+        };
+        let result = add_message(State(state), Path("s-empty".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "s-empty");
+        assert_eq!(result.compression_level, "none");
+    }
+
+    #[tokio::test]
+    async fn test_get_context_stats_all_zero_defaults() {
+        let state = test_state().await;
+        let result = get_context_stats(State(state), Path("s-new".to_string())).await;
+        assert_eq!(result.total_messages, 0);
+        assert_eq!(result.user_messages, 0);
+        assert_eq!(result.assistant_messages, 0);
+        assert_eq!(result.tool_messages, 0);
+        assert_eq!(result.summary_messages, 0);
+        assert_eq!(result.total_tokens, 0);
+        assert_eq!(result.max_tokens, 0);
+        assert_eq!(result.utilization, 0.0);
+        assert_eq!(result.compression_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_compress_session_all_zero_defaults() {
+        let state = test_state().await;
+        let result = compress_session(State(state), Path("s-new".to_string())).await;
+        assert_eq!(result.session_id, "s-new");
+        assert_eq!(result.message_count, 0);
+        assert_eq!(result.total_tokens, 0);
+        assert_eq!(result.compression_level, "none");
+    }
+
+    #[test]
+    fn test_add_message_request_missing_content_fails() {
+        let json = r#"{"role":"user"}"#;
+        let result: Result<AddMessageRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_message_request_missing_role_fails() {
+        let json = r#"{"content":"hello"}"#;
+        let result: Result<AddMessageRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_context_stats_response_all_fields_serialize() {
+        let resp = ContextStatsResponse {
+            session_id: "s1".to_string(),
+            total_messages: 10,
+            user_messages: 4,
+            assistant_messages: 3,
+            tool_messages: 2,
+            summary_messages: 1,
+            total_tokens: 2000,
+            max_tokens: 4096,
+            utilization: 0.488,
+            compression_count: 2,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["session_id"], "s1");
+        assert_eq!(json["total_messages"], 10);
+        assert_eq!(json["user_messages"], 4);
+        assert_eq!(json["assistant_messages"], 3);
+        assert_eq!(json["tool_messages"], 2);
+        assert_eq!(json["summary_messages"], 1);
+        assert_eq!(json["total_tokens"], 2000);
+        assert_eq!(json["max_tokens"], 4096);
+        assert_eq!(json["compression_count"], 2);
+    }
 }

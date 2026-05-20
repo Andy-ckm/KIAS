@@ -76,3 +76,8 @@ docs/papers/2605.15187.pdf
 .worktrees/
 .trace/
 2512.04745.pdf
+# Dev planning files
+.dev-insights.md
+.dev-tasks.yaml
+.matrix-qa-marker
+.research-queue.yaml

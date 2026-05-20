@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (09:35)
+更新时间: 2026-05-20 (10:49)
 
-## 论文列表 (205 篇)
+## 论文列表 (210 篇)
 
-### 已下载论文 (205 篇)
+### 已下载论文 (210 篇)
 - ✅ 2605.17380.pdf (ADR: An Agentic Detection System for Enterprise Agentic AI Security)
 - ✅ 2512.23978.pdf (Assured autonomy: How operations research powers and orchestrates generative AI systems)
 - ✅ 2605.17774.pdf (Internalizing Tool Knowledge in Small Language Models via QLoRA Fine-Tuning)
@@ -215,10 +215,45 @@
 - ✅ 2512.04745.pdf (Neural Policy Composition from Free Energy Minimization) ⚠️ 仅本地 (20MB)
 - ✅ 2604.21251.pdf (CAP: Controllable Alignment Prompting for Unlearning in LLMs)
 - ✅ 2605.15726.pdf (Nudging Beyond the Comfort Zone: Efficient Strategy-Guided Exploration for RLVR)
+- ✅ 2605.20173.pdf (A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents)
+- ✅ 2605.19932.pdf (PEEK: Context Map as an Orientation Cache for Long-Context LLM Agents)
+- ✅ 2605.19769.pdf (OpenComputer: Verifiable Software Worlds for Computer-Use Agents)
+- ✅ 2605.19722.pdf (Measuring Safety Alignment Effects in Autonomous Security Agents)
+- ✅ 2605.19604.pdf (Formal Skill: Programmable Runtime Skills for Efficient and Accurate LLM Agents)
 
 ---
 
 ## 全部论文清单
+
+**[2605.20173]** A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: production agents, runtime architecture, architectural patterns, LLM agent design
+   - 链接: https://arxiv.org/abs/2605.20173
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2605.19932]** PEEK: Context Map as an Orientation Cache for Long-Context LLM Agents
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.CL, cs.LG
+   - 主题: context cache, long-context, agent memory, orientation cache
+   - 链接: https://arxiv.org/abs/2605.19932
+   - 状态: ✅ 已下载 (1.1MB)
+
+**[2605.19769]** OpenComputer: Verifiable Software Worlds for Computer-Use Agents
+   - 日期: 2026-05-19 | 分类: cs.AI, cs.SE
+   - 主题: computer-use agents, verification, state verifiers, formal methods
+   - 链接: https://arxiv.org/abs/2605.19769
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.19722]** Measuring Safety Alignment Effects in Autonomous Security Agents
+   - 日期: 2026-05-19 | 分类: cs.CR, cs.AI
+   - 主题: safety alignment, autonomous agents, security agents, alignment measurement
+   - 链接: https://arxiv.org/abs/2605.19722
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.19604]** Formal Skill: Programmable Runtime Skills for Efficient and Accurate LLM Agents
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: formal skills, runtime skills, programmable skills, agent tooling
+   - 链接: https://arxiv.org/abs/2605.19604
+   - 状态: ✅ 已下载 (0.2MB)
 
 **[2605.17380]** ADR: An Agentic Detection System for Enterprise Agentic AI Security
    - 日期: 2026-05-20 | 分类: cs.AI, cs.CR

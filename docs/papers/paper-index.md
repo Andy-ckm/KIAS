@@ -1,10 +1,20 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (12:10)
+更新时间: 2026-05-20 (13:15)
 
-## 论文列表 (237 篇)
+## 论文列表 (247 篇)
 
-### 已下载论文 (221 篇)
+### 已下载论文 (231 篇)
+- ✅ 2605.14557.pdf (Governing Autonomous Agents: A Policy Framework for Responsible LLM Agent Deployment)
+- ✅ 2605.14490.pdf (AgentBench Revisited: Standardized Evaluation of LLM Agents Across Diverse Environments)
+- ✅ 2605.14388.pdf (TrustAgent: Trust-Aware Multi-Agent Collaboration with Dynamic Reputation Scoring)
+- ✅ 2605.14250.pdf (Retrieval-Augmented Tool Selection for Complex Question Answering Agents)
+- ✅ 2605.14112.pdf (CodeAgents: LLM Agents for End-to-End Software Development with Human-in-the-Loop Governance)
+- ✅ 2605.14003.pdf (SwarmForge: A Scalable Multi-Agent Coordination Framework with Emergent Role Specialization)
+- ✅ 2605.13921.pdf (MADEval: Multi-Agent Dialogue Evaluation Framework for Conversational LLM Agents)
+- ✅ 2605.13852.pdf (AgentSafetyBench: A Comprehensive Benchmark for Evaluating LLM Agent Safety and Governance)
+- ✅ 2605.13715.pdf (ToolPlanner: Guiding LLM Tool Use via Tree Search and Multi-Agent Decomposition)
+- ✅ 2605.13486.pdf (AutoAgent: A Fully-Automated and Zero-Code Framework for Building LLM-Based Agents)
 - ✅ 2605.17380.pdf (ADR: An Agentic Detection System for Enterprise Agentic AI Security)
 - ✅ 2605.19743.pdf (EngiAI: A Multi-Agent Framework and Benchmark Suite for LLM-Driven Engineering Design)
 - ✅ 2605.19099.pdf (DecisionBench: A Benchmark for Emergent Delegation in Long-Horizon Agentic Workflows)
@@ -249,6 +259,66 @@
 ---
 
 ## 全部论文清单
+
+**[2605.14557]** Governing Autonomous Agents: A Policy Framework for Responsible LLM Agent Deployment
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent governance, policy framework, responsible AI, autonomous agents, regulatory analysis
+   - 链接: https://arxiv.org/abs/2605.14557
+   - 状态: ✅ 已下载 (0.2MB)
+
+**[2605.14490]** AgentBench Revisited: Standardized Evaluation of LLM Agents Across Diverse Environments
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent benchmark, evaluation, diverse environments, LLM agents, standardized testing
+   - 链接: https://arxiv.org/abs/2605.14490
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.14388]** TrustAgent: Trust-Aware Multi-Agent Collaboration with Dynamic Reputation Scoring
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: trust-aware agents, multi-agent collaboration, reputation scoring, adversarial robustness
+   - 链接: https://arxiv.org/abs/2605.14388
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.14250]** Retrieval-Augmented Tool Selection for Complex Question Answering Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: retrieval-augmented, tool selection, question answering, tool library
+   - 链接: https://arxiv.org/abs/2605.14250
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.14112]** CodeAgents: LLM Agents for End-to-End Software Development with Human-in-the-Loop Governance
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: software development agents, human-in-the-loop, governance, end-to-end dev
+   - 链接: https://arxiv.org/abs/2605.14112
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.14003]** SwarmForge: A Scalable Multi-Agent Coordination Framework with Emergent Role Specialization
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: multi-agent coordination, emergent roles, scalability, swarm intelligence
+   - 链接: https://arxiv.org/abs/2605.14003
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.13921]** MADEval: Multi-Agent Dialogue Evaluation Framework for Conversational LLM Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: multi-agent dialogue, evaluation framework, conversational agents, persona maintenance
+   - 链接: https://arxiv.org/abs/2605.13921
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.13852]** AgentSafetyBench: A Comprehensive Benchmark for Evaluating LLM Agent Safety and Governance
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent safety, benchmark, governance, prompt injection, data leakage, multi-agent collusion
+   - 链接: https://arxiv.org/abs/2605.13852
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.13715]** ToolPlanner: Guiding LLM Tool Use via Tree Search and Multi-Agent Decomposition
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: tool use, tree search, MCTS, multi-agent decomposition, planner-critic
+   - 链接: https://arxiv.org/abs/2605.13715
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.13486]** AutoAgent: A Fully-Automated and Zero-Code Framework for Building LLM-Based Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent framework, zero-code, agent OS, dynamic tool creation, multi-agent orchestration
+   - 链接: https://arxiv.org/abs/2605.13486
+   - 状态: ✅ 已下载 (0.7MB)
 
 **[2605.19743]** EngiAI: A Multi-Agent Framework and Benchmark Suite for LLM-Driven Engineering Design
    - 日期: 2026-05 | 分类: cs.AI

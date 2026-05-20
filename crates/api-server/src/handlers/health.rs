@@ -345,6 +345,69 @@ mod tests {
         let info = get_system_info();
         assert!(info.cpu_cores > 0, "Should detect at least 1 CPU core");
     }
+
+    #[test]
+    fn test_system_info_memory_percent_calculation() {
+        let info = get_system_info();
+        // On Linux, memory_total_mb should be > 0 and percent should be 0-100
+        if info.memory_total_mb > 0 {
+            assert!(info.memory_usage_percent >= 0.0);
+            assert!(info.memory_usage_percent <= 100.0);
+            // Verify calculation: used/total * 100
+            let expected = (info.memory_used_mb as f64 / info.memory_total_mb as f64) * 100.0;
+            assert!((info.memory_usage_percent - expected).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn test_system_info_disk_percent_calculation() {
+        let info = get_system_info();
+        // On Unix, disk_total_gb should be > 0
+        if info.disk_total_gb > 0.0 {
+            assert!(info.disk_usage_percent >= 0.0);
+            assert!(info.disk_usage_percent <= 100.0);
+        }
+    }
+
+    #[test]
+    fn test_system_info_memory_fields_consistent() {
+        let info = get_system_info();
+        // used_mb should not exceed total_mb
+        assert!(info.memory_used_mb <= info.memory_total_mb);
+        // disk_used_gb should not exceed disk_total_gb
+        assert!(info.disk_used_gb <= info.disk_total_gb);
+    }
+
+    #[test]
+    fn test_load_average_three_fields() {
+        let load = get_load_average();
+        // All three fields should be non-negative
+        assert!(load.one_min >= 0.0);
+        assert!(load.five_min >= 0.0);
+        assert!(load.fifteen_min >= 0.0);
+        // On a running system, at least one field should be > 0
+        // (unless the system is completely idle, which is rare)
+    }
+
+    #[test]
+    fn test_load_average_struct_debug() {
+        let load = get_load_average();
+        let debug_str = format!("{:?}", load);
+        assert!(debug_str.contains("LoadAverage"));
+        assert!(debug_str.contains("one_min"));
+        assert!(debug_str.contains("five_min"));
+        assert!(debug_str.contains("fifteen_min"));
+    }
+
+    #[test]
+    fn test_system_info_struct_debug() {
+        let info = get_system_info();
+        let debug_str = format!("{:?}", info);
+        assert!(debug_str.contains("SystemInfo"));
+        assert!(debug_str.contains("memory_used_mb"));
+        assert!(debug_str.contains("disk_used_gb"));
+        assert!(debug_str.contains("cpu_cores"));
+    }
 }
 
 #[cfg(test)]
@@ -429,5 +492,69 @@ mod handler_tests {
         assert!(names.contains(&"nodes_store"));
         assert!(names.contains(&"workflows_store"));
         assert!(names.contains(&"event_bus"));
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_has_seven_components() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        // agents_store, nodes_store, workflows_store, event_bus, memory, disk, load_average
+        assert_eq!(result.components.len(), 7, "Deep health should have 7 components");
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_version_matches_cargo() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        assert_eq!(result.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_system_fields_valid() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        // System info should have valid fields
+        assert!(result.system.cpu_cores > 0);
+        assert!(result.system.memory_total_mb > 0);
+        assert!(result.system.memory_usage_percent >= 0.0);
+        assert!(result.system.memory_usage_percent <= 100.0);
+        assert!(result.system.disk_total_gb > 0.0);
+        assert!(result.system.disk_usage_percent >= 0.0);
+        assert!(result.system.disk_usage_percent <= 100.0);
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_load_average_valid() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        assert!(result.system.load_average.one_min >= 0.0);
+        assert!(result.system.load_average.five_min >= 0.0);
+        assert!(result.system.load_average.fifteen_min >= 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_deep_health_component_names_include_system() {
+        let state = test_state().await;
+        let result = deep_health(State(state)).await;
+        let names: Vec<&str> = result.components.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"memory"), "Should include memory component");
+        assert!(names.contains(&"disk"), "Should include disk component");
+        assert!(names.contains(&"load_average"), "Should include load_average component");
+    }
+
+    #[tokio::test]
+    async fn test_readiness_version_matches_cargo() {
+        let state = test_state().await;
+        let result = readiness(State(state)).await;
+        assert_eq!(result.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn test_readiness_component_names() {
+        let state = test_state().await;
+        let result = readiness(State(state)).await;
+        let names: Vec<&str> = result.components.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"agents_store"));
+        assert!(names.contains(&"nodes_store"));
     }
 }

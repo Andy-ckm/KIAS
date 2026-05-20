@@ -673,10 +673,7 @@ mod tests {
                 "a2".into(),
                 make_agent("a2", "sched-2", AgentStatus::Scheduled),
             );
-            agents.insert(
-                "a3".into(),
-                make_agent("a3", "run-1", AgentStatus::Running),
-            );
+            agents.insert("a3".into(), make_agent("a3", "run-1", AgentStatus::Running));
         }
         let result = metrics_summary(State(state)).await;
         assert_eq!(result.task_stats.scheduled, 2);

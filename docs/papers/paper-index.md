@@ -1,10 +1,13 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (13:15)
+更新时间: 2026-05-20 (15:00)
 
-## 论文列表 (247 篇)
+## 论文列表 (250 篇)
 
-### 已下载论文 (231 篇)
+### 已下载论文 (247 篇)
+- ✅ 2605.19593.pdf (Towards Multi-Model LLM Schedulers: Empirical Insights into Offloading and Preemption)
+- ✅ 2605.19035.pdf (Trustworthy Agent Network: Trust in Agent Networks Must Be Baked In, Not Bolted On)
+- ✅ 2605.19576.pdf (Library Drift: Diagnosing and Fixing a Silent Failure Mode in Self-Evolving LLM Skill Libraries)
 - ✅ 2605.14557.pdf (Governing Autonomous Agents: A Policy Framework for Responsible LLM Agent Deployment)
 - ✅ 2605.14490.pdf (AgentBench Revisited: Standardized Evaluation of LLM Agents Across Diverse Environments)
 - ✅ 2605.14388.pdf (TrustAgent: Trust-Aware Multi-Agent Collaboration with Dynamic Reputation Scoring)
@@ -259,6 +262,24 @@
 ---
 
 ## 全部论文清单
+
+**[2605.19593]** Towards Multi-Model LLM Schedulers: Empirical Insights into Offloading and Preemption
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: LLM scheduling, multi-model serving, offloading, preemption, resource management
+   - 链接: https://arxiv.org/abs/2605.19593
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.19035]** Trustworthy Agent Network: Trust in Agent Networks Must Be Baked In, Not Bolted On
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent networks, trust, governance, LLM agents, security architecture
+   - 链接: https://arxiv.org/abs/2605.19035
+   - 状态: ✅ 已下载 (0.9MB)
+
+**[2605.19576]** Library Drift: Diagnosing and Fixing a Silent Failure Mode in Self-Evolving LLM Skill Libraries
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: skill libraries, self-evolving agents, library drift, lifecycle management
+   - 链接: https://arxiv.org/abs/2605.19576
+   - 状态: ✅ 已下载 (0.7MB)
 
 **[2605.14557]** Governing Autonomous Agents: A Policy Framework for Responsible LLM Agent Deployment
    - 日期: 2026-05 | 分类: cs.AI

@@ -1,10 +1,10 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (15:00)
+更新时间: 2026-05-20 (16:45)
 
-## 论文列表 (250 篇)
+## 论文列表 (256 篇)
 
-### 已下载论文 (247 篇)
+### 已下载论文 (253 篇)
 - ✅ 2605.19593.pdf (Towards Multi-Model LLM Schedulers: Empirical Insights into Offloading and Preemption)
 - ✅ 2605.19035.pdf (Trustworthy Agent Network: Trust in Agent Networks Must Be Baked In, Not Bolted On)
 - ✅ 2605.19576.pdf (Library Drift: Diagnosing and Fixing a Silent Failure Mode in Self-Evolving LLM Skill Libraries)
@@ -28,6 +28,12 @@
 - ✅ 2605.19824.pdf (From Prompts to Pavement Through Time: Temporal Grounding in Agentic Scene-to-Plan Reasoning)
 - ✅ 2605.19140.pdf (Learning to Hand Off: Provably Convergent Workflow Learning under Interface Constraints)
 - ✅ 2605.19010.pdf (AgentNLQ: A General-Purpose Agent for Natural Language to SQL)
+- ✅ 2605.19192.pdf (Hallucination as Exploit: Evidence-Carrying Multimodal Agents)
+- ✅ 2605.19008.pdf (Learn-by-Wire Training Control Governance: Bounded Autonomous Training Under Stress)
+- ✅ 2605.19330.pdf (MOCHA: Multi-Objective Chebyshev Annealing for Agent Skill Optimization)
+- ✅ 2605.19418.pdf (Conflict-Resilient Multi-Agent Reasoning via Signed Graph Modeling)
+- ✅ 2605.19219.pdf (SimGym: A Framework for A/B Test Simulation with VLM Agents)
+- ✅ 2605.19337.pdf (Agentic Trading: When LLM Agents Meet Financial Markets)
 - ✅ 2605.18805.pdf (RecoAtlas: From Semantic Plausibility to Set-Level Utility in LLM Recommendation Agents)
 - ✅ 2605.18770.pdf (Agentic GraphRAG: Navigating Unstructured Financial Data with Collaborative AI)
 - ✅ 2512.23978.pdf (Assured autonomy: How operations research powers and orchestrates generative AI systems)
@@ -262,6 +268,42 @@
 ---
 
 ## 全部论文清单
+
+**[2605.19192]** Hallucination as Exploit: Evidence-Carrying Multimodal Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: hallucination, multimodal agents, authorization, tool calls, evidence-carrying
+   - 链接: https://arxiv.org/abs/2605.19192
+   - 状态: ✅ 已下载 (0.6MB)
+
+**[2605.19008]** Learn-by-Wire Training Control Governance: Bounded Autonomous Training Under Stress
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: training governance, autonomous training, stability, efficiency, stress testing
+   - 链接: https://arxiv.org/abs/2605.19008
+   - 状态: ✅ 已下载 (0.3MB)
+
+**[2605.19330]** MOCHA: Multi-Objective Chebyshev Annealing for Agent Skill Optimization
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: skill optimization, multi-objective, agent skills, platform constraints, LLM agents
+   - 链接: https://arxiv.org/abs/2605.19330
+   - 状态: ✅ 已下载 (1.0MB)
+
+**[2605.19418]** Conflict-Resilient Multi-Agent Reasoning via Signed Graph Modeling
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: multi-agent reasoning, conflict resolution, signed graphs, aggregation mechanisms
+   - 链接: https://arxiv.org/abs/2605.19418
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.19219]** SimGym: A Framework for A/B Test Simulation in E-Commerce with Traffic-Grounded VLM Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: A/B testing, simulation, e-commerce, VLM agents, traffic grounding
+   - 链接: https://arxiv.org/abs/2605.19219
+   - 状态: ✅ 已下载 (1.2MB)
+
+**[2605.19337]** Agentic Trading: When LLM Agents Meet Financial Markets
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agentic trading, financial markets, LLM agents, market feedback, decision-making
+   - 链接: https://arxiv.org/abs/2605.19337
+   - 状态: ✅ 已下载 (0.8MB)
 
 **[2605.19593]** Towards Multi-Model LLM Schedulers: Empirical Insights into Offloading and Preemption
    - 日期: 2026-05 | 分类: cs.AI

@@ -289,9 +289,15 @@ research_queue:
   - id: R035
     topic: "定时任务管理（cron/systemd timer）"
     keywords: ["cron job management", "systemd timer", "scheduled task automation"]
-    status: pending
+    status: done
     priority: medium
-    findings: ""
+    findings: |
+      实现: cron_manager.rs (27 tests)
+      竞品参考: Ansible cron module, crontab.guru, systemd-cron
+      核心功能: crontab list/add/remove/enable/disable + systemd timer CRUD
+      安全: 危险命令黑名单 + cron schedule validation + timer name validation
+      AgentGuard差异化: crontab+systemd统一管理→操作审计（竞品只做crontab）
+      测试: parse_crontab(10) + validate_schedule(2) + is_cron_field(2) + dangerous_command(2) + timer_name(2) + systemd_timers(2) + looks_like_cron(2) + serialize(4) + default(1)
 
   # === 拓展：AIOps和智能运维 ===
   - id: R019

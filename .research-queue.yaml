@@ -387,4 +387,5 @@ paper_insights:
       - "Enforce 4 audit properties as system invariants"
     target_module: "data-governance"
     priority: medium
-    status: pending
+    status: done
+    findings: "Implemented ImmutableAuditTrail in accountability.rs. Hash-chain integrity (DefaultHasher), 4-property verification (Completeness/Integrity/NonRepudiation/CausalCoherence), SignedAuditEntry with prev_hash chain, export_snapshot. +21 tests. data-governance: 100→121 tests."

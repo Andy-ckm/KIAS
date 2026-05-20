@@ -6,3 +6,4 @@
 [2026-05-20 14:40] tokens.rs 7→13 tests (+6) | 四步法:Y | 研究:N(本轮专注测试覆盖) | 丰田五问:Y(根因:tokens.rs缺少Failed/Unknown/Scheduled状态精确验证) | 钱学森:Y(整体性:6种AgentStatus全覆盖/综合集成:参考scheduler.rs测试模式/反馈控制:dev-state驱动/层次分解:handler级单元测试/鲁棒性:精确数值断言/可观测性:cost+time_series+ratio全覆盖/工程化:6测试) | 测试:Y(13 passed, 0 clippy) | 磁盘:80%→50% | 下一步:nodes.rs(9)或context.rs(11)提测
 [2026-05-20 14:55] nodes.rs 9→15 tests (+6) | 四步法:Y | 测试通过:Y | 0 clippy | 磁盘:80%→50% | 下一步:context.rs(11)提测
 [2026-05-20 14:25] paper-driven: AccountabilityGraph arXiv:2412.08765 | data-governance 68->100 (+32) | 4024 total | 四步法:Y
+[2026-05-20 15:25] paper-driven: ImmutableAuditTrail arXiv:2503.19876 | data-governance 100->121 (+21) | 4045 total | 四步法:Y | 研究:Y(paper insight) | 丰田五问:Y(根因:缺hash-chain tamper detection) | 钱学森:Y(整体性:4属性全覆盖/综合集成:论文+已有graph/反馈控制:verify_all/层次分解:Entry→Chain→Property/鲁棒性:tamper检测/可观测性:export_snapshot/工程化:21测试) | 测试:Y(121 passed, 0 clippy) | 下一步:paper 2508.15014或api-server继续提测

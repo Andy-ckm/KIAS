@@ -376,7 +376,8 @@ paper_insights:
       - "Deploy Safety Constraint Propagation across connected agents"
     target_module: "data-governance / api-server"
     priority: high
-    status: pending
+    status: done
+    findings: "Implemented in crates/data-governance/src/governance.rs. 25 tests. EDPManager (ethical decision points with severity thresholds), AgentGovernanceChain (multi-agent delegation tracking with constraint propagation), SafetyConstraintPropagator (global + agent-specific constraints with inheritance)."
 
   - paper_id: "2503.19876"
     title: "Immutable Audit Trails for Autonomous Agent Actions: Blockchain-Inspired Approach"

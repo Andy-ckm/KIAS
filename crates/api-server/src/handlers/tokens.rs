@@ -787,7 +787,16 @@ mod tests {
         // Cost = 45000 * 0.000003 = 0.135
         assert!((usage.estimated_cost - 0.135).abs() < 0.0001);
         // Total cost = sum of per_agent costs
-        assert!((result.total_cost - result.per_agent.iter().map(|a| a.estimated_cost).sum::<f64>()).abs() < 0.0001);
+        assert!(
+            (result.total_cost
+                - result
+                    .per_agent
+                    .iter()
+                    .map(|a| a.estimated_cost)
+                    .sum::<f64>())
+            .abs()
+                < 0.0001
+        );
     }
 
     #[tokio::test]

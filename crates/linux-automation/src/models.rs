@@ -124,6 +124,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: ProcessAction,
     },
+    /// 日志管理 (R037) — 日志搜索/解析/轮转检查/统计/健康分析
+    LogOps {
+        hosts: Vec<String>,
+        action: LogAction,
+    },
 }
 
 /// 任务优先级
@@ -1574,6 +1579,112 @@ impl Default for ProcessOpsResult {
             errors: Vec::new(),
         }
     }
+}
+
+/// 日志管理操作类型 (R037)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum LogAction {
+    /// 搜索日志（grep 模式匹配）
+    Search {
+        path: String,
+        pattern: String,
+        max_results: u32,
+    },
+    /// 解析 syslog 格式日志
+    Parse { path: String, lines: u32 },
+    /// 检查日志轮转配置
+    RotationCheck { path: String },
+    /// 日志统计（按级别/来源/时间段）
+    Stats { path: String, since_hours: u32 },
+    /// 日志健康检查（错误率/异常模式）
+    HealthCheck {
+        paths: Vec<String>,
+        error_threshold_pct: f64,
+    },
+    /// 尾部跟踪（最近N行+过滤）
+    Tail {
+        path: String,
+        lines: u32,
+        filter: Option<String>,
+    },
+}
+
+/// 日志管理结果 (R037)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogManageResult {
+    pub action: String,
+    pub success: bool,
+    pub entries: Vec<LogEntry>,
+    pub stats: Option<LogStats>,
+    pub rotation_info: Option<LogRotationInfo>,
+    pub health: Option<LogHealth>,
+    pub output: String,
+    pub errors: Vec<String>,
+}
+
+impl Default for LogManageResult {
+    fn default() -> Self {
+        Self {
+            action: String::new(),
+            success: true,
+            entries: Vec::new(),
+            stats: None,
+            rotation_info: None,
+            health: None,
+            output: String::new(),
+            errors: Vec::new(),
+        }
+    }
+}
+
+/// 日志条目
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub source: String,
+    pub message: String,
+    pub raw_line: String,
+}
+
+/// 日志统计
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogStats {
+    pub total_lines: u64,
+    pub error_count: u64,
+    pub warn_count: u64,
+    pub info_count: u64,
+    pub debug_count: u64,
+    pub by_source: Vec<(String, u64)>,
+    pub time_range: String,
+}
+
+/// 日志轮转信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogRotationInfo {
+    pub log_path: String,
+    pub current_size_mb: f64,
+    pub rotated_files: Vec<String>,
+    pub rotation_config: String,
+    pub needs_rotation: bool,
+}
+
+/// 日志健康状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogHealth {
+    pub overall_status: String,
+    pub error_rate_pct: f64,
+    pub issues: Vec<LogIssue>,
+    pub checked_paths: Vec<String>,
+}
+
+/// 日志问题
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogIssue {
+    pub severity: String,
+    pub path: String,
+    pub description: String,
+    pub suggestion: String,
 }
 
 #[cfg(test)]

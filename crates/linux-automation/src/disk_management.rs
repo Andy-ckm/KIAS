@@ -93,8 +93,7 @@ impl DiskManager {
                 );
             }
             DiskAction::CleanPackageCache => {
-                let (entries, warnings) =
-                    Self::clean_package_cache(executor, host, audit).await?;
+                let (entries, warnings) = Self::clean_package_cache(executor, host, audit).await?;
                 result.cleanup_results = entries;
                 result.warnings = warnings;
                 result.total_freed_bytes =
@@ -116,10 +115,7 @@ impl DiskManager {
     }
 
     /// 获取磁盘使用情况（df -B1 + df -i）
-    async fn get_usage(
-        executor: &TaskExecutor,
-        host: &str,
-    ) -> Result<Vec<DiskUsageEntry>> {
+    async fn get_usage(executor: &TaskExecutor, host: &str) -> Result<Vec<DiskUsageEntry>> {
         // df -B1 获取字节级使用量
         let df_result = executor
             .execute_command(&[host.to_string()], "df -B1 --output=source,target,size,used,avail,pcent | grep -v tmpfs | grep -v devtmpfs")
@@ -158,8 +154,10 @@ impl DiskManager {
                 .parse::<f64>()
                 .unwrap_or(0.0);
 
-            let (inode_total, inode_used, inode_available, inode_percent) =
-                inode_map.get(&filesystem).copied().unwrap_or((0, 0, 0, 0.0));
+            let (inode_total, inode_used, inode_available, inode_percent) = inode_map
+                .get(&filesystem)
+                .copied()
+                .unwrap_or((0, 0, 0, 0.0));
 
             entries.push(DiskUsageEntry {
                 filesystem,
@@ -179,8 +177,7 @@ impl DiskManager {
     }
 
     /// 解析 inode 输出
-    fn parse_inode_output(output: &str) -> std::collections::HashMap<String, (u64, u64, u64, f64)>
-    {
+    fn parse_inode_output(output: &str) -> std::collections::HashMap<String, (u64, u64, u64, f64)> {
         let mut map = std::collections::HashMap::new();
         for line in output.lines().skip(1) {
             let fields: Vec<&str> = line.split_whitespace().collect();
@@ -218,9 +215,7 @@ impl DiskManager {
             "find {} -type f -size +{}M -exec ls -lhS {{}} \\; 2>/dev/null | head -{}",
             path, min_size_mb, limit
         );
-        let result = executor
-            .execute_command(&[host.to_string()], &cmd)
-            .await?;
+        let result = executor.execute_command(&[host.to_string()], &cmd).await?;
         let output = result
             .host_results
             .first()
@@ -336,10 +331,7 @@ impl DiskManager {
                 ),
                 CleanupTarget::CustomPath { path } => {
                     if !dry_run {
-                        warnings.push(format!(
-                            "⚠️ 自定义路径清理需要 dry_run=true: {}",
-                            path
-                        ));
+                        warnings.push(format!("⚠️ 自定义路径清理需要 dry_run=true: {}", path));
                         continue;
                     }
                     (
@@ -355,15 +347,17 @@ impl DiskManager {
                 .unwrap_or(0);
 
             if !dry_run {
-                let _ = executor
-                    .execute_command(&[host.to_string()], &cmd)
-                    .await?;
+                let _ = executor.execute_command(&[host.to_string()], &cmd).await?;
             }
 
             let after_size = Self::get_dir_size(executor, host, Self::target_root_dir(target))
                 .await
                 .unwrap_or(0);
-            let freed = if dry_run { 0 } else { before_size.saturating_sub(after_size) };
+            let freed = if dry_run {
+                0
+            } else {
+                before_size.saturating_sub(after_size)
+            };
 
             entries.push(CleanupEntry {
                 target: desc.clone(),
@@ -402,23 +396,17 @@ impl DiskManager {
     }
 
     /// 获取目录大小（字节）
-    async fn get_dir_size(
-        executor: &TaskExecutor,
-        host: &str,
-        path: &str,
-    ) -> Result<u64> {
+    async fn get_dir_size(executor: &TaskExecutor, host: &str, path: &str) -> Result<u64> {
         let cmd = format!("du -sb {} 2>/dev/null | cut -f1", path);
-        let result = executor
-            .execute_command(&[host.to_string()], &cmd)
-            .await?;
+        let result = executor.execute_command(&[host.to_string()], &cmd).await?;
         let output = result
             .host_results
             .first()
             .map(|h| h.stdout.trim().to_string())
             .unwrap_or_default();
-        output.parse::<u64>().map_err(|e| {
-            AutomationError::DiskManagement(format!("解析目录大小失败: {}", e))
-        })
+        output
+            .parse::<u64>()
+            .map_err(|e| AutomationError::DiskManagement(format!("解析目录大小失败: {}", e)))
     }
 
     /// SMART 健康检查
@@ -431,9 +419,7 @@ impl DiskManager {
             "smartctl -H -A {} 2>/dev/null || echo 'smartctl not available'",
             device
         );
-        let result = executor
-            .execute_command(&[host.to_string()], &cmd)
-            .await?;
+        let result = executor.execute_command(&[host.to_string()], &cmd).await?;
         let output = result
             .host_results
             .first()
@@ -467,7 +453,8 @@ impl DiskManager {
         for line in output.lines() {
             if line.contains("Model Family:") || line.contains("Device Model:") {
                 info.model = line.split(':').nth(1).unwrap_or("").trim().to_string();
-            } else if line.contains("SMART Health Status:") || line.contains("SMART overall-health") {
+            } else if line.contains("SMART Health Status:") || line.contains("SMART overall-health")
+            {
                 info.health_status = line
                     .split(':')
                     .nth(1)
@@ -477,14 +464,11 @@ impl DiskManager {
             } else if line.contains("Temperature_Celsius") || line.contains("Airflow_Temperature") {
                 info.temperature_celsius = Self::parse_smart_value(line, 9);
             } else if line.contains("Power_On_Hours") {
-                info.power_on_hours =
-                    Self::parse_smart_value(line, 9).map(|v| v as u64);
+                info.power_on_hours = Self::parse_smart_value(line, 9).map(|v| v as u64);
             } else if line.contains("Reallocated_Sector_Ct") {
-                info.reallocated_sectors =
-                    Self::parse_smart_value(line, 5).map(|v| v as u64);
+                info.reallocated_sectors = Self::parse_smart_value(line, 5).map(|v| v as u64);
             } else if line.contains("Current_Pending_Sector") {
-                info.pending_sectors =
-                    Self::parse_smart_value(line, 5).map(|v| v as u64);
+                info.pending_sectors = Self::parse_smart_value(line, 5).map(|v| v as u64);
             }
         }
 
@@ -499,10 +483,7 @@ impl DiskManager {
     }
 
     /// 获取 IO 统计
-    async fn get_io_stats(
-        executor: &TaskExecutor,
-        host: &str,
-    ) -> Result<Vec<IoStatEntry>> {
+    async fn get_io_stats(executor: &TaskExecutor, host: &str) -> Result<Vec<IoStatEntry>> {
         let result = executor
             .execute_command(
                 &[host.to_string()],
@@ -537,11 +518,10 @@ impl DiskManager {
             let device = fields[0].to_string();
             let reads_per_sec = fields[1].parse::<f64>().unwrap_or(0.0);
             let writes_per_sec = fields[7].parse::<f64>().unwrap_or(0.0);
-            let read_bytes_per_sec =
-                (fields[2].parse::<f64>().unwrap_or(0.0) * 1024.0) as u64;
-            let write_bytes_per_sec =
-                (fields[8].parse::<f64>().unwrap_or(0.0) * 1024.0) as u64;
-            let io_util_percent = fields.last()
+            let read_bytes_per_sec = (fields[2].parse::<f64>().unwrap_or(0.0) * 1024.0) as u64;
+            let write_bytes_per_sec = (fields[8].parse::<f64>().unwrap_or(0.0) * 1024.0) as u64;
+            let io_util_percent = fields
+                .last()
                 .and_then(|v| v.trim_end_matches('%').parse::<f64>().ok())
                 .unwrap_or(0.0);
             let await_ms = if fields.len() > 10 {
@@ -583,9 +563,7 @@ impl DiskManager {
              echo 'done'",
             log_dir, older_than_days, log_dir, older_than_days, log_dir, older_than_days,
         );
-        let _ = executor
-            .execute_command(&[host.to_string()], &cmd)
-            .await?;
+        let _ = executor.execute_command(&[host.to_string()], &cmd).await?;
 
         let after_size = Self::get_dir_size(executor, host, log_dir)
             .await
@@ -622,7 +600,10 @@ impl DiskManager {
 
         // 检测并清理 apt
         let apt_check = executor
-            .execute_command(&[host.to_string()], "command -v apt-get && echo APT || echo NO_APT")
+            .execute_command(
+                &[host.to_string()],
+                "command -v apt-get && echo APT || echo NO_APT",
+            )
             .await?;
         let apt_output = apt_check
             .host_results
@@ -668,7 +649,10 @@ impl DiskManager {
                 .await
                 .unwrap_or(0);
             let _ = executor
-                .execute_command(&[host.to_string()], "yum clean all 2>/dev/null || dnf clean all 2>/dev/null")
+                .execute_command(
+                    &[host.to_string()],
+                    "yum clean all 2>/dev/null || dnf clean all 2>/dev/null",
+                )
                 .await;
             let after = Self::get_dir_size(executor, host, "/var/cache/yum")
                 .await
@@ -722,7 +706,10 @@ fn human_size(bytes: u64) -> String {
 fn parse_human_size(s: &str) -> u64 {
     let s = s.trim();
     let (num_part, multiplier) = if s.ends_with("G") || s.ends_with("GB") {
-        (s.trim_end_matches("GB").trim_end_matches('G'), 1024 * 1024 * 1024)
+        (
+            s.trim_end_matches("GB").trim_end_matches('G'),
+            1024 * 1024 * 1024,
+        )
     } else if s.ends_with("M") || s.ends_with("MB") {
         (s.trim_end_matches("MB").trim_end_matches('M'), 1024 * 1024)
     } else if s.ends_with("K") || s.ends_with("KB") {
@@ -767,7 +754,10 @@ mod tests {
     #[test]
     fn test_human_size_gb() {
         assert_eq!(human_size(1024 * 1024 * 1024), "1.0GB");
-        assert_eq!(human_size(5 * 1024 * 1024 * 1024 + 512 * 1024 * 1024), "5.5GB");
+        assert_eq!(
+            human_size(5 * 1024 * 1024 * 1024 + 512 * 1024 * 1024),
+            "5.5GB"
+        );
     }
 
     #[test]
@@ -777,7 +767,10 @@ mod tests {
 
     #[test]
     fn test_parse_human_size() {
-        assert_eq!(parse_human_size("1.5G"), (1.5 * 1024.0 * 1024.0 * 1024.0) as u64);
+        assert_eq!(
+            parse_human_size("1.5G"),
+            (1.5 * 1024.0 * 1024.0 * 1024.0) as u64
+        );
         assert_eq!(parse_human_size("100M"), 100 * 1024 * 1024);
         assert_eq!(parse_human_size("500K"), 500 * 1024);
         assert_eq!(parse_human_size("42"), 42);
@@ -992,8 +985,14 @@ mod tests {
     #[test]
     fn test_guess_file_type() {
         assert_eq!(DiskManager::guess_file_type("/var/log/app.log"), "日志文件");
-        assert_eq!(DiskManager::guess_file_type("/var/log/app.log.gz"), "日志文件");
-        assert_eq!(DiskManager::guess_file_type("/tmp/archive.tar.gz"), "压缩文件");
+        assert_eq!(
+            DiskManager::guess_file_type("/var/log/app.log.gz"),
+            "日志文件"
+        );
+        assert_eq!(
+            DiskManager::guess_file_type("/tmp/archive.tar.gz"),
+            "压缩文件"
+        );
         assert_eq!(DiskManager::guess_file_type("/tmp/core.12345"), "Core dump");
         assert_eq!(DiskManager::guess_file_type("/tmp/tmpfile"), "临时文件");
         assert_eq!(DiskManager::guess_file_type("/cache/pkg.rpm"), "包文件");
@@ -1002,13 +1001,36 @@ mod tests {
 
     #[test]
     fn test_target_root_dir() {
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::SystemLogs), "/var/log");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::TempFiles), "/tmp");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::PackageCache), "/var/cache");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::DockerPrune), "/var/lib/docker");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::OldKernels), "/boot");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::Journal { keep_days: 7 }), "/var/log/journal");
-        assert_eq!(DiskManager::target_root_dir(&CleanupTarget::CustomPath { path: "/data".to_string() }), "/data");
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::SystemLogs),
+            "/var/log"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::TempFiles),
+            "/tmp"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::PackageCache),
+            "/var/cache"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::DockerPrune),
+            "/var/lib/docker"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::OldKernels),
+            "/boot"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::Journal { keep_days: 7 }),
+            "/var/log/journal"
+        );
+        assert_eq!(
+            DiskManager::target_root_dir(&CleanupTarget::CustomPath {
+                path: "/data".to_string()
+            }),
+            "/data"
+        );
     }
 
     #[test]
@@ -1019,10 +1041,10 @@ mod tests {
         assert!(map.contains_key("/dev/sda1"));
         assert!(map.contains_key("/dev/sdb1"));
         let (total, used, avail, percent) = map["/dev/sda1"];
-        assert_eq!(total, 100000);  // itotal (fields[1])
-        assert_eq!(used, 900000);   // iused (fields[2])
-        assert_eq!(avail, 0);       // total(100000) < used(900000), so 0
-        assert_eq!(percent, 10.0);  // IUse% parsed from field containing '%'
+        assert_eq!(total, 100000); // itotal (fields[1])
+        assert_eq!(used, 900000); // iused (fields[2])
+        assert_eq!(avail, 0); // total(100000) < used(900000), so 0
+        assert_eq!(percent, 10.0); // IUse% parsed from field containing '%'
     }
 
     #[test]

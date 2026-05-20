@@ -72,6 +72,39 @@ pub fn rbac_model() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+
+    fn create_test_model_file(dir: &std::path::Path) -> std::path::PathBuf {
+        let model_path = dir.join("model.conf");
+        let content = r#"[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[role_definition]
+g = _, _
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
+"#;
+        std::fs::write(&model_path, content).unwrap();
+        model_path
+    }
+
+    fn create_test_policy_file(dir: &std::path::Path) -> std::path::PathBuf {
+        let policy_path = dir.join("policy.csv");
+        let content = "p, admin, server1, reboot\np, admin, server1, shutdown\np, operator, server1, reboot\ng, alice, admin\ng, bob, operator\n";
+        std::fs::write(&policy_path, content).unwrap();
+        policy_path
+    }
+
+    // ============================================================
+    // rbac_model() tests
+    // ============================================================
 
     #[test]
     fn test_rbac_model_not_empty() {
@@ -96,6 +129,31 @@ mod tests {
         assert!(model.contains("p = sub, obj, act"));
         assert!(model.contains("g = _, _"));
     }
+
+    #[test]
+    fn test_rbac_model_contains_matcher() {
+        let model = rbac_model();
+        assert!(model.contains("g(r.sub, p.sub)"));
+        assert!(model.contains("r.obj == p.obj"));
+        assert!(model.contains("r.act == p.act"));
+    }
+
+    #[test]
+    fn test_rbac_model_contains_effect() {
+        let model = rbac_model();
+        assert!(model.contains("some(where (p.eft == allow))"));
+    }
+
+    #[test]
+    fn test_rbac_model_has_five_sections() {
+        let model = rbac_model();
+        let section_count = model.matches('[').count();
+        assert_eq!(section_count, 5);
+    }
+
+    // ============================================================
+    // PermissionCheck tests
+    // ============================================================
 
     #[test]
     fn test_permission_check_fields() {
@@ -136,5 +194,186 @@ mod tests {
         };
         assert!(!check.allowed);
         assert_eq!(check.user, "guest");
+    }
+
+    #[test]
+    fn test_permission_check_debug() {
+        let check = PermissionCheck {
+            allowed: true,
+            user: "admin".to_string(),
+            resource: "server1".to_string(),
+            action: "reboot".to_string(),
+        };
+        let debug = format!("{:?}", check);
+        assert!(debug.contains("PermissionCheck"));
+        assert!(debug.contains("admin"));
+        assert!(debug.contains("server1"));
+        assert!(debug.contains("reboot"));
+    }
+
+    #[test]
+    fn test_permission_check_clone_independence() {
+        let check = PermissionCheck {
+            allowed: true,
+            user: "admin".to_string(),
+            resource: "server1".to_string(),
+            action: "reboot".to_string(),
+        };
+        let mut cloned = check.clone();
+        cloned.user = "modified".to_string();
+        assert_eq!(check.user, "admin");
+        assert_eq!(cloned.user, "modified");
+    }
+
+    #[test]
+    fn test_permission_check_allowed_false() {
+        let check = PermissionCheck {
+            allowed: false,
+            user: "guest".to_string(),
+            resource: "db".to_string(),
+            action: "write".to_string(),
+        };
+        assert!(!check.allowed);
+        assert_eq!(check.resource, "db");
+        assert_eq!(check.action, "write");
+    }
+
+    // ============================================================
+    // RbacManager integration tests (with temp files)
+    // ============================================================
+
+    #[tokio::test]
+    async fn test_rbac_manager_new_with_valid_files() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await;
+        assert!(manager.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_check_permission_admin_allowed() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        // alice has role admin, admin can reboot server1
+        let result = manager.check_permission("alice", "server1", "reboot").await.unwrap();
+        assert!(result.allowed);
+        assert_eq!(result.user, "alice");
+        assert_eq!(result.resource, "server1");
+        assert_eq!(result.action, "reboot");
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_check_permission_denied() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        // bob has role operator, operator cannot shutdown server1
+        let result = manager.check_permission("bob", "server1", "shutdown").await.unwrap();
+        assert!(!result.allowed);
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_check_permission_unknown_user() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        let result = manager.check_permission("unknown", "server1", "reboot").await.unwrap();
+        assert!(!result.allowed);
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_check_permission_wrong_resource() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        // admin can reboot server1, but not server2
+        let result = manager.check_permission("alice", "server2", "reboot").await.unwrap();
+        assert!(!result.allowed);
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_get_roles() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        let roles = manager.get_roles("alice").await.unwrap();
+        assert!(roles.contains(&"admin".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_get_roles_empty() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        let roles = manager.get_roles("unknown_user").await.unwrap();
+        assert!(roles.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_add_role() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        let result = manager.add_role("charlie", "admin").await;
+        assert!(result.is_ok());
+
+        let roles = manager.get_roles("charlie").await.unwrap();
+        assert!(roles.contains(&"admin".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_new_missing_model_file() {
+        let result = RbacManager::new(
+            std::path::Path::new("/nonexistent/model.conf"),
+            std::path::Path::new("/nonexistent/policy.csv"),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_new_invalid_model_content() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = tmp.path().join("bad_model.conf");
+        std::fs::write(&model_path, "this is not a valid casbin model").unwrap();
+        let policy_path = tmp.path().join("policy.csv");
+        std::fs::write(&policy_path, "").unwrap();
+
+        let result = RbacManager::new(&model_path, &policy_path).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rbac_manager_add_role_then_check() {
+        let tmp = TempDir::new().unwrap();
+        let model_path = create_test_model_file(tmp.path());
+        let policy_path = create_test_policy_file(tmp.path());
+
+        let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
+        // dave has no role initially
+        let result = manager.check_permission("dave", "server1", "reboot").await.unwrap();
+        assert!(!result.allowed);
+
+        // add operator role to dave
+        manager.add_role("dave", "operator").await.unwrap();
+        let result = manager.check_permission("dave", "server1", "reboot").await.unwrap();
+        assert!(result.allowed);
     }
 }

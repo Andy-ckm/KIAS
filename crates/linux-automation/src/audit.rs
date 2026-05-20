@@ -451,4 +451,176 @@ mod tests {
         let log = audit.get_audit_log(Some(1)).unwrap();
         assert!(log[0].action.contains("ComplianceScan"));
     }
+
+    // ============================================================
+    // log_action (simplified interface) tests
+    // ============================================================
+
+    #[test]
+    fn test_log_action_basic() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("admin", "DockerOps", "server1", "Success").unwrap();
+
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 1);
+
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert_eq!(log[0].user, "admin");
+        assert_eq!(log[0].action, "DockerOps");
+        assert_eq!(log[0].target, "server1");
+        assert_eq!(log[0].result, "Success");
+    }
+
+    #[test]
+    fn test_log_action_multiple() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("user1", "Provision", "host1", "ok").unwrap();
+        audit.log_action("user2", "Scan", "host2", "passed").unwrap();
+        audit.log_action("user3", "Backup", "host3", "done").unwrap();
+
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 3);
+    }
+
+    #[test]
+    fn test_log_action_empty_user() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("", "action", "target", "result").unwrap();
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert_eq!(log[0].user, "");
+    }
+
+    #[test]
+    fn test_log_action_details_is_none() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("user", "action", "target", "result").unwrap();
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert!(log[0].details.is_none());
+    }
+
+    #[test]
+    fn test_log_action_signature_is_none() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("user", "action", "target", "result").unwrap();
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert!(log[0].signature.is_none());
+    }
+
+    // ============================================================
+    // AuditLog creation edge cases
+    // ============================================================
+
+    #[test]
+    fn test_audit_log_new_creates_tables() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+        // Should be able to query immediately after creation
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 0);
+    }
+
+    #[test]
+    fn test_audit_log_new_idempotent() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+
+        // Create first, add entry
+        let audit1 = AuditLog::new(&db_path).unwrap();
+        audit1.log_action("user", "action", "target", "result").unwrap();
+
+        // Create again — should not lose data (CREATE IF NOT EXISTS)
+        let audit2 = AuditLog::new(&db_path).unwrap();
+        let stats = audit2.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 1);
+    }
+
+    // ============================================================
+    // AuditStatistics tests
+    // ============================================================
+
+    #[test]
+    fn test_audit_statistics_zero() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 0);
+    }
+
+    #[test]
+    fn test_audit_statistics_after_100_entries() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        for i in 0..100 {
+            audit.log_action("user", "action", &format!("target-{}", i), "ok").unwrap();
+        }
+        let stats = audit.get_statistics().unwrap();
+        assert_eq!(stats.total_entries, 100);
+    }
+
+    // ============================================================
+    // AuditEntry field verification
+    // ============================================================
+
+    #[test]
+    fn test_audit_entry_has_uuid() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("user", "action", "target", "result").unwrap();
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        // UUID should be valid (not default)
+        assert_ne!(log[0].id, Uuid::default());
+    }
+
+    #[test]
+    fn test_audit_entry_has_timestamp() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        let before = Utc::now();
+        audit.log_action("user", "action", "target", "result").unwrap();
+        let after = Utc::now();
+
+        let log = audit.get_audit_log(Some(1)).unwrap();
+        assert!(log[0].timestamp >= before);
+        assert!(log[0].timestamp <= after);
+    }
+
+    #[test]
+    fn test_audit_log_order_is_descending() {
+        let tmp = TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.db");
+        let audit = AuditLog::new(&db_path).unwrap();
+
+        audit.log_action("user", "first", "target", "ok").unwrap();
+        audit.log_action("user", "second", "target", "ok").unwrap();
+        audit.log_action("user", "third", "target", "ok").unwrap();
+
+        let log = audit.get_audit_log(Some(10)).unwrap();
+        assert_eq!(log.len(), 3);
+        // Most recent first
+        assert_eq!(log[0].action, "third");
+        assert_eq!(log[2].action, "first");
+    }
 }

@@ -556,4 +556,103 @@ mod tests {
         let chunks = chunk_document("", 500);
         assert_eq!(chunks.len(), 1);
     }
+
+    // === ingest_file handler tests ===
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_success() {
+        let state = test_state().await;
+        // Create a temp file
+        let tmp_path = "/tmp/test_ingest_knowledge_48.txt";
+        tokio::fs::write(tmp_path, "This is test content for knowledge ingestion.")
+            .await
+            .unwrap();
+
+        let req = serde_json::json!({
+            "path": tmp_path,
+            "tags": ["test", "knowledge"]
+        });
+        let result = ingest_file(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(!resp.document_id.is_empty());
+        assert!(resp.chunks_created >= 1);
+        assert_eq!(resp.status, "ingested");
+
+        // Cleanup
+        let _ = tokio::fs::remove_file(tmp_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_missing_path() {
+        let state = test_state().await;
+        let req = serde_json::json!({ "tags": ["test"] });
+        let result = ingest_file(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_nonexistent() {
+        let state = test_state().await;
+        let req = serde_json::json!({ "path": "/tmp/nonexistent_file_xyz_12345.txt" });
+        let result = ingest_file(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_empty_file() {
+        let state = test_state().await;
+        let tmp_path = "/tmp/test_ingest_empty_48.txt";
+        tokio::fs::write(tmp_path, "").await.unwrap();
+
+        let req = serde_json::json!({ "path": tmp_path });
+        let result = ingest_file(State(state), Json(req)).await;
+        // Empty content should fail (whitespace check in ingest_document)
+        assert!(result.is_err());
+
+        let _ = tokio::fs::remove_file(tmp_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_with_tags() {
+        let state = test_state().await;
+        let tmp_path = "/tmp/test_ingest_tags_48.txt";
+        tokio::fs::write(tmp_path, "Tagged document content for testing.")
+            .await
+            .unwrap();
+
+        let req = serde_json::json!({
+            "path": tmp_path,
+            "tags": ["tag1", "tag2", "tag3"]
+        });
+        let result = ingest_file(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp.chunks_created >= 1);
+
+        let _ = tokio::fs::remove_file(tmp_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_handler_ingest_file_path_as_title() {
+        let state = test_state().await;
+        let tmp_path = "/tmp/my_special_document_48.md";
+        tokio::fs::write(tmp_path, "# Title\nSome markdown content.")
+            .await
+            .unwrap();
+
+        let req = serde_json::json!({ "path": tmp_path });
+        let result = ingest_file(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        // document_id should be generated
+        assert!(!resp.document_id.is_empty());
+        assert!(resp.chunks_created >= 1);
+
+        let _ = tokio::fs::remove_file(tmp_path).await;
+    }
 }

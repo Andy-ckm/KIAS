@@ -1,19 +1,19 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 08:00
+# 更新时间: 2026-05-20 08:50
 
-iteration: 29
-last_run: "2026-05-20T08:00:00Z"
-last_commit: "e3aab25"
+iteration: 30
+last_run: "2026-05-20T08:50:00Z"
+last_commit: "548c0b4"
 status: active
 
 # 各模块状态
 modules:
   linux-automation:
-    tests: 428
+    tests: 455
     target_tests: 120
     status: DONE ✅
     production_unwrap: 0
-    next_step: "R035 日志管理 or deeper coverage"
+    next_step: "R036 进程管理 or R037 日志管理"
     blockers: []
 
   document-management:
@@ -45,54 +45,6 @@ modules:
 
 # 质量指标
 quality:
-  total_tests: 3833
-  linux_automation_tests: 428
+  total_tests: 3860
+  linux_automation_tests: 455
   clippy_warnings: 0
-  production_unwrap: 0
-  disk_usage: "71%"
-
-# 本次迭代成果
-iteration_29:
-  module: "linux-automation/disk_management.rs"
-  new_tests: 26
-  features:
-    - "R034 磁盘管理模块: DiskManager 引擎"
-    - "8种DiskAction: Usage/FindLargeFiles/SafeCleanup/SmartHealth/InodeCheck/IoStats/CleanOldLogs/CleanPackageCache"
-    - "7种CleanupTarget: SystemLogs/TempFiles/PackageCache/DockerPrune/OldKernels/Journal/CustomPath"
-    - "安全清理: dry_run支持, 每种目标独立执行互不影响"
-    - "SMART健康: smartctl解析(model/temp/power-on/reallocated/pending)"
-    - "IO统计: iostat解析(reads/writes/bytes/util/await)"
-    - "inode监控: df -i 解析, 高inode使用率警告"
-    - "包缓存清理: 自动检测apt/yum/dnf"
-    - "error.rs: DiskManagement 错误变体"
-    - "models.rs: 10个新类型(DiskAction/CleanupTarget/DiskUsageEntry/LargeFileEntry等)"
-
-# 学到的教训
-lessons:
-  - id: L012
-    lesson: "AuditEntry字段是target/result/signature,不是host/success/details"
-    solution: "写代码前先grep 'pub struct AuditEntry'确认字段名"
-    date: "2026-05-20"
-  - id: L017
-    lesson: "AuditLog没有.log()方法,用.log_action(user, action, target, result)"
-    solution: "写代码前先grep 'pub.*fn'确认公开API"
-    date: "2026-05-20"
-  - id: L020
-    lesson: "chunk_document按行分割,单行长文本不会被chunk"
-    solution: "测试chunking时用多行内容,不用单行repeat"
-    date: "2026-05-20"
-  - id: L021
-    lesson: "match arm中&u32.min(1000)需要(*val).min(1000)解引用"
-    solution: "引用类型的数值比较需要先解引用"
-    date: "2026-05-20"
-  - id: L022
-    lesson: "df -i输出Mounted on可能是两个词('/ boot'),不能简单按whitespace切分"
-    solution: "用contains('%')定位百分比字段,用saturating_sub计算avail"
-    date: "2026-05-20"
-  - id: L023
-    lesson: "guess_file_type中/tmp/检查在core.之前会误分类Core dump"
-    solution: "Core dump检查(/core.)要在/tmp/检查之前"
-    date: "2026-05-20"
-
-# 研究队列
-research_queue_next: "R035 日志管理或进程管理"

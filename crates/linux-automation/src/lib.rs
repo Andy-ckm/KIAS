@@ -29,6 +29,7 @@ pub mod network_ops;
 pub mod operation_hub;
 pub mod patch;
 pub mod perf_monitor;
+pub mod process_manager;
 pub mod provisioning;
 pub mod queue;
 pub mod rbac;
@@ -336,6 +337,38 @@ impl LinuxAutomation {
                 AutomationResult {
                     task_id,
                     task_type: "CronOps".to_string(),
+                    status: if all_results.iter().all(|r| r.success) {
+                        TaskStatus::Success
+                    } else if errors_count > 0 && all_results.iter().any(|r| r.success) {
+                        TaskStatus::PartialSuccess
+                    } else {
+                        TaskStatus::Failed
+                    },
+                    started_at: Utc::now(),
+                    completed_at: Some(Utc::now()),
+                    host_results: vec![],
+                    summary,
+                    audit_trail: vec![],
+                }
+            }
+            TaskType::ProcessOps { hosts, action } => {
+                let hosts_count = hosts.len();
+                let mut all_results = Vec::new();
+                for host in hosts {
+                    let result = process_manager::ProcessManager::execute(
+                        &self.executor,
+                        host,
+                        action,
+                        &self.audit,
+                    )
+                    .await?;
+                    all_results.push(result);
+                }
+                let errors_count: usize = all_results.iter().map(|r| r.errors.len()).sum();
+                let summary = format!("进程管理 {} 台主机, {} 错误", hosts_count, errors_count);
+                AutomationResult {
+                    task_id,
+                    task_type: "ProcessOps".to_string(),
                     status: if all_results.iter().all(|r| r.success) {
                         TaskStatus::Success
                     } else if errors_count > 0 && all_results.iter().any(|r| r.success) {

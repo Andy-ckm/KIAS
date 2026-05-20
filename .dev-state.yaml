@@ -1,9 +1,9 @@
 # AgentGuard 自主开发状态 — Hermes 每次唤醒读取此文件
-# 更新时间: 2026-05-20 13:46
+# 更新时间: 2026-05-20 14:20
 
-iteration: 38
-last_run: "2026-05-20T13:46:00Z"
-last_commit: "3978c2c"
+iteration: 39
+last_run: "2026-05-20T14:20:00Z"
+last_commit: "d2e5b7f"
 status: active
 
 # 各模块状态
@@ -38,29 +38,25 @@ modules:
     next_step: "已达标"
 
   api-server:
-    tests: 473
+    tests: 481
     status: IMPROVING
-    next_step: "handlers/scheduler.rs(7/571), handlers/tokens.rs(7/508), handlers/metrics.rs(13/515)"
+    next_step: "handlers/tokens.rs(7/508), handlers/nodes.rs(9), handlers/context.rs(11)"
     blockers: []
 
 # 质量指标
 quality:
-  total_tests: 3973
+  total_tests: 3981
   linux_automation_tests: 525
-  api_server_tests: 473
+  api_server_tests: 481
   clippy_warnings: 0
-  disk_percent: 49
+  disk_percent: 79
 
 # 本次迭代成果
-iteration_38:
-  module: api-server/config.rs
-  new_tests: 6
+iteration_39:
+  module: api-server/scheduler.rs
+  new_tests: 8
   features:
-    - "config.rs: 9 -> 15 tests (+6)"
-    - "Added: valid interval, multiple fields, audit trail, secret sanitization, all algorithms"
-    - "Disk cleaned: 80% -> 49% (freed 12.4GB)"
-    - "0 clippy warnings, 3973 total tests"
-  quality:
-    - "Audit trail verification (Success path)"
-    - "Validation error NOT audited (early return pattern)"
-    - "Secret leak prevention verified"
+    - "scheduler.rs: 7 -> 14 tests (+8)"
+    - "New: avg_restart, Scheduled status, mixed success rate, multi-node"
+    - "New: single agent boundary, sort order verification, decision fields"
+    - "0 clippy warnings, 3981 total tests"

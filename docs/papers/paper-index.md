@@ -1,10 +1,17 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (20:33)
+更新时间: 2026-05-21 (00:21)
 
-## 论文列表 (278 篇)
+## 论文列表 (285 篇)
 
-### 已下载论文 (275 篇)
+### 已下载论文 (282 篇)
+- ✅ 2605.19240.pdf (CASPIAN: Online Detection and Attribution of Cascade Attacks in LLM Multi-Agent Systems via Cross-Channel Causal Monitoring)
+- ✅ 2605.19351.pdf (PAVE: A Cognitive Architecture for Legitimate Violation in Generative Agent Societies)
+- ✅ 2605.19915.pdf (LLM Agents Make Collective Belief Dynamics Programmable: Challenges and Research Directions)
+- ✅ 2605.16626.pdf (SLEIGHT-Bench: A Benchmark of Evasion Attacks Against Agent Monitors)
+- ✅ 2605.16630.pdf (PrivScope: Task-scoped Disclosure Control for Hybrid Agentic Systems)
+- ✅ 2605.05974.pdf (PragLocker: Protecting Agent Intellectual Property in Untrusted Deployments via Non-Portable Prompts)
+- ✅ 2605.19186.pdf (Discoverable Agent Knowledge -- A Formal Framework for Agentic KG Affordances)
 - ✅ 2605.20055.pdf (Towards LLM-Assisted Architecture Recovery for Real-World ROS~2 Systems)
 - ✅ 2605.20049.pdf (Does Code Cleanliness Affect Coding Agents? A Controlled Minimal-Pair Study)
 - ✅ 2605.19988.pdf (A Case for Agentic Tuning: From Documentation to Action in PostgreSQL)
@@ -2030,6 +2037,69 @@
     - 链接: https://arxiv.org/abs/2605.20072
     - 状态: ✅ 已下载 (0.6MB)
     - 核心观点: 探究具身LLM中观察保真度与问题解决的反直觉关系
+
+86. **[2605.19240]** CASPIAN: Online Detection and Attribution of Cascade Attacks in LLM Multi-Agent Systems via Cross-Channel Causal Monitoring
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.MA, cs.CR
+    - 主题: cascade attacks, multi-agent security, causal monitoring, cross-channel detection
+    - 链接: https://arxiv.org/abs/2605.19240
+    - 状态: ✅ 已下载 (1.1MB)
+    - 核心观点: 通过跨通道因果监控在线检测LLM多Agent系统中的级联攻击，解决现有防御无法捕获跨通道时序协调动态的问题
+    - AgentGuard映射: monitor模块可借鉴CASPIAN的因果监控架构，实现跨Agent攻击传播的实时检测和归因
+
+87. **[2605.19351]** PAVE: A Cognitive Architecture for Legitimate Violation in Generative Agent Societies
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.MA, cs.AI
+    - 主题: cognitive architecture, rule-breaking, emergency reasoning, agent governance
+    - 链接: https://arxiv.org/abs/2605.19351
+    - 状态: ✅ 已下载 (0.6MB)
+    - 核心观点: 四模块认知架构(PAVE)处理Agent社会中合法违规场景，如火灾疏散时的规则突破决策
+    - AgentGuard映射: autonomy-controller可引入PAVE的感知-评估-裁决-模拟四阶段，实现更细粒度的自主度决策
+
+88. **[2605.19915]** LLM Agents Make Collective Belief Dynamics Programmable: Challenges and Research Directions
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.MA, cs.AI
+    - 主题: collective belief dynamics, programmable control, multi-agent persuasion
+    - 链接: https://arxiv.org/abs/2605.19915
+    - 状态: ✅ 已下载 (0.3MB)
+    - 核心观点: LLM Agent使集体信念动力学变得可编程，可通过协调策略系统性地引导群体级信念
+    - AgentGuard映射: data-governance模块可借鉴此框架监控多Agent系统中的信念传播和协调行为
+
+89. **[2605.16626]** SLEIGHT-Bench: A Benchmark of Evasion Attacks Against Agent Monitors
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.AI, cs.CR
+    - 主题: agent monitoring, evasion attacks, adversarial benchmark, coding agents
+    - 链接: https://arxiv.org/abs/2605.16626
+    - 状态: ✅ 已下载 (1.3MB)
+    - 核心观点: 构建40种攻击x11类别的基准测试，评估LLM监控器对抗编码Agent规避攻击的能力
+    - AgentGuard映射: monitor模块应使用SLEIGHT-Bench评估自身监控器的鲁棒性，识别监控盲区
+
+90. **[2605.16630]** PrivScope: Task-scoped Disclosure Control for Hybrid Agentic Systems
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.CR, cs.AI
+    - 主题: privacy, disclosure control, hybrid agents, data minimization
+    - 链接: https://arxiv.org/abs/2605.16630
+    - 状态: ✅ 已下载 (1.1MB)
+    - 核心观点: 任务范围内的信息披露控制，防止混合本地-云Agent在云端payload中过度暴露敏感信息
+    - AgentGuard映射: data-governance模块应实现PrivScope式的数据最小化策略，控制Agent向外部服务的信息泄露
+
+91. **[2605.05974]** PragLocker: Protecting Agent Intellectual Property in Untrusted Deployments via Non-Portable Prompts
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.CR, cs.AI
+    - 主题: agent IP protection, prompt obfuscation, non-portable prompts
+    - 链接: https://arxiv.org/abs/2605.05974
+    - 状态: ✅ 已下载 (0.9MB)
+    - 核心观点: 通过函数保持的混淆提示词保护Agent知识产权，防止在不受信任环境中被复制重用
+    - AgentGuard映射: skills模块可集成PragLocker机制保护注册技能的IP，防止技能被未授权复制
+
+92. **[2605.19186]** Discoverable Agent Knowledge -- A Formal Framework for Agentic KG Affordances
+    - 作者: Anonymous, et al.
+    - 日期: 2026-05-20 | 分类: cs.AI, cs.DB
+    - 主题: knowledge graphs, agent capability discovery, formal ontology
+    - 链接: https://arxiv.org/abs/2605.19186
+    - 状态: ✅ 已下载 (0.4MB)
+    - 核心观点: 形式化框架描述Agent能从知识图谱中证明什么、需要什么先验知识、如何桥接本体差异
+    - AgentGuard映射: knowledge模块可采用此框架实现Agent能力的形式化描述和自动发现
 
 ---
 

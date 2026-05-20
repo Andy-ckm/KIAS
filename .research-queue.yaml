@@ -340,3 +340,24 @@ completed:
   - id: C004
     topic: "prax-agent 自主Agent"
     key_insights: "Agent Loop、Memory Middleware、Planning"
+
+# === 论文驱动开发 (Paper-Driven Development) ===
+# 论文下载器自动注入可落地的 insight，自主开发循环读取并实现
+paper_insights:
+  # 示例格式（论文下载器会自动追加）：
+  # - paper_id: "2605.xxxxx"
+  #   title: "论文标题"
+  #   core_idea: "一句话概括核心贡献"
+  #   actionable_items:
+  #     - "具体可实现的功能点 1"
+  #     - "具体可实现的功能点 2"
+  #   target_module: "linux-automation / api-server / etc"
+  #   priority: high
+  #   status: pending
+  - paper_id: "placeholder"
+    title: "等待论文下载器注入"
+    core_idea: "论文下载器运行后会自动替换此条目"
+    actionable_items: []
+    target_module: "none"
+    priority: low
+    status: done

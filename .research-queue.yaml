@@ -354,10 +354,37 @@ paper_insights:
   #   target_module: "linux-automation / api-server / etc"
   #   priority: high
   #   status: pending
-  - paper_id: "placeholder"
-    title: "等待论文下载器注入"
-    core_idea: "论文下载器运行后会自动替换此条目"
-    actionable_items: []
-    target_module: "none"
-    priority: low
+  - paper_id: "2412.08765"
+    title: "Governing the Governors: Accountability Mechanisms for LLM-Based Multi-Agent Systems"
+    core_idea: "Accountability Graph tracking causal dependencies between agent actions + 3-mode monitoring (reactive/proactive/continuous). 94% correct attribution, 37% harm reduction with continuous monitoring."
+    actionable_items:
+      - "Build AccountabilityGraph data structure for causal attribution of agent actions"
+      - "Implement reactive mode: post-hoc analysis of action chains"
+      - "Implement proactive mode: pre-action risk scoring"
+      - "Implement continuous mode: real-time monitoring with middleware interceptors"
+    target_module: "data-governance"
+    priority: high
     status: done
+    findings: "Implemented in crates/data-governance/src/accountability.rs. 32 tests. ActionNode+CausalEdge+AccountabilityGraph with Reactive/Proactive/Continuous modes."
+
+  - paper_id: "2508.15014"
+    title: "Towards Safe and Ethical Agentic AI: A Multi-Layered Framework for Governance"
+    core_idea: "4-layer governance: Risk Assessment → Preventive Controls → Real-time Monitoring → Accountability. Novel mechanisms: Ethical Decision Points (EDPs), Agent Governance Chains (AGCs), Safety Constraint Propagation (SCP)."
+    actionable_items:
+      - "Implement Ethical Decision Points as mandatory checkpoints before high-stakes actions"
+      - "Build Agent Governance Chain (AGC) data structure for multi-agent interaction logging"
+      - "Deploy Safety Constraint Propagation across connected agents"
+    target_module: "data-governance / api-server"
+    priority: high
+    status: pending
+
+  - paper_id: "2503.19876"
+    title: "Immutable Audit Trails for Autonomous Agent Actions: Blockchain-Inspired Approach"
+    core_idea: "Cryptographically signed action logs with causal linking. 4 audit properties: completeness, integrity, non-repudiation, causal coherence. Sub-ms overhead, <2% throughput reduction at 50 agents."
+    actionable_items:
+      - "Add cryptographic signatures to audit log entries"
+      - "Implement causal linking between related audit events"
+      - "Enforce 4 audit properties as system invariants"
+    target_module: "data-governance"
+    priority: medium
+    status: pending

@@ -566,3 +566,80 @@ paper_insights:
     target_module: "knowledge / scheduler"
     priority: medium
     status: pending
+
+  - paper_id: "2605.14744"
+    title: "Mechanical Enforcement for LLM Governance: Evidence of Governance-Task Decoupling"
+    core_idea: "Decouple governance constraints from LLM interpretation by compiling natural-language policies into mechanically verifiable rules, eliminating principal-agent compliance failures."
+    actionable_items:
+      - "Implement policy compiler in autonomy-controller: translate governance YAML rules into deterministic check functions that run independently of LLM"
+      - "Add governance-task decoupling layer: separate 'what the agent should do' from 'what constraints apply', verify constraints mechanically post-execution"
+      - "Build compliance verification pipeline: for each agent action, mechanically verify against compiled rules before returning results to user"
+    target_module: "autonomy-controller / data-governance"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.14454"
+    title: "LiSA: Lifelong Safety Adaptation via Conservative Policy Induction"
+    core_idea: "Guardrails for tool-using agents must adapt lifelong to deployment context rather than being static. Conservative policy induction learns safety boundaries that become stricter over time."
+    actionable_items:
+      - "Implement adaptive guardrail in autonomy-controller/ladder: track guardrail violations per deployment environment, tighten thresholds over time"
+      - "Add conservative policy induction: when uncertain about safety boundary, default to more restrictive action rather than permissive"
+      - "Build safety memory: store violation patterns across sessions to detect evolving attack strategies"
+    target_module: "autonomy-controller / controller"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.14212"
+    title: "MetaAgent-X: Breaking the Ceiling of Automatic Multi-Agent Systems via End-to-End RL"
+    core_idea: "End-to-end RL training of meta-level workflow designer + execution-level agents achieves better automatic multi-agent orchestration than test-time search alone."
+    actionable_items:
+      - "Add RL-based scheduler optimization: train scheduling policy end-to-end on task completion metrics rather than hand-tuned heuristics"
+      - "Implement meta-level workflow generator: auto-generate DAG workflows from task descriptions using learned policy"
+      - "Build dual-layer optimization: separate meta-design (workflow structure) from execution (agent behavior) with joint training"
+    target_module: "scheduler / workflow-engine"
+    priority: medium
+    status: pending
+
+  - paper_id: "2605.18988"
+    title: "Surviving the Unseen: Predictive Defense for Novel Multi-Turn Multimodal Attacks"
+    core_idea: "Multi-turn multimodal attacks evade per-turn guardrails by distributing malicious intent across turns. Predictive defense detects attack patterns before completion."
+    actionable_items:
+      - "Implement cross-turn threat detector in monitor: maintain sliding window of recent actions, detect progressive escalation patterns"
+      - "Add predictive guardrail: score cumulative risk across conversation turns rather than per-turn filtering"
+      - "Build multimodal attack signature library: catalog known cross-modal attack patterns for early detection"
+    target_module: "monitor / autonomy-controller"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.16436"
+    title: "The End of Trust: How Agentic AI Breaks Security Assumptions"
+    core_idea: "Agentic AI eliminates the historical tradeoff between deception fidelity and scale, requiring fundamentally new trust architectures for agent-mediated interactions."
+    actionable_items:
+      - "Redesign trust model in controller: move from binary trusted/untrusted to continuous trust scoring with behavioral evidence"
+      - "Add agent identity verification: cryptographic proof of agent provenance and execution environment integrity"
+      - "Build deception detection: analyze agent behavior patterns for signs of compromised or impersonating agents"
+    target_module: "controller / api-server"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.14460"
+    title: "Exploiting LLM Agent Supply Chains via Payload-less Skills"
+    core_idea: "Malicious skills can hijack agent behavior without carrying malicious payloads, purely through semantic manipulation of skill descriptions and behavioral contracts."
+    actionable_items:
+      - "Implement skill semantic audit in skills registry: verify skill description matches actual behavior through sandbox testing"
+      - "Add skill behavior contracts: each registered skill declares expected inputs/outputs/actions, deviations trigger alerts"
+      - "Build supply chain integrity check: verify skill provenance, hash integrity, and behavioral consistency before registration"
+    target_module: "skills / tool-executor"
+    priority: high
+    status: pending
+
+  - paper_id: "2605.14271"
+    title: "Auditing Agent Harness Safety"
+    core_idea: "An agent harness can return correct answers while secretly accessing unauthorized resources or leaking context between agents. Output correctness does not guarantee harness safety."
+    actionable_items:
+      - "Implement harness audit middleware in api-server: log all tool dispatches, resource accesses, and message routes with authorization checks"
+      - "Add context isolation enforcement: prevent cross-agent context leakage by tagging data with origin and destination policies"
+      - "Build harness safety report: generate per-execution audit trail showing which resources were accessed and whether authorization boundaries were respected"
+    target_module: "api-server / tool-executor / mcp-protocol"
+    priority: high
+    status: pending

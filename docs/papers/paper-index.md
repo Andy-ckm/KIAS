@@ -1,11 +1,22 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (11:50)
+更新时间: 2026-05-20 (12:10)
 
-## 论文列表 (226 篇)
+## 论文列表 (237 篇)
 
-### 已下载论文 (210 篇)
+### 已下载论文 (221 篇)
 - ✅ 2605.17380.pdf (ADR: An Agentic Detection System for Enterprise Agentic AI Security)
+- ✅ 2605.19743.pdf (EngiAI: A Multi-Agent Framework and Benchmark Suite for LLM-Driven Engineering Design)
+- ✅ 2605.19099.pdf (DecisionBench: A Benchmark for Emergent Delegation in Long-Horizon Agentic Workflows)
+- ✅ 2605.20023.pdf (When Skills Don't Help: A Negative Result on Procedural Knowledge for Tool-Grounded Agents)
+- ✅ 2605.19748.pdf (Memory-Augmented Reinforcement Learning Agent for CAD Generation)
+- ✅ 2605.19151.pdf (Progressive Autonomy as Preference Learning: Trust Calibration for Agentic Tool Use)
+- ✅ 2605.20025.pdf (AutoResearchClaw: Self-Reinforcing Autonomous Research with Human-AI Collaboration)
+- ✅ 2605.19824.pdf (From Prompts to Pavement Through Time: Temporal Grounding in Agentic Scene-to-Plan Reasoning)
+- ✅ 2605.19140.pdf (Learning to Hand Off: Provably Convergent Workflow Learning under Interface Constraints)
+- ✅ 2605.19010.pdf (AgentNLQ: A General-Purpose Agent for Natural Language to SQL)
+- ✅ 2605.18805.pdf (RecoAtlas: From Semantic Plausibility to Set-Level Utility in LLM Recommendation Agents)
+- ✅ 2605.18770.pdf (Agentic GraphRAG: Navigating Unstructured Financial Data with Collaborative AI)
 - ✅ 2512.23978.pdf (Assured autonomy: How operations research powers and orchestrates generative AI systems)
 - ✅ 2605.17774.pdf (Internalizing Tool Knowledge in Small Language Models via QLoRA Fine-Tuning)
 - ✅ 2605.17450.pdf (ContraFix: Agentic Vulnerability Repair via Differential Runtime Evidence and Skill Reuse)
@@ -238,6 +249,72 @@
 ---
 
 ## 全部论文清单
+
+**[2605.19743]** EngiAI: A Multi-Agent Framework and Benchmark Suite for LLM-Driven Engineering Design
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: multi-agent framework, engineering design, benchmark suite, LLM-driven
+   - 链接: https://arxiv.org/abs/2605.19743
+   - 状态: ✅ 已下载 (1.3MB)
+
+**[2605.19099]** DecisionBench: A Benchmark for Emergent Delegation in Long-Horizon Agentic Workflows
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: delegation, long-horizon workflows, benchmark, agentic systems
+   - 链接: https://arxiv.org/abs/2605.19099
+   - 状态: ✅ 已下载 (1.7MB)
+
+**[2605.20023]** When Skills Don't Help: A Negative Result on Procedural Knowledge for Tool-Grounded Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: procedural knowledge, tool use, negative result, cybersecurity agents
+   - 链接: https://arxiv.org/abs/2605.20023
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2605.19748]** Memory-Augmented Reinforcement Learning Agent for CAD Generation
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: memory-augmented RL, CAD generation, agent memory
+   - 链接: https://arxiv.org/abs/2605.19748
+   - 状态: ✅ 已下载 (2.4MB)
+
+**[2605.19151]** Progressive Autonomy as Preference Learning: Trust Calibration for Agentic Tool Use
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: progressive autonomy, trust calibration, preference learning, tool use
+   - 链接: https://arxiv.org/abs/2605.19151
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.20025]** AutoResearchClaw: Self-Reinforcing Autonomous Research with Human-AI Collaboration
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: autonomous research, self-reinforcing, human-AI collaboration
+   - 链接: https://arxiv.org/abs/2605.20025
+   - 状态: ✅ 已下载 (1.0MB)
+
+**[2605.19824]** From Prompts to Pavement Through Time: Temporal Grounding in Agentic Scene-to-Plan Reasoning
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: temporal grounding, scene-to-plan, agentic reasoning
+   - 链接: https://arxiv.org/abs/2605.19824
+   - 状态: ✅ 已下载 (2.3MB)
+
+**[2605.19140]** Learning to Hand Off: Provably Convergent Workflow Learning under Interface Constraints
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: workflow learning, handoff, convergence guarantees, interface constraints
+   - 链接: https://arxiv.org/abs/2605.19140
+   - 状态: ✅ 已下载 (0.4MB)
+
+**[2605.19010]** AgentNLQ: A General-Purpose Agent for Natural Language to SQL
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: NL-to-SQL, general-purpose agent, natural language queries
+   - 链接: https://arxiv.org/abs/2605.19010
+   - 状态: ✅ 已下载 (0.7MB)
+
+**[2605.18805]** RecoAtlas: From Semantic Plausibility to Set-Level Utility in LLM Recommendation Agents
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: recommendation agents, semantic plausibility, set-level utility
+   - 链接: https://arxiv.org/abs/2605.18805
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.18770]** Agentic GraphRAG: Navigating Unstructured Financial Data with Collaborative AI
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: GraphRAG, financial data, collaborative AI, unstructured data
+   - 链接: https://arxiv.org/abs/2605.18770
+   - 状态: ✅ 已下载 (0.6MB)
 
 **[2605.17746]** Agents for Experiments, Experiments for Agents: A Design Grammar for AI-Enabled Experiment
    - 日期: 2026-05 | 分类: cs.AI

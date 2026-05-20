@@ -924,34 +924,27 @@ impl NetworkManager {
             .skip(1) // skip header
             .filter_map(|line| {
                 let parts: Vec<&str> = line.split_whitespace().collect();
+                // ss -tunap output: State Recv-Q Send-Q LocalAddr:Port PeerAddr:Port Process
+                // needs at least 5 columns: State Recv-Q Send-Q Local Peer
                 if parts.len() < 5 {
                     return None;
                 }
-                let protocol = parts[0].to_string();
-                let state = if parts.len() > 1 {
-                    parts[1].to_string()
-                } else {
-                    "UNKNOWN".to_string()
-                };
+                let state = parts[0].to_string();
                 if let Some(ref fs) = filter_state {
                     if !state.contains(fs) {
                         return None;
                     }
                 }
                 let local = parts[3].to_string();
-                let remote = if parts.len() > 4 {
-                    parts[4].to_string()
-                } else {
-                    "*:*".to_string()
-                };
+                let remote = parts[4].to_string();
                 let (local_addr, local_port) = Self::parse_addr_port(&local);
                 let (remote_addr, remote_port) = Self::parse_addr_port(&remote);
                 let process = parts
-                    .last()
+                    .get(5)
                     .map(|s| s.to_string())
                     .filter(|s| s.contains('"'));
                 Some(NetworkConnection {
-                    protocol,
+                    protocol: state.clone(),
                     local_addr,
                     local_port,
                     remote_addr,
@@ -1547,5 +1540,109 @@ mod tests {
             duration_secs: None,
         });
         assert!(cmds[0].contains("-t 10"));
+    }
+
+    // --- parse_dig_records 测试 ---
+
+    #[test]
+    fn test_parse_dig_records_normal() {
+        let output = "example.com.\t300\tIN\tA\t93.184.216.34\nexample.com.\t300\tIN\tAAAA\t2606:2800:220:1:248:1893:25c8:1946\n";
+        let records = NetworkManager::parse_dig_records(output);
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].record_type, "A");
+        assert_eq!(records[0].value, "93.184.216.34");
+        assert_eq!(records[0].ttl, 300);
+        assert_eq!(records[1].record_type, "AAAA");
+        assert!(records[1].value.contains("2606"));
+    }
+
+    #[test]
+    fn test_parse_dig_records_skips_comments() {
+        let output = "; <<>> DiG 9.18 <<>> example.com\n;; QUESTION SECTION:\n;; ANSWER SECTION:\nexample.com.\t300\tIN\tA\t93.184.216.34\n";
+        let records = NetworkManager::parse_dig_records(output);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].record_type, "A");
+    }
+
+    #[test]
+    fn test_parse_dig_records_empty() {
+        let records = NetworkManager::parse_dig_records("");
+        assert!(records.is_empty());
+    }
+
+    #[test]
+    fn test_parse_dig_records_short_line_skipped() {
+        let output = "example.com.\t300\n"; // only 2 fields, needs >= 5
+        let records = NetworkManager::parse_dig_records(output);
+        assert!(records.is_empty());
+    }
+
+    #[test]
+    fn test_parse_dig_records_mx_record() {
+        let output = "example.com.\t3600\tIN\tMX\t10 mail.example.com.\n";
+        let records = NetworkManager::parse_dig_records(output);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].record_type, "MX");
+        assert_eq!(records[0].value, "10 mail.example.com.");
+        assert_eq!(records[0].ttl, 3600);
+    }
+
+    #[test]
+    fn test_parse_dig_records_ns_record() {
+        let output = "example.com.\t86400\tIN\tNS\tns1.example.com.\nexample.com.\t86400\tIN\tNS\tns2.example.com.\n";
+        let records = NetworkManager::parse_dig_records(output);
+        assert_eq!(records.len(), 2);
+        assert!(records.iter().all(|r| r.record_type == "NS"));
+    }
+
+    // --- parse_connections 测试 ---
+
+    #[test]
+    fn test_parse_connections_normal() {
+        let output = "State      Recv-Q Send-Q Local Address:Port    Peer Address:Port  Process\nLISTEN     0      128    0.0.0.0:22             0.0.0.0:*          users:((\"sshd\",pid=1234,fd=3))\nESTABLISHED 0     0      192.168.1.100:22       192.168.1.1:54321   users:((\"sshd\",pid=5678,fd=4))\n";
+        let conns = NetworkManager::parse_connections(output, &None);
+        assert_eq!(conns.len(), 2);
+        assert_eq!(conns[0].protocol, "LISTEN");
+        assert_eq!(conns[0].local_addr, "0.0.0.0");
+        assert_eq!(conns[0].local_port, 22);
+        assert_eq!(conns[1].protocol, "ESTABLISHED");
+        assert_eq!(conns[1].remote_port, 54321);
+    }
+
+    #[test]
+    fn test_parse_connections_with_filter() {
+        let output = "State      Recv-Q Send-Q Local Address:Port    Peer Address:Port  Process\nLISTEN     0      128    0.0.0.0:22             0.0.0.0:*\nESTABLISHED 0     0      192.168.1.100:22       192.168.1.1:54321\n";
+        let filter = Some("LISTEN".to_string());
+        let conns = NetworkManager::parse_connections(output, &filter);
+        assert_eq!(conns.len(), 1);
+        assert_eq!(conns[0].protocol, "LISTEN");
+    }
+
+    #[test]
+    fn test_parse_connections_empty() {
+        let conns = NetworkManager::parse_connections("", &None);
+        assert!(conns.is_empty());
+    }
+
+    #[test]
+    fn test_parse_connections_header_only() {
+        let output = "State      Recv-Q Send-Q Local Address:Port    Peer Address:Port  Process\n";
+        let conns = NetworkManager::parse_connections(output, &None);
+        assert!(conns.is_empty());
+    }
+
+    #[test]
+    fn test_parse_connections_short_line_skipped() {
+        let output = "header line\nonly three words\n";
+        let conns = NetworkManager::parse_connections(output, &None);
+        assert!(conns.is_empty());
+    }
+
+    #[test]
+    fn test_parse_connections_with_process() {
+        let output = "Proto Recv-Q Send-Q Local Address:Port    Peer Address:Port  Process\ntcp   0      0      127.0.0.1:6379         0.0.0.0:*          users:((\"redis-server\",pid=999,fd=6))\n";
+        let conns = NetworkManager::parse_connections(output, &None);
+        assert_eq!(conns.len(), 1);
+        assert_eq!(conns[0].process, Some("users:((\"redis-server\",pid=999,fd=6))".to_string()));
     }
 }

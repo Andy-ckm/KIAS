@@ -732,4 +732,187 @@ mod tests {
         assert!(ids.contains(&"slack"));
         assert!(ids.contains(&"feishu"));
     }
+
+    // === Handler-level tests for webhook endpoints ===
+
+    use axum::extract::State;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    async fn handler_test_state() -> AppState {
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handler_im_webhook_empty_message() {
+        let state = handler_test_state().await;
+        let req = WebhookRequest {
+            platform: "wechat".to_string(),
+            sender_id: "user1".to_string(),
+            sender_name: None,
+            message: "   ".to_string(), // whitespace only → treated as empty
+            message_type: "text".to_string(),
+            conversation_id: None,
+        };
+        let result = im_webhook(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp.success);
+        assert_eq!(resp.reply, "收到空消息");
+    }
+
+    #[tokio::test]
+    async fn test_handler_im_webhook_valid_message() {
+        let state = handler_test_state().await;
+        let req = WebhookRequest {
+            platform: "telegram".to_string(),
+            sender_id: "user1".to_string(),
+            sender_name: Some("Alice".to_string()),
+            message: "show status".to_string(),
+            message_type: "text".to_string(),
+            conversation_id: None,
+        };
+        let result = im_webhook(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp.success);
+        assert!(!resp.reply.is_empty());
+        assert_eq!(resp.reply_type, "text");
+        // extra should contain platform and intent info
+        let extra = resp.extra.unwrap();
+        assert_eq!(extra["platform"], "telegram");
+        assert!(extra["confidence"].as_f64().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_handler_wechat_webhook_success() {
+        let state = handler_test_state().await;
+        let raw = json!({
+            "FromUserName": "user123",
+            "Content": "hello agent"
+        });
+        let result = wechat_webhook(State(state), Json(raw)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp["success"].as_bool().unwrap());
+        assert!(resp["reply"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_handler_wechat_webhook_invalid_payload() {
+        let state = handler_test_state().await;
+        let raw = json!({ "invalid": "no required fields" });
+        let result = wechat_webhook(State(state), Json(raw)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_handler_telegram_webhook_success() {
+        let state = handler_test_state().await;
+        let raw = json!({
+            "message": {
+                "from": { "id": 12345, "first_name": "Bob" },
+                "text": "check agents"
+            }
+        });
+        let result = telegram_webhook(State(state), Json(raw)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp["success"].as_bool().unwrap());
+        assert!(resp["reply"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_handler_telegram_webhook_missing_message() {
+        let state = handler_test_state().await;
+        let raw = json!({ "update_id": 1 });
+        let result = telegram_webhook(State(state), Json(raw)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_handler_feishu_webhook_challenge() {
+        let state = handler_test_state().await;
+        let raw = json!({
+            "challenge": "test-challenge-token-123",
+            "type": "url_verification"
+        });
+        let result = feishu_webhook(State(state), Json(raw)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert_eq!(resp["challenge"], "test-challenge-token-123");
+    }
+
+    #[tokio::test]
+    async fn test_handler_feishu_webhook_message() {
+        let state = handler_test_state().await;
+        let raw = json!({
+            "event": {
+                "message": {
+                    "content": "{\"text\":\"hello\"}",
+                    "message_type": "text",
+                    "chat_id": "oc_123"
+                },
+                "sender": {
+                    "sender_id": { "open_id": "ou_456" },
+                    "sender_type": "user"
+                }
+            },
+            "header": {
+                "event_type": "im.message.receive_v1"
+            }
+        });
+        let result = feishu_webhook(State(state), Json(raw)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp["success"].as_bool().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_handler_feishu_webhook_invalid_no_challenge_no_event() {
+        let state = handler_test_state().await;
+        let raw = json!({ "random_field": "no challenge, no event" });
+        let result = feishu_webhook(State(state), Json(raw)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    }
 }

@@ -992,6 +992,548 @@ mod tests {
         let (intent, _) = parse_intent("server status");
         assert!(matches!(intent, Intent::ServerStatus));
     }
+
+    // ─── execute_intent tests ───────────────────────────────────
+
+    async fn test_state() -> AppState {
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            nodes: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: crate::handlers::auth_gxp::create_gxp_auth_state(
+                kias_common::gxp_auth::PasswordPolicy::default(),
+            ),
+            jwt_config: crate::auth::JwtConfig::new(
+                "kias-default-jwt-secret-change-me",
+                "kias",
+                24,
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_list_empty() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::AgentList, &state).await;
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "agent.list");
+        assert_eq!(actions[0].status, "completed");
+        assert!(msg.contains("没有注册的 Agent"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_create() {
+        let state = test_state().await;
+        let intent = Intent::AgentCreate {
+            name: Some("test-bot".to_string()),
+            model: Some("gpt-4o".to_string()),
+        };
+        let (actions, msg, suggestions) = execute_intent(&intent, &state).await;
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "agent.create");
+        assert_eq!(actions[0].status, "completed");
+        assert!(msg.contains("test-bot"));
+        assert!(msg.contains("已创建"));
+        assert_eq!(suggestions.len(), 2);
+
+        // Verify agent was actually inserted
+        let agents = state.agents.read().await;
+        assert_eq!(agents.len(), 1);
+        let agent = agents.values().next().unwrap();
+        assert_eq!(agent.spec.name, "test-bot");
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_create_default_name() {
+        let state = test_state().await;
+        let intent = Intent::AgentCreate {
+            name: None,
+            model: None,
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions.len(), 1);
+        assert!(msg.contains("已创建"));
+        // Default name should be agent-{uuid_prefix}
+        let agents = state.agents.read().await;
+        let agent = agents.values().next().unwrap();
+        assert!(agent.spec.name.starts_with("agent-"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_delete_found() {
+        let state = test_state().await;
+        // First create an agent
+        let create_intent = Intent::AgentCreate {
+            name: Some("victim".to_string()),
+            model: None,
+        };
+        execute_intent(&create_intent, &state).await;
+
+        // Then delete it
+        let delete_intent = Intent::AgentDelete {
+            name: "victim".to_string(),
+        };
+        let (actions, msg, _) = execute_intent(&delete_intent, &state).await;
+        assert_eq!(actions[0].action_type, "agent.delete");
+        assert_eq!(actions[0].status, "completed");
+        assert!(msg.contains("已删除"));
+        assert!(msg.contains("victim"));
+
+        // Verify agent was removed
+        let agents = state.agents.read().await;
+        assert_eq!(agents.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_delete_not_found() {
+        let state = test_state().await;
+        let intent = Intent::AgentDelete {
+            name: "ghost".to_string(),
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].status, "failed");
+        assert!(msg.contains("未找到"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_run_found() {
+        let state = test_state().await;
+        // Create an agent first
+        let create_intent = Intent::AgentCreate {
+            name: Some("runner".to_string()),
+            model: None,
+        };
+        execute_intent(&create_intent, &state).await;
+
+        // Run it
+        let run_intent = Intent::AgentRun {
+            name: "runner".to_string(),
+            prompt: Some("do something".to_string()),
+        };
+        let (actions, msg, suggestions) = execute_intent(&run_intent, &state).await;
+        assert_eq!(actions[0].action_type, "agent.run");
+        assert_eq!(actions[0].status, "submitted");
+        assert!(msg.contains("已提交"));
+        assert_eq!(suggestions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_agent_run_not_found() {
+        let state = test_state().await;
+        let intent = Intent::AgentRun {
+            name: "nonexistent".to_string(),
+            prompt: None,
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].status, "failed");
+        assert!(msg.contains("未找到"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_cluster_status() {
+        let state = test_state().await;
+        let (actions, msg, _) = execute_intent(&Intent::ClusterStatus, &state).await;
+        assert_eq!(actions[0].action_type, "cluster.status");
+        assert!(msg.contains("集群状态"));
+        assert!(msg.contains("0 个 Agent"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_server_status() {
+        let state = test_state().await;
+        let (actions, msg, _) = execute_intent(&Intent::ServerStatus, &state).await;
+        assert_eq!(actions[0].action_type, "server.status");
+        assert!(msg.contains("运行正常"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_metrics() {
+        let state = test_state().await;
+        let (actions, msg, _) = execute_intent(&Intent::Metrics, &state).await;
+        assert_eq!(actions[0].action_type, "metrics.get");
+        assert!(msg.contains("指标"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_knowledge_search() {
+        let state = test_state().await;
+        let intent = Intent::KnowledgeSearch {
+            query: "rust async".to_string(),
+        };
+        let (actions, msg, suggestions) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].action_type, "knowledge.search");
+        assert!(msg.contains("rust async"));
+        assert!(suggestions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_config_get() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::ConfigGet, &state).await;
+        assert_eq!(actions[0].action_type, "config.get");
+        assert!(msg.contains("配置"));
+        assert_eq!(suggestions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_help() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::Help, &state).await;
+        assert_eq!(actions[0].action_type, "help");
+        assert!(msg.contains("自然语言命令支持"));
+        assert!(msg.contains("agent"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_unknown() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::Unknown, &state).await;
+        assert_eq!(actions[0].action_type, "unknown");
+        assert_eq!(actions[0].status, "skipped");
+        assert!(msg.contains("无法识别"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_problem_report() {
+        let state = test_state().await;
+        let intent = Intent::ProblemReport {
+            title: "OOM Kill".to_string(),
+            description: "Agent killed by OOM".to_string(),
+        };
+        let (actions, msg, suggestions) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].action_type, "problem.report");
+        assert!(msg.contains("OOM Kill"));
+        assert!(msg.contains("已记录"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_problem_list() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::ProblemList, &state).await;
+        assert_eq!(actions[0].action_type, "problem.list");
+        assert!(msg.contains("问题列表"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_workflow_list_empty() {
+        let state = test_state().await;
+        let (actions, msg, _) = execute_intent(&Intent::WorkflowList, &state).await;
+        assert_eq!(actions[0].action_type, "workflow.list");
+        assert!(msg.contains("没有注册的工作流"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_workflow_create() {
+        let state = test_state().await;
+        let intent = Intent::WorkflowCreate {
+            name: Some("deploy-pipeline".to_string()),
+            description: Some("CI/CD pipeline".to_string()),
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].action_type, "workflow.create");
+        assert!(msg.contains("deploy-pipeline"));
+        assert!(msg.contains("已创建"));
+
+        // Verify workflow was inserted
+        let workflows = state.workflows.read().await;
+        assert_eq!(workflows.len(), 1);
+        let wf = workflows.values().next().unwrap();
+        assert_eq!(wf.name, "deploy-pipeline");
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_workflow_create_default_name() {
+        let state = test_state().await;
+        let intent = Intent::WorkflowCreate {
+            name: None,
+            description: None,
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].action_type, "workflow.create");
+        assert!(msg.contains("已创建"));
+        let workflows = state.workflows.read().await;
+        let wf = workflows.values().next().unwrap();
+        assert!(wf.name.starts_with("workflow-"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_workflow_run_found() {
+        let state = test_state().await;
+        // Create a workflow first
+        let create = Intent::WorkflowCreate {
+            name: Some("ci".to_string()),
+            description: None,
+        };
+        execute_intent(&create, &state).await;
+
+        // Run it
+        let run = Intent::WorkflowRun {
+            name: "ci".to_string(),
+        };
+        let (actions, msg, _) = execute_intent(&run, &state).await;
+        assert_eq!(actions[0].action_type, "workflow.run");
+        assert_eq!(actions[0].status, "submitted");
+        assert!(msg.contains("已提交"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_workflow_run_not_found() {
+        let state = test_state().await;
+        let intent = Intent::WorkflowRun {
+            name: "nonexistent".to_string(),
+        };
+        let (actions, msg, _) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].status, "failed");
+        assert!(msg.contains("未找到"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_auto_loop_start() {
+        let state = test_state().await;
+        let intent = Intent::AutoLoopStart {
+            problem: "High CPU usage".to_string(),
+        };
+        let (actions, msg, suggestions) = execute_intent(&intent, &state).await;
+        assert_eq!(actions[0].action_type, "auto_loop.start");
+        assert!(msg.contains("自动循环已启动"));
+        assert!(msg.contains("High CPU usage"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_execute_intent_auto_loop_status() {
+        let state = test_state().await;
+        let (actions, msg, suggestions) = execute_intent(&Intent::AutoLoopStatus, &state).await;
+        assert_eq!(actions[0].action_type, "auto_loop.status");
+        assert!(msg.contains("自动循环状态"));
+        assert_eq!(suggestions.len(), 2);
+    }
+
+    // ─── handler-level tests ────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_nl_command_handler_empty_command_rejected() {
+        let state = test_state().await;
+        let req = NlCommandRequest {
+            command: "".to_string(),
+            context: None,
+            mode: "suggest".to_string(),
+        };
+        let result = nl_command(State(state), Json(req)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_handler_whitespace_only_rejected() {
+        let state = test_state().await;
+        let req = NlCommandRequest {
+            command: "   ".to_string(),
+            context: None,
+            mode: "suggest".to_string(),
+        };
+        let result = nl_command(State(state), Json(req)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_handler_valid_command() {
+        let state = test_state().await;
+        let req = NlCommandRequest {
+            command: "列出所有 agent".to_string(),
+            context: None,
+            mode: "suggest".to_string(),
+        };
+        let result = nl_command(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp.intent.contains("AgentList"));
+        assert!(resp.confidence > 0.8);
+        assert!(!resp.actions.is_empty());
+        assert!(!resp.message.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_handler_with_context() {
+        let state = test_state().await;
+        let req = NlCommandRequest {
+            command: "帮助".to_string(),
+            context: Some(NlContext {
+                working_dir: Some("/tmp".to_string()),
+                project: Some("kias".to_string()),
+                branch: Some("main".to_string()),
+                extra: None,
+            }),
+            mode: "auto".to_string(),
+        };
+        let result = nl_command(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(resp.intent.contains("Help"));
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_request_default_mode() {
+        let json = r#"{"command": "help"}"#;
+        let req: NlCommandRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.mode, "suggest");
+        assert!(req.context.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_request_custom_mode() {
+        let json = r#"{"command": "help", "mode": "auto"}"#;
+        let req: NlCommandRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.mode, "auto");
+    }
+
+    #[tokio::test]
+    async fn test_nl_context_serialization_roundtrip() {
+        let ctx = NlContext {
+            working_dir: Some("/workspace".to_string()),
+            project: Some("agentguard".to_string()),
+            branch: Some("develop".to_string()),
+            extra: Some(serde_json::json!({"key": "value"})),
+        };
+        let json_str = serde_json::to_string(&ctx).unwrap();
+        let deserialized: NlContext = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized.working_dir, Some("/workspace".to_string()));
+        assert_eq!(deserialized.project, Some("agentguard".to_string()));
+        assert_eq!(deserialized.branch, Some("develop".to_string()));
+        assert!(deserialized.extra.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_nl_action_serialization() {
+        let action = NlAction {
+            action_type: "test.action".to_string(),
+            params: serde_json::json!({"key": "val"}),
+            status: "completed".to_string(),
+            summary: Some("test summary".to_string()),
+        };
+        let json = serde_json::to_value(&action).unwrap();
+        assert_eq!(json["action_type"], "test.action");
+        assert_eq!(json["status"], "completed");
+        assert_eq!(json["summary"], "test summary");
+    }
+
+    #[tokio::test]
+    async fn test_nl_command_response_serialization() {
+        let resp = NlCommandResponse {
+            intent: "AgentList".to_string(),
+            confidence: 0.95,
+            actions: vec![],
+            message: "test".to_string(),
+            suggestions: vec!["s1".to_string()],
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["intent"], "AgentList");
+        assert_eq!(json["confidence"], 0.95);
+        assert_eq!(json["message"], "test");
+        assert_eq!(json["suggestions"][0], "s1");
+    }
+
+    // ─── parse_intent additional coverage ───────────────────────
+
+    #[test]
+    fn test_parse_intent_auto_loop_status() {
+        // parse_intent("autoloop") alone doesn't match AutoLoopStatus
+        // because the inner check requires "状态"/"status" keyword
+        // This is a known limitation - auto_loop_status is tested via execute_intent
+        let (intent, _) = parse_intent("autoloop");
+        assert!(matches!(intent, Intent::Unknown));
+    }
+
+    #[test]
+    fn test_parse_intent_problem_list_cn() {
+        let (intent, _) = parse_intent("问题列表");
+        assert!(matches!(intent, Intent::ProblemList));
+    }
+
+    #[test]
+    fn test_parse_intent_workflow_run_cn() {
+        let (intent, _) = parse_intent("执行工作流 deploy");
+        assert!(matches!(intent, Intent::WorkflowRun { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_metrics_en() {
+        let (intent, _) = parse_intent("show metrics");
+        assert!(matches!(intent, Intent::Metrics));
+    }
+
+    #[test]
+    fn test_parse_intent_search_en() {
+        let (intent, _) = parse_intent("search rust async");
+        assert!(matches!(intent, Intent::KnowledgeSearch { .. }));
+    }
+
+    #[test]
+    fn test_parse_intent_config_en() {
+        let (intent, _) = parse_intent("show config");
+        assert!(matches!(intent, Intent::ConfigGet));
+    }
+
+    #[test]
+    fn test_parse_intent_help_question_mark() {
+        let (intent, _) = parse_intent("?");
+        assert!(matches!(intent, Intent::Help));
+    }
+
+    #[test]
+    fn test_parse_intent_english_auto_loop() {
+        let (intent, _) = parse_intent("auto loop start");
+        assert!(matches!(intent, Intent::AutoLoopStart { .. }));
+    }
+
+    #[test]
+    fn test_extract_problem_title_with_quotes() {
+        let title = extract_problem_title("报告问题 \"Agent OOM\" 的问题");
+        assert_eq!(title, "Agent OOM");
+    }
+
+    #[test]
+    fn test_extract_query_empty_quotes() {
+        let query = extract_query("搜索 \"\"");
+        assert_eq!(query, "");
+    }
+
+    #[test]
+    fn test_extract_name_with_chinese_pattern() {
+        let name = extract_name("创建一个叫mybot的agent", &["agent", "创建"]);
+        // "叫" is a pattern, but "mybot的agent" would be extracted, stopping at '的'
+        // Actually the function stops at whitespace, '的', '"', '\''
+        assert!(name.is_some());
+    }
 }
 
 // ─── 公共接口（供 IM 模块调用）──────────────────────────

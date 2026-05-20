@@ -1,0 +1,155 @@
+# AgentGuard 超长程任务追踪
+
+> 目标：35 小时+ 自主运行，吊打 Qwen3.7-Max
+> 每个 Phase 分解为多个 10 分钟迭代
+
+## 当前任务
+
+mega_task:
+  id: "MT001"
+  name: "AgentGuard 生产级上线"
+  total_phases: 8
+  current_phase: 1
+  estimated_hours: 35
+  start_time: "2026-05-20T19:00:00Z"
+  status: in_progress
+
+## Phase 列表
+
+phases:
+  - id: "P1"
+    name: "核心模块测试补全"
+    status: in_progress
+    subtasks:
+      - name: "api-server handlers 测试补全"
+        status: in_progress
+        target: "handlers 测试从 25 → 50"
+      - name: "linux-automation 子模块完善"
+        status: pending
+        target: "每个子模块 ≥ 30 tests"
+      - name: "data-governance 测试补全"
+        status: pending
+        target: "从 121 → 150 tests"
+    estimated_hours: 8
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P2"
+    name: "论文驱动功能实现"
+    status: pending
+    subtasks:
+      - name: "实现 10 个 pending paper insights"
+        status: pending
+        target: "research-queue pending → 0"
+    estimated_hours: 6
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P3"
+    name: "安全加固"
+    status: pending
+    subtasks:
+      - name: "消除所有生产 unwrap()"
+        status: pending
+        target: "0 个生产 unwrap"
+      - name: "添加加密模块"
+        status: pending
+        target: "AES-256-GCM 敏感数据加密"
+      - name: "RBAC 完善"
+        status: pending
+        target: "完整权限矩阵测试"
+    estimated_hours: 5
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P4"
+    name: "可观测性建设"
+    status: pending
+    subtasks:
+      - name: "Prometheus 指标暴露"
+        status: pending
+        target: "/metrics 端点 + 四大黄金信号"
+      - name: "链路追踪"
+        status: pending
+        target: "tracing-opentelemetry 集成"
+      - name: "健康检查完善"
+        status: pending
+        target: "/health + /readyz + /deep"
+    estimated_hours: 4
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P5"
+    name: "性能优化"
+    status: pending
+    subtasks:
+      - name: "基准测试建立"
+        status: pending
+        target: "Criterion 基准测试覆盖核心路径"
+      - name: "瓶颈分析"
+        status: pending
+        target: "p99 ≤ 1s 验证"
+      - name: "优化实施"
+        status: pending
+        target: "CPU ≤ 80%, 内存 ≤ 85%"
+    estimated_hours: 4
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P6"
+    name: "合规性实现"
+    status: pending
+    subtasks:
+      - name: "ALCOA+ 审计日志"
+        status: pending
+        target: "100% 操作可追溯"
+      - name: "电子签名模块"
+        status: pending
+        target: "符合 21 CFR Part 11"
+      - name: "变更控制流程"
+        status: pending
+        target: "100% 变更审批"
+    estimated_hours: 4
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P7"
+    name: "文档和 API"
+    status: pending
+    subtasks:
+      - name: "API 文档完善"
+        status: pending
+        target: "100% 公开 API 文档覆盖"
+      - name: "运维手册"
+        status: pending
+        target: "部署/监控/故障处理手册"
+      - name: "用户指南"
+        status: pending
+        target: "快速开始 + 功能说明"
+    estimated_hours: 2
+    iterations_completed: 0
+    tests_added: 0
+
+  - id: "P8"
+    name: "集成测试和验证"
+    status: pending
+    subtasks:
+      - name: "端到端测试"
+        status: pending
+        target: "完整用户场景测试"
+      - name: "压力测试"
+        status: pending
+        target: "并发 100 用户无降级"
+      - name: "安全扫描"
+        status: pending
+        target: "cargo audit 0 漏洞"
+    estimated_hours: 2
+    iterations_completed: 0
+    tests_added: 0
+
+## 进度统计
+
+total_iterations: 0
+total_tests_added: 0
+total_hours_spent: 0
+current_estimated_completion: "2026-05-22T19:00:00Z"

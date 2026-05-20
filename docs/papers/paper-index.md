@@ -1,8 +1,8 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (10:49)
+更新时间: 2026-05-20 (11:50)
 
-## 论文列表 (210 篇)
+## 论文列表 (226 篇)
 
 ### 已下载论文 (210 篇)
 - ✅ 2605.17380.pdf (ADR: An Agentic Detection System for Enterprise Agentic AI Security)
@@ -203,7 +203,21 @@
 - ✅ 2605.15734.pdf (Can We Trust AI-Inferred User States: A Psychometric Framework for Validating Reliability)
 - ✅ 2605.16052.pdf (Reasoners or Translators: Contamination-aware Evaluation and Neuro-Symbolic Robustness in Tax Law)
 - ✅ 2605.15341.pdf (LEAP: Trajectory-Level Evaluation of LLMs in Iterative Scientific Design)
-### 待下载论文 (6 篇)
+- ✅ 2605.17746.pdf (Agents for Experiments, Experiments for Agents: A Design Grammar for AI-Enabled Experiment)
+- ✅ 2605.17554.pdf (Evaluating Deep Research Agents on Expert Consulting Work: A Benchmark with Verifiers)
+- ✅ 2605.10923.pdf (Dynamic Skill Lifecycle Management for Agentic Reinforcement Learning)
+- ✅ 2605.17831.pdf (Agentic Cost-Aware Query Planning with Knowledge Distillation for Big Data Analytics)
+- ✅ 2605.17393.pdf (Heterogeneous Information-Bottleneck Coordination Graphs for Multi-Agent RL)
+- ✅ 2605.17617.pdf (GraphMind: From Operational Traces to Self-Evolving Workflow Automation)
+- ✅ 2605.17856.pdf (KISS: Knowledge Infrastructure for Scientific Simulation - Agentic Scaffolding)
+- ✅ 2605.17359.pdf (Learning Transferable Topology Priors for Multi-Agent LLM Collaboration)
+- ✅ 2605.17558.pdf (Firefly: Illuminating Large-Scale Verified Tool-Call Data Generation from Real APIs)
+- ✅ 2605.17172.pdf (OpenJarvis: Personal AI, On Personal Devices)
+- ✅ 2511.20857.pdf (Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory)
+- ✅ 2604.25850.pdf (Agentic Harness Engineering: Observability-Driven Automatic Evolution of Coding-Agent Harness)
+- ✅ 2605.17169.pdf (Responsible Agentic AI Requires Explicit Provenance)
+
+### 待下载论文 (16 篇)
 - ✅ 2605.15204 (SDOF: Multi-Agent Orchestration with State-Constrained Dispatch)
 - ✅ 2605.15215 (SkillSmith: Compiling Agent Skills into Runtime Interfaces)
 - ✅ 2605.15227 (NIMO Controller: MCP-based Self-Driving Laboratory Orchestrator)
@@ -224,6 +238,84 @@
 ---
 
 ## 全部论文清单
+
+**[2605.17746]** Agents for Experiments, Experiments for Agents: A Design Grammar for AI-Enabled Experiment
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: agent design grammar, experiment automation, AI-enabled experiments
+   - 链接: https://arxiv.org/abs/2605.17746
+   - 状态: ✅ 已下载 (0.7MB)
+
+**[2605.17554]** Evaluating Deep Research Agents on Expert Consulting Work: A Benchmark with Verifiers
+   - 日期: 2026-05 | 分类: cs.AI, cs.CL
+   - 主题: deep research agents, benchmark, consulting, verification
+   - 链接: https://arxiv.org/abs/2605.17554
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.10923]** Dynamic Skill Lifecycle Management for Agentic Reinforcement Learning
+   - 日期: 2026-05 | 分类: cs.AI, cs.LG
+   - 主题: skill lifecycle, agentic RL, dynamic management, reinforcement learning
+   - 链接: https://arxiv.org/abs/2605.10923
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.17831]** Agentic Cost-Aware Query Planning with Knowledge Distillation for Big Data Analytics
+   - 日期: 2026-05 | 分类: cs.AI, cs.DB
+   - 主题: cost-aware planning, knowledge distillation, big data, query optimization
+   - 链接: https://arxiv.org/abs/2605.17831
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.17393]** Heterogeneous Information-Bottleneck Coordination Graphs for Multi-Agent Reinforcement Learning
+   - 日期: 2026-05 | 分类: cs.AI, cs.LG
+   - 主题: multi-agent RL, coordination graphs, information bottleneck, heterogeneous agents
+   - 链接: https://arxiv.org/abs/2605.17393
+   - 状态: ✅ 已下载 (2.7MB)
+
+**[2605.17617]** GraphMind: From Operational Traces to Self-Evolving Workflow Automation
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: workflow automation, self-evolving, operational traces, graph-based
+   - 链接: https://arxiv.org/abs/2605.17617
+   - 状态: ✅ 已下载 (1.3MB)
+
+**[2605.17856]** KISS: Knowledge Infrastructure for Scientific Simulation - Agentic Scaffolding
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: scientific simulation, agentic scaffolding, knowledge infrastructure
+   - 链接: https://arxiv.org/abs/2605.17856
+   - 状态: ✅ 已下载 (1.8MB)
+
+**[2605.17359]** Learning Transferable Topology Priors for Multi-Agent LLM Collaboration Across Domains
+   - 日期: 2026-05 | 分类: cs.AI, cs.LG
+   - 主题: multi-agent collaboration, topology, transfer learning, LLM
+   - 链接: https://arxiv.org/abs/2605.17359
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.17558]** Firefly: Illuminating Large-Scale Verified Tool-Call Data Generation from Real APIs
+   - 日期: 2026-05 | 分类: cs.AI, cs.CL
+   - 主题: tool calling, verified data generation, real APIs, LLM agents
+   - 链接: https://arxiv.org/abs/2605.17558
+   - 状态: ✅ 已下载 (1.5MB)
+
+**[2605.17172]** OpenJarvis: Personal AI, On Personal Devices
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: personal AI, on-device agents, edge computing
+   - 链接: https://arxiv.org/abs/2605.17172
+   - 状态: ✅ 已下载 (0.5MB)
+
+**[2511.20857]** Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory
+   - 日期: 2026-05 | 分类: cs.AI, cs.CL
+   - 主题: agent memory, self-evolving, test-time learning, benchmark
+   - 链接: https://arxiv.org/abs/2511.20857
+   - 状态: ✅ 已下载 (3.6MB)
+
+**[2604.25850]** Agentic Harness Engineering: Observability-Driven Automatic Evolution of Coding-Agent Harness
+   - 日期: 2026-05 | 分类: cs.AI, cs.SE
+   - 主题: agent harness, observability, coding agents, automatic evolution
+   - 链接: https://arxiv.org/abs/2604.25850
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.17169]** Responsible Agentic AI Requires Explicit Provenance
+   - 日期: 2026-05 | 分类: cs.AI
+   - 主题: responsible AI, provenance, agentic AI, governance
+   - 链接: https://arxiv.org/abs/2605.17169
+   - 状态: ✅ 已下载 (2.5MB)
 
 **[2605.20173]** A Methodology for Selecting and Composing Runtime Architecture Patterns for Production LLM Agents
    - 日期: 2026-05-19 | 分类: cs.AI, cs.SE

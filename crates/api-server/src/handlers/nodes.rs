@@ -298,4 +298,160 @@ mod tests {
         let resp = result.unwrap();
         assert_eq!(resp.total, 2); // a1 and a3 are on n1
     }
+
+    #[tokio::test]
+    async fn test_list_node_agents_pagination() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+
+        // Add 3 agents to n1
+        for id in &["a1", "a2", "a3"] {
+            let agent = crate::models::agent::Agent {
+                id: id.to_string(),
+                spec: crate::models::agent::AgentSpec {
+                    name: format!("agent-{id}"),
+                    image: "python:3.11".to_string(),
+                    command: vec![],
+                    resource_request: None,
+                    labels: HashMap::new(),
+                    priority: "medium".to_string(),
+                    env: HashMap::new(),
+                },
+                status: crate::models::agent::AgentStatus::Running,
+                node_id: Some("n1".to_string()),
+                resource_usage: crate::models::agent::ResourceRequest::default(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+                start_time: None,
+                restart_count: 0,
+            };
+            state.agents.write().await.insert(id.to_string(), agent);
+        }
+
+        // Page 2, per_page=1 → should return 1 item
+        let params = PaginationParams {
+            page: Some(2),
+            per_page: Some(1),
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.total, 3);
+        assert_eq!(resp.items.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_list_node_agents_excludes_agents_without_node_id() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+
+        // Agent with no node_id
+        let agent = crate::models::agent::Agent {
+            id: "a-no-node".to_string(),
+            spec: crate::models::agent::AgentSpec {
+                name: "orphan-agent".to_string(),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            },
+            status: crate::models::agent::AgentStatus::Running,
+            node_id: None, // No node assigned
+            resource_usage: crate::models::agent::ResourceRequest::default(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            start_time: None,
+            restart_count: 0,
+        };
+        state
+            .agents
+            .write()
+            .await
+            .insert("a-no-node".to_string(), agent);
+
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.total, 0); // Agent without node_id should be excluded
+        assert!(resp.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_node_error_is_not_found() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+        let result = get_node(State(state), Path("nonexistent".to_string())).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_node_field_values() {
+        let state = test_state_with_nodes(vec![test_node("n1", "my-node")]).await;
+        let result = get_node(State(state), Path("n1".to_string())).await;
+        assert!(result.is_ok());
+        let node = result.unwrap();
+        assert_eq!(node.data.id, "n1");
+        assert_eq!(node.data.name, "my-node");
+        assert!(matches!(node.data.status, NodeStatus::Ready));
+        assert!(node.data.labels.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_nodes_pagination_beyond_total() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+        let params = PaginationParams {
+            page: Some(10),
+            per_page: Some(10),
+        };
+        let result = list_nodes(State(state), Query(params)).await;
+        assert_eq!(result.total, 1);
+        assert!(result.items.is_empty()); // Page beyond total → empty
+    }
+
+    #[tokio::test]
+    async fn test_list_node_agents_excludes_wrong_node() {
+        let state =
+            test_state_with_nodes(vec![test_node("n1", "node-1"), test_node("n2", "node-2")]).await;
+
+        // Agent assigned to n2
+        let agent = crate::models::agent::Agent {
+            id: "a-n2".to_string(),
+            spec: crate::models::agent::AgentSpec {
+                name: "agent-on-n2".to_string(),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            },
+            status: crate::models::agent::AgentStatus::Running,
+            node_id: Some("n2".to_string()),
+            resource_usage: crate::models::agent::ResourceRequest::default(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            start_time: None,
+            restart_count: 0,
+        };
+        state
+            .agents
+            .write()
+            .await
+            .insert("a-n2".to_string(), agent);
+
+        // Query n1 → should not see agent on n2
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.total, 0);
+    }
 }

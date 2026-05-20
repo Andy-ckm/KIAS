@@ -1,10 +1,15 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-20 (08:30)
+更新时间: 2026-05-20 (09:35)
 
-## 论文列表 (206 篇)
+## 论文列表 (205 篇)
 
-### 已下载论文 (200 篇)
+### 已下载论文 (205 篇)
+- ✅ 2605.17380.pdf (ADR: An Agentic Detection System for Enterprise Agentic AI Security)
+- ✅ 2512.23978.pdf (Assured autonomy: How operations research powers and orchestrates generative AI systems)
+- ✅ 2605.17774.pdf (Internalizing Tool Knowledge in Small Language Models via QLoRA Fine-Tuning)
+- ✅ 2605.17450.pdf (ContraFix: Agentic Vulnerability Repair via Differential Runtime Evidence and Skill Reuse)
+- ✅ 2510.24701.pdf (Tongyi DeepResearch Technical Report)
 - ✅ 2603.01283.pdf (The Informational Cost of Agency: A Bounded Measure of Interaction Efficiency for Deployed RL)
 - ✅ 2605.01283.pdf (Learning Bilevel Policies over Symbolic World Models for Long-Horizon Planning)
 - ✅ 2605.12581.pdf (Ensuring Logic in the Fog: Sound POMDP Synthesis with LTL Objectives)
@@ -214,6 +219,36 @@
 ---
 
 ## 全部论文清单
+
+**[2605.17380]** ADR: An Agentic Detection System for Enterprise Agentic AI Security
+   - 日期: 2026-05-20 | 分类: cs.AI, cs.CR
+   - 主题: agent security, enterprise AI, agentic detection, ADR, governance
+   - 链接: https://arxiv.org/abs/2605.17380
+   - 状态: ✅ 已下载 (0.7MB)
+
+**[2512.23978]** Assured autonomy: How operations research powers and orchestrates generative AI systems
+   - 日期: 2025-12 | 分类: cs.AI, math.OC
+   - 主题: assured autonomy, operations research, orchestration, agentic systems, scheduling
+   - 链接: https://arxiv.org/abs/2512.23978
+   - 状态: ✅ 已下载 (1.4MB)
+
+**[2605.17774]** Internalizing Tool Knowledge in Small Language Models via QLoRA Fine-Tuning
+   - 日期: 2026-05-20 | 分类: cs.CL, cs.AI
+   - 主题: tool knowledge, small language models, QLoRA, fine-tuning, agentic systems
+   - 链接: https://arxiv.org/abs/2605.17774
+   - 状态: ✅ 已下载 (0.8MB)
+
+**[2605.17450]** ContraFix: Agentic Vulnerability Repair via Differential Runtime Evidence and Skill Reuse
+   - 日期: 2026-05-20 | 分类: cs.SE, cs.AI
+   - 主题: vulnerability repair, agentic, skill reuse, automated repair, reasoning
+   - 链接: https://arxiv.org/abs/2605.17450
+   - 状态: ✅ 已下载 (1.2MB)
+
+**[2510.24701]** Tongyi DeepResearch Technical Report
+   - 日期: 2025-10 | 分类: cs.AI, cs.CL
+   - 主题: deep research, agentic LLM, long-horizon, information-seeking, planning
+   - 链接: https://arxiv.org/abs/2510.24701
+   - 状态: ✅ 已下载 (0.6MB)
 
 **[2605.15520]** On the Fragility of Data Attribution When Learning Is Distributed
    - 日期: 2026-05-20 | 分类: cs.LG, cs.AI

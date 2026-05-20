@@ -119,6 +119,11 @@ pub enum TaskType {
         hosts: Vec<String>,
         action: CronAction,
     },
+    /// 进程管理 (R036) — 进程列表/详情/终止/优先级/资源限制
+    ProcessOps {
+        hosts: Vec<String>,
+        action: ProcessAction,
+    },
 }
 
 /// 任务优先级
@@ -1449,6 +1454,122 @@ impl Default for CronOpsResult {
             success: true,
             jobs: Vec::new(),
             timers: Vec::new(),
+            output: String::new(),
+            errors: Vec::new(),
+        }
+    }
+}
+
+// ========== R036: 进程管理 ==========
+
+/// 进程管理操作
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProcessAction {
+    /// 列出进程（按用户/CPU/内存排序，可过滤名称模式）
+    List {
+        user: Option<String>,
+        sort_by: ProcessSortField,
+        filter: Option<String>,
+        limit: Option<u32>,
+    },
+    /// 查看进程详情（打开文件、网络连接、环境变量）
+    Detail { pid: u32 },
+    /// 终止进程（SIGTERM 或 SIGKILL）
+    Kill { pid: u32, signal: ProcessSignal },
+    /// 批量终止进程（按名称模式）
+    KillByName {
+        name_pattern: String,
+        signal: ProcessSignal,
+    },
+    /// 设置进程优先级（nice 值）
+    SetPriority { pid: u32, nice: i32 },
+    /// 查看进程树
+    Tree { root_pid: Option<u32> },
+    /// 清理僵尸进程
+    CleanZombies,
+    /// 查看资源使用 Top N
+    Top {
+        sort_by: ProcessSortField,
+        limit: u32,
+    },
+}
+
+/// 进程排序字段
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProcessSortField {
+    Cpu,
+    Memory,
+    Pid,
+    Name,
+    StartTime,
+}
+
+/// 进程信号
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProcessSignal {
+    Term, // SIGTERM (15) - 优雅终止
+    Kill, // SIGKILL (9) - 强制终止
+    Hup,  // SIGHUP (1) - 重载配置
+    Usr1, // SIGUSR1 (10) - 用户自定义
+    Usr2, // SIGUSR1 (12) - 用户自定义
+    Stop, // SIGSTOP (19) - 暂停
+    Cont, // SIGCONT (18) - 继续
+}
+
+/// 进程信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub ppid: u32,
+    pub name: String,
+    pub user: String,
+    pub cpu_percent: f64,
+    pub mem_percent: f64,
+    pub mem_rss_kb: u64,
+    pub state: String,
+    pub started: String,
+    pub command: String,
+}
+
+/// 进程操作结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessOpsResult {
+    pub action: String,
+    pub success: bool,
+    pub processes: Vec<ProcessInfo>,
+    pub detail: Option<ProcessDetail>,
+    pub tree: Option<String>,
+    pub output: String,
+    pub errors: Vec<String>,
+}
+
+/// 进程详情（打开文件、网络连接等）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessDetail {
+    pub pid: u32,
+    pub name: String,
+    pub user: String,
+    pub state: String,
+    pub threads: u32,
+    pub mem_rss_kb: u64,
+    pub mem_vsz_kb: u64,
+    pub cpu_percent: f64,
+    pub open_files: Vec<String>,
+    pub connections: Vec<String>,
+    pub environment: Vec<String>,
+    pub command_line: String,
+    pub working_dir: String,
+    pub executable: String,
+}
+
+impl Default for ProcessOpsResult {
+    fn default() -> Self {
+        Self {
+            action: String::new(),
+            success: true,
+            processes: Vec::new(),
+            detail: None,
+            tree: None,
             output: String::new(),
             errors: Vec::new(),
         }

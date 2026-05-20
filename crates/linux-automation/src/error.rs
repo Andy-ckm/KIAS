@@ -67,6 +67,9 @@ pub enum AutomationError {
     #[error("磁盘管理错误: {0}")]
     DiskManagement(String),
 
+    #[error("进程管理错误: {0}")]
+    ProcessOperation(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }
@@ -181,5 +184,18 @@ mod tests {
         let err = AutomationError::BaselineInsufficient("test".to_string());
         let debug = format!("{:?}", err);
         assert!(debug.contains("BaselineInsufficient"));
+    }
+
+    #[test]
+    fn test_process_operation_error_display() {
+        let err = AutomationError::ProcessOperation("pid not found".to_string());
+        assert_eq!(format!("{}", err), "进程管理错误: pid not found");
+    }
+
+    #[test]
+    fn test_process_operation_error_debug() {
+        let err = AutomationError::ProcessOperation("test".to_string());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("ProcessOperation"));
     }
 }

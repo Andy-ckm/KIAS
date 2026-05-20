@@ -834,7 +834,7 @@ mod tests {
         let resp = result.unwrap().0;
         // WechatAdapter format_response returns {"MsgType": "text", "Content": reply}
         assert_eq!(resp["MsgType"], "text");
-        assert!(resp["Content"].as_str().unwrap().len() > 0);
+        assert!(!resp["Content"].as_str().unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -861,7 +861,7 @@ mod tests {
         assert!(result.is_ok());
         let resp = result.unwrap().0;
         // TelegramAdapter format_response returns {"text": reply, "parse_mode": ...}
-        assert!(resp["text"].as_str().unwrap().len() > 0);
+        assert!(!resp["text"].as_str().unwrap().is_empty());
         assert_eq!(resp["parse_mode"], "HTML");
     }
 
@@ -912,7 +912,7 @@ mod tests {
         let resp = result.unwrap().0;
         // FeishuAdapter format_response returns {"msg_type": "text", "content": {"text": reply}}
         assert_eq!(resp["msg_type"], "text");
-        assert!(resp["content"]["text"].as_str().unwrap().len() > 0);
+        assert!(!resp["content"]["text"].as_str().unwrap().is_empty());
     }
 
     #[tokio::test]

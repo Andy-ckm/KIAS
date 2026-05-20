@@ -11,7 +11,7 @@ use kias_knowledge::context_manager::{ContextMessage, MessageRole};
 use crate::AppState;
 
 /// Request to add a message to a session context
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AddMessageRequest {
     pub role: String,
     pub content: String,
@@ -401,5 +401,152 @@ mod tests {
         assert_eq!(json["total_tokens"], 2000);
         assert_eq!(json["max_tokens"], 4096);
         assert_eq!(json["compression_count"], 2);
+    }
+
+    #[test]
+    fn test_add_message_request_serialize_roundtrip() {
+        let req = AddMessageRequest {
+            role: "assistant".to_string(),
+            content: "I can help".to_string(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let deserialized: AddMessageRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.role, "assistant");
+        assert_eq!(deserialized.content, "I can help");
+    }
+
+    #[test]
+    fn test_context_response_all_fields_serialize() {
+        let resp = ContextResponse {
+            session_id: "my-session".to_string(),
+            message_count: 42,
+            total_tokens: 8192,
+            compression_level: "summary".to_string(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["session_id"], "my-session");
+        assert_eq!(json["message_count"], 42);
+        assert_eq!(json["total_tokens"], 8192);
+        assert_eq!(json["compression_level"], "summary");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_session_with_hyphens() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "user".to_string(),
+            content: "test".to_string(),
+        };
+        let result = add_message(
+            State(state),
+            Path("my-session-123-abc".to_string()),
+            Json(req),
+        )
+        .await;
+        assert_eq!(result.session_id, "my-session-123-abc");
+    }
+
+    #[tokio::test]
+    async fn test_add_message_session_with_underscores() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "user".to_string(),
+            content: "test".to_string(),
+        };
+        let result = add_message(
+            State(state),
+            Path("session_42_prod".to_string()),
+            Json(req),
+        )
+        .await;
+        assert_eq!(result.session_id, "session_42_prod");
+    }
+
+    #[tokio::test]
+    async fn test_compress_session_different_sessions() {
+        let state = test_state().await;
+        let r1 = compress_session(State(state), Path("s-alpha".to_string())).await;
+        assert_eq!(r1.session_id, "s-alpha");
+        assert_eq!(r1.compression_level, "none");
+    }
+
+    #[tokio::test]
+    async fn test_get_context_stats_different_session_ids() {
+        let state = test_state().await;
+        let r1 = get_context_stats(State(state), Path("sess-A".to_string())).await;
+        assert_eq!(r1.session_id, "sess-A");
+        assert_eq!(r1.total_messages, 0);
+        assert_eq!(r1.user_messages, 0);
+    }
+
+    #[test]
+    fn test_add_message_request_empty_string_role() {
+        // Empty string role should deserialize fine (handler maps unknown to User)
+        let json = r#"{"role":"","content":"test"}"#;
+        let req: AddMessageRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.role, "");
+        assert_eq!(req.content, "test");
+    }
+
+    #[test]
+    fn test_context_response_roundtrip() {
+        let resp = ContextResponse {
+            session_id: "s1".to_string(),
+            message_count: 10,
+            total_tokens: 500,
+            compression_level: "none".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        // ContextResponse is Serialize only, verify JSON structure
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["session_id"], "s1");
+        assert_eq!(value["message_count"], 10);
+        assert_eq!(value["total_tokens"], 500);
+    }
+
+    #[test]
+    fn test_context_stats_utilization_zero() {
+        let resp = ContextStatsResponse {
+            session_id: "s1".to_string(),
+            total_messages: 0,
+            user_messages: 0,
+            assistant_messages: 0,
+            tool_messages: 0,
+            summary_messages: 0,
+            total_tokens: 0,
+            max_tokens: 4096,
+            utilization: 0.0,
+            compression_count: 0,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["utilization"], 0.0);
+        assert_eq!(json["max_tokens"], 4096);
+    }
+
+    #[tokio::test]
+    async fn test_add_message_preserves_all_defaults() {
+        let state = test_state().await;
+        let req = AddMessageRequest {
+            role: "system".to_string(),
+            content: "init".to_string(),
+        };
+        let result = add_message(State(state), Path("s-init".to_string()), Json(req)).await;
+        assert_eq!(result.session_id, "s-init");
+        assert_eq!(result.message_count, 0);
+        assert_eq!(result.total_tokens, 0);
+        assert_eq!(result.compression_level, "none");
+    }
+
+    #[test]
+    fn test_compress_response_zero_tokens_and_messages() {
+        let resp = ContextResponse {
+            session_id: "compressed".to_string(),
+            message_count: 0,
+            total_tokens: 0,
+            compression_level: "none".to_string(),
+        };
+        assert_eq!(resp.message_count, 0);
+        assert_eq!(resp.total_tokens, 0);
+        assert_eq!(resp.compression_level, "none");
     }
 }

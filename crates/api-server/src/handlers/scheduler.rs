@@ -959,7 +959,11 @@ mod tests {
 
         let mut agents = HashMap::new();
         // Create 3 agents with specific timestamps
-        let timestamps = ["2026-05-20T10:00:00Z", "2026-05-20T14:00:00Z", "2026-05-20T12:00:00Z"];
+        let timestamps = [
+            "2026-05-20T10:00:00Z",
+            "2026-05-20T14:00:00Z",
+            "2026-05-20T12:00:00Z",
+        ];
         for (i, ts) in timestamps.iter().enumerate() {
             let spec = AgentSpec {
                 name: format!("agent-{}", i),

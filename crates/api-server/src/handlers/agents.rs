@@ -320,6 +320,7 @@ mod tests {
 #[cfg(test)]
 mod handler_tests {
     use super::*;
+    use crate::models::agent::ResourceRequest;
     use crate::AppState;
     use axum::extract::{Path, Query, State};
     use std::collections::HashMap;
@@ -582,5 +583,141 @@ mod handler_tests {
         let result = delete_agent(State(state), Path(id)).await.unwrap();
         assert!(result.message.contains("msg-test"));
         assert!(result.message.contains("deleted successfully"));
+    }
+
+    #[tokio::test]
+    async fn test_invoke_nonexistent_agent_fails() {
+        let state = test_state().await;
+        let req = InvokeRequest {
+            prompt: "hello".to_string(),
+            timeout_secs: Some(10),
+        };
+        let result = invoke_agent(State(state), Path("nonexistent".to_string()), Json(req)).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.status, axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_preserves_labels_and_env() {
+        let state = test_state().await;
+        let mut spec = test_spec("label-env-test");
+        spec.labels.insert("team".to_string(), "infra".to_string());
+        spec.labels.insert("env".to_string(), "prod".to_string());
+        spec.env
+            .insert("API_KEY".to_string(), "secret123".to_string());
+        let (_, json) = create_agent(State(state.clone()), Json(spec))
+            .await
+            .unwrap();
+        let agent = &json.data;
+        assert_eq!(agent.spec.labels.get("team").unwrap(), "infra");
+        assert_eq!(agent.spec.labels.get("env").unwrap(), "prod");
+        assert_eq!(agent.spec.env.get("API_KEY").unwrap(), "secret123");
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_with_resource_request() {
+        let state = test_state().await;
+        let mut spec = test_spec("res-test");
+        spec.resource_request = Some(ResourceRequest {
+            cpu: Some("2".to_string()),
+            memory: Some("4Gi".to_string()),
+            gpu: None,
+        });
+        let (_, json) = create_agent(State(state), Json(spec)).await.unwrap();
+        let agent = json.data.clone(); // clone to move out of Json wrapper
+        let rr = agent.spec.resource_request.unwrap();
+        assert_eq!(rr.cpu.unwrap(), "2");
+        assert_eq!(rr.memory.unwrap(), "4Gi");
+        assert!(rr.gpu.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_agents_page_beyond_total_returns_empty() {
+        let state = test_state().await;
+        let _ = create_agent(State(state.clone()), Json(test_spec("only-one")))
+            .await
+            .unwrap();
+        let pagination = PaginationParams {
+            page: Some(100),
+            per_page: Some(10),
+        };
+        let result = list_agents(State(state), Query(pagination)).await;
+        assert_eq!(result.total, 1);
+        assert!(result.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_update_agent_status_transitions() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("transitions")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        // Pending → Running
+        let result = update_agent_status(
+            State(state.clone()),
+            Path(id.clone()),
+            Json(AgentStatus::Running),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.data.status, AgentStatus::Running);
+        // Running → Succeeded
+        let result = update_agent_status(
+            State(state.clone()),
+            Path(id.clone()),
+            Json(AgentStatus::Succeeded),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.data.status, AgentStatus::Succeeded);
+        // Succeeded → Failed
+        let result = update_agent_status(
+            State(state.clone()),
+            Path(id.clone()),
+            Json(AgentStatus::Failed),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.data.status, AgentStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_default_status_is_pending() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state), Json(test_spec("pending-check")))
+            .await
+            .unwrap();
+        assert_eq!(json.data.status, AgentStatus::Pending);
+        assert!(json.data.node_id.is_none());
+        assert_eq!(json.data.restart_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_name_too_long_fails() {
+        let state = test_state().await;
+        let long_name = "a".repeat(129);
+        let spec = test_spec(&long_name);
+        let result = create_agent(State(state), Json(spec)).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_then_update_status_fails() {
+        let state = test_state().await;
+        let (_, json) = create_agent(State(state.clone()), Json(test_spec("del-then-update")))
+            .await
+            .unwrap();
+        let id = json.data.id.clone();
+        // Delete
+        let _ = delete_agent(State(state.clone()), Path(id.clone())).await;
+        // Try to update status on deleted agent
+        let result = update_agent_status(State(state), Path(id), Json(AgentStatus::Running)).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().status,
+            axum::http::StatusCode::NOT_FOUND
+        );
     }
 }

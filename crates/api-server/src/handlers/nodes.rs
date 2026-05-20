@@ -438,11 +438,7 @@ mod tests {
             start_time: None,
             restart_count: 0,
         };
-        state
-            .agents
-            .write()
-            .await
-            .insert("a-n2".to_string(), agent);
+        state.agents.write().await.insert("a-n2".to_string(), agent);
 
         // Query n1 → should not see agent on n2
         let params = PaginationParams {

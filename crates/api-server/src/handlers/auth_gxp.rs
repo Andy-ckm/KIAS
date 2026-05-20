@@ -308,4 +308,303 @@ mod tests {
         // Should be a valid Arc<Mutex<GxpAuthManager>>
         assert!(Arc::strong_count(&state) >= 1);
     }
+
+    // === Handler-level tests ===
+
+    use axum::extract::State;
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
+
+    /// Build AppState with a GxpAuthManager that has test users pre-created.
+    /// Users: "admin" (Admin), "operator1" (Operator), "viewer1" (Viewer)
+    /// All passwords: "Test1234!@#$"
+    async fn auth_test_state() -> AppState {
+        let policy = PasswordPolicy::default();
+        let mut auth = GxpAuthManager::new(policy);
+        auth.create_user(
+            "admin",
+            "Admin User",
+            "admin@test.com",
+            "Test1234!@#$",
+            vec!["admin".to_string()],
+        )
+        .unwrap();
+        auth.create_user(
+            "operator1",
+            "Operator User",
+            "op@test.com",
+            "Test1234!@#$",
+            vec!["operator".to_string()],
+        )
+        .unwrap();
+        auth.create_user(
+            "viewer1",
+            "Viewer User",
+            "viewer@test.com",
+            "Test1234!@#$",
+            vec!["viewer".to_string()],
+        )
+        .unwrap();
+
+        let config = kias_common::config::KiasConfig::default();
+        let graph = kias_knowledge::graph::KnowledgeGraph::new();
+        let embedding_engine =
+            Arc::new(kias_knowledge::vector::LocalEmbeddingEngine::default_dim());
+        let knowledge_retriever =
+            kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
+                .await
+                .expect("Failed to create knowledge retriever");
+
+        AppState {
+            config: Arc::new(config),
+            agent_repository: None,
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            workflows: Arc::new(RwLock::new(HashMap::new())),
+            audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
+            event_bus: crate::websocket::EventBus::default(),
+            a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
+            connection_registry: crate::websocket::ConnectionRegistry::default(),
+            event_replay_buffer: crate::websocket::EventReplayBuffer::default(),
+            knowledge_retriever: Arc::new(knowledge_retriever),
+            ingested_docs: Arc::new(RwLock::new(Vec::new())),
+            context_manager: None,
+            tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
+            gxp_auth: Arc::new(Mutex::new(auth)),
+            jwt_config: crate::auth::JwtConfig::new("test-jwt-secret-key", "kias", 24),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_success_admin() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "admin".to_string(),
+            password: "Test1234!@#$".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert!(!resp.token.is_empty());
+        assert_eq!(resp.username, "admin");
+        assert_eq!(resp.role, "Admin");
+        assert!(!resp.requires_2fa);
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_success_operator() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "operator1".to_string(),
+            password: "Test1234!@#$".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert_eq!(resp.role, "Operator");
+        assert!(!resp.requires_2fa);
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_invalid_password() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "admin".to_string(),
+            password: "WrongPassword1!".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, body) = result.unwrap_err();
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body.code, "INVALID_CREDENTIALS");
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_user_not_found() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "nonexistent".to_string(),
+            password: "Test1234!@#$".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, _) = result.unwrap_err();
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_lockout_after_max_attempts() {
+        let state = auth_test_state().await;
+        // Fail 5 times (default lockout_attempts)
+        for _ in 0..5 {
+            let req = LoginRequest {
+                username: "viewer1".to_string(),
+                password: "WrongPassword1!".to_string(),
+                totp_code: None,
+            };
+            let _ = login(State(state.clone()), Json(req)).await;
+        }
+        // 6th attempt should be locked out
+        let req = LoginRequest {
+            username: "viewer1".to_string(),
+            password: "Test1234!@#$".to_string(), // even correct password
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, body) = result.unwrap_err();
+        assert_eq!(status, StatusCode::LOCKED);
+        assert_eq!(body.code, "ACCOUNT_LOCKED");
+    }
+
+    #[tokio::test]
+    async fn test_handler_change_password_success() {
+        let state = auth_test_state().await;
+        let req = ChangePasswordRequest {
+            user_id: {
+                // Get the actual user_id for "viewer1"
+                let auth = state.gxp_auth.lock().await;
+                auth.get_user_by_username("viewer1")
+                    .unwrap()
+                    .user_id
+                    .clone()
+            },
+            old_password: "Test1234!@#$".to_string(),
+            new_password: "NewPass5678!@#$".to_string(),
+        };
+        let result = change_password(State(state.clone()), Json(req)).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), StatusCode::NO_CONTENT);
+
+        // Verify new password works
+        let login_req = LoginRequest {
+            username: "viewer1".to_string(),
+            password: "NewPass5678!@#$".to_string(),
+            totp_code: None,
+        };
+        let login_result = login(State(state), Json(login_req)).await;
+        assert!(login_result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handler_change_password_wrong_old_password() {
+        let state = auth_test_state().await;
+        let req = ChangePasswordRequest {
+            user_id: {
+                let auth = state.gxp_auth.lock().await;
+                auth.get_user_by_username("operator1")
+                    .unwrap()
+                    .user_id
+                    .clone()
+            },
+            old_password: "WrongOldPass1!".to_string(),
+            new_password: "NewPass5678!@#$".to_string(),
+        };
+        let result = change_password(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, body) = result.unwrap_err();
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body.code, "INVALID_CREDENTIALS");
+    }
+
+    #[tokio::test]
+    async fn test_handler_change_password_weak_new_password() {
+        let state = auth_test_state().await;
+        let req = ChangePasswordRequest {
+            user_id: {
+                let auth = state.gxp_auth.lock().await;
+                auth.get_user_by_username("admin").unwrap().user_id.clone()
+            },
+            old_password: "Test1234!@#$".to_string(),
+            new_password: "weak".to_string(), // too short, no uppercase, etc.
+        };
+        let result = change_password(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, body) = result.unwrap_err();
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body.code, "PASSWORD_TOO_WEAK");
+    }
+
+    #[tokio::test]
+    async fn test_handler_change_password_user_not_found() {
+        let state = auth_test_state().await;
+        let req = ChangePasswordRequest {
+            user_id: "nonexistent-user-id".to_string(),
+            old_password: "Test1234!@#$".to_string(),
+            new_password: "NewPass5678!@#$".to_string(),
+        };
+        let result = change_password(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, _) = result.unwrap_err();
+        // User not found or invalid credentials
+        assert!(status == StatusCode::NOT_FOUND || status == StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_handler_verify_2fa_invalid_code() {
+        let state = auth_test_state().await;
+        let user_id = {
+            let auth = state.gxp_auth.lock().await;
+            auth.get_user_by_username("admin").unwrap().user_id.clone()
+        };
+        let req = Verify2faRequest {
+            user_id,
+            totp_code: "000000".to_string(), // invalid code
+        };
+        let result = verify_2fa(State(state), Json(req)).await;
+        assert!(result.is_err());
+        // Should fail — user doesn't have 2FA enabled, or code is invalid
+    }
+
+    #[tokio::test]
+    async fn test_handler_verify_2fa_user_not_found() {
+        let state = auth_test_state().await;
+        let req = Verify2faRequest {
+            user_id: "nonexistent-user-id".to_string(),
+            totp_code: "123456".to_string(),
+        };
+        let result = verify_2fa(State(state), Json(req)).await;
+        assert!(result.is_err());
+        let (status, _) = result.unwrap_err();
+        assert!(status == StatusCode::NOT_FOUND || status == StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_response_has_user_id() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "admin".to_string(),
+            password: "Test1234!@#$".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state.clone()), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        // user_id should match the one in the auth manager
+        let auth = state.gxp_auth.lock().await;
+        let expected_id = &auth.get_user_by_username("admin").unwrap().user_id;
+        assert_eq!(&resp.user_id, expected_id);
+    }
+
+    #[tokio::test]
+    async fn test_handler_login_viewer_role() {
+        let state = auth_test_state().await;
+        let req = LoginRequest {
+            username: "viewer1".to_string(),
+            password: "Test1234!@#$".to_string(),
+            totp_code: None,
+        };
+        let result = login(State(state), Json(req)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap().0;
+        assert_eq!(resp.role, "Viewer");
+        assert!(!resp.requires_2fa);
+        assert!(!resp.token.is_empty());
+    }
 }

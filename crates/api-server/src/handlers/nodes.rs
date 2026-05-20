@@ -414,6 +414,231 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_list_nodes_single() {
+        let state = test_state_with_nodes(vec![test_node("n1", "solo-node")]).await;
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_nodes(State(state), Query(params)).await;
+        assert_eq!(result.total, 1);
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.items[0].id, "n1");
+        assert_eq!(result.items[0].name, "solo-node");
+    }
+
+    #[tokio::test]
+    async fn test_list_nodes_per_page_limit_capped() {
+        let nodes: Vec<Node> = (0..5).map(|i| test_node(&format!("n{i}"), &format!("node-{i}"))).collect();
+        let state = test_state_with_nodes(nodes).await;
+        let params = PaginationParams {
+            page: Some(1),
+            per_page: Some(500), // Should be capped at 100
+        };
+        let result = list_nodes(State(state), Query(params)).await;
+        assert_eq!(result.total, 5);
+        assert_eq!(result.items.len(), 5); // All fit within 100 cap
+    }
+
+    #[tokio::test]
+    async fn test_list_nodes_page_1_per_page_1() {
+        let state = test_state_with_nodes(vec![
+            test_node("n1", "first"),
+            test_node("n2", "second"),
+            test_node("n3", "third"),
+        ])
+        .await;
+        let params = PaginationParams {
+            page: Some(1),
+            per_page: Some(1),
+        };
+        let result = list_nodes(State(state), Query(params)).await;
+        assert_eq!(result.total, 3);
+        assert_eq!(result.items.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_node_with_special_chars_in_id() {
+        let state = test_state_with_nodes(vec![test_node("node-abc_123.test", "special-node")]).await;
+        let result = get_node(State(state), Path("node-abc_123.test".to_string())).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().data.id, "node-abc_123.test");
+    }
+
+    #[tokio::test]
+    async fn test_get_node_with_labels() {
+        let mut node = test_node("n1", "labeled-node");
+        node.labels.insert("zone".to_string(), "us-east-1".to_string());
+        node.labels.insert("rack".to_string(), "r42".to_string());
+        node.labels.insert("tier".to_string(), "frontend".to_string());
+        let state = test_state_with_nodes(vec![node]).await;
+        let result = get_node(State(state), Path("n1".to_string())).await;
+        assert!(result.is_ok());
+        let node = result.unwrap();
+        assert_eq!(node.data.labels.len(), 3);
+        assert_eq!(node.data.labels.get("zone").unwrap(), "us-east-1");
+        assert_eq!(node.data.labels.get("rack").unwrap(), "r42");
+        assert_eq!(node.data.labels.get("tier").unwrap(), "frontend");
+    }
+
+    #[tokio::test]
+    async fn test_list_node_agents_excludes_agents_on_nonexistent_node() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+
+        // Agent assigned to a node that doesn't exist in the nodes store
+        let agent = crate::models::agent::Agent {
+            id: "a-orphan".to_string(),
+            spec: crate::models::agent::AgentSpec {
+                name: "orphan-agent".to_string(),
+                image: "python:3.11".to_string(),
+                command: vec![],
+                resource_request: None,
+                labels: HashMap::new(),
+                priority: "medium".to_string(),
+                env: HashMap::new(),
+            },
+            status: crate::models::agent::AgentStatus::Running,
+            node_id: Some("nonexistent-node".to_string()),
+            resource_usage: crate::models::agent::ResourceRequest::default(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            start_time: None,
+            restart_count: 0,
+        };
+        state.agents.write().await.insert("a-orphan".to_string(), agent);
+
+        // Query for n1 should not return the agent on nonexistent-node
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().total, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_node_not_ready_status() {
+        let mut node = test_node("n1", "failing-node");
+        node.status = NodeStatus::NotReady;
+        let state = test_state_with_nodes(vec![node]).await;
+        let result = get_node(State(state), Path("n1".to_string())).await;
+        assert!(result.is_ok());
+        assert!(matches!(result.unwrap().data.status, NodeStatus::NotReady));
+    }
+
+    #[tokio::test]
+    async fn test_get_node_draining_status() {
+        let mut node = test_node("n1", "draining-node");
+        node.status = NodeStatus::Draining;
+        let state = test_state_with_nodes(vec![node]).await;
+        let result = get_node(State(state), Path("n1".to_string())).await;
+        assert!(result.is_ok());
+        assert!(matches!(result.unwrap().data.status, NodeStatus::Draining));
+    }
+
+    #[tokio::test]
+    async fn test_list_node_agents_multiple_on_same_node() {
+        let state = test_state_with_nodes(vec![test_node("n1", "busy-node")]).await;
+
+        // Add 5 agents all on n1
+        for i in 0..5 {
+            let agent = crate::models::agent::Agent {
+                id: format!("a{i}"),
+                spec: crate::models::agent::AgentSpec {
+                    name: format!("agent-{i}"),
+                    image: "python:3.11".to_string(),
+                    command: vec![],
+                    resource_request: None,
+                    labels: HashMap::new(),
+                    priority: "medium".to_string(),
+                    env: HashMap::new(),
+                },
+                status: crate::models::agent::AgentStatus::Running,
+                node_id: Some("n1".to_string()),
+                resource_usage: crate::models::agent::ResourceRequest::default(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+                start_time: None,
+                restart_count: 0,
+            };
+            state.agents.write().await.insert(format!("a{i}"), agent);
+        }
+
+        let params = PaginationParams {
+            page: None,
+            per_page: None,
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.total, 5);
+        assert_eq!(resp.items.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_node_agents_pagination_beyond_total() {
+        let state = test_state_with_nodes(vec![test_node("n1", "node-1")]).await;
+
+        for id in &["a1", "a2"] {
+            let agent = crate::models::agent::Agent {
+                id: id.to_string(),
+                spec: crate::models::agent::AgentSpec {
+                    name: format!("agent-{id}"),
+                    image: "python:3.11".to_string(),
+                    command: vec![],
+                    resource_request: None,
+                    labels: HashMap::new(),
+                    priority: "medium".to_string(),
+                    env: HashMap::new(),
+                },
+                status: crate::models::agent::AgentStatus::Running,
+                node_id: Some("n1".to_string()),
+                resource_usage: crate::models::agent::ResourceRequest::default(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+                start_time: None,
+                restart_count: 0,
+            };
+            state.agents.write().await.insert(id.to_string(), agent);
+        }
+
+        let params = PaginationParams {
+            page: Some(10),
+            per_page: Some(10),
+        };
+        let result = list_node_agents(State(state), Path("n1".to_string()), Query(params)).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.total, 2);
+        assert!(resp.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_node_resources_and_allocatable() {
+        let mut node = test_node("n1", "resourced-node");
+        node.resources = ResourceCapacity {
+            cpu: "16".to_string(),
+            memory: "64Gi".to_string(),
+            gpu: "2".to_string(),
+        };
+        node.allocatable = ResourceCapacity {
+            cpu: "14".to_string(),
+            memory: "56Gi".to_string(),
+            gpu: "2".to_string(),
+        };
+        let state = test_state_with_nodes(vec![node]).await;
+        let result = get_node(State(state), Path("n1".to_string())).await;
+        assert!(result.is_ok());
+        let n = result.unwrap();
+        assert_eq!(n.data.resources.cpu, "16");
+        assert_eq!(n.data.resources.memory, "64Gi");
+        assert_eq!(n.data.resources.gpu, "2");
+        assert_eq!(n.data.allocatable.cpu, "14");
+        assert_eq!(n.data.allocatable.memory, "56Gi");
+    }
+
+    #[tokio::test]
     async fn test_list_node_agents_excludes_wrong_node() {
         let state =
             test_state_with_nodes(vec![test_node("n1", "node-1"), test_node("n2", "node-2")]).await;

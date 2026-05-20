@@ -1333,8 +1333,6 @@ mod tests {
     // ------------------------------------------------------------------
 
     use axum::extract::{Path, Query, State};
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
 
     async fn handler_test_state() -> crate::AppState {
         let config = kias_common::config::KiasConfig::default();

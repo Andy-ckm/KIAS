@@ -1194,6 +1194,154 @@ pub struct ServiceOpsResult {
     pub errors: Vec<String>,
 }
 
+// ═══════════════════════════════════════════════════════════════
+// R034: 磁盘管理模型
+// ═══════════════════════════════════════════════════════════════
+
+/// 磁盘操作类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum DiskAction {
+    /// 查看所有挂载点使用情况
+    Usage,
+    /// 查找大文件（top N）
+    FindLargeFiles {
+        path: String,
+        min_size_mb: u64,
+        limit: usize,
+    },
+    /// 安全清理（日志/tmp/包缓存/Docker）
+    SafeCleanup {
+        targets: Vec<CleanupTarget>,
+        dry_run: bool,
+    },
+    /// 检查 SMART 磁盘健康
+    SmartHealth { device: String },
+    /// 监控 inode 使用情况
+    InodeCheck,
+    /// 查看磁盘 IO 统计
+    IoStats,
+    /// 查找并清理旧日志（按天数）
+    CleanOldLogs {
+        log_dir: String,
+        older_than_days: u32,
+    },
+    /// 清理包管理器缓存
+    CleanPackageCache,
+}
+
+/// 清理目标类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CleanupTarget {
+    /// 系统日志 (/var/log)
+    SystemLogs,
+    /// 临时文件 (/tmp, /var/tmp)
+    TempFiles,
+    /// 包管理器缓存 (apt/yum/dnf)
+    PackageCache,
+    /// Docker 未使用资源
+    DockerPrune,
+    /// 旧内核 (保留当前+1个)
+    OldKernels,
+    /// Journal 日志 (保留最近N天)
+    Journal { keep_days: u32 },
+    /// 自定义路径（危险，需要 dry_run）
+    CustomPath { path: String },
+}
+
+/// 单个挂载点使用情况
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DiskUsageEntry {
+    pub filesystem: String,
+    pub mount_point: String,
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub available_bytes: u64,
+    pub use_percent: f64,
+    pub inode_total: u64,
+    pub inode_used: u64,
+    pub inode_available: u64,
+    pub inode_percent: f64,
+}
+
+/// 大文件条目
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LargeFileEntry {
+    pub path: String,
+    pub size_bytes: u64,
+    pub size_human: String,
+    pub modified: String,
+    pub file_type: String,
+}
+
+/// 清理结果条目
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CleanupEntry {
+    pub target: String,
+    pub freed_bytes: u64,
+    pub freed_human: String,
+    pub items_removed: u64,
+    pub details: String,
+}
+
+/// SMART 健康信息
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SmartHealthInfo {
+    pub device: String,
+    pub model: String,
+    pub health_status: String,
+    pub temperature_celsius: Option<f64>,
+    pub power_on_hours: Option<u64>,
+    pub reallocated_sectors: Option<u64>,
+    pub pending_sectors: Option<u64>,
+    pub errors: Vec<String>,
+}
+
+/// IO 统计条目
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IoStatEntry {
+    pub device: String,
+    pub reads_per_sec: f64,
+    pub writes_per_sec: f64,
+    pub read_bytes_per_sec: u64,
+    pub write_bytes_per_sec: u64,
+    pub io_util_percent: f64,
+    pub await_ms: f64,
+}
+
+/// 磁盘管理结果
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DiskManagementResult {
+    pub action: String,
+    pub success: bool,
+    pub usage: Vec<DiskUsageEntry>,
+    pub large_files: Vec<LargeFileEntry>,
+    pub cleanup_results: Vec<CleanupEntry>,
+    pub smart_health: Vec<SmartHealthInfo>,
+    pub io_stats: Vec<IoStatEntry>,
+    pub total_freed_bytes: u64,
+    pub total_freed_human: String,
+    pub warnings: Vec<String>,
+    pub output: String,
+}
+
+impl Default for DiskManagementResult {
+    fn default() -> Self {
+        Self {
+            action: String::new(),
+            success: true,
+            usage: Vec::new(),
+            large_files: Vec::new(),
+            cleanup_results: Vec::new(),
+            smart_health: Vec::new(),
+            io_stats: Vec::new(),
+            total_freed_bytes: 0,
+            total_freed_human: "0B".to_string(),
+            warnings: Vec::new(),
+            output: String::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

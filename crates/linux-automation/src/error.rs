@@ -64,6 +64,9 @@ pub enum AutomationError {
     #[error("服务操作失败: {0}")]
     ServiceOperation(String),
 
+    #[error("磁盘管理错误: {0}")]
+    DiskManagement(String),
+
     #[error("其他错误: {0}")]
     Other(String),
 }

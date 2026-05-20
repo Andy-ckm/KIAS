@@ -76,6 +76,9 @@ docs/papers/2605.15187.pdf
 .worktrees/
 .trace/
 2512.04745.pdf
+.task-queue/api_keys.json
+.task-queue/api_key_state.json
+
 # Dev planning files
 .dev-insights.md
 .dev-tasks.yaml

@@ -1,10 +1,18 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-21 (06:45)
+更新时间: 2026-05-21 (23:55)
 
-## 论文列表 (292 篇)
+## 论文列表 (302 篇)
 
-### 已下载论文 (289 篇)
+### 已下载论文 (302 篇)
+- ✅ 2605.20704.pdf (Heartbeat-Bound Hierarchical Credentials: Cryptographic Revocation for AI Agent Swarms)
+- ✅ 2605.20734.pdf (An Application-Layer Multi-Modal Covert-Channel Reference Monitor for LLM Agent Egress)
+- ✅ 2605.20563.pdf (STORM: STate-Oriented Multi-agent Collaboration with Conflict Prevention)
+- ✅ 2605.20312.pdf (Pramana: A Protocol-Layer Treatment of Claim Verification in Autonomous Agent Networks)
+- ✅ 2605.20251.pdf (ProcBench: Evaluating Process-Level Defects and Control Preservation in LLM Coding Agents)
+- ✅ 2605.20210.pdf (Governance by Design: Architecting Agentic AI for Organizational Learning and Scalable Autonomy)
+- ✅ 2605.19321.pdf (Exploring and Developing a Pre-Model Safeguard with Draft Models)
+- ✅ 2605.10787.pdf (ComplexMCP: Evaluation of LLM Agents in Dynamic, Interdependent, and Large-Scale Tool Sandbox)
 - ✅ 2605.14744.pdf (Mechanical Enforcement for LLM Governance: Evidence of Governance-Task Decoupling)
 - ✅ 2605.14454.pdf (LiSA: Lifelong Safety Adaptation via Conservative Policy Induction)
 - ✅ 2605.14212.pdf (MetaAgent-X: Breaking the Ceiling of Automatic Multi-Agent Systems via End-to-End RL)
@@ -305,7 +313,70 @@
 
 ## 全部论文清单
 
-**[2605.20055]** Towards LLM-Assisted Architecture Recovery for Real-World ROS~2 Systems: An Agent-Based Multi-Level Approach to Hierarchical Structural Architecture Reconstruction
+
+**[2605.20704]** Heartbeat-Bound Hierarchical Credentials: Cryptographic Revocation for AI Agent Swarms
+   - 日期: 2026-05-20 | 分类: cs.MA
+   - 主题: cryptographic credentials, agent swarms, heartbeat, revocation, zombie agents
+   - 链接: https://arxiv.org/abs/2605.20704
+   - 状态: ✅ 已下载 (620KB)
+   - 核心贡献: HBHC协议将凭证有效性绑定到父代理心跳，实现90x僵尸窗口缩减，Rust实现0.26ms认证
+   - 可落地idea: controller实现HBHC凭证链 + 心跳停止级联撤销
+
+**[2605.20734]** An Application-Layer Multi-Modal Covert-Channel Reference Monitor for LLM Agent Egress
+   - 日期: 2026-05-21 | 分类: cs.CR
+   - 主题: covert channels, data exfiltration, egress monitoring, LLM agent security
+   - 链接: https://arxiv.org/abs/2605.20734
+   - 状态: ✅ 已下载 (905KB)
+   - 核心贡献: 检测代理通过零宽字符/同形字/时序/像素等隐蔽通道泄露数据
+   - 可落地idea: data-governance添加出口监控器，检测多模态隐蔽通道编码
+
+**[2605.20563]** STORM: STate-Oriented Multi-agent Collaboration with Conflict Prevention
+   - 日期: 2026-05-20 | 分类: cs.MA
+   - 主题: multi-agent collaboration, state management, conflict prevention, shared resources
+   - 链接: https://arxiv.org/abs/2605.20563
+   - 状态: ✅ 已下载 (1.2MB)
+   - 核心贡献: 面向状态的多代理协作，实时冲突检测预防而非事后合并
+   - 可落地idea: team-engine添加共享状态注册表 + 冲突预防锁
+
+**[2605.20312]** Pramana: A Protocol-Layer Treatment of Claim Verification in Autonomous Agent Networks
+   - 日期: 2026-05-20 | 分类: cs.MA
+   - 主题: claim verification, audit artifacts, regulated domains, autonomous agents
+   - 链接: https://arxiv.org/abs/2605.20312
+   - 状态: ✅ 已下载 (298KB)
+   - 核心贡献: 统一验证协议，每个代理输出产生可离线重执行的审计制品
+   - 可落地idea: data-governance实现验证制品模式 + 离线重执行审计
+
+**[2605.20251]** ProcBench: Evaluating Process-Level Defects and Control Preservation in LLM Coding Agents
+   - 日期: 2026-05-20 | 分类: cs.SE
+   - 主题: process defects, control preservation, agent evaluation, trajectory analysis
+   - 链接: https://arxiv.org/abs/2605.20251
+   - 状态: ✅ 已下载 (1.2MB)
+   - 核心贡献: 过程级缺陷检测框架，分析代理执行轨迹中的重复错误/控制流违规
+   - 可落地idea: controller添加过程缺陷检测 + 轨迹质量评分
+
+**[2605.20210]** Governance by Design: Architecting Agentic AI for Organizational Learning and Scalable Autonomy
+   - 日期: 2026-04-17 | 分类: cs.MA
+   - 主题: governance architecture, enterprise agents, scalable autonomy, accountability
+   - 链接: https://arxiv.org/abs/2605.20210
+   - 状态: ✅ 已下载 (598KB)
+   - 核心贡献: 企业级代理AI治理7条经验：权限边界、工具/数据访问、记忆处理、迭代改进
+   - 可落地idea: autonomy-controller实现治理策略层 + 权限边界DSL
+
+**[2605.19321]** Exploring and Developing a Pre-Model Safeguard with Draft Models
+   - 日期: 2026-05-19 | 分类: cs.AI
+   - 主题: jailbreak defense, draft models, pre-model safeguard, safety alignment
+   - 链接: https://arxiv.org/abs/2605.19321
+   - 状态: ✅ 已下载 (1.1MB)
+   - 核心贡献: 用小型草稿模型作为预检安全屏障，平衡准确率和成本
+   - 可落地idea: llm-engine添加草稿模型预检 + 分级安全管道
+
+**[2605.10787]** ComplexMCP: Evaluation of LLM Agents in Dynamic, Interdependent, and Large-Scale Tool Sandbox
+   - 日期: 2026-05-15 | 分类: cs.SE
+   - 主题: MCP tools, tool dependencies, atomicity, agent evaluation, enterprise automation
+   - 链接: https://arxiv.org/abs/2605.10787
+   - 状态: ✅ 已下载 (972KB)
+   - 核心贡献: 300+ MCP工具基准，评估代理在工具间依赖/原子性/环境噪声下的表现
+   - 可落地idea: mcp-protocol添加工具依赖图 + 调用原子性事务**[2605.20055]** Towards LLM-Assisted Architecture Recovery for Real-World ROS~2 Systems: An Agent-Based Multi-Level Approach to Hierarchical Structural Architecture Reconstruction
    - 日期: 2026-05 | 分类: cs.AI
    - 主题: architecture recovery, ROS2, multi-level, LLM-assisted, structural reconstruction
    - 链接: https://arxiv.org/abs/2605.20055

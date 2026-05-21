@@ -30,6 +30,7 @@
 //! ```
 
 pub mod accountability;
+pub mod cost_attribution;
 pub mod evidence_chain;
 pub mod audit_middleware;
 pub mod datasource;

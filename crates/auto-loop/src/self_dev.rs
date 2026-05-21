@@ -346,4 +346,80 @@ mod tests {
         // 可能为空（如果没有历史），但不应 panic
         let _ = recs;
     }
+
+    #[test]
+    fn test_self_dev_status_clone() {
+        let status = SelfDevStatus::Detecting;
+        let cloned = status.clone();
+        assert_eq!(status, cloned);
+    }
+
+    #[test]
+    fn test_self_dev_status_debug() {
+        let status = SelfDevStatus::Completed;
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("Completed"));
+    }
+
+    #[test]
+    fn test_self_dev_result_clone() {
+        let result = SelfDevResult {
+            id: "test-clone".to_string(),
+            status: SelfDevStatus::Idle,
+            quality_gate: None,
+            verification_results: vec![],
+            analysis_results: vec![],
+            fix_plans: vec![],
+            principle_checks: vec![],
+            lessons: vec!["lesson1".to_string()],
+            duration_ms: 100,
+            details: "test details".to_string(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.id, "test-clone");
+        assert_eq!(cloned.lessons.len(), 1);
+        assert_eq!(cloned.duration_ms, 100);
+    }
+
+    #[test]
+    fn test_self_dev_result_serialization() {
+        let result = SelfDevResult {
+            id: "test-ser".to_string(),
+            status: SelfDevStatus::Completed,
+            quality_gate: None,
+            verification_results: vec![],
+            analysis_results: vec![],
+            fix_plans: vec![],
+            principle_checks: vec![],
+            lessons: vec![],
+            duration_ms: 50,
+            details: "serialization test".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("test-ser"));
+        assert!(json.contains("Completed"));
+
+        let deserialized: SelfDevResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "test-ser");
+        assert_eq!(deserialized.status, SelfDevStatus::Completed);
+    }
+
+    #[test]
+    fn test_self_dev_manager_different_paths() {
+        let mgr1 = SelfDevManager::new("/tmp/test1");
+        let mgr2 = SelfDevManager::new("/tmp/test2");
+        // Both should initialize without panic
+        let _ = mgr1.get_learner_report();
+        let _ = mgr2.get_learner_report();
+    }
+
+    #[test]
+    fn test_get_recommendations_different_categories() {
+        let mgr = SelfDevManager::new("/workspace/kias");
+        let recs1 = mgr.get_recommendations("quality");
+        let recs2 = mgr.get_recommendations("performance");
+        let recs3 = mgr.get_recommendations("security");
+        // All should return without panic
+        let _ = (recs1, recs2, recs3);
+    }
 }

@@ -288,4 +288,97 @@ mod tests {
         let priority = classifier.estimate_priority("写代码", &response);
         assert_eq!(priority, Priority::High);
     }
+
+    #[test]
+    fn test_medium_confidence_priority() {
+        let classifier = LlmIntentClassifier::new();
+        let response = LlmIntentResponse {
+            intent_type: IntentType::CodeGeneration,
+            confidence: 0.7,
+            reasoning: "test".to_string(),
+            suggested_tools: vec![],
+            sub_intents: vec![],
+        };
+        let priority = classifier.estimate_priority("普通任务", &response);
+        assert_eq!(priority, Priority::Medium);
+    }
+
+    #[test]
+    fn test_complexity_long_input() {
+        let classifier = LlmIntentClassifier::new();
+        let response = LlmIntentResponse {
+            intent_type: IntentType::CodeGeneration,
+            confidence: 0.9,
+            reasoning: "test".to_string(),
+            suggested_tools: vec![],
+            sub_intents: vec![],
+        };
+        let long_input = "word ".repeat(60);
+        let complexity = classifier.estimate_complexity(&long_input, &response);
+        assert_eq!(complexity, Complexity::Complex);
+    }
+
+    #[test]
+    fn test_complexity_medium_input() {
+        let classifier = LlmIntentClassifier::new();
+        let response = LlmIntentResponse {
+            intent_type: IntentType::CodeGeneration,
+            confidence: 0.9,
+            reasoning: "test".to_string(),
+            suggested_tools: vec![],
+            sub_intents: vec![],
+        };
+        let medium_input = "word ".repeat(25);
+        let complexity = classifier.estimate_complexity(&medium_input, &response);
+        assert_eq!(complexity, Complexity::Medium);
+    }
+
+    #[test]
+    fn test_extract_keywords_filters_short() {
+        let classifier = LlmIntentClassifier::new();
+        let keywords = classifier.extract_keywords("I am a test");
+        // "I" and "am" should be filtered (len <= 2)
+        assert!(!keywords.contains(&"I".to_string()));
+        assert!(!keywords.contains(&"am".to_string()));
+        assert!(keywords.contains(&"test".to_string()));
+    }
+
+    #[test]
+    fn test_urgent_keywords_variants() {
+        let classifier = LlmIntentClassifier::new();
+        let response = LlmIntentResponse {
+            intent_type: IntentType::BugFix,
+            confidence: 0.9,
+            reasoning: "test".to_string(),
+            suggested_tools: vec![],
+            sub_intents: vec![],
+        };
+        assert_eq!(classifier.estimate_priority("urgent fix", &response), Priority::Critical);
+        assert_eq!(classifier.estimate_priority("立即修复", &response), Priority::Critical);
+        assert_eq!(classifier.estimate_priority("ASAP task", &response), Priority::Critical);
+        assert_eq!(classifier.estimate_priority("马上处理", &response), Priority::Critical);
+    }
+
+    #[test]
+    fn test_build_prompt_with_multiple_tools() {
+        let tools = vec![
+            "codegen".to_string(),
+            "test".to_string(),
+            "lint".to_string(),
+        ];
+        let prompt = build_classification_prompt("写代码", &tools);
+        assert!(prompt.contains("codegen, test, lint"));
+    }
+
+    #[test]
+    fn test_llm_intent_request_serialization() {
+        let request = LlmIntentRequest {
+            input: "test input".to_string(),
+            context: Some("test context".to_string()),
+            available_tools: vec!["tool1".to_string()],
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("test input"));
+        assert!(json.contains("test context"));
+    }
 }

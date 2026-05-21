@@ -31,6 +31,8 @@ members = [
     "crates/it-change-management",
     "crates/linux-automation",
     "crates/document-management",
+    "crates/compliance-security",
+    "crates/harness-registry",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

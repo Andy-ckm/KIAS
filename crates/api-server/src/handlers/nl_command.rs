@@ -168,7 +168,7 @@ pub async fn nl_stream(
             axum::response::Response::builder()
                 .status(500)
                 .body(axum::body::Body::empty())
-                .unwrap()
+                .expect("Failed to build 500 response")
         })
 }
 
@@ -1033,6 +1033,8 @@ mod tests {
                 "kias",
                 24,
             ),
+            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         }
     }
 

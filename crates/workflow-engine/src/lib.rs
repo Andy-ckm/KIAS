@@ -1,4 +1,5 @@
 pub mod approval;
+pub mod stage;
 pub mod checkpoint;
 pub mod dispatcher;
 pub mod edge;
@@ -41,6 +42,7 @@ pub use node::{CompensatingAction, ExecutionResult, ExecutorConfig, Node, NodeTy
 pub use replay::{
     EffectType, ExecutionEntry, ExecutionLog, ExecutionRecorder, ReplayEngine, ReplayStore,
 };
+pub use stage::{StageError, StageFsm};
 pub use state::WorkflowState;
 pub use subgraph::{SubGraph, SubGraphResult};
 pub use typed_state::{

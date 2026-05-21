@@ -5,7 +5,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
     a2a, agents, config, context, health, im, knowledge, metrics, nl_command, nodes, scheduler,
-    tier_routing, tokens, visualization, workflows,
+    tier_routing, tokens, token_budget, visualization, workflows, dashboard, slow_trace,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -162,7 +162,27 @@ pub fn create_router(state: AppState) -> Router {
     let token_routes = Router::new().route(
         "/api/v1/tokens",
         axum::routing::get(tokens::token_analytics),
+    )
+    // --- Real-time Dashboard route ---
+    .route(
+        "/api/v1/dashboard/realtime",
+        axum::routing::get(dashboard::realtime_dashboard),
     );
+
+    // --- Token Budget Management routes ---
+    let token_budget_routes = Router::new()
+        .route(
+            "/api/v1/tokens/budget",
+            axum::routing::get(token_budget::budget_overview),
+        )
+        .route(
+            "/api/v1/tokens/budget/:agent_id",
+            axum::routing::get(token_budget::agent_budget)
+                .put(token_budget::set_budget)
+                .delete(token_budget::remove_budget),
+        );
+
+    let token_routes = token_routes.merge(token_budget_routes);
 
     // --- Workflow routes ---
     let workflow_routes = Router::new()
@@ -180,6 +200,26 @@ pub fn create_router(state: AppState) -> Router {
         "/api/v1/scheduler/status",
         axum::routing::get(scheduler::scheduler_status),
     );
+
+    // --- Slow Action Tracing routes (surpasses EMQ slow subscription tracking) ---
+    let slow_trace_routes = Router::new()
+        .route(
+            "/api/v1/observability/slow-traces",
+            axum::routing::get(slow_trace::list_slow_traces)
+                .delete(slow_trace::clear_slow_traces),
+        )
+        .route(
+            "/api/v1/observability/slow-traces/summary",
+            axum::routing::get(slow_trace::slow_trace_summary),
+        )
+        .route(
+            "/api/v1/observability/slow-traces/agent/:id",
+            axum::routing::get(slow_trace::agent_slow_traces),
+        )
+        .route(
+            "/api/v1/observability/slow-traces/config",
+            axum::routing::put(slow_trace::update_slow_trace_config),
+        );
 
     // --- Tier routing routes (PrfaaS-inspired intelligent task routing) ---
     let tier_routing_routes = Router::new()
@@ -307,6 +347,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(token_routes)
         .merge(workflow_routes)
         .merge(scheduler_routes)
+        .merge(slow_trace_routes)
         .merge(tier_routing_routes)
         .merge(a2a_routes)
         .merge(nl_routes)

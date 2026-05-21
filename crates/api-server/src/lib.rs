@@ -45,7 +45,8 @@ pub struct AppState {
     /// Slow action trace collector (surpasses EMQ slow subscription tracking)
     pub slow_trace_collector: kias_monitor::SlowTraceCollector,
     /// Per-agent token budgets (enforced at API layer)
-    pub token_budgets: Arc<RwLock<std::collections::HashMap<String, handlers::token_budget::TokenBudget>>>,
+    pub token_budgets:
+        Arc<RwLock<std::collections::HashMap<String, handlers::token_budget::TokenBudget>>>,
 }
 
 /// An ingested document stored in memory
@@ -238,6 +239,7 @@ impl AppState {
 }
 
 pub mod auth;
+pub mod contract_test;
 pub mod error;
 pub mod handlers;
 pub mod middleware;
@@ -245,3 +247,4 @@ pub mod models;
 pub mod routes;
 pub mod tls;
 pub mod websocket;
+pub mod gateway;

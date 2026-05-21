@@ -235,7 +235,9 @@ impl GxpAuditTrail {
             if entry.sequence_number != (i as u64 + 1) {
                 errors.push(format!(
                     "Sequence gap at entry {}: expected {}, got {}",
-                    i, i + 1, entry.sequence_number
+                    i,
+                    i + 1,
+                    entry.sequence_number
                 ));
             }
 
@@ -268,18 +270,11 @@ impl GxpAuditTrail {
 
     /// Get entries for a specific target
     pub fn by_target(&self, target: &str) -> Vec<&GxpAuditEntry> {
-        self.entries
-            .iter()
-            .filter(|e| e.target == target)
-            .collect()
+        self.entries.iter().filter(|e| e.target == target).collect()
     }
 
     /// Get entries in time range
-    pub fn by_time_range(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-    ) -> Vec<&GxpAuditEntry> {
+    pub fn by_time_range(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Vec<&GxpAuditEntry> {
         self.entries
             .iter()
             .filter(|e| e.timestamp >= start && e.timestamp <= end)
@@ -383,7 +378,13 @@ mod tests {
     fn test_audit_trail_creation() {
         let mut trail = GxpAuditTrail::new();
 
-        trail.record("user-1", ActorType::Human, "create", "agent-1", Some("new agent"));
+        trail.record(
+            "user-1",
+            ActorType::Human,
+            "create",
+            "agent-1",
+            Some("new agent"),
+        );
 
         assert_eq!(trail.count(), 1);
         assert_eq!(trail.entries()[0].actor_id, "user-1");
@@ -400,7 +401,11 @@ mod tests {
         trail.record("agent-1", ActorType::Agent, "execute", "res-1", None);
 
         let integrity = trail.verify_integrity();
-        assert!(integrity.valid, "Chain should be valid: {:?}", integrity.errors);
+        assert!(
+            integrity.valid,
+            "Chain should be valid: {:?}",
+            integrity.errors
+        );
         assert_eq!(integrity.entry_count, 3);
     }
 
@@ -450,7 +455,13 @@ mod tests {
     fn test_cfr_part11_compliance() {
         let mut trail = GxpAuditTrail::new();
 
-        trail.record("user-1", ActorType::Human, "approve", "record-1", Some("reviewed"));
+        trail.record(
+            "user-1",
+            ActorType::Human,
+            "approve",
+            "record-1",
+            Some("reviewed"),
+        );
         trail.record("user-2", ActorType::Human, "execute", "action-1", None);
 
         let check = check_cfr_part11(&trail);

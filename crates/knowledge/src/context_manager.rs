@@ -854,10 +854,12 @@ mod tests {
 
     #[test]
     fn test_message_role_variants() {
-        let roles = [MessageRole::System,
+        let roles = [
+            MessageRole::System,
             MessageRole::User,
             MessageRole::Assistant,
-            MessageRole::Tool];
+            MessageRole::Tool,
+        ];
         assert_eq!(roles.len(), 4);
     }
 

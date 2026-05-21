@@ -219,10 +219,7 @@ impl SchemaRegistry {
         }
 
         // Check array items
-        if let (Some(items_schema), Some(arr)) = (
-            schema.get("items"),
-            data.as_array(),
-        ) {
+        if let (Some(items_schema), Some(arr)) = (schema.get("items"), data.as_array()) {
             for (i, item) in arr.iter().enumerate() {
                 let item_path = format!("{}[{}]", path, i);
                 errors.extend(self.validate_value(items_schema, item, &item_path));
@@ -234,10 +231,7 @@ impl SchemaRegistry {
             if !enum_values.contains(data) {
                 errors.push(ValidationError {
                     path: path.to_string(),
-                    message: format!(
-                        "Value not in enum: expected one of {:?}",
-                        enum_values
-                    ),
+                    message: format!("Value not in enum: expected one of {:?}", enum_values),
                     expected: Some(format!("{:?}", enum_values)),
                     actual: Some(format!("{:?}", data)),
                 });
@@ -250,11 +244,7 @@ impl SchemaRegistry {
                 if (s.len() as u64) < min_len {
                     errors.push(ValidationError {
                         path: path.to_string(),
-                        message: format!(
-                            "String too short: {} < {}",
-                            s.len(),
-                            min_len
-                        ),
+                        message: format!("String too short: {} < {}", s.len(), min_len),
                         expected: Some(format!(">= {} chars", min_len)),
                         actual: Some(format!("{} chars", s.len())),
                     });
@@ -264,11 +254,7 @@ impl SchemaRegistry {
                 if (s.len() as u64) > max_len {
                     errors.push(ValidationError {
                         path: path.to_string(),
-                        message: format!(
-                            "String too long: {} > {}",
-                            s.len(),
-                            max_len
-                        ),
+                        message: format!("String too long: {} > {}", s.len(), max_len),
                         expected: Some(format!("<= {} chars", max_len)),
                         actual: Some(format!("{} chars", s.len())),
                     });
@@ -330,21 +316,23 @@ mod tests {
     async fn test_validate_valid_data() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "test-schema".to_string(),
-            name: "Test".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "required": ["name", "version"],
-                "properties": {
-                    "name": { "type": "string" },
-                    "version": { "type": "string" }
-                }
-            }),
-            schema_type: SchemaType::AgentCard,
-            active: true,
-        }).await;
+        registry
+            .register(SchemaDefinition {
+                id: "test-schema".to_string(),
+                name: "Test".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "required": ["name", "version"],
+                    "properties": {
+                        "name": { "type": "string" },
+                        "version": { "type": "string" }
+                    }
+                }),
+                schema_type: SchemaType::AgentCard,
+                active: true,
+            })
+            .await;
 
         let data = serde_json::json!({
             "name": "My Agent",
@@ -360,17 +348,19 @@ mod tests {
     async fn test_validate_missing_required() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "test-schema".to_string(),
-            name: "Test".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "required": ["name", "version"]
-            }),
-            schema_type: SchemaType::AgentCard,
-            active: true,
-        }).await;
+        registry
+            .register(SchemaDefinition {
+                id: "test-schema".to_string(),
+                name: "Test".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "required": ["name", "version"]
+                }),
+                schema_type: SchemaType::AgentCard,
+                active: true,
+            })
+            .await;
 
         let data = serde_json::json!({
             "name": "My Agent"
@@ -386,19 +376,21 @@ mod tests {
     async fn test_validate_wrong_type() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "test-schema".to_string(),
-            name: "Test".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "count": { "type": "number" }
-                }
-            }),
-            schema_type: SchemaType::Custom("test".to_string()),
-            active: true,
-        }).await;
+        registry
+            .register(SchemaDefinition {
+                id: "test-schema".to_string(),
+                name: "Test".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "count": { "type": "number" }
+                    }
+                }),
+                schema_type: SchemaType::Custom("test".to_string()),
+                active: true,
+            })
+            .await;
 
         let data = serde_json::json!({
             "count": "not a number"
@@ -412,22 +404,24 @@ mod tests {
     async fn test_validate_enum() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "status-schema".to_string(),
-            name: "Status".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": ["online", "offline", "lwt"]
+        registry
+            .register(SchemaDefinition {
+                id: "status-schema".to_string(),
+                name: "Status".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "enum": ["online", "offline", "lwt"]
+                        }
                     }
-                }
-            }),
-            schema_type: SchemaType::Custom("test".to_string()),
-            active: true,
-        }).await;
+                }),
+                schema_type: SchemaType::Custom("test".to_string()),
+                active: true,
+            })
+            .await;
 
         let valid = serde_json::json!({ "status": "online" });
         let report = registry.validate("status-schema", &valid).await.unwrap();
@@ -442,23 +436,25 @@ mod tests {
     async fn test_validate_string_length() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "name-schema".to_string(),
-            name: "Name".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "minLength": 3,
-                        "maxLength": 50
+        registry
+            .register(SchemaDefinition {
+                id: "name-schema".to_string(),
+                name: "Name".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 50
+                        }
                     }
-                }
-            }),
-            schema_type: SchemaType::Custom("test".to_string()),
-            active: true,
-        }).await;
+                }),
+                schema_type: SchemaType::Custom("test".to_string()),
+                active: true,
+            })
+            .await;
 
         let valid = serde_json::json!({ "name": "Alice" });
         let report = registry.validate("name-schema", &valid).await.unwrap();
@@ -473,25 +469,27 @@ mod tests {
     async fn test_validate_nested_properties() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "nested".to_string(),
-            name: "Nested".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "agent": {
-                        "type": "object",
-                        "required": ["id"],
-                        "properties": {
-                            "id": { "type": "string" }
+        registry
+            .register(SchemaDefinition {
+                id: "nested".to_string(),
+                name: "Nested".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "agent": {
+                            "type": "object",
+                            "required": ["id"],
+                            "properties": {
+                                "id": { "type": "string" }
+                            }
                         }
                     }
-                }
-            }),
-            schema_type: SchemaType::AgentCard,
-            active: true,
-        }).await;
+                }),
+                schema_type: SchemaType::AgentCard,
+                active: true,
+            })
+            .await;
 
         let valid = serde_json::json!({
             "agent": { "id": "a1" }
@@ -510,7 +508,9 @@ mod tests {
     async fn test_schema_not_found() {
         let registry = SchemaRegistry::new();
 
-        let result = registry.validate("nonexistent", &serde_json::json!({})).await;
+        let result = registry
+            .validate("nonexistent", &serde_json::json!({}))
+            .await;
         assert!(matches!(result, Err(SchemaError::NotFound { .. })));
     }
 
@@ -518,14 +518,16 @@ mod tests {
     async fn test_inactive_schema() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "inactive".to_string(),
-            name: "Inactive".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({ "type": "object" }),
-            schema_type: SchemaType::AgentCard,
-            active: false,
-        }).await;
+        registry
+            .register(SchemaDefinition {
+                id: "inactive".to_string(),
+                name: "Inactive".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({ "type": "object" }),
+                schema_type: SchemaType::AgentCard,
+                active: false,
+            })
+            .await;
 
         let result = registry.validate("inactive", &serde_json::json!({})).await;
         assert!(matches!(result, Err(SchemaError::Inactive { .. })));
@@ -535,22 +537,24 @@ mod tests {
     async fn test_validate_array_items() {
         let registry = SchemaRegistry::new();
 
-        registry.register(SchemaDefinition {
-            id: "array-schema".to_string(),
-            name: "Array".to_string(),
-            version: "1.0.0".to_string(),
-            schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "tags": {
-                        "type": "array",
-                        "items": { "type": "string" }
+        registry
+            .register(SchemaDefinition {
+                id: "array-schema".to_string(),
+                name: "Array".to_string(),
+                version: "1.0.0".to_string(),
+                schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
                     }
-                }
-            }),
-            schema_type: SchemaType::Custom("test".to_string()),
-            active: true,
-        }).await;
+                }),
+                schema_type: SchemaType::Custom("test".to_string()),
+                active: true,
+            })
+            .await;
 
         let valid = serde_json::json!({ "tags": ["rust", "agent"] });
         let report = registry.validate("array-schema", &valid).await.unwrap();

@@ -176,7 +176,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -455,12 +457,8 @@ mod tests {
             role: "user".to_string(),
             content: "test".to_string(),
         };
-        let result = add_message(
-            State(state),
-            Path("session_42_prod".to_string()),
-            Json(req),
-        )
-        .await;
+        let result =
+            add_message(State(state), Path("session_42_prod".to_string()), Json(req)).await;
         assert_eq!(result.session_id, "session_42_prod");
     }
 

@@ -30,14 +30,17 @@
 //! ```
 
 pub mod accountability;
-pub mod cost_attribution;
-pub mod evidence_chain;
 pub mod audit_middleware;
+pub mod cost_attribution;
+pub mod data_bridge;
 pub mod datasource;
+pub mod evidence_chain;
 pub mod governance;
 pub mod handlers;
 pub mod policy;
 
-pub use evidence_chain::{EvidenceChain, EvidenceError, EvidenceEvent, EvidenceEventType, EvidenceStore};
 pub use datasource::{DataSource, DataSourceRegistry, DataSourceType};
+pub use evidence_chain::{
+    EvidenceChain, EvidenceError, EvidenceEvent, EvidenceEventType, EvidenceStore,
+};
 pub use policy::{AccessDecision, PolicyEngine, ResourcePolicy};

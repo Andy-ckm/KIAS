@@ -170,7 +170,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -234,7 +236,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -313,7 +317,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -374,7 +380,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -442,7 +450,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -506,7 +516,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -567,7 +579,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -631,7 +645,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -705,7 +721,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -789,7 +807,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -868,7 +888,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -984,7 +1006,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -1045,7 +1069,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -1107,7 +1133,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -1184,7 +1212,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = token_analytics(State(state)).await;
@@ -1275,7 +1305,10 @@ mod tests {
         let result = token_analytics(State(state)).await;
         // Even with no agents, time_series should have data (agent_count defaults to 1)
         for ts in &result.time_series {
-            assert!(ts.total_tokens > 0, "time series entries should be > 0 with default agent_count=1");
+            assert!(
+                ts.total_tokens > 0,
+                "time series entries should be > 0 with default agent_count=1"
+            );
         }
     }
 

@@ -353,10 +353,22 @@ mod tests {
             suggested_tools: vec![],
             sub_intents: vec![],
         };
-        assert_eq!(classifier.estimate_priority("urgent fix", &response), Priority::Critical);
-        assert_eq!(classifier.estimate_priority("立即修复", &response), Priority::Critical);
-        assert_eq!(classifier.estimate_priority("ASAP task", &response), Priority::Critical);
-        assert_eq!(classifier.estimate_priority("马上处理", &response), Priority::Critical);
+        assert_eq!(
+            classifier.estimate_priority("urgent fix", &response),
+            Priority::Critical
+        );
+        assert_eq!(
+            classifier.estimate_priority("立即修复", &response),
+            Priority::Critical
+        );
+        assert_eq!(
+            classifier.estimate_priority("ASAP task", &response),
+            Priority::Critical
+        );
+        assert_eq!(
+            classifier.estimate_priority("马上处理", &response),
+            Priority::Critical
+        );
     }
 
     #[test]

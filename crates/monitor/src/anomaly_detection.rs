@@ -1,8 +1,8 @@
+use chrono::Timelike;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use chrono::Timelike;
 
 /// Agent behavior anomaly detection engine.
 ///
@@ -262,7 +262,8 @@ impl AnomalyDetector {
         };
 
         let mean: f64 = op_counts.iter().sum::<f64>() / op_counts.len() as f64;
-        let variance: f64 = op_counts.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / op_counts.len() as f64;
+        let variance: f64 =
+            op_counts.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / op_counts.len() as f64;
         let std_dev = variance.sqrt();
 
         if std_dev <= 0.0 {
@@ -385,7 +386,9 @@ mod tests {
         // Spike
         let anomalies = detector.record(event("a1", "llm.chat", 0.50, true)).await;
         assert!(!anomalies.is_empty());
-        assert!(anomalies.iter().any(|a| a.anomaly_type == AnomalyType::CostSpike));
+        assert!(anomalies
+            .iter()
+            .any(|a| a.anomaly_type == AnomalyType::CostSpike));
     }
 
     #[tokio::test]

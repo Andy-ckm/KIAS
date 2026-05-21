@@ -330,7 +330,8 @@ mod tests {
 
     #[test]
     fn test_parse_container_whitespace_lines() {
-        let output = "abc123|web|nginx|Up|80/tcp|2024-01-01\n\n  \ndef456|db|mysql|Up|3306/tcp|2024-01-02";
+        let output =
+            "abc123|web|nginx|Up|80/tcp|2024-01-01\n\n  \ndef456|db|mysql|Up|3306/tcp|2024-01-02";
         let containers = DockerOps::parse_container_list(output);
         assert_eq!(containers.len(), 2);
     }
@@ -546,10 +547,7 @@ mod tests {
                 container: "web".to_string()
             }
         );
-        assert_ne!(
-            DockerAction::Stats,
-            DockerAction::ListImages
-        );
+        assert_ne!(DockerAction::Stats, DockerAction::ListImages);
         assert_ne!(
             DockerAction::Pull {
                 image: "a".to_string()

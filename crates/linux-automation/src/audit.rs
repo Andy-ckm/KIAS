@@ -462,7 +462,9 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let audit = AuditLog::new(&db_path).unwrap();
 
-        audit.log_action("admin", "DockerOps", "server1", "Success").unwrap();
+        audit
+            .log_action("admin", "DockerOps", "server1", "Success")
+            .unwrap();
 
         let stats = audit.get_statistics().unwrap();
         assert_eq!(stats.total_entries, 1);
@@ -480,9 +482,15 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let audit = AuditLog::new(&db_path).unwrap();
 
-        audit.log_action("user1", "Provision", "host1", "ok").unwrap();
-        audit.log_action("user2", "Scan", "host2", "passed").unwrap();
-        audit.log_action("user3", "Backup", "host3", "done").unwrap();
+        audit
+            .log_action("user1", "Provision", "host1", "ok")
+            .unwrap();
+        audit
+            .log_action("user2", "Scan", "host2", "passed")
+            .unwrap();
+        audit
+            .log_action("user3", "Backup", "host3", "done")
+            .unwrap();
 
         let stats = audit.get_statistics().unwrap();
         assert_eq!(stats.total_entries, 3);
@@ -505,7 +513,9 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let audit = AuditLog::new(&db_path).unwrap();
 
-        audit.log_action("user", "action", "target", "result").unwrap();
+        audit
+            .log_action("user", "action", "target", "result")
+            .unwrap();
         let log = audit.get_audit_log(Some(1)).unwrap();
         assert!(log[0].details.is_none());
     }
@@ -516,7 +526,9 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let audit = AuditLog::new(&db_path).unwrap();
 
-        audit.log_action("user", "action", "target", "result").unwrap();
+        audit
+            .log_action("user", "action", "target", "result")
+            .unwrap();
         let log = audit.get_audit_log(Some(1)).unwrap();
         assert!(log[0].signature.is_none());
     }
@@ -542,7 +554,9 @@ mod tests {
 
         // Create first, add entry
         let audit1 = AuditLog::new(&db_path).unwrap();
-        audit1.log_action("user", "action", "target", "result").unwrap();
+        audit1
+            .log_action("user", "action", "target", "result")
+            .unwrap();
 
         // Create again — should not lose data (CREATE IF NOT EXISTS)
         let audit2 = AuditLog::new(&db_path).unwrap();
@@ -570,7 +584,9 @@ mod tests {
         let audit = AuditLog::new(&db_path).unwrap();
 
         for i in 0..100 {
-            audit.log_action("user", "action", &format!("target-{}", i), "ok").unwrap();
+            audit
+                .log_action("user", "action", &format!("target-{}", i), "ok")
+                .unwrap();
         }
         let stats = audit.get_statistics().unwrap();
         assert_eq!(stats.total_entries, 100);
@@ -586,7 +602,9 @@ mod tests {
         let db_path = tmp.path().join("test.db");
         let audit = AuditLog::new(&db_path).unwrap();
 
-        audit.log_action("user", "action", "target", "result").unwrap();
+        audit
+            .log_action("user", "action", "target", "result")
+            .unwrap();
         let log = audit.get_audit_log(Some(1)).unwrap();
         // UUID should be valid (not default)
         assert_ne!(log[0].id, Uuid::default());
@@ -599,7 +617,9 @@ mod tests {
         let audit = AuditLog::new(&db_path).unwrap();
 
         let before = Utc::now();
-        audit.log_action("user", "action", "target", "result").unwrap();
+        audit
+            .log_action("user", "action", "target", "result")
+            .unwrap();
         let after = Utc::now();
 
         let log = audit.get_audit_log(Some(1)).unwrap();

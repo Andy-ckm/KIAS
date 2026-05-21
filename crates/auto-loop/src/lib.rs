@@ -14,6 +14,7 @@ pub mod learner;
 pub mod llm_intent;
 pub mod planner;
 pub mod principles;
+pub mod quality_gate;
 pub mod recursive_decomposer;
 pub mod self_boundary;
 pub mod self_dev;
@@ -966,7 +967,8 @@ mod tests {
     fn test_analyze_problem_nonexistent_id_no_panic() {
         let config = AutoLoopConfig::default();
         let mut manager = AutoLoopManager::new(config);
-        let _loop_id = manager.start_loop(make_problem("p1", "Test", "Fix Rust compilation error", 5));
+        let _loop_id =
+            manager.start_loop(make_problem("p1", "Test", "Fix Rust compilation error", 5));
         // Verify the loop started in Discovering status (not escalated)
         assert_eq!(manager.records()[0].status, LoopStatus::Discovering);
 

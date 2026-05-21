@@ -995,7 +995,7 @@ mod tests {
             match event_type {
                 "content_block_delta" => {
                     if let Some(delta) = parsed["delta"].as_object() {
-                        if let Some(text) = delta["text"].as_str() {
+                        if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
                             chunks.push(StreamChunk {
                                 id: _current_id.clone(),
                                 model: _current_model.clone(),

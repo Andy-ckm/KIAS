@@ -136,7 +136,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -431,7 +433,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_nodes_per_page_limit_capped() {
-        let nodes: Vec<Node> = (0..5).map(|i| test_node(&format!("n{i}"), &format!("node-{i}"))).collect();
+        let nodes: Vec<Node> = (0..5)
+            .map(|i| test_node(&format!("n{i}"), &format!("node-{i}")))
+            .collect();
         let state = test_state_with_nodes(nodes).await;
         let params = PaginationParams {
             page: Some(1),
@@ -461,7 +465,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_node_with_special_chars_in_id() {
-        let state = test_state_with_nodes(vec![test_node("node-abc_123.test", "special-node")]).await;
+        let state =
+            test_state_with_nodes(vec![test_node("node-abc_123.test", "special-node")]).await;
         let result = get_node(State(state), Path("node-abc_123.test".to_string())).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().data.id, "node-abc_123.test");
@@ -470,9 +475,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_node_with_labels() {
         let mut node = test_node("n1", "labeled-node");
-        node.labels.insert("zone".to_string(), "us-east-1".to_string());
+        node.labels
+            .insert("zone".to_string(), "us-east-1".to_string());
         node.labels.insert("rack".to_string(), "r42".to_string());
-        node.labels.insert("tier".to_string(), "frontend".to_string());
+        node.labels
+            .insert("tier".to_string(), "frontend".to_string());
         let state = test_state_with_nodes(vec![node]).await;
         let result = get_node(State(state), Path("n1".to_string())).await;
         assert!(result.is_ok());
@@ -507,7 +514,11 @@ mod tests {
             start_time: None,
             restart_count: 0,
         };
-        state.agents.write().await.insert("a-orphan".to_string(), agent);
+        state
+            .agents
+            .write()
+            .await
+            .insert("a-orphan".to_string(), agent);
 
         // Query for n1 should not return the agent on nonexistent-node
         let params = PaginationParams {

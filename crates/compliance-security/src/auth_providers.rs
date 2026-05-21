@@ -124,7 +124,10 @@ pub enum AuthCredential {
     /// API key in header or query.
     ApiKey { key: String },
     /// PEM-encoded client certificate + private key.
-    Certificate { cert_pem: String, key_pem: Option<String> },
+    Certificate {
+        cert_pem: String,
+        key_pem: Option<String>,
+    },
     /// LDAP bind DN + password.
     LdapBind { bind_dn: String, password: String },
     /// SAML assertion XML.
@@ -472,12 +475,7 @@ impl ScramProvider {
     }
 
     /// Register a SCRAM user with pre-computed keys.
-    pub fn add_user(
-        &mut self,
-        username: &str,
-        password: &str,
-        roles: Vec<String>,
-    ) {
+    pub fn add_user(&mut self, username: &str, password: &str, roles: Vec<String>) {
         let salt = format!("salt_{username}");
         let salted_password = pbkdf2_sha256(password.as_bytes(), salt.as_bytes(), 4096);
         let client_key = hmac_sha256(&salted_password, b"Client Key");
@@ -544,10 +542,7 @@ impl AuthProvider for ScramProvider {
             provider: AuthProviderType::Scram,
             roles: user.roles.clone(),
             ttl_seconds: Some(7200),
-            claims: HashMap::from([(
-                "scram_iterations".to_string(),
-                user.iterations.to_string(),
-            )]),
+            claims: HashMap::from([("scram_iterations".to_string(), user.iterations.to_string())]),
             issued_at: Utc::now(),
         })
     }
@@ -712,9 +707,7 @@ impl MultiAuthProvider {
             .providers
             .iter()
             .find(|p| p.provider_type() == *provider_type)
-            .ok_or_else(|| {
-                AuthProviderError::ProviderNotFound(provider_type.to_string())
-            })?;
+            .ok_or_else(|| AuthProviderError::ProviderNotFound(provider_type.to_string()))?;
 
         provider.authenticate(credential).await
     }
@@ -763,10 +756,7 @@ fn pbkdf2_sha256(password: &[u8], salt: &[u8], iterations: u32) -> Vec<u8> {
     let mut result = vec![0u8; 32];
     let block_count = 1u32;
     for block_idx in 1..=block_count {
-        let mut u = hmac_sha256(
-            password,
-            &[salt, &block_idx.to_be_bytes()].concat(),
-        );
+        let mut u = hmac_sha256(password, &[salt, &block_idx.to_be_bytes()].concat());
         let mut result_block = u.clone();
         for _ in 1..iterations {
             u = hmac_sha256(password, &u);
@@ -805,7 +795,10 @@ mod tests {
         assert_eq!(AuthProviderType::Oidc.to_string(), "oidc");
         assert_eq!(AuthProviderType::Kerberos.to_string(), "kerberos");
         assert_eq!(AuthProviderType::Biometric.to_string(), "biometric");
-        assert_eq!(AuthProviderType::HardwareToken.to_string(), "hardware_token");
+        assert_eq!(
+            AuthProviderType::HardwareToken.to_string(),
+            "hardware_token"
+        );
         assert_eq!(AuthProviderType::Ldap.to_string(), "ldap");
     }
 
@@ -881,7 +874,12 @@ mod tests {
         internal.add_user("alice", "P@ssw0rd!", vec!["User".to_string()]);
 
         let mut api_key_prov = ApiKeyProvider::new();
-        api_key_prov.add_key("sk-test-123", "service-account", vec!["Service".to_string()], None);
+        api_key_prov.add_key(
+            "sk-test-123",
+            "service-account",
+            vec!["Service".to_string()],
+            None,
+        );
 
         let mut multi = MultiAuthProvider::new();
         multi.add_provider(Box::new(internal));
@@ -925,9 +923,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Wrong provider type
-        let result = multi
-            .authenticate_with(&AuthProviderType::Jwt, &cred)
-            .await;
+        let result = multi.authenticate_with(&AuthProviderType::Jwt, &cred).await;
         assert!(matches!(
             result.unwrap_err(),
             AuthProviderError::ProviderNotFound(_)

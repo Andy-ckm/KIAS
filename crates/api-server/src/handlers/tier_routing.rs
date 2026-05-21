@@ -445,7 +445,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -904,7 +906,9 @@ mod tests {
             latency_budget: 0.0,
             metadata: HashMap::new(),
         };
-        let r1 = evaluate_task(State(state.clone()), Json(req.clone())).await.unwrap();
+        let r1 = evaluate_task(State(state.clone()), Json(req.clone()))
+            .await
+            .unwrap();
         let r2 = evaluate_task(State(state), Json(req)).await.unwrap();
         assert_ne!(r1.task_id, r2.task_id);
     }
@@ -982,7 +986,8 @@ mod tests {
         };
         let result = batch_evaluate(State(state), Json(req)).await.unwrap();
         assert_eq!(result.summary.total, 2);
-        let expected_avg = (result.results[0].decision.confidence + result.results[1].decision.confidence) / 2.0;
+        let expected_avg =
+            (result.results[0].decision.confidence + result.results[1].decision.confidence) / 2.0;
         assert!((result.summary.avg_confidence - expected_avg).abs() < 0.001);
     }
 

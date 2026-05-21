@@ -202,8 +202,13 @@ pub async fn budget_overview(
 
     for agent in agents.values() {
         let budget = budgets.get(&agent.id);
-        let status =
-            compute_budget_status(&agent.id, &agent.spec.name, &agent.status, agent.restart_count, budget);
+        let status = compute_budget_status(
+            &agent.id,
+            &agent.spec.name,
+            &agent.status,
+            agent.restart_count,
+            budget,
+        );
 
         match status.status {
             BudgetHealth::Healthy => healthy += 1,
@@ -320,8 +325,6 @@ mod tests {
     use crate::models::agent::{Agent, AgentSpec};
     use axum::extract::{Path, Query, State};
     use std::collections::HashMap;
-    
-    
 
     async fn test_state() -> AppState {
         AppState::new_async(kias_common::config::KiasConfig::default()).await
@@ -345,11 +348,7 @@ mod tests {
     #[tokio::test]
     async fn test_budget_overview_empty() {
         let state = test_state().await;
-        let result = budget_overview(
-            State(state),
-            Query(BudgetQuery { status: None }),
-        )
-        .await;
+        let result = budget_overview(State(state), Query(BudgetQuery { status: None })).await;
         assert_eq!(result.total_agents, 0);
         assert_eq!(result.agents_with_budget, 0);
     }
@@ -363,11 +362,7 @@ mod tests {
             agents.insert("a2".to_string(), make_agent("done", AgentStatus::Succeeded));
         }
 
-        let result = budget_overview(
-            State(state),
-            Query(BudgetQuery { status: None }),
-        )
-        .await;
+        let result = budget_overview(State(state), Query(BudgetQuery { status: None })).await;
         assert_eq!(result.total_agents, 2);
         // All agents are unlimited (no budgets set)
         assert_eq!(result.per_agent.len(), 2);
@@ -514,7 +509,10 @@ mod tests {
         let state = test_state().await;
         {
             let mut agents = state.agents.write().await;
-            agents.insert("a1".to_string(), make_agent("cost-agent", AgentStatus::Running));
+            agents.insert(
+                "a1".to_string(),
+                make_agent("cost-agent", AgentStatus::Running),
+            );
         }
 
         let budget = TokenBudget {
@@ -574,9 +572,18 @@ mod tests {
         let state = test_state().await;
         {
             let mut agents = state.agents.write().await;
-            agents.insert("a1".to_string(), make_agent("healthy", AgentStatus::Pending)); // 0 tokens
-            agents.insert("a2".to_string(), make_agent("warning", AgentStatus::Succeeded)); // 45000
-            agents.insert("a3".to_string(), make_agent("unlimited", AgentStatus::Running));
+            agents.insert(
+                "a1".to_string(),
+                make_agent("healthy", AgentStatus::Pending),
+            ); // 0 tokens
+            agents.insert(
+                "a2".to_string(),
+                make_agent("warning", AgentStatus::Succeeded),
+            ); // 45000
+            agents.insert(
+                "a3".to_string(),
+                make_agent("unlimited", AgentStatus::Running),
+            );
         }
 
         // Set budget for a1 (healthy) and a2 (warning)
@@ -608,11 +615,7 @@ mod tests {
             );
         }
 
-        let result = budget_overview(
-            State(state),
-            Query(BudgetQuery { status: None }),
-        )
-        .await;
+        let result = budget_overview(State(state), Query(BudgetQuery { status: None })).await;
 
         assert_eq!(result.total_agents, 3);
         assert_eq!(result.agents_with_budget, 2);
@@ -623,9 +626,21 @@ mod tests {
 
     #[test]
     fn test_budget_health_serialization() {
-        assert_eq!(serde_json::to_string(&BudgetHealth::Healthy).unwrap(), "\"healthy\"");
-        assert_eq!(serde_json::to_string(&BudgetHealth::Warning).unwrap(), "\"warning\"");
-        assert_eq!(serde_json::to_string(&BudgetHealth::Exceeded).unwrap(), "\"exceeded\"");
-        assert_eq!(serde_json::to_string(&BudgetHealth::Unlimited).unwrap(), "\"unlimited\"");
+        assert_eq!(
+            serde_json::to_string(&BudgetHealth::Healthy).unwrap(),
+            "\"healthy\""
+        );
+        assert_eq!(
+            serde_json::to_string(&BudgetHealth::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(
+            serde_json::to_string(&BudgetHealth::Exceeded).unwrap(),
+            "\"exceeded\""
+        );
+        assert_eq!(
+            serde_json::to_string(&BudgetHealth::Unlimited).unwrap(),
+            "\"unlimited\""
+        );
     }
 }

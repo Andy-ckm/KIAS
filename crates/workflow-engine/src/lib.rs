@@ -1,5 +1,4 @@
 pub mod approval;
-pub mod stage;
 pub mod checkpoint;
 pub mod dispatcher;
 pub mod edge;
@@ -11,6 +10,8 @@ pub mod kanban;
 pub mod kanban_store;
 pub mod node;
 pub mod replay;
+pub mod rule_engine;
+pub mod stage;
 pub mod state;
 pub mod subgraph;
 pub mod typed_state;

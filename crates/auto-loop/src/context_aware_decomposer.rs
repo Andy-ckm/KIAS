@@ -94,6 +94,7 @@ pub enum OrchestrationPattern {
 /// 上下文感知的分解器
 pub struct ContextAwareDecomposer {
     /// 上下文重叠阈值（超过此值则合并）
+    #[allow(dead_code)] // Stored for future merging logic
     overlap_threshold: f64,
 }
 
@@ -563,5 +564,127 @@ mod tests {
     fn test_custom_threshold() {
         let decomposer = ContextAwareDecomposer::with_threshold(0.5);
         assert_eq!(decomposer.overlap_threshold, 0.5);
+    }
+
+    #[test]
+    fn test_security_audit_intent() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::SecurityAudit, Complexity::Medium);
+        let result = decomposer.decompose(&intent);
+        assert!(!result.contexts.is_empty());
+        assert!(result.contexts.iter().any(|c| c.id == "security_context"));
+    }
+
+    #[test]
+    fn test_code_generation_has_two_contexts() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Simple);
+        let result = decomposer.decompose(&intent);
+        assert_eq!(result.contexts.len(), 2);
+        assert!(result.contexts.iter().any(|c| c.id == "code_context"));
+        assert!(result.contexts.iter().any(|c| c.id == "test_context"));
+    }
+
+    #[test]
+    fn test_bugfix_has_debug_context() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::BugFix, Complexity::Simple);
+        let result = decomposer.decompose(&intent);
+        assert!(result.contexts.iter().any(|c| c.id == "debug_context"));
+    }
+
+    #[test]
+    fn test_unknown_intent_general_context() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::Unknown, Complexity::Simple);
+        let result = decomposer.decompose(&intent);
+        assert!(result.contexts.iter().any(|c| c.id == "general_context"));
+    }
+
+    #[test]
+    fn test_simple_code_gen_no_multi_agent() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Simple);
+        let result = decomposer.decompose(&intent);
+        // Simple tasks should not require multi-agent
+        assert!(!result.requires_multi_agent);
+    }
+
+    #[test]
+    fn test_complex_bugfix_uses_routing() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::BugFix, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        // Bug fix with complex complexity should use routing or orchestrator
+        assert!(matches!(
+            result.orchestration_pattern,
+            OrchestrationPattern::Routing | OrchestrationPattern::OrchestratorWorker
+        ));
+    }
+
+    #[test]
+    fn test_task_graph_nodes_match_tasks() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Medium);
+        let result = decomposer.decompose(&intent);
+        // Every task should have a corresponding node in the graph
+        for task in &result.tasks {
+            assert!(
+                result.task_graph.nodes.contains_key(&task.id),
+                "Task {} not found in graph nodes",
+                task.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_tasks_have_non_empty_names() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Medium);
+        let result = decomposer.decompose(&intent);
+        for task in &result.tasks {
+            assert!(!task.name.is_empty(), "Task name should not be empty");
+            assert!(
+                !task.description.is_empty(),
+                "Task description should not be empty"
+            );
+        }
+    }
+
+    #[test]
+    fn test_tasks_have_valid_context_ids() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        let context_ids: Vec<&str> = result.contexts.iter().map(|c| c.id.as_str()).collect();
+        for task in &result.tasks {
+            assert!(
+                context_ids.contains(&task.context_id.as_str()),
+                "Task {} references unknown context {}",
+                task.id,
+                task.context_id
+            );
+        }
+    }
+
+    #[test]
+    fn test_high_threshold_may_merge_more() {
+        let decomposer_low = ContextAwareDecomposer::with_threshold(0.3);
+        let decomposer_high = ContextAwareDecomposer::with_threshold(0.9);
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Medium);
+        let result_low = decomposer_low.decompose(&intent);
+        let result_high = decomposer_high.decompose(&intent);
+        // Both should produce valid results
+        assert!(!result_low.tasks.is_empty());
+        assert!(!result_high.tasks.is_empty());
+    }
+
+    #[test]
+    fn test_intent_preserved_in_result() {
+        let decomposer = ContextAwareDecomposer::new();
+        let intent = create_test_intent(IntentType::SecurityAudit, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        assert_eq!(result.intent.intent_type, IntentType::SecurityAudit);
+        assert_eq!(result.intent.complexity, Complexity::Complex);
     }
 }

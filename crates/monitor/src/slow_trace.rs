@@ -348,23 +348,19 @@ impl SlowTraceCollector {
         > = std::collections::HashMap::new();
 
         for trace in traces.iter() {
-            *by_category
-                .entry(trace.category.to_string())
-                .or_insert(0) += 1;
+            *by_category.entry(trace.category.to_string()).or_insert(0) += 1;
             *by_severity
                 .entry(format!("{:?}", trace.severity))
                 .or_insert(0) += 1;
             durations.push(trace.duration_ms);
 
-            let entry = agent_map
-                .entry(trace.agent_id.clone())
-                .or_insert_with(|| {
-                    (
-                        trace.agent_name.clone(),
-                        Vec::new(),
-                        std::collections::HashMap::new(),
-                    )
-                });
+            let entry = agent_map.entry(trace.agent_id.clone()).or_insert_with(|| {
+                (
+                    trace.agent_name.clone(),
+                    Vec::new(),
+                    std::collections::HashMap::new(),
+                )
+            });
             entry.1.push(trace.duration_ms);
             *entry.2.entry(trace.category.to_string()).or_insert(0) += 1;
         }
@@ -766,7 +762,10 @@ mod tests {
 
     #[test]
     fn test_severity_classification() {
-        assert_eq!(SlowSeverity::from_duration(1500, 1000), SlowSeverity::Warning);
+        assert_eq!(
+            SlowSeverity::from_duration(1500, 1000),
+            SlowSeverity::Warning
+        );
         assert_eq!(SlowSeverity::from_duration(2500, 1000), SlowSeverity::Slow);
         assert_eq!(
             SlowSeverity::from_duration(6000, 1000),

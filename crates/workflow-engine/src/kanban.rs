@@ -539,7 +539,11 @@ impl KanbanBoard {
             .find(|t| t.id == parent_id)
             .ok_or_else(|| KanbanError::TaskNotFound(parent_id.to_string()))?;
         // Mutate child
-        let child = self.tasks.iter_mut().find(|t| t.id == child_id).expect("Child task verified to exist");
+        let child = self
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == child_id)
+            .expect("Child task verified to exist");
         if !child.parents.contains(&parent_id.to_string()) {
             child.parents.push(parent_id.to_string());
         }
@@ -547,7 +551,11 @@ impl KanbanBoard {
             child.blocked_by.push(parent_id.to_string());
         }
         // Mutate parent
-        let parent = self.tasks.iter_mut().find(|t| t.id == parent_id).expect("Parent task verified to exist");
+        let parent = self
+            .tasks
+            .iter_mut()
+            .find(|t| t.id == parent_id)
+            .expect("Parent task verified to exist");
         if !parent.children.contains(&child_id.to_string()) {
             parent.children.push(child_id.to_string());
         }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::Utc;
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::agent_span::{AgentSpan, SpanStatus};
 
@@ -96,11 +95,7 @@ impl SpanCollector {
     /// Get spans by operation name
     pub async fn by_name(&self, name: &str) -> Vec<AgentSpan> {
         let spans = self.spans.read().await;
-        spans
-            .iter()
-            .filter(|s| s.name == name)
-            .cloned()
-            .collect()
+        spans.iter().filter(|s| s.name == name).cloned().collect()
     }
 
     /// Get error spans
@@ -133,7 +128,10 @@ impl SpanCollector {
     pub async fn summary(&self) -> SpanSummary {
         let spans = self.spans.read().await;
         let total = spans.len();
-        let errors = spans.iter().filter(|s| s.status == SpanStatus::Error).count();
+        let errors = spans
+            .iter()
+            .filter(|s| s.status == SpanStatus::Error)
+            .count();
         let in_progress = spans.iter().filter(|s| s.is_in_progress()).count();
 
         let total_tokens: i64 = spans.iter().filter_map(|s| s.token_count()).sum();
@@ -200,14 +198,13 @@ impl Default for SpanCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_span::{SpanKind, SpanStatus, AgentSpan, AttributeValue};
+    use crate::agent_span::{AgentSpan, AttributeValue, SpanKind, SpanStatus};
 
     #[tokio::test]
     async fn test_record_and_recent() {
         let collector = SpanCollector::default();
 
-        let span = AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal)
-            .finish(SpanStatus::Ok);
+        let span = AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok);
         collector.record(span).await;
 
         let recent = collector.recent(10).await;
@@ -219,15 +216,19 @@ mod tests {
     async fn test_by_agent() {
         let collector = SpanCollector::default();
 
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok)
-        ).await;
-        collector.record(
-            AgentSpan::new("tool.exec", "agent-2", SpanKind::Client).finish(SpanStatus::Ok)
-        ).await;
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok)
-        ).await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok),
+            )
+            .await;
+        collector
+            .record(AgentSpan::new("tool.exec", "agent-2", SpanKind::Client).finish(SpanStatus::Ok))
+            .await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok),
+            )
+            .await;
 
         let agent1_spans = collector.by_agent("agent-1").await;
         assert_eq!(agent1_spans.len(), 2);
@@ -240,8 +241,8 @@ mod tests {
     async fn test_by_trace() {
         let collector = SpanCollector::default();
 
-        let span1 = AgentSpan::new("agent.decide", "agent-1", SpanKind::Internal)
-            .finish(SpanStatus::Ok);
+        let span1 =
+            AgentSpan::new("agent.decide", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok);
         let trace_id = span1.trace_id.clone();
 
         let span2 = AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal)
@@ -259,12 +260,16 @@ mod tests {
     async fn test_errors() {
         let collector = SpanCollector::default();
 
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok)
-        ).await;
-        collector.record(
-            AgentSpan::new("tool.exec", "agent-1", SpanKind::Client).finish(SpanStatus::Error)
-        ).await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok),
+            )
+            .await;
+        collector
+            .record(
+                AgentSpan::new("tool.exec", "agent-1", SpanKind::Client).finish(SpanStatus::Error),
+            )
+            .await;
 
         let errors = collector.errors().await;
         assert_eq!(errors.len(), 1);
@@ -275,16 +280,19 @@ mod tests {
     async fn test_summary() {
         let collector = SpanCollector::default();
 
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal)
-                .with_attribute("llm.token_count", AttributeValue::Int(1000))
-                .with_attribute("agent.cost_usd", AttributeValue::Double(0.03))
-                .finish(SpanStatus::Ok)
-        ).await;
-        collector.record(
-            AgentSpan::new("tool.exec", "agent-1", SpanKind::Client)
-                .finish(SpanStatus::Error)
-        ).await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal)
+                    .with_attribute("llm.token_count", AttributeValue::Int(1000))
+                    .with_attribute("agent.cost_usd", AttributeValue::Double(0.03))
+                    .finish(SpanStatus::Ok),
+            )
+            .await;
+        collector
+            .record(
+                AgentSpan::new("tool.exec", "agent-1", SpanKind::Client).finish(SpanStatus::Error),
+            )
+            .await;
 
         let summary = collector.summary().await;
         assert_eq!(summary.total, 2);
@@ -303,10 +311,12 @@ mod tests {
         let collector = SpanCollector::new(config);
 
         for i in 0..15 {
-            collector.record(
-                AgentSpan::new(&format!("op-{}", i), "agent-1", SpanKind::Internal)
-                    .finish(SpanStatus::Ok)
-            ).await;
+            collector
+                .record(
+                    AgentSpan::new(&format!("op-{}", i), "agent-1", SpanKind::Internal)
+                        .finish(SpanStatus::Ok),
+                )
+                .await;
         }
 
         // Should have evicted some
@@ -322,9 +332,11 @@ mod tests {
         };
         let collector = SpanCollector::new(config);
 
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok)
-        ).await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok),
+            )
+            .await;
 
         assert_eq!(collector.count().await, 0);
     }
@@ -333,9 +345,11 @@ mod tests {
     async fn test_clear() {
         let collector = SpanCollector::default();
 
-        collector.record(
-            AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok)
-        ).await;
+        collector
+            .record(
+                AgentSpan::new("llm.chat", "agent-1", SpanKind::Internal).finish(SpanStatus::Ok),
+            )
+            .await;
 
         assert_eq!(collector.count().await, 1);
         collector.clear().await;

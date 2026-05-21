@@ -392,9 +392,18 @@ mod tests {
     fn test_yum_and_dnf_same_commands() {
         let yum = PatchManager::new(PackageManager::Yum);
         let dnf = PatchManager::new(PackageManager::Dnf);
-        assert_eq!(yum.build_update_command(true), dnf.build_update_command(true));
-        assert_eq!(yum.build_update_command(false), dnf.build_update_command(false));
+        assert_eq!(
+            yum.build_update_command(true),
+            dnf.build_update_command(true)
+        );
+        assert_eq!(
+            yum.build_update_command(false),
+            dnf.build_update_command(false)
+        );
         assert_eq!(yum.build_check_command(), dnf.build_check_command());
-        assert_eq!(yum.build_reboot_check_command(), dnf.build_reboot_check_command());
+        assert_eq!(
+            yum.build_reboot_check_command(),
+            dnf.build_reboot_check_command()
+        );
     }
 }

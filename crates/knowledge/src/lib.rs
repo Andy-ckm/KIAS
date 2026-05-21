@@ -21,8 +21,8 @@ pub use context_manager::{
 pub use graph::{Edge, KnowledgeGraph, KnowledgeNode, NodeType};
 pub use graphrag::{GraphRAGEngine, HybridQuery, RetrievalResult, RetrievalStrategy};
 pub use harness_recommender::{
-    ArtifactMetadata, ArtifactType, HarnessRecommender, ProjectContext, Recommendation,
-    RecommenderConfig, UsageRecord, register_builtin_artifacts,
+    register_builtin_artifacts, ArtifactMetadata, ArtifactType, HarnessRecommender, ProjectContext,
+    Recommendation, RecommenderConfig, UsageRecord,
 };
 pub use memory::{AgentMemoryStore, Importance, MemoryEntry, MemoryType};
 pub use retriever::{HybridRetriever, KeywordRetriever, MatchType, Retriever, ScoredNode};

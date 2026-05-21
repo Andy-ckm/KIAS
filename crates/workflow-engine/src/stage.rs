@@ -235,12 +235,36 @@ pub fn software_delivery_fsm() -> StageFsm {
     let mut fsm = StageFsm::new();
 
     let stages = vec![
-        StageDefinition { id: "init".to_string(), name: "Initialized".to_string(), is_terminal: false },
-        StageDefinition { id: "src".to_string(), name: "Source Analysis".to_string(), is_terminal: false },
-        StageDefinition { id: "int".to_string(), name: "Integration".to_string(), is_terminal: false },
-        StageDefinition { id: "off".to_string(), name: "Offer/Proposal".to_string(), is_terminal: false },
-        StageDefinition { id: "onb".to_string(), name: "Onboarding".to_string(), is_terminal: false },
-        StageDefinition { id: "close".to_string(), name: "Closed".to_string(), is_terminal: true },
+        StageDefinition {
+            id: "init".to_string(),
+            name: "Initialized".to_string(),
+            is_terminal: false,
+        },
+        StageDefinition {
+            id: "src".to_string(),
+            name: "Source Analysis".to_string(),
+            is_terminal: false,
+        },
+        StageDefinition {
+            id: "int".to_string(),
+            name: "Integration".to_string(),
+            is_terminal: false,
+        },
+        StageDefinition {
+            id: "off".to_string(),
+            name: "Offer/Proposal".to_string(),
+            is_terminal: false,
+        },
+        StageDefinition {
+            id: "onb".to_string(),
+            name: "Onboarding".to_string(),
+            is_terminal: false,
+        },
+        StageDefinition {
+            id: "close".to_string(),
+            name: "Closed".to_string(),
+            is_terminal: true,
+        },
     ];
     for stage in stages {
         fsm.add_stage(stage);
@@ -386,10 +410,7 @@ mod tests {
         fsm.initialize().unwrap();
 
         let result = fsm.transition("nonexistent");
-        assert!(matches!(
-            result.unwrap_err(),
-            StageError::StageNotFound(_)
-        ));
+        assert!(matches!(result.unwrap_err(), StageError::StageNotFound(_)));
     }
 
     #[test]

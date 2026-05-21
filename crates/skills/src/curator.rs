@@ -929,4 +929,57 @@ mod tests {
         assert_eq!(report.healthy, 1);
         assert_eq!(report.total_scanned, 1);
     }
+
+    #[tokio::test]
+    async fn test_scan_empty_registry() {
+        let registry = SkillRegistry::new();
+        let mut curator = Curator::new(CuratorConfig::default());
+        curator.attach_registry(&registry);
+
+        let report = curator.scan(&registry).await;
+        assert_eq!(report.total_scanned, 0);
+        assert!(report.all_healthy());
+        assert!(report.cleaned_up.is_empty());
+        assert!(report.skill_reports.is_empty());
+    }
+
+    #[test]
+    fn test_curator_config_accessors() {
+        let config = CuratorConfig {
+            scan_interval_secs: 120,
+            ..Default::default()
+        };
+        let curator = Curator::new(config);
+        assert_eq!(curator.scan_interval_secs(), 120);
+        assert_eq!(curator.config().health_check_timeout_ms, 5000);
+    }
+
+    #[test]
+    fn test_skill_health_status_equality() {
+        assert_eq!(SkillHealthStatus::Healthy, SkillHealthStatus::Healthy);
+        assert_ne!(SkillHealthStatus::Healthy, SkillHealthStatus::Unhealthy);
+    }
+
+    #[test]
+    fn test_curator_report_all_healthy() {
+        let report = CuratorReport {
+            scan_started: Utc::now(),
+            scan_completed: Utc::now(),
+            total_scanned: 5,
+            healthy: 5,
+            degraded: 0,
+            unhealthy: 0,
+            expired: 0,
+            cleaned_up: vec![],
+            skill_reports: vec![],
+        };
+        assert!(report.all_healthy());
+
+        let report_with_issues = CuratorReport {
+            healthy: 4,
+            degraded: 1,
+            ..report
+        };
+        assert!(!report_with_issues.all_healthy());
+    }
 }

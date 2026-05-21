@@ -284,7 +284,8 @@ impl HarnessRecommender {
                 + dep_score * self.config.dependency_weight;
 
             if final_score >= self.config.min_score {
-                let reasons = self.build_reasons(artifact, context, ctx_score, hist_score, dep_score);
+                let reasons =
+                    self.build_reasons(artifact, context, ctx_score, hist_score, dep_score);
                 scored.push(Recommendation {
                     artifact: artifact.clone(),
                     score: final_score,
@@ -297,7 +298,11 @@ impl HarnessRecommender {
         }
 
         // 按分数降序
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(self.config.max_recommendations);
         scored
     }
@@ -324,7 +329,12 @@ impl HarnessRecommender {
         self.recommend(context)
             .await
             .into_iter()
-            .filter(|r| r.artifact.regulations.iter().any(|reg| reg.contains(regulation)))
+            .filter(|r| {
+                r.artifact
+                    .regulations
+                    .iter()
+                    .any(|reg| reg.contains(regulation))
+            })
             .collect()
     }
 
@@ -401,7 +411,10 @@ impl HarnessRecommender {
         // 4. 任务类型匹配
         if let Some(ref task) = context.task_type {
             let task_lower = task.to_lowercase();
-            if artifact.tags.iter().any(|t| t.to_lowercase().contains(&task_lower))
+            if artifact
+                .tags
+                .iter()
+                .any(|t| t.to_lowercase().contains(&task_lower))
                 || artifact.description.to_lowercase().contains(&task_lower)
             {
                 score += 0.8;
@@ -411,12 +424,10 @@ impl HarnessRecommender {
 
         // 5. 文件路径匹配
         if !context.changed_files.is_empty() {
-            let file_hit = context.changed_files.iter().any(|f| {
-                artifact
-                    .related_crates
-                    .iter()
-                    .any(|c| f.contains(c))
-            });
+            let file_hit = context
+                .changed_files
+                .iter()
+                .any(|f| artifact.related_crates.iter().any(|c| f.contains(c)));
             if file_hit {
                 score += 0.6;
             }
@@ -434,17 +445,21 @@ impl HarnessRecommender {
         let history = self.usage_history.read().await;
         if history.is_empty() {
             // 无历史数据，用制品自带的成功率
-            return artifact.success_rate * (artifact.usage_count as f64 / (artifact.usage_count as f64 + 5.0));
+            return artifact.success_rate
+                * (artifact.usage_count as f64 / (artifact.usage_count as f64 + 5.0));
         }
 
         // 关键词匹配的历史记录
-        let context_kw: HashSet<String> = context.keywords.iter().map(|k| k.to_lowercase()).collect();
+        let context_kw: HashSet<String> =
+            context.keywords.iter().map(|k| k.to_lowercase()).collect();
 
         let relevant: Vec<&UsageRecord> = history
             .iter()
             .filter(|r| {
                 r.artifact_id == artifact.id
-                    || r.context_keywords.iter().any(|k| context_kw.contains(&k.to_lowercase()))
+                    || r.context_keywords
+                        .iter()
+                        .any(|k| context_kw.contains(&k.to_lowercase()))
             })
             .collect();
 
@@ -454,9 +469,10 @@ impl HarnessRecommender {
 
         let success_count = relevant.iter().filter(|r| r.success).count() as f64;
         let total = relevant.len() as f64;
-        let recency_bonus = if relevant.iter().any(|r| {
-            (Utc::now() - r.timestamp).num_hours() < 24
-        }) {
+        let recency_bonus = if relevant
+            .iter()
+            .any(|r| (Utc::now() - r.timestamp).num_hours() < 24)
+        {
             0.2
         } else {
             0.0
@@ -589,7 +605,13 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 3,
             related_crates: vec!["common".into(), "api-server".into()],
             regulations: vec!["21 CFR Part 11".into(), "EU Annex 11".into()],
-            tags: vec!["gxp".into(), "auth".into(), "password".into(), "2fa".into(), "fda".into()],
+            tags: vec![
+                "gxp".into(),
+                "auth".into(),
+                "password".into(),
+                "2fa".into(),
+                "fda".into(),
+            ],
             dependencies: vec![],
             version: "1.0.0".into(),
             last_modified: now,
@@ -602,9 +624,18 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             name: "GxP 审计日志".into(),
             description: "ALCOA+ 不可变审计链，SHA-256 哈希链防篡改".into(),
             harness_layer: 3,
-            related_crates: vec!["common".into(), "auto-loop".into(), "data-governance".into()],
+            related_crates: vec![
+                "common".into(),
+                "auto-loop".into(),
+                "data-governance".into(),
+            ],
             regulations: vec!["21 CFR Part 11".into(), "ALCOA+".into()],
-            tags: vec!["gxp".into(), "audit".into(), "alcoa".into(), "hash-chain".into()],
+            tags: vec![
+                "gxp".into(),
+                "audit".into(),
+                "alcoa".into(),
+                "hash-chain".into(),
+            ],
             dependencies: vec![],
             version: "1.0.0".into(),
             last_modified: now,
@@ -619,7 +650,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 3,
             related_crates: vec!["compliance-security".into()],
             regulations: vec!["EU AI Act".into(), "Regulation 2024/1689".into()],
-            tags: vec!["eu".into(), "ai_act".into(), "risk".into(), "conformity".into()],
+            tags: vec![
+                "eu".into(),
+                "ai_act".into(),
+                "risk".into(),
+                "conformity".into(),
+            ],
             dependencies: vec![],
             version: "1.0.0".into(),
             last_modified: now,
@@ -633,8 +669,18 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             description: "医药企业 IT 变更管理，GxP 影响分级，CAPA 联动".into(),
             harness_layer: 3,
             related_crates: vec!["it-change-management".into()],
-            regulations: vec!["21 CFR Part 11".into(), "GAMP 5".into(), "EU Annex 11".into()],
-            tags: vec!["change".into(), "itil".into(), "gxp".into(), "capa".into(), "validation".into()],
+            regulations: vec![
+                "21 CFR Part 11".into(),
+                "GAMP 5".into(),
+                "EU Annex 11".into(),
+            ],
+            tags: vec![
+                "change".into(),
+                "itil".into(),
+                "gxp".into(),
+                "capa".into(),
+                "validation".into(),
+            ],
             dependencies: vec!["gxp_audit".into()],
             version: "1.0.0".into(),
             last_modified: now,
@@ -649,7 +695,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 3,
             related_crates: vec!["document-management".into()],
             regulations: vec!["21 CFR Part 11".into(), "ALCOA+".into()],
-            tags: vec!["document".into(), "lifecycle".into(), "signature".into(), "version".into()],
+            tags: vec![
+                "document".into(),
+                "lifecycle".into(),
+                "signature".into(),
+                "version".into(),
+            ],
             dependencies: vec!["gxp_audit".into()],
             version: "1.0.0".into(),
             last_modified: now,
@@ -664,7 +715,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 3,
             related_crates: vec!["compliance-security".into()],
             regulations: vec!["EU AI Act".into(), "21 CFR Part 11".into()],
-            tags: vec!["security".into(), "zero_trust".into(), "pki".into(), "sandbox".into()],
+            tags: vec![
+                "security".into(),
+                "zero_trust".into(),
+                "pki".into(),
+                "sandbox".into(),
+            ],
             dependencies: vec![],
             version: "1.0.0".into(),
             last_modified: now,
@@ -680,7 +736,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 4,
             related_crates: vec!["auto-loop".into()],
             regulations: vec![],
-            tags: vec!["auto".into(), "loop".into(), "self-dev".into(), "learner".into()],
+            tags: vec![
+                "auto".into(),
+                "loop".into(),
+                "self-dev".into(),
+                "learner".into(),
+            ],
             dependencies: vec!["skills_registry".into()],
             version: "1.0.0".into(),
             last_modified: now,
@@ -695,7 +756,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 2,
             related_crates: vec!["knowledge".into()],
             regulations: vec![],
-            tags: vec!["rag".into(), "knowledge".into(), "flywheel".into(), "graph".into()],
+            tags: vec![
+                "rag".into(),
+                "knowledge".into(),
+                "flywheel".into(),
+                "graph".into(),
+            ],
             dependencies: vec![],
             version: "1.0.0".into(),
             last_modified: now,
@@ -710,7 +776,12 @@ pub fn register_builtin_artifacts(recommender: &mut HarnessRecommender) {
             harness_layer: 3,
             related_crates: vec!["data-governance".into()],
             regulations: vec!["EU AI Act".into(), "21 CFR Part 11".into()],
-            tags: vec!["governance".into(), "rbac".into(), "cost".into(), "kafka".into()],
+            tags: vec![
+                "governance".into(),
+                "rbac".into(),
+                "cost".into(),
+                "kafka".into(),
+            ],
             dependencies: vec!["gxp_audit".into()],
             version: "1.0.0".into(),
             last_modified: now,
@@ -751,7 +822,9 @@ mod tests {
         // gxp_audit should rank high given keywords ["gxp", "audit"]
         let top = &results[0];
         assert!(
-            top.artifact.id.contains("gxp") || top.artifact.id.contains("audit") || top.artifact.id.contains("change"),
+            top.artifact.id.contains("gxp")
+                || top.artifact.id.contains("audit")
+                || top.artifact.id.contains("change"),
             "top recommendation should be relevant, got: {}",
             top.artifact.id
         );
@@ -763,7 +836,9 @@ mod tests {
         register_builtin_artifacts(&mut rec);
 
         let ctx = test_context();
-        let compliance = rec.recommend_by_type(&ctx, &ArtifactType::ComplianceRules).await;
+        let compliance = rec
+            .recommend_by_type(&ctx, &ArtifactType::ComplianceRules)
+            .await;
 
         assert!(!compliance.is_empty());
         for r in &compliance {
@@ -781,7 +856,11 @@ mod tests {
 
         assert!(!fda.is_empty());
         for r in &fda {
-            assert!(r.artifact.regulations.iter().any(|reg| reg.contains("21 CFR Part 11")));
+            assert!(r
+                .artifact
+                .regulations
+                .iter()
+                .any(|reg| reg.contains("21 CFR Part 11")));
         }
     }
 
@@ -849,7 +928,10 @@ mod tests {
         let results = rec.recommend(&ctx).await;
         let it_change = results.iter().find(|r| r.artifact.id == "it_change_mgmt");
         if let Some(r) = it_change {
-            assert!(r.dependency_score > 0.0, "co-occurrence should boost dependency score");
+            assert!(
+                r.dependency_score > 0.0,
+                "co-occurrence should boost dependency score"
+            );
         }
     }
 
@@ -876,13 +958,19 @@ mod tests {
     fn test_builtin_count() {
         let mut rec = HarnessRecommender::default();
         register_builtin_artifacts(&mut rec);
-        assert!(rec.count() >= 10, "should have at least 10 builtin artifacts");
+        assert!(
+            rec.count() >= 10,
+            "should have at least 10 builtin artifacts"
+        );
     }
 
     #[test]
     fn test_artifact_type_display() {
         assert_eq!(ArtifactType::AgentsMd.to_string(), "agents_md");
-        assert_eq!(ArtifactType::ComplianceRules.to_string(), "compliance_rules");
+        assert_eq!(
+            ArtifactType::ComplianceRules.to_string(),
+            "compliance_rules"
+        );
         assert_eq!(ArtifactType::Skills.to_string(), "skills");
     }
 }

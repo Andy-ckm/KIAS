@@ -428,8 +428,12 @@ impl AiActChecker {
         }
 
         // Determine overall status
-        let has_critical = checks.iter().any(|c| !c.passed && c.severity == CheckSeverity::Critical);
-        let has_major = checks.iter().any(|c| !c.passed && c.severity == CheckSeverity::Major);
+        let has_critical = checks
+            .iter()
+            .any(|c| !c.passed && c.severity == CheckSeverity::Critical);
+        let has_major = checks
+            .iter()
+            .any(|c| !c.passed && c.severity == CheckSeverity::Major);
 
         let status = if risk_level == RiskLevel::Unacceptable {
             ComplianceStatus::Prohibited
@@ -520,9 +524,7 @@ impl AiActChecker {
     }
 
     fn is_limited_risk(&self, system: &AiSystem) -> bool {
-        system.chatbot
-            || system.content_generation
-            || system.emotion_recognition
+        system.chatbot || system.content_generation || system.emotion_recognition
     }
 }
 // ── Annex IV Technical Documentation ──────────────────────────────────
@@ -648,17 +650,41 @@ impl BatchAssessor {
     /// Generate summary statistics for a batch of assessments.
     pub fn batch_summary(&self, reports: &[ConformityReport]) -> BatchSummary {
         let total = reports.len();
-        let compliant = reports.iter().filter(|r| r.status == ComplianceStatus::Compliant).count();
-        let partially_compliant = reports.iter().filter(|r| r.status == ComplianceStatus::PartiallyCompliant).count();
-        let non_compliant = reports.iter().filter(|r| r.status == ComplianceStatus::NonCompliant).count();
-        let prohibited = reports.iter().filter(|r| r.status == ComplianceStatus::Prohibited).count();
+        let compliant = reports
+            .iter()
+            .filter(|r| r.status == ComplianceStatus::Compliant)
+            .count();
+        let partially_compliant = reports
+            .iter()
+            .filter(|r| r.status == ComplianceStatus::PartiallyCompliant)
+            .count();
+        let non_compliant = reports
+            .iter()
+            .filter(|r| r.status == ComplianceStatus::NonCompliant)
+            .count();
+        let prohibited = reports
+            .iter()
+            .filter(|r| r.status == ComplianceStatus::Prohibited)
+            .count();
 
-        let high_risk = reports.iter().filter(|r| r.risk_level == RiskLevel::High).count();
-        let limited_risk = reports.iter().filter(|r| r.risk_level == RiskLevel::Limited).count();
-        let minimal_risk = reports.iter().filter(|r| r.risk_level == RiskLevel::Minimal).count();
+        let high_risk = reports
+            .iter()
+            .filter(|r| r.risk_level == RiskLevel::High)
+            .count();
+        let limited_risk = reports
+            .iter()
+            .filter(|r| r.risk_level == RiskLevel::Limited)
+            .count();
+        let minimal_risk = reports
+            .iter()
+            .filter(|r| r.risk_level == RiskLevel::Minimal)
+            .count();
 
         let total_checks: usize = reports.iter().map(|r| r.checks.len()).sum();
-        let passed_checks: usize = reports.iter().map(|r| r.checks.iter().filter(|c| c.passed).count()).sum();
+        let passed_checks: usize = reports
+            .iter()
+            .map(|r| r.checks.iter().filter(|c| c.passed).count())
+            .sum();
         let failed_checks = total_checks - passed_checks;
 
         BatchSummary {
@@ -862,10 +888,7 @@ mod tests {
             ComplianceStatus::PartiallyCompliant.to_string(),
             "partially_compliant"
         );
-        assert_eq!(
-            ComplianceStatus::NonCompliant.to_string(),
-            "non_compliant"
-        );
+        assert_eq!(ComplianceStatus::NonCompliant.to_string(), "non_compliant");
         assert_eq!(ComplianceStatus::Prohibited.to_string(), "prohibited");
     }
 
@@ -879,10 +902,7 @@ mod tests {
 
         let system = high_risk_system();
         let report = checker.assess(&system);
-        assert!(report
-            .checks
-            .iter()
-            .any(|c| c.article.contains("Domain")));
+        assert!(report.checks.iter().any(|c| c.article.contains("Domain")));
     }
 
     #[test]
@@ -943,10 +963,12 @@ mod tests {
     #[test]
     fn test_check_severity_levels() {
         // Ensure all severity levels are distinct
-        let levels = [CheckSeverity::Critical,
+        let levels = [
+            CheckSeverity::Critical,
             CheckSeverity::Major,
             CheckSeverity::Minor,
-            CheckSeverity::Info];
+            CheckSeverity::Info,
+        ];
         let unique: std::collections::HashSet<_> = levels.iter().collect();
         assert_eq!(unique.len(), 4);
     }

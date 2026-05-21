@@ -135,8 +135,7 @@ impl PreconditionSet {
         } else {
             format!(
                 "{} precondition(s) failed for skill '{}'",
-                failed_count,
-                self.skill_id
+                failed_count, self.skill_id
             )
         };
 
@@ -174,10 +173,8 @@ impl PreconditionContext {
     }
 
     pub fn set_string(&mut self, key: &str, value: &str) {
-        self.data.insert(
-            key.to_string(),
-            ContextValue::String(value.to_string()),
-        );
+        self.data
+            .insert(key.to_string(), ContextValue::String(value.to_string()));
     }
 
     pub fn set_number(&mut self, key: &str, value: f64) {
@@ -228,10 +225,7 @@ fn evaluate_single(pc: &Precondition, ctx: &PreconditionContext) -> Precondition
         }
         ContextKeyEquals { key, value } => match ctx.get_string(key) {
             Some(v) if v == value => (true, format!("Key '{key}' equals '{value}'")),
-            Some(v) => (
-                false,
-                format!("Key '{key}' = '{v}', expected '{value}'"),
-            ),
+            Some(v) => (false, format!("Key '{key}' = '{v}', expected '{value}'")),
             None => (false, format!("Key '{key}' not found")),
         },
         ContextKeyRange { key, min, max } => match ctx.get_number(key) {
@@ -241,7 +235,10 @@ fn evaluate_single(pc: &Precondition, ctx: &PreconditionContext) -> Precondition
                 if min_ok && max_ok {
                     (true, format!("Key '{key}' = {n} within range"))
                 } else {
-                    (false, format!("Key '{key}' = {n} out of range [{min:?}, {max:?}]"))
+                    (
+                        false,
+                        format!("Key '{key}' = {n} out of range [{min:?}, {max:?}]"),
+                    )
                 }
             }
             None => (false, format!("Key '{key}' not found or not numeric")),
@@ -273,7 +270,10 @@ fn evaluate_single(pc: &Precondition, ctx: &PreconditionContext) -> Precondition
         }
         Custom { predicate_name } => {
             // Custom predicates are evaluated externally; default to pass
-            (true, format!("Custom predicate '{predicate_name}' assumed satisfied"))
+            (
+                true,
+                format!("Custom predicate '{predicate_name}' assumed satisfied"),
+            )
         }
     };
 

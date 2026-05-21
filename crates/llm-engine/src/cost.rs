@@ -560,14 +560,8 @@ mod tests {
         // Various invalid model names should all return 0.0
         assert_eq!(tracker.calculate_cost("", &usage), 0.0);
         assert_eq!(tracker.calculate_cost("gpt-5", &usage), 0.0);
-        assert_eq!(
-            tracker.calculate_cost("GPT-4O", &usage),
-            0.0
-        ); // case-sensitive
-        assert_eq!(
-            tracker.calculate_cost("gpt-4o ", &usage),
-            0.0
-        ); // trailing space
+        assert_eq!(tracker.calculate_cost("GPT-4O", &usage), 0.0); // case-sensitive
+        assert_eq!(tracker.calculate_cost("gpt-4o ", &usage), 0.0); // trailing space
     }
 
     #[test]
@@ -680,7 +674,9 @@ mod tests {
         };
         tracker.record_usage("gpt-4o", &usage).await;
         tracker.record_usage("gpt-4o-mini", &usage).await;
-        tracker.record_usage("claude-sonnet-4-20250514", &usage).await;
+        tracker
+            .record_usage("claude-sonnet-4-20250514", &usage)
+            .await;
 
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let daily = tracker.get_daily_cost(&date).await.unwrap();
@@ -747,7 +743,11 @@ mod tests {
     async fn test_agent_count_after_registration() {
         let tracker = CostTracker::new();
         assert_eq!(tracker.agent_count().await, 0);
-        let usage = TokenUsage { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 };
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            total_tokens: 150,
+        };
         tracker.record_agent_usage("a1", "gpt-4o", &usage).await;
         assert_eq!(tracker.agent_count().await, 1);
         tracker.record_agent_usage("a2", "gpt-4o", &usage).await;
@@ -760,9 +760,15 @@ mod tests {
     #[tokio::test]
     async fn test_get_all_agent_costs_multiple() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 };
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+            total_tokens: 150,
+        };
         tracker.record_agent_usage("a1", "gpt-4o", &usage).await;
-        tracker.record_agent_usage("a2", "gpt-4o-mini", &usage).await;
+        tracker
+            .record_agent_usage("a2", "gpt-4o-mini", &usage)
+            .await;
         let all = tracker.get_all_agent_costs().await;
         assert_eq!(all.len(), 2);
         let ids: Vec<&str> = all.iter().map(|a| a.agent_id.as_str()).collect();
@@ -773,7 +779,11 @@ mod tests {
     #[tokio::test]
     async fn test_record_usage_updates_total_cost() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 0, total_tokens: 1_000_000 };
+        let usage = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 0,
+            total_tokens: 1_000_000,
+        };
         let cost = tracker.record_usage("gpt-4o", &usage).await;
         assert!(cost > 0.0);
         let total = tracker.get_total_cost().await;
@@ -789,8 +799,14 @@ mod tests {
     #[tokio::test]
     async fn test_agent_cost_date_tracking() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 };
-        tracker.record_agent_usage("agent-1", "gpt-4o", &usage).await;
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        tracker
+            .record_agent_usage("agent-1", "gpt-4o", &usage)
+            .await;
         let agent = tracker.get_agent_cost("agent-1").await.unwrap();
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         assert!(agent.by_date.contains_key(&today));
@@ -800,7 +816,11 @@ mod tests {
     #[test]
     fn test_calculate_cost_deepseek_model() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 };
+        let usage = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+            total_tokens: 2_000_000,
+        };
         // deepseek not in pricing table, should return 0
         let cost = tracker.calculate_cost("deepseek-chat", &usage);
         assert_eq!(cost, 0.0);
@@ -809,8 +829,18 @@ mod tests {
     #[test]
     fn test_calculate_cost_all_builtin_models() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 1000, completion_tokens: 1000, total_tokens: 2000 };
-        for model in &["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"] {
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 1000,
+            total_tokens: 2000,
+        };
+        for model in &[
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "claude-sonnet-4-20250514",
+            "claude-3-5-haiku-20241022",
+        ] {
             let cost = tracker.calculate_cost(model, &usage);
             assert!(cost > 0.0, "Cost for {} should be > 0", model);
         }
@@ -819,9 +849,17 @@ mod tests {
     #[tokio::test]
     async fn test_record_agent_usage_different_models() {
         let tracker = CostTracker::new();
-        let usage = TokenUsage { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 };
-        tracker.record_agent_usage("agent-1", "gpt-4o", &usage).await;
-        tracker.record_agent_usage("agent-1", "claude-sonnet-4-20250514", &usage).await;
+        let usage = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        tracker
+            .record_agent_usage("agent-1", "gpt-4o", &usage)
+            .await;
+        tracker
+            .record_agent_usage("agent-1", "claude-sonnet-4-20250514", &usage)
+            .await;
         let agent = tracker.get_agent_cost("agent-1").await.unwrap();
         assert_eq!(agent.by_model.len(), 2);
         assert!(agent.by_model.contains_key("gpt-4o"));
@@ -832,7 +870,11 @@ mod tests {
     async fn test_cost_accumulation_precision() {
         let tracker = CostTracker::new();
         // Very small token count
-        let tiny = TokenUsage { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 };
+        let tiny = TokenUsage {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+        };
         let cost = tracker.record_usage("gpt-4o", &tiny).await;
         assert!(cost > 0.0);
         assert!(cost < 0.01); // Should be very small
@@ -856,7 +898,11 @@ mod tests {
 
     #[test]
     fn test_model_cost_serialization() {
-        let mc = ModelCost { tokens: 500, cost: 0.01, requests: 3 };
+        let mc = ModelCost {
+            tokens: 500,
+            cost: 0.01,
+            requests: 3,
+        };
         let json = serde_json::to_string(&mc).unwrap();
         let deserialized: ModelCost = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.tokens, 500);

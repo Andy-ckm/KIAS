@@ -612,9 +612,7 @@ mod tests {
     #[tokio::test]
     async fn test_shell_success_exit_code_metadata() {
         let tool = ShellTool;
-        let result = tool
-            .execute(serde_json::json!({"command": "true"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"command": "true"})).await;
         assert!(result.success);
         let meta = result.metadata.unwrap();
         assert_eq!(meta["exit_code"], 0);
@@ -696,7 +694,10 @@ mod tests {
     async fn test_search_with_limit() {
         let tmp = tempfile::tempdir().unwrap();
         let file = tmp.path().join("test.txt");
-        let content = (0..100).map(|i| format!("line {} target", i)).collect::<Vec<_>>().join("\n");
+        let content = (0..100)
+            .map(|i| format!("line {} target", i))
+            .collect::<Vec<_>>()
+            .join("\n");
         std::fs::write(&file, content).unwrap();
 
         let tool = SearchTool;

@@ -214,7 +214,9 @@ impl SkillDag {
         while let Some(cur) = queue.pop_front() {
             visited += 1;
             for &next in adj.get(cur).unwrap_or(&vec![]) {
-                let deg = in_degree.get_mut(next).unwrap();
+                let deg = in_degree
+                    .get_mut(next)
+                    .expect("node must have in_degree entry from setup loop");
                 *deg -= 1;
                 if *deg == 0 {
                     queue.push_back(next);
@@ -299,7 +301,9 @@ impl SkillDag {
         while let Some((cur, level)) = queue.pop_front() {
             level_map.entry(level).or_default().push(cur.to_string());
             for &next in adj.get(cur).unwrap_or(&vec![]) {
-                let deg = in_degree.get_mut(next).unwrap();
+                let deg = in_degree
+                    .get_mut(next)
+                    .expect("node must have in_degree entry from setup loop");
                 *deg -= 1;
                 if *deg == 0 {
                     queue.push_back((next, level + 1));

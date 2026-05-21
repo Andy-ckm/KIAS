@@ -152,7 +152,7 @@ pub struct ComplianceCheck {
 }
 
 /// Severity of a compliance check failure.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CheckSeverity {
     /// Must fix before deployment.
     Critical,
@@ -165,7 +165,7 @@ pub enum CheckSeverity {
 }
 
 /// Overall compliance status.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ComplianceStatus {
     /// All checks passed.
     Compliant,
@@ -943,12 +943,10 @@ mod tests {
     #[test]
     fn test_check_severity_levels() {
         // Ensure all severity levels are distinct
-        let levels = vec![
-            CheckSeverity::Critical,
+        let levels = [CheckSeverity::Critical,
             CheckSeverity::Major,
             CheckSeverity::Minor,
-            CheckSeverity::Info,
-        ];
+            CheckSeverity::Info];
         let unique: std::collections::HashSet<_> = levels.iter().collect();
         assert_eq!(unique.len(), 4);
     }

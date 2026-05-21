@@ -94,7 +94,6 @@ pub enum OrchestrationPattern {
 /// 上下文感知的分解器
 pub struct ContextAwareDecomposer {
     /// 上下文重叠阈值（超过此值则合并）
-    #[allow(dead_code)]
     overlap_threshold: f64,
 }
 

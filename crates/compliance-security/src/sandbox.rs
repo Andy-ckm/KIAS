@@ -542,7 +542,7 @@ fn cidr_matches_host(host: &str, cidr: &str) -> bool {
         .and_then(|s| s.parse().ok())
         .unwrap_or(32);
 
-    let octets_to_check = (mask_bits as usize + 7) / 8;
+    let octets_to_check = (mask_bits as usize).div_ceil(8);
     for i in 0..octets_to_check.min(4).min(prefix_parts.len()).min(host_parts.len()) {
         if prefix_parts[i] != host_parts[i] {
             return false;

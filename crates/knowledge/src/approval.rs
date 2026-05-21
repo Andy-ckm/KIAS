@@ -444,7 +444,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Reviewing, &actor, "Submitted for review")?;
         }
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 批准: Reviewing → Approved，创建版本快照
@@ -468,7 +468,7 @@ impl ApprovalWorkflow {
         let cr_id = change_request_id.to_string();
         self.create_version_internal(entity_id, content, reviewer, Some(cr_id));
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 拒绝: Reviewing → Rejected
@@ -487,7 +487,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Rejected, reviewer, reason)?;
         }
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 发布: Approved → Published
@@ -502,7 +502,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Published, &actor, "Published")?;
         }
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 归档: Published → Archived
@@ -517,7 +517,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Archived, &actor, "Archived")?;
         }
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 重置到草稿: Any → Draft
@@ -536,7 +536,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Draft, actor, reason)?;
         }
 
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     // ─── Version Management ─────────────────────────────────────────────
@@ -725,7 +725,7 @@ impl ApprovalWorkflow {
         }
 
         // Find and update the entry
-        let cr = self.requests.get_mut(change_request_id).unwrap();
+        let cr = self.requests.get_mut(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))?;
         let entry = cr
             .approval_chain
             .iter_mut()
@@ -799,7 +799,7 @@ impl ApprovalWorkflow {
                 "Change implemented",
             )?;
         }
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 验证: Implemented → Verified (GxP: ICH Q10 §3.2.1)
@@ -824,7 +824,7 @@ impl ApprovalWorkflow {
             cr.verified_at = Some(Utc::now());
             cr.verified_by = Some(verifier_id.to_string());
         }
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 关闭: Published → Closed (GxP: EU Annex 11 Clause 10)
@@ -839,7 +839,7 @@ impl ApprovalWorkflow {
             cr.transition(ApprovalState::Closed, &actor, "Change request closed")?;
             cr.closed_at = Some(Utc::now());
         }
-        Ok(self.requests.get(change_request_id).unwrap())
+        self.requests.get(change_request_id).ok_or_else(|| ApprovalError::NotFound(change_request_id.to_string()))
     }
 
     /// 记录有效性检查 (ICH Q10 §3.2.3)

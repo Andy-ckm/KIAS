@@ -341,7 +341,6 @@ pub struct DreamConsolidator {
     memories: Arc<RwLock<Vec<MemoryEntry>>>,
     session_log: Arc<RwLock<Vec<SessionMemoryEntry>>>,
     /// 锁文件路径（互斥）
-    #[allow(dead_code)]
     lock_path: PathBuf,
 }
 

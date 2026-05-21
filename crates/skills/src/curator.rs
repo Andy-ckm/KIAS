@@ -308,7 +308,10 @@ impl Curator {
             }
 
             // Phase 1c: Track consecutive failures
-            let meta = self.metadata.get_mut(&name_owned).unwrap();
+            let meta = self
+                .metadata
+                .get_mut(&name_owned)
+                .expect("metadata entry must exist after or_insert above");
             match status {
                 SkillHealthStatus::Unhealthy | SkillHealthStatus::Expired => {
                     meta.consecutive_failures += 1;

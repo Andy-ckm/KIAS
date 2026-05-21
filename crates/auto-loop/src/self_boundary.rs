@@ -247,7 +247,7 @@ impl SelfBoundaryReasoner {
                     .split_whitespace()
                     .any(|word| task_lower.contains(word))
             })
-            .max_by(|a, b| a.proficiency.partial_cmp(&b.proficiency).unwrap())
+            .max_by(|a, b| a.proficiency.partial_cmp(&b.proficiency).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     /// 匹配工具（完整词匹配，避免子串误匹配）
@@ -261,7 +261,7 @@ impl SelfBoundaryReasoner {
                     .iter()
                     .any(|d| words.iter().any(|w| *w == d.to_lowercase().as_str()))
             })
-            .max_by(|a, b| a.reliability.partial_cmp(&b.reliability).unwrap())
+            .max_by(|a, b| a.reliability.partial_cmp(&b.reliability).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     /// 更新自我模型（任务完成后反馈）

@@ -666,7 +666,6 @@ impl AutoLoopManager {
 
     /// 获取当前状态
     /// 记录 GxP 审计事件
-    #[allow(dead_code)]
     fn audit_log(&mut self, action: GxpAuditAction, target_id: &str, reason: &str) {
         let builder = GxpAuditEntryBuilder::new(
             "auto-loop".to_string(),

@@ -136,7 +136,7 @@ impl StageFsm {
         if let Some(current) = &self.current_stage {
             self.transitions
                 .get(current)
-                .map_or(false, |targets| targets.contains(to))
+                .is_some_and(|targets| targets.contains(to))
         } else {
             false
         }
@@ -218,7 +218,7 @@ impl StageFsm {
         self.current_stage
             .as_ref()
             .and_then(|s| self.stages.get(s))
-            .map_or(false, |s| s.is_terminal)
+            .is_some_and(|s| s.is_terminal)
     }
 }
 

@@ -125,7 +125,6 @@ impl Default for HttpTransportConfig {
 }
 
 /// Shared state for the HTTP transport.
-#[allow(dead_code)]
 struct HttpTransportState {
     pending_requests: tokio::sync::mpsc::Sender<McpRequest>,
 }
@@ -135,7 +134,6 @@ struct HttpTransportState {
 /// Clients POST JSON-RPC requests to the `/rpc` endpoint and receive
 /// responses via Server-Sent Events on the `/sse` endpoint, or as direct
 /// HTTP responses.
-#[allow(dead_code)]
 pub struct HttpTransport {
     config: HttpTransportConfig,
     /// Channel for incoming requests from the HTTP layer.

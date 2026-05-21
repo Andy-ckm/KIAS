@@ -51,7 +51,6 @@ pub struct HybridRetriever {
     graph: KnowledgeGraph,
     /// Pre-computed IDF values for terms across the corpus
     idf_cache: HashMap<String, f64>,
-    #[allow(dead_code)]
     /// Total number of documents in the corpus
     doc_count: usize,
 }

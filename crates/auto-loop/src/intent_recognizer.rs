@@ -220,7 +220,13 @@ impl IntentRecognizer {
                 .filter(|kw| input_lower.contains(&kw.to_lowercase()))
                 .count();
 
-            if match_count > 0 && (best_match.is_none() || match_count > best_match.unwrap().1) {
+            if match_count > 0
+                && (best_match.is_none()
+                    || match_count
+                        > best_match
+                            .expect("best_match is guaranteed Some when checked above")
+                            .1)
+            {
                 best_match = Some((rule, match_count));
             }
         }

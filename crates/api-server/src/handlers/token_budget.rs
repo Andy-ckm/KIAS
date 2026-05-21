@@ -15,7 +15,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::models::agent::AgentStatus;
 use crate::AppState;
@@ -204,7 +203,7 @@ pub async fn budget_overview(
     for agent in agents.values() {
         let budget = budgets.get(&agent.id);
         let status =
-            compute_budget_status(&agent.id, &agent.spec.name, &agent.status, agent.restart_count, budget.as_deref());
+            compute_budget_status(&agent.id, &agent.spec.name, &agent.status, agent.restart_count, budget);
 
         match status.status {
             BudgetHealth::Healthy => healthy += 1,
@@ -254,7 +253,7 @@ pub async fn agent_budget(
         &agent.spec.name,
         &agent.status,
         agent.restart_count,
-        budget.as_deref(),
+        budget,
     );
 
     Ok(Json(status))
@@ -321,8 +320,8 @@ mod tests {
     use crate::models::agent::{Agent, AgentSpec};
     use axum::extract::{Path, Query, State};
     use std::collections::HashMap;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
+    
+    
 
     async fn test_state() -> AppState {
         AppState::new_async(kias_common::config::KiasConfig::default()).await

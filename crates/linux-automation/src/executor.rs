@@ -18,7 +18,6 @@ pub struct SshSession {
 }
 
 /// 任务执行器
-#[allow(dead_code)]
 pub struct TaskExecutor {
     ssh_key_path: Option<std::path::PathBuf>,
     sessions: std::collections::HashMap<String, SshSession>,
@@ -38,7 +37,6 @@ impl TaskExecutor {
     }
 
     /// 获取或创建SSH会话
-    #[allow(dead_code)]
     fn get_session(&mut self, host: &str) -> &mut SshSession {
         if !self.sessions.contains_key(host) {
             let session = SshSession {
@@ -56,7 +54,6 @@ impl TaskExecutor {
     }
 
     /// 清理过期会话
-    #[allow(dead_code)]
     fn cleanup_sessions(&mut self) {
         let now = chrono::Utc::now();
         if let Ok(timeout) = chrono::Duration::from_std(self.session_timeout) {

@@ -1,7 +1,5 @@
-#[allow(dead_code)]
 pub mod init;
 
-#[allow(dead_code)]
 pub mod a2a_router;
 
 #[allow(unused_imports)]

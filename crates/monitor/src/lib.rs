@@ -1,3 +1,4 @@
+pub mod agent_span;
 pub mod alert;
 pub mod metrics;
 pub mod prometheus;

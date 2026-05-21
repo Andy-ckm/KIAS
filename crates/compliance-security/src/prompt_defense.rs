@@ -254,7 +254,7 @@ impl InjectionDetector {
         let mut findings = Vec::new();
 
         // Check for excessive role markers
-        let role_marker_count = prompt.matches(|c: char| c == '<' || c == '>').count();
+        let role_marker_count = prompt.matches(['<', '>']).count();
         if role_marker_count > 10 {
             findings.push(InjectionFinding {
                 detector: "structural_role_markers".to_string(),
@@ -323,7 +323,8 @@ impl InjectionDetector {
         }
 
         // Check for hex-encoded strings
-        let hex_regex = Regex::new(r"(?:0x)?[0-9a-fA-F]{40,}").unwrap();
+        let hex_regex = Regex::new(r"(?:0x)?[0-9a-fA-F]{40,}")
+            .expect("hex regex pattern is a compile-time constant");
         if let Some(m) = hex_regex.find(prompt) {
             findings.push(InjectionFinding {
                 detector: "entropy_hex_blob".to_string(),

@@ -211,7 +211,7 @@ pub struct Certificate {
 }
 
 /// X.509 Key Usage.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum KeyUsage {
     DigitalSignature,
     KeyEncipherment,
@@ -319,7 +319,7 @@ impl PkiManager {
         self.root_cas.insert(serial.clone(), cert.clone());
         self.key_pairs.insert(fp.clone(), kp);
 
-        Ok((cert, self.key_pairs.get(&fp).unwrap()))
+        Ok((cert, self.key_pairs.get(&fp).expect("key pair just inserted above")))
     }
 
     /// Issue a certificate signed by a CA.
@@ -642,13 +642,11 @@ mod tests {
 
     #[test]
     fn test_key_usage_types() {
-        let usages = vec![
-            KeyUsage::DigitalSignature,
+        let usages = [KeyUsage::DigitalSignature,
             KeyUsage::KeyEncipherment,
             KeyUsage::KeyCertSign,
             KeyUsage::CrlSign,
-            KeyUsage::DataEncipherment,
-        ];
+            KeyUsage::DataEncipherment];
         // Just ensure they're distinct
         let unique: std::collections::HashSet<_> = usages.iter().collect();
         assert_eq!(unique.len(), 5);
@@ -667,7 +665,7 @@ mod tests {
 
     #[test]
     fn test_certificate_expired() {
-        let mut cert = Certificate {
+        let cert = Certificate {
             serial: "test".to_string(),
             subject: DistinguishedName::new("test"),
             issuer: DistinguishedName::new("test"),

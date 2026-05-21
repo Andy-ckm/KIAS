@@ -32,7 +32,6 @@ pub enum PatchSeverity {
 }
 
 /// 补丁管理器
-#[allow(dead_code)]
 pub struct PatchManager {
     package_manager: PackageManager,
     auto_reboot: bool,

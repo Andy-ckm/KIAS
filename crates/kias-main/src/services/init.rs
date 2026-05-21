@@ -44,7 +44,6 @@ impl std::fmt::Display for HealthStatus {
 
 /// Aggregate health report for the entire KIAS system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct SystemHealthReport {
     /// Overall system health (worst of all subsystems).
     pub overall: HealthStatus,
@@ -74,7 +73,6 @@ impl SystemHealthReport {
 /// Each subsystem task subscribes via [`subscribe`](Self::subscribe) and selects
 /// on the returned receiver. When [`shutdown`](Self::shutdown) is called every
 /// subscriber is notified exactly once.
-#[allow(dead_code)]
 pub struct ShutdownCoordinator {
     shutdown_tx: broadcast::Sender<()>,
     started_at: Instant,
@@ -118,41 +116,28 @@ impl Default for ShutdownCoordinator {
 // ── Service manager ────────────────────────────────────────────────────
 
 /// Top-level orchestrator that owns every KIAS subsystem.
-#[allow(dead_code)]
 pub struct KiasServiceManager {
     config: KiasConfig,
     scheduler: kias_scheduler::Scheduler,
     health_checker: kias_controller::HealthChecker,
     telemetry: kias_monitor::TelemetryCollector,
     metrics: kias_monitor::MetricsCollector,
-    #[allow(dead_code)]
     cache_hub: kias_cache::CacheHub,
-    #[allow(dead_code)]
     knowledge_graph: kias_knowledge::KnowledgeGraph,
-    #[allow(dead_code)]
     skill_registry: kias_skills::SkillRegistry,
-    #[allow(dead_code)]
     workflow_engine: kias_workflow_engine::WorkflowEngine,
-    #[allow(dead_code)]
     autonomy_controller: kias_autonomy_controller::AutonomyController,
-    #[allow(dead_code)]
     team_engine: kias_team_engine::TeamEngine,
-    #[allow(dead_code)]
     goal_runner: kias_goal_engine::GoalLoopRunner,
     /// Persistent data store (SQLite-backed repositories, vector store, cache).
-    #[allow(dead_code)]
     data_store: kias_data_store::SqliteRepository,
     /// Persistent vector store for embedding retrieval.
-    #[allow(dead_code)]
     vector_store: kias_data_store::PersistentVectorStore,
     /// Persistent cache strategy.
-    #[allow(dead_code)]
     cache_strategy: kias_data_store::SqliteCacheStrategy,
     /// Persistent audit log (SQLite-backed).
-    #[allow(dead_code)]
     audit_log: kias_data_store::SqliteAuditLog,
     /// Dead letter queue for permanently failed tasks.
-    #[allow(dead_code)]
     dlq: kias_data_store::DeadLetterQueue,
     /// Graceful shutdown coordinator with signal handling.
     shutdown: Arc<kias_common::graceful_shutdown::GracefulShutdown>,
@@ -420,7 +405,6 @@ impl KiasServiceManager {
 // ── Legacy compatibility ───────────────────────────────────────────────
 
 /// Legacy boolean flags kept for backward compatibility.
-#[allow(dead_code)]
 pub struct KiasServices {
     pub api_server: bool,
     pub scheduler: bool,

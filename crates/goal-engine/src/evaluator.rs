@@ -110,7 +110,6 @@ impl DefaultEvaluator {
 }
 
 /// Result of a constraint check
-#[allow(dead_code)]
 struct ConstraintCheck {
     constraint_name: String,
     passed: bool,

@@ -382,3 +382,143 @@ mod tests {
         assert_eq!(deployer.name(), "GitSnapshotDeployer");
     }
 }
+
+
+#[cfg(test)]
+mod extended_tests {
+    use super::*;
+    use chrono::Utc;
+    use crate::codegen::PatchType;
+
+    fn make_test_patches() -> Vec<CodePatch> {
+        vec![CodePatch {
+            id: "test".to_string(),
+            target_file: "test.rs".to_string(),
+            patch_type: PatchType::CodeChange,
+            content: "test".to_string(),
+            description: "test".to_string(),
+            generated_at: Utc::now(),
+        }]
+    }
+
+    #[test]
+    fn test_deploy_result_with_errors() {
+        let result = DeployResult {
+            id: "deploy-err".to_string(),
+            status: DeployStatus::Failed,
+            details: "Build failed".to_string(),
+            changed_files: vec!["broken.rs".to_string()],
+            duration_ms: 500,
+            deployed_at: Utc::now(),
+            errors: vec!["Syntax error".to_string(), "Missing import".to_string()],
+            snapshot_hash: None,
+        };
+        assert_eq!(result.errors.len(), 2);
+        assert!(result.errors.contains(&"Syntax error".to_string()));
+        assert!(result.snapshot_hash.is_none());
+    }
+
+    #[test]
+    fn test_deploy_status_equality() {
+        assert_eq!(DeployStatus::Pending, DeployStatus::Pending);
+        assert_eq!(DeployStatus::Success, DeployStatus::Success);
+        assert_ne!(DeployStatus::Pending, DeployStatus::Success);
+        assert_ne!(DeployStatus::Failed, DeployStatus::RolledBack);
+    }
+
+    #[test]
+    fn test_deploy_result_clone() {
+        let result = DeployResult {
+            id: "clone-test".to_string(),
+            status: DeployStatus::Success,
+            details: "OK".to_string(),
+            changed_files: vec!["a.rs".to_string()],
+            duration_ms: 100,
+            deployed_at: Utc::now(),
+            errors: vec![],
+            snapshot_hash: Some("hash123".to_string()),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.id, result.id);
+        assert_eq!(cloned.status, result.status);
+        assert_eq!(cloned.snapshot_hash, result.snapshot_hash);
+    }
+
+    #[test]
+    fn test_deploy_result_debug() {
+        let result = DeployResult {
+            id: "debug-test".to_string(),
+            status: DeployStatus::Deploying,
+            details: "In progress".to_string(),
+            changed_files: vec![],
+            duration_ms: 0,
+            deployed_at: Utc::now(),
+            errors: vec![],
+            snapshot_hash: None,
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("debug-test"));
+        assert!(debug_str.contains("Deploying"));
+    }
+
+    #[test]
+    fn test_deployer_manager_multiple_deploys() {
+        let mut manager = DeployerManager::new();
+        let results1 = manager.deploy("target1", &make_test_patches());
+        let results2 = manager.deploy("target2", &make_test_patches());
+        assert!(results1.is_empty());
+        assert!(results2.is_empty());
+    }
+
+    #[test]
+    fn test_deploy_status_all_variants_match() {
+        let statuses = vec![
+            DeployStatus::Pending,
+            DeployStatus::Deploying,
+            DeployStatus::Success,
+            DeployStatus::Failed,
+            DeployStatus::RolledBack,
+        ];
+        for status in statuses {
+            match status {
+                DeployStatus::Pending => {},
+                DeployStatus::Deploying => {},
+                DeployStatus::Success => {},
+                DeployStatus::Failed => {},
+                DeployStatus::RolledBack => {},
+            }
+        }
+    }
+
+    #[test]
+    fn test_code_patch_fields() {
+        let patch = CodePatch {
+            id: "test-patch".to_string(),
+            target_file: "src/main.rs".to_string(),
+            patch_type: PatchType::CodeChange,
+            content: "fn main() { println!(\"hello\"); }".to_string(),
+            description: "Add println".to_string(),
+            generated_at: Utc::now(),
+        };
+        assert_eq!(patch.target_file, "src/main.rs");
+        assert!(patch.content.contains("println!"));
+    }
+
+    #[test]
+    fn test_git_snapshot_deployer_different_paths() {
+        let deployer1 = GitSnapshotDeployer::new("/tmp");
+        let deployer2 = GitSnapshotDeployer::new("/workspace/kias");
+        assert_eq!(deployer1.name(), "GitSnapshotDeployer");
+        assert_eq!(deployer2.name(), "GitSnapshotDeployer");
+    }
+
+    #[test]
+    fn test_make_test_patches_returns_nonempty() {
+        let patches = make_test_patches();
+        assert!(!patches.is_empty());
+        for patch in &patches {
+            assert!(!patch.target_file.is_empty());
+            assert!(!patch.description.is_empty());
+        }
+    }
+}

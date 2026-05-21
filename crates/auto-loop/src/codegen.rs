@@ -341,14 +341,14 @@ mod tests {
 
     #[test]
     fn test_persistence_generator_default() {
-        let generator = PersistenceCodeGenerator::default();
+        let generator = PersistenceCodeGenerator;
         let patches = generator.generate(&make_plan(PlanType::CodeChange));
         assert!(!patches.is_empty());
     }
 
     #[test]
     fn test_config_fix_generator_default() {
-        let generator = ConfigFixCodeGenerator::default();
+        let generator = ConfigFixCodeGenerator;
         let patches = generator.generate(&make_plan(PlanType::ConfigChange));
         assert!(!patches.is_empty());
     }

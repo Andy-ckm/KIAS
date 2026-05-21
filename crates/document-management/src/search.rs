@@ -43,7 +43,6 @@ pub struct SearchResult {
 }
 
 /// 文档搜索引擎
-#[allow(dead_code)]
 pub struct DocumentSearchEngine {
     index_path: String,
 }

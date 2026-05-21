@@ -467,7 +467,6 @@ impl MLACacheMetrics {
 
 /// A single KV cache block — represents a chunk of token-level key-value pairs.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 struct KVBlock {
     /// Block hash (hash of token IDs in this block).
     block_hash: u64,

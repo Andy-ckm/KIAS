@@ -50,7 +50,6 @@ use chrono::Utc;
 
 /// Linux 自动化引擎
 pub struct LinuxAutomation {
-    #[allow(dead_code)]
     config: LinuxAutomationConfig,
     executor: TaskExecutor,
     queue: TaskQueue,

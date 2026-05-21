@@ -12,6 +12,7 @@
 
 pub mod auth_providers;
 pub mod eu_ai_act;
+pub mod gxp_audit;
 pub mod pki;
 pub mod prompt_defense;
 pub mod sandbox;

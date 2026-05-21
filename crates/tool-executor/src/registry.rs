@@ -269,4 +269,160 @@ mod tests {
         assert!(json.contains("serializable"));
         assert!(json.contains("Mock tool: serializable"));
     }
+
+    // ========== 额外测试 ==========
+
+    #[test]
+    fn test_list_order_independent() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("z")));
+        registry.register(Box::new(MockTool::new("a")));
+        registry.register(Box::new(MockTool::new("m")));
+
+        let list = registry.list();
+        assert_eq!(list.len(), 3);
+        let mut names: Vec<&str> = list.iter().map(|t| t.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "m", "z"]);
+    }
+
+    #[test]
+    fn test_register_many_tools() {
+        let mut registry = ToolRegistry::new();
+        for i in 0..50 {
+            registry.register(Box::new(MockTool::new(&format!("tool_{i}"))));
+        }
+        assert_eq!(registry.list().len(), 50);
+        assert!(registry.get("tool_25").is_some());
+        assert!(registry.get("tool_49").is_some());
+        assert!(registry.get("tool_50").is_none());
+    }
+
+    #[test]
+    fn test_get_after_overwrite_returns_new() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("tool")));
+        let first_desc = registry.get("tool").unwrap().description().to_string();
+        registry.register(Box::new(MockTool::new("tool")));
+        let second_desc = registry.get("tool").unwrap().description().to_string();
+        assert_eq!(first_desc, second_desc);
+    }
+
+    #[test]
+    fn test_list_empty_registry() {
+        let registry = ToolRegistry::new();
+        let list = registry.list();
+        assert!(list.is_empty());
+        let json = serde_json::to_string(&list).unwrap();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_with_builtin_exact_count() {
+        let registry = ToolRegistry::with_builtin();
+        assert_eq!(registry.list().len(), 4);
+    }
+
+    #[test]
+    fn test_with_builtin_file_read_execution() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "test_content_123").unwrap();
+
+        let registry = ToolRegistry::with_builtin();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(registry.execute(
+            "file_read",
+            serde_json::json!({"path": tmp.path().to_str().unwrap()}),
+        ));
+        assert!(result.success);
+        assert!(result.output.contains("test_content_123"));
+    }
+
+    #[test]
+    fn test_with_builtin_file_write_execution() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let registry = ToolRegistry::with_builtin();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(registry.execute(
+            "file_write",
+            serde_json::json!({"path": tmp.path().to_str().unwrap(), "content": "written_by_registry"}),
+        ));
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(tmp.path()).unwrap(), "written_by_registry");
+    }
+
+    #[test]
+    fn test_with_builtin_search_execution() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("test.txt"), "find_me_pattern").unwrap();
+
+        let registry = ToolRegistry::with_builtin();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(registry.execute(
+            "search",
+            serde_json::json!({"pattern": "find_me", "path": tmp.path().to_str().unwrap()}),
+        ));
+        assert!(result.success);
+    }
+
+    #[tokio::test]
+    async fn test_execute_empty_name() {
+        let registry = ToolRegistry::new();
+        let result = registry.execute("", serde_json::json!({})).await;
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("Tool not found"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_params() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("tool")));
+        let result = registry.execute("tool", serde_json::json!({"key": "value"})).await;
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_register_empty_name_tool() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("")));
+        assert_eq!(registry.list().len(), 1);
+        assert!(registry.get("").is_some());
+    }
+
+    #[test]
+    fn test_register_special_chars_name() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("tool-with-dashes")));
+        registry.register(Box::new(MockTool::new("tool_with_underscores")));
+        registry.register(Box::new(MockTool::new("tool.with.dots")));
+        assert_eq!(registry.list().len(), 3);
+        assert!(registry.get("tool-with-dashes").is_some());
+        assert!(registry.get("tool_with_underscores").is_some());
+        assert!(registry.get("tool.with.dots").is_some());
+    }
+
+    #[test]
+    fn test_tool_info_contains_all_fields() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("info_test")));
+        let list = registry.list();
+        let info = &list[0];
+        assert_eq!(info.name, "info_test");
+        assert_eq!(info.description, "Mock tool: info_test");
+        assert!(info.parameters.is_object());
+        let json = serde_json::to_value(info).unwrap();
+        assert!(json.get("name").is_some());
+        assert!(json.get("description").is_some());
+        assert!(json.get("parameters").is_some());
+    }
+
+    #[test]
+    fn test_with_builtin_get_each_tool() {
+        let registry = ToolRegistry::with_builtin();
+        for name in &["file_read", "file_write", "shell", "search"] {
+            let tool = registry.get(name);
+            assert!(tool.is_some(), "Expected tool '{}' to exist", name);
+            assert_eq!(tool.unwrap().name(), *name);
+        }
+    }
 }

@@ -23,6 +23,7 @@ pub mod messaging;
 pub mod metrics;
 pub mod tls;
 pub mod types;
+pub mod hot_config;
 pub mod utils;
 pub mod vector;
 pub mod vfs;

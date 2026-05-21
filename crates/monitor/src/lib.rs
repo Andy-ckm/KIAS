@@ -3,6 +3,7 @@ pub mod alert;
 pub mod metrics;
 pub mod prometheus;
 pub mod slow_trace;
+pub mod span_collector;
 pub mod telemetry;
 
 pub use alert::{

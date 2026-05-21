@@ -378,7 +378,6 @@ impl EmbeddingEngine for SiliconFlowEmbeddingEngine {
 pub struct VectorRetriever {
     graph: KnowledgeGraph,
     vector_store: VectorStore,
-    #[allow(dead_code)]
     embedding_engine: Arc<dyn EmbeddingEngine>,
 }
 

@@ -54,7 +54,6 @@ pub struct RecursiveDecompositionResult {
 /// 递归任务分解器
 pub struct RecursiveDecomposer {
     /// 配置
-    #[allow(dead_code)]
     config: DecompositionConfig,
     /// 任务模板库
     templates: HashMap<IntentType, Vec<RecursiveTaskTemplate>>,
@@ -77,12 +76,10 @@ struct RecursiveTaskTemplate {
 #[derive(Debug, Clone)]
 enum DecomposeCondition {
     /// 总是分解
-    #[allow(dead_code)]
     Always,
     /// 按复杂度分解
     ByComplexity(Complexity),
     /// 按描述长度分解
-    #[allow(dead_code)]
     ByDescriptionLength(usize),
     /// 不分解（原子任务）
     Never,

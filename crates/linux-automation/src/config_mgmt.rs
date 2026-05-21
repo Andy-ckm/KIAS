@@ -25,7 +25,6 @@ pub struct ConfigFile {
 
 /// 配置漂移检测
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct DriftDetector {
     baseline_path: String,
     monitored_paths: Vec<String>,

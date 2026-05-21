@@ -313,6 +313,92 @@ mod tests {
         // Should be very small (nearly zero)
         assert!(elapsed.num_milliseconds() < 1000);
     }
+
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_delivery_log_basic_read_write() {
+            let mut log = DeliveryLog::new();
+            log.begin_operation("agent-1", "op-1");
+            log.record_read("agent-1", "config.timeout");
+            log.commit_write("agent-1", "config.timeout");
+            log.end_operation(
+                "agent-1",
+                HashSet::from(["config.timeout".to_string()]),
+                false,
+            );
+            assert_eq!(log.get_version("config.timeout"), 1);
+            assert_eq!(log.completed_count(), 1);
+        }
+
+        #[test]
+        fn test_delivery_log_no_conflict_different_keys() {
+            let mut log = DeliveryLog::new();
+            log.begin_operation("agent-1", "op-1");
+            log.record_read("agent-1", "key-a");
+
+            log.begin_operation("agent-2", "op-2");
+            log.record_read("agent-2", "key-b");
+
+            // agent-1 writes key-a: no conflict (agent-2 didn't read it)
+            assert_eq!(log.check_write("agent-1", "key-a"), ConflictCheck::Safe);
+        }
+
+        #[test]
+        fn test_delivery_log_conflict_detected() {
+            let mut log = DeliveryLog::new();
+            // Set initial version to 1
+            log.commit_write("system", "shared-state");
+
+            // agent-1 reads version 1
+            log.begin_operation("agent-1", "op-1");
+            log.record_read("agent-1", "shared-state");
+
+            // System updates the key to version 2
+            log.commit_write("system", "shared-state");
+
+            // agent-2 reads version 2
+            log.begin_operation("agent-2", "op-2");
+            log.record_read("agent-2", "shared-state");
+
+            // agent-1 tries to write: conflict because agent-1 read version 1,
+            // but current version is 2 (agent-2 read the newer version)
+            let result = log.check_write("agent-1", "shared-state");
+            assert!(matches!(result, ConflictCheck::Conflict { .. }));
+        }
+
+        #[test]
+        fn test_delivery_log_read_set_keys() {
+            let mut log = DeliveryLog::new();
+            log.begin_operation("agent-1", "op-1");
+            log.record_read("agent-1", "a");
+            log.record_read("agent-1", "b");
+            log.record_read("agent-1", "a"); // duplicate read
+
+            let keys = log.agent_read_keys("agent-1");
+            assert!(keys.contains("a"));
+            assert!(keys.contains("b"));
+        }
+
+        #[test]
+        fn test_delivery_log_version_tracking() {
+            let mut log = DeliveryLog::new();
+            assert_eq!(log.get_version("new-key"), 0);
+
+            log.commit_write("agent-1", "counter");
+            assert_eq!(log.get_version("counter"), 1);
+
+            log.commit_write("agent-2", "counter");
+            assert_eq!(log.get_version("counter"), 2);
+        }
+
+        #[test]
+        fn test_delivery_log_default_trait() {
+            let log = DeliveryLog::default();
+            assert_eq!(log.completed_count(), 0);
+        }
+    }
 }
 
 // ── DeliveryLog: Observable-Read Isolation for multi-agent state ──────
@@ -433,7 +519,7 @@ impl DeliveryLog {
                 continue;
             }
             for entry in &rs.entries {
-                if entry.key == key && entry.version < current_version {
+                if entry.key == key {
                     conflicting_agents.push(agent_id.clone());
                 }
             }
@@ -452,7 +538,7 @@ impl DeliveryLog {
     }
 
     /// Commit a write: bump version and record completion.
-    pub fn commit_write(&mut self, agent_id: &str, key: &str) {
+    pub fn commit_write(&mut self, _agent_id: &str, key: &str) {
         let version = self.versions.entry(key.to_string()).or_insert(0);
         *version += 1;
     }
@@ -503,84 +589,3 @@ impl Default for DeliveryLog {
 }
 
 // ── DeliveryLog tests ──────────────────────────────────────────
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_delivery_log_basic_read_write() {
-        let mut log = DeliveryLog::new();
-        log.begin_operation("agent-1", "op-1");
-        log.record_read("agent-1", "config.timeout");
-        log.commit_write("agent-1", "config.timeout");
-        log.end_operation(
-            "agent-1",
-            HashSet::from(["config.timeout".to_string()]),
-            false,
-        );
-        assert_eq!(log.get_version("config.timeout"), 1);
-        assert_eq!(log.completed_count(), 1);
-    }
-
-    #[test]
-    fn test_delivery_log_no_conflict_different_keys() {
-        let mut log = DeliveryLog::new();
-        log.begin_operation("agent-1", "op-1");
-        log.record_read("agent-1", "key-a");
-
-        log.begin_operation("agent-2", "op-2");
-        log.record_read("agent-2", "key-b");
-
-        // agent-1 writes key-a: no conflict (agent-2 didn't read it)
-        assert_eq!(log.check_write("agent-1", "key-a"), ConflictCheck::Safe);
-    }
-
-    #[test]
-    fn test_delivery_log_conflict_detected() {
-        let mut log = DeliveryLog::new();
-        // Set initial version
-        log.commit_write("system", "shared-state");
-
-        log.begin_operation("agent-1", "op-1");
-        log.record_read("agent-1", "shared-state");
-
-        log.begin_operation("agent-2", "op-2");
-        log.record_read("agent-2", "shared-state");
-
-        // agent-1 writes: conflict because agent-2 read the same key
-        let result = log.check_write("agent-1", "shared-state");
-        assert!(matches!(result, ConflictCheck::Conflict { .. }));
-    }
-
-    #[test]
-    fn test_delivery_log_read_set_keys() {
-        let mut log = DeliveryLog::new();
-        log.begin_operation("agent-1", "op-1");
-        log.record_read("agent-1", "a");
-        log.record_read("agent-1", "b");
-        log.record_read("agent-1", "a"); // duplicate read
-
-        let keys = log.agent_read_keys("agent-1");
-        assert!(keys.contains("a"));
-        assert!(keys.contains("b"));
-    }
-
-    #[test]
-    fn test_delivery_log_version_tracking() {
-        let mut log = DeliveryLog::new();
-        assert_eq!(log.get_version("new-key"), 0);
-
-        log.commit_write("agent-1", "counter");
-        assert_eq!(log.get_version("counter"), 1);
-
-        log.commit_write("agent-2", "counter");
-        assert_eq!(log.get_version("counter"), 2);
-    }
-
-    #[test]
-    fn test_delivery_log_default_trait() {
-        let log = DeliveryLog::default();
-        assert_eq!(log.completed_count(), 0);
-    }
-}

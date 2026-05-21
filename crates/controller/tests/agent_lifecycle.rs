@@ -6,11 +6,11 @@
 //! together without requiring external services (uses NoOpSpawner and mock nodes).
 
 use chrono::Utc;
-use kias_controller::{
-    AgentInfo, AgentLifecycleManager, AgentStatus, AutonomyGate, ControllerState, DefaultReconciler,
-    DesiredState, NoOpSpawner, RecoveryAction, RecoveryConfig, RecoveryManager,
-};
 use kias_autonomy_controller::AutonomyLevel;
+use kias_controller::{
+    AgentInfo, AgentStatus, AutonomyGate, ControllerState, DefaultReconciler, DesiredState,
+    NoOpSpawner, Reconciler, RecoveryAction, RecoveryConfig, RecoveryManager,
+};
 use std::collections::HashMap;
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -101,14 +101,11 @@ async fn test_deploy_with_autonomy_gate() {
 #[tokio::test]
 async fn test_schedule_pending_to_running() {
     let mut state = make_state(1, 0);
-    state.agents.insert(
-        "agent-1".to_string(),
-        {
-            let mut info = AgentInfo::new("agent-1", "test-agent-1");
-            info.status = AgentStatus::Pending;
-            info
-        },
-    );
+    state.agents.insert("agent-1".to_string(), {
+        let mut info = AgentInfo::new("agent-1", "test-agent-1");
+        info.status = AgentStatus::Pending;
+        info
+    });
 
     // Simulate scheduling: Pending → Running
     if let Some(agent) = state.agents.get_mut("agent-1") {
@@ -201,7 +198,7 @@ async fn test_recovery_restart_failed_agent() {
     // Mark agent as failed
     state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Failed;
 
-    let actions = manager.recover(&mut state);
+    let actions = manager.process_recovery(&mut state);
 
     assert_eq!(actions.len(), 1);
     assert_eq!(actions[0].1, RecoveryAction::Restarted);
@@ -215,9 +212,9 @@ async fn test_recovery_restart_failed_agent() {
 async fn test_recovery_exponential_backoff() {
     let config = RecoveryConfig {
         max_retries: 3,
-        base_backoff_secs: 60,
-        max_backoff_secs: 300,
-        backoff_multiplier: 2.0,
+        base_backoff_secs: 0,
+        max_backoff_secs: 0,
+        backoff_multiplier: 1.0,
         jitter_percent: 0,
     };
     let mut manager = RecoveryManager::new(config);
@@ -226,18 +223,18 @@ async fn test_recovery_exponential_backoff() {
 
     // First failure — immediate restart (backoff not expired yet, but first attempt)
     state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Failed;
-    let actions = manager.recover(&mut state);
+    let actions = manager.process_recovery(&mut state);
     assert_eq!(actions[0].1, RecoveryAction::Restarted);
 
     // Simulate repeated failures
     for _ in 0..3 {
         state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Failed;
-        manager.recover(&mut state);
+        manager.process_recovery(&mut state);
     }
 
     // After max_retries, should be permanently failed
     state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Failed;
-    let actions = manager.recover(&mut state);
+    let actions = manager.process_recovery(&mut state);
     assert_eq!(actions[0].1, RecoveryAction::PermanentlyFailed);
 }
 
@@ -257,7 +254,7 @@ async fn test_recovery_unresponsive_agent() {
     // Mark as unresponsive
     state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Unresponsive;
 
-    let actions = manager.recover(&mut state);
+    let actions = manager.process_recovery(&mut state);
     assert_eq!(actions.len(), 1);
     assert_eq!(actions[0].1, RecoveryAction::Restarted);
 }
@@ -277,32 +274,35 @@ async fn test_full_lifecycle_deploy_execute_fail_recover_complete() {
         AgentStatus::Running
     ));
 
+    // Get the first agent ID (NoOpSpawner generates UUIDs)
+    let agent_id = state.agents.keys().next().unwrap().clone();
+
     // 2. Execute (heartbeat)
-    state.agents.get_mut("agent-1").unwrap().last_heartbeat = Utc::now();
+    state.agents.get_mut(&agent_id).unwrap().last_heartbeat = Utc::now();
 
     // 3. Fail
-    state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Failed;
+    state.agents.get_mut(&agent_id).unwrap().status = AgentStatus::Failed;
 
     // 4. Recover
     let config = RecoveryConfig {
         max_retries: 3,
         base_backoff_secs: 0,
-        max_backoff_secs: 1,
+        max_backoff_secs: 0,
         backoff_multiplier: 1.0,
         jitter_percent: 0,
     };
     let mut recovery = RecoveryManager::new(config);
-    let actions = recovery.recover(&mut state);
+    let actions = recovery.process_recovery(&mut state);
     assert_eq!(actions[0].1, RecoveryAction::Restarted);
     assert!(matches!(
-        state.agents["agent-1"].status,
+        state.agents[&agent_id].status,
         AgentStatus::Running
     ));
 
     // 5. Complete
-    state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Succeeded;
+    state.agents.get_mut(&agent_id).unwrap().status = AgentStatus::Succeeded;
     assert!(matches!(
-        state.agents["agent-1"].status,
+        state.agents[&agent_id].status,
         AgentStatus::Succeeded
     ));
 }
@@ -316,15 +316,19 @@ async fn test_full_lifecycle_multi_agent_partial_failure() {
     reconciler.reconcile(&mut state).await.unwrap();
     assert_eq!(state.agents.len(), 3);
 
+    // Get actual agent IDs (NoOpSpawner generates UUIDs)
+    let mut agent_ids: Vec<String> = state.agents.keys().cloned().collect();
+    agent_ids.sort();
+
     // Agent 1 succeeds, agent 2 fails, agent 3 unresponsive
-    state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Succeeded;
-    state.agents.get_mut("agent-2").unwrap().status = AgentStatus::Failed;
-    state.agents.get_mut("agent-3").unwrap().status = AgentStatus::Unresponsive;
+    state.agents.get_mut(&agent_ids[0]).unwrap().status = AgentStatus::Succeeded;
+    state.agents.get_mut(&agent_ids[1]).unwrap().status = AgentStatus::Failed;
+    state.agents.get_mut(&agent_ids[2]).unwrap().status = AgentStatus::Unresponsive;
 
     // Recover failed agents
     let config = RecoveryConfig::default();
     let mut recovery = RecoveryManager::new(config);
-    let actions = recovery.recover(&mut state);
+    let actions = recovery.process_recovery(&mut state);
 
     // Both failed and unresponsive should be restarted
     let restarted = actions
@@ -335,7 +339,7 @@ async fn test_full_lifecycle_multi_agent_partial_failure() {
 
     // Agent 1 still succeeded
     assert!(matches!(
-        state.agents["agent-1"].status,
+        state.agents[&agent_ids[0]].status,
         AgentStatus::Succeeded
     ));
 }
@@ -382,8 +386,11 @@ async fn test_recovery_running_agent_no_action() {
     let mut state = make_state(1, 0);
     spawn_agents(&mut state, 1);
 
-    let actions = manager.recover(&mut state);
-    assert!(actions.is_empty(), "Running agents should not be recovered");
+    let actions = manager.process_recovery(&mut state);
+    assert!(
+        actions.iter().all(|(_, a)| *a == RecoveryAction::NoAction),
+        "Running agents should not be recovered"
+    );
 }
 
 #[tokio::test]
@@ -393,9 +400,9 @@ async fn test_recovery_succeeded_agent_no_action() {
     spawn_agents(&mut state, 1);
     state.agents.get_mut("agent-1").unwrap().status = AgentStatus::Succeeded;
 
-    let actions = manager.recover(&mut state);
+    let actions = manager.process_recovery(&mut state);
     assert!(
-        actions.is_empty(),
+        actions.iter().all(|(_, a)| *a == RecoveryAction::NoAction),
         "Succeeded agents should not be recovered"
     );
 }

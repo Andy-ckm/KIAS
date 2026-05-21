@@ -236,8 +236,8 @@ fn evaluate_single(pc: &Precondition, ctx: &PreconditionContext) -> Precondition
         },
         ContextKeyRange { key, min, max } => match ctx.get_number(key) {
             Some(n) => {
-                let min_ok = min.map_or(true, |m| n >= m);
-                let max_ok = max.map_or(true, |m| n <= m);
+                let min_ok = min.is_none_or(|m| n >= m);
+                let max_ok = max.is_none_or(|m| n <= m);
                 if min_ok && max_ok {
                     (true, format!("Key '{key}' = {n} within range"))
                 } else {
@@ -258,8 +258,8 @@ fn evaluate_single(pc: &Precondition, ctx: &PreconditionContext) -> Precondition
             before_hour,
         } => {
             let now_hour = chrono::Utc::now().hour();
-            let after_ok = after_hour.map_or(true, |h| now_hour >= h);
-            let before_ok = before_hour.map_or(true, |h| now_hour < h);
+            let after_ok = after_hour.is_none_or(|h| now_hour >= h);
+            let before_ok = before_hour.is_none_or(|h| now_hour < h);
             if after_ok && before_ok {
                 (true, format!("Current hour {now_hour} within window"))
             } else {

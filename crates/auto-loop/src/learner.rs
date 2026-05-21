@@ -730,4 +730,99 @@ mod tests {
         assert!(report.contains("AgentGuard 经验积累报告"));
         assert!(report.contains("总经验数: 1"));
     }
+
+    #[test]
+    fn test_query_by_type() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "cat1"));
+        learner.record_lesson(create_test_entry("l2", LessonType::Failure, "cat1"));
+        learner.record_lesson(create_test_entry("l3", LessonType::Optimization, "cat2"));
+        learner.record_lesson(create_test_entry("l4", LessonType::Success, "cat2"));
+
+        assert_eq!(learner.query_by_type(&LessonType::Success).len(), 2);
+        assert_eq!(learner.query_by_type(&LessonType::Failure).len(), 1);
+        assert_eq!(learner.query_by_type(&LessonType::Optimization).len(), 1);
+        assert_eq!(learner.query_by_type(&LessonType::RiskWarning).len(), 0);
+        assert_eq!(learner.query_by_type(&LessonType::BestPractice).len(), 0);
+    }
+
+    #[test]
+    fn test_query_nonexistent_category_returns_empty() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "real_cat"));
+
+        let results = learner.query_by_category("nonexistent");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_query_nonexistent_tag_returns_empty() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "cat"));
+
+        let results = learner.query_by_tag("nonexistent_tag");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_record_failure_lesson_increments_failure_count() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("f1", LessonType::Failure, "bugs"));
+        assert_eq!(learner.stats().failure_count, 1);
+        assert_eq!(learner.stats().success_count, 0);
+
+        learner.record_lesson(create_test_entry("w1", LessonType::RiskWarning, "risk"));
+        assert_eq!(learner.stats().failure_count, 2);
+    }
+
+    #[test]
+    fn test_mark_used_nonexistent_id_no_panic() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+        // Should silently do nothing
+        learner.mark_used("nonexistent");
+        assert_eq!(learner.all_lessons()[0].usage_count, 0);
+    }
+
+    #[test]
+    fn test_confidence_clamp_after_multiple_failures() {
+        let mut learner = Learner::new();
+        let mut entry = create_test_entry("l1", LessonType::Success, "test");
+        entry.confidence = 0.5;
+        learner.record_lesson(entry);
+
+        // Apply many failures to drive confidence toward 0
+        for _ in 0..20 {
+            learner.record_outcome(FixOutcome {
+                lesson_id: "l1".to_string(),
+                success: false,
+                fix_duration_secs: 5.0,
+                root_cause_tags: vec!["bug".to_string()],
+                feedback_at: chrono::Utc::now(),
+            });
+        }
+
+        let conf = learner.all_lessons()[0].confidence;
+        assert!(
+            conf >= 0.01,
+            "Confidence should be clamped to >= 0.01, got {}",
+            conf
+        );
+        assert!(conf <= 0.99, "Confidence should be clamped to <= 0.99");
+    }
+
+    #[test]
+    fn test_get_recommendations_limit_zero() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+        let recs = learner.get_recommendations("test", 0);
+        assert!(recs.is_empty());
+    }
+
+    #[test]
+    fn test_default_trait_implementation() {
+        let learner = Learner::default();
+        assert_eq!(learner.stats().total_lessons, 0);
+        assert!(learner.all_lessons().is_empty());
+    }
 }

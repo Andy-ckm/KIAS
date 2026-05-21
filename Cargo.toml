@@ -33,6 +33,7 @@ members = [
     "crates/document-management",
     "crates/compliance-security",
     "crates/harness-registry",
+    "crates/a2a-registry",
     # "crates/agentsight",
     # "crates/cache-hub",
 ]

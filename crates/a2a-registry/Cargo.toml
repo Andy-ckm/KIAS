@@ -1,0 +1,17 @@
+[package]
+name = "kias-a2a-registry"
+version = "0.1.0"
+edition = "2021"
+description = "A2A Agent Registry with governance - registration, discovery, status, schema validation"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["sync", "time"] }
+thiserror = "2"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

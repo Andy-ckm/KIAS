@@ -386,4 +386,398 @@ mod tests {
         assert!(json.contains("test output"));
         assert!(json.contains("\"success\":true"));
     }
+
+    // ========== FileReadTool 额外测试 ==========
+
+    #[tokio::test]
+    async fn test_file_read_not_found() {
+        let tool = FileReadTool;
+        let result = tool
+            .execute(serde_json::json!({"path": "/nonexistent/file.txt"}))
+            .await;
+        assert!(!result.success);
+        assert!(result.error.is_some());
+        assert!(result.error.unwrap().contains("Failed to read file"));
+    }
+
+    #[tokio::test]
+    async fn test_file_read_empty_file() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "").unwrap();
+
+        let tool = FileReadTool;
+        let result = tool
+            .execute(serde_json::json!({"path": tmp.path().to_str().unwrap()}))
+            .await;
+        assert!(result.success);
+        assert!(result.output.is_empty());
+        let meta = result.metadata.unwrap();
+        assert_eq!(meta["total_lines"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_file_read_with_offset_and_limit() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "line1\nline2\nline3\nline4\nline5").unwrap();
+
+        let tool = FileReadTool;
+        // 读取第2-3行
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "offset": 2,
+                "limit": 2
+            }))
+            .await;
+        assert!(result.success);
+        assert!(result.output.contains("2|line2"));
+        assert!(result.output.contains("3|line3"));
+        assert!(!result.output.contains("1|line1"));
+        assert!(!result.output.contains("4|line4"));
+    }
+
+    #[tokio::test]
+    async fn test_file_read_offset_beyond_file() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "line1\nline2").unwrap();
+
+        let tool = FileReadTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "offset": 100,
+                "limit": 10
+            }))
+            .await;
+        assert!(result.success);
+        assert!(result.output.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_file_read_limit_larger_than_file() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "only_one_line").unwrap();
+
+        let tool = FileReadTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "offset": 1,
+                "limit": 1000
+            }))
+            .await;
+        assert!(result.success);
+        assert!(result.output.contains("1|only_one_line"));
+        let meta = result.metadata.unwrap();
+        assert_eq!(meta["total_lines"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_file_read_missing_path_param() {
+        let tool = FileReadTool;
+        let result = tool.execute(serde_json::json!({})).await;
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_file_read_tool_parameters_schema() {
+        let tool = FileReadTool;
+        let params = tool.parameters();
+        let props = &params["properties"];
+        assert!(props["path"].is_object());
+        assert!(props["offset"].is_object());
+        assert!(props["limit"].is_object());
+        assert_eq!(params["required"][0], "path");
+    }
+
+    // ========== FileWriteTool 额外测试 ==========
+
+    #[tokio::test]
+    async fn test_file_write_creates_parent_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("a/b/c/file.txt");
+
+        let tool = FileWriteTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": path.to_str().unwrap(),
+                "content": "nested content"
+            }))
+            .await;
+        assert!(result.success);
+        assert!(path.exists());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "nested content");
+    }
+
+    #[tokio::test]
+    async fn test_file_write_empty_content() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+
+        let tool = FileWriteTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "content": ""
+            }))
+            .await;
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(tmp.path()).unwrap(), "");
+    }
+
+    #[tokio::test]
+    async fn test_file_write_overwrites_existing() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "old content").unwrap();
+
+        let tool = FileWriteTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "content": "new content"
+            }))
+            .await;
+        assert!(result.success);
+        assert_eq!(std::fs::read_to_string(tmp.path()).unwrap(), "new content");
+    }
+
+    #[tokio::test]
+    async fn test_file_write_metadata_bytes_written() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+
+        let tool = FileWriteTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": tmp.path().to_str().unwrap(),
+                "content": "12345"
+            }))
+            .await;
+        assert!(result.success);
+        let meta = result.metadata.unwrap();
+        assert_eq!(meta["bytes_written"], 5);
+    }
+
+    #[tokio::test]
+    async fn test_file_write_missing_params() {
+        let tool = FileWriteTool;
+        let result = tool.execute(serde_json::json!({})).await;
+        // 空路径会失败
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_file_write_tool_parameters_schema() {
+        let tool = FileWriteTool;
+        let params = tool.parameters();
+        assert_eq!(params["required"][0], "path");
+        assert_eq!(params["required"][1], "content");
+    }
+
+    // ========== ShellTool 额外测试 ==========
+
+    #[tokio::test]
+    async fn test_shell_with_workdir() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "pwd",
+                "workdir": "/tmp"
+            }))
+            .await;
+        assert!(result.success);
+        assert!(result.output.trim().contains("/tmp"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_stderr_on_failure() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "echo err_msg >&2 && exit 1"}))
+            .await;
+        assert!(!result.success);
+        assert!(result.error.is_some());
+        assert!(result.error.unwrap().contains("err_msg"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_exit_code_metadata() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "exit 42"}))
+            .await;
+        assert!(!result.success);
+        let meta = result.metadata.unwrap();
+        assert_eq!(meta["exit_code"], 42);
+    }
+
+    #[tokio::test]
+    async fn test_shell_success_exit_code_metadata() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "true"}))
+            .await;
+        assert!(result.success);
+        let meta = result.metadata.unwrap();
+        assert_eq!(meta["exit_code"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_shell_timeout() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "sleep 10",
+                "timeout": 1
+            }))
+            .await;
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("timed out"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_multiline_output() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "printf 'a\\nb\\nc'"}))
+            .await;
+        assert!(result.success);
+        assert!(result.output.contains("a"));
+        assert!(result.output.contains("b"));
+        assert!(result.output.contains("c"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_missing_command() {
+        let tool = ShellTool;
+        let result = tool.execute(serde_json::json!({})).await;
+        // 空命令会执行 sh -c ""，可能成功也可能失败
+        // 但不应该 panic
+        let _ = result;
+    }
+
+    // ========== SearchTool 额外测试 ==========
+
+    #[tokio::test]
+    async fn test_search_basic_pattern() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("test.txt");
+        std::fs::write(&file, "hello world\nfoo bar\nhello again").unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "hello",
+                "path": tmp.path().to_str().unwrap()
+            }))
+            .await;
+        assert!(result.success);
+        let meta = result.metadata.unwrap();
+        assert!(meta["matches"].as_u64().unwrap() >= 1);
+    }
+
+    #[tokio::test]
+    async fn test_search_no_matches() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("test.txt");
+        std::fs::write(&file, "nothing here").unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "nonexistent_pattern_xyz_12345",
+                "path": tmp.path().to_str().unwrap()
+            }))
+            .await;
+        // rg with --json may output summary lines even with 0 matches
+        // Just verify the tool doesn't panic and returns a result
+        assert!(result.metadata.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_search_with_limit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("test.txt");
+        let content = (0..100).map(|i| format!("line {} target", i)).collect::<Vec<_>>().join("\n");
+        std::fs::write(&file, content).unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "target",
+                "path": tmp.path().to_str().unwrap(),
+                "limit": 5
+            }))
+            .await;
+        assert!(result.success);
+        let meta = result.metadata.unwrap();
+        assert!(meta["matches"].as_u64().unwrap() <= 5);
+    }
+
+    #[tokio::test]
+    async fn test_search_with_file_glob() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.rs"), "fn main() {}").unwrap();
+        std::fs::write(tmp.path().join("b.txt"), "fn main() {}").unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "fn main",
+                "path": tmp.path().to_str().unwrap(),
+                "file_glob": "*.rs"
+            }))
+            .await;
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_search_tool_parameters_schema() {
+        let tool = SearchTool;
+        let params = tool.parameters();
+        assert_eq!(params["required"][0], "pattern");
+        assert!(params["properties"]["pattern"].is_object());
+        assert!(params["properties"]["path"].is_object());
+        assert!(params["properties"]["file_glob"].is_object());
+        assert!(params["properties"]["limit"].is_object());
+    }
+
+    // ========== ToolResult 额外测试 ==========
+
+    #[test]
+    fn test_tool_result_with_error() {
+        let result = ToolResult {
+            success: false,
+            output: String::new(),
+            error: Some("something went wrong".to_string()),
+            metadata: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":false"));
+        assert!(json.contains("something went wrong"));
+    }
+
+    #[test]
+    fn test_tool_result_clone() {
+        let result = ToolResult {
+            success: true,
+            output: "test".to_string(),
+            error: None,
+            metadata: Some(serde_json::json!({"k": "v"})),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.success, result.success);
+        assert_eq!(cloned.output, result.output);
+    }
+
+    #[test]
+    fn test_tool_result_debug() {
+        let result = ToolResult {
+            success: true,
+            output: "out".to_string(),
+            error: None,
+            metadata: None,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("ToolResult"));
+        assert!(debug.contains("true"));
+    }
 }

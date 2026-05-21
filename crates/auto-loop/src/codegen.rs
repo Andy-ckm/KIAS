@@ -326,4 +326,76 @@ mod tests {
         manager.generate_patches(&make_plan(PlanType::CodeChange));
         assert!(manager.history().len() > h1);
     }
+
+    #[test]
+    fn test_persistence_generator_name() {
+        let generator = PersistenceCodeGenerator::new();
+        assert_eq!(generator.name(), "PersistenceCodeGenerator");
+    }
+
+    #[test]
+    fn test_config_fix_generator_name() {
+        let generator = ConfigFixCodeGenerator::new();
+        assert_eq!(generator.name(), "ConfigFixCodeGenerator");
+    }
+
+    #[test]
+    fn test_persistence_generator_default() {
+        let generator = PersistenceCodeGenerator::default();
+        let patches = generator.generate(&make_plan(PlanType::CodeChange));
+        assert!(!patches.is_empty());
+    }
+
+    #[test]
+    fn test_config_fix_generator_default() {
+        let generator = ConfigFixCodeGenerator::default();
+        let patches = generator.generate(&make_plan(PlanType::ConfigChange));
+        assert!(!patches.is_empty());
+    }
+
+    #[test]
+    fn test_code_patch_serialization() {
+        let patch = CodePatch {
+            id: "patch-ser".to_string(),
+            target_file: "src/test.rs".to_string(),
+            patch_type: PatchType::TestAddition,
+            content: "fn test() {}".to_string(),
+            description: "Add test".to_string(),
+            generated_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&patch).unwrap();
+        assert!(json.contains("patch-ser"));
+        assert!(json.contains("TestAddition"));
+
+        let deserialized: CodePatch = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "patch-ser");
+    }
+
+    #[test]
+    fn test_multiple_generators_history() {
+        let mut manager = CodeGeneratorManager::new();
+        manager.register_generator(Box::new(PersistenceCodeGenerator::new()));
+        manager.register_generator(Box::new(ConfigFixCodeGenerator::new()));
+
+        let plan = make_plan(PlanType::CodeChange);
+        let patches = manager.generate_patches(&plan);
+
+        // Both generators should produce patches
+        assert!(patches.len() >= 2);
+        // History should accumulate
+        assert_eq!(manager.history().len(), patches.len());
+
+        // Generate again to test accumulation
+        let patches2 = manager.generate_patches(&plan);
+        assert_eq!(manager.history().len(), patches.len() + patches2.len());
+    }
+
+    #[test]
+    fn test_patch_type_serialization() {
+        let json = serde_json::to_string(&PatchType::DocumentationUpdate).unwrap();
+        assert!(json.contains("DocumentationUpdate"));
+
+        let deserialized: PatchType = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, PatchType::DocumentationUpdate));
+    }
 }

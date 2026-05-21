@@ -497,4 +497,261 @@ mod tests {
         assert!(r2.success);
         assert_eq!(r2.stdout, "out");
     }
+
+    // ========== SandboxConfig 额外测试 ==========
+
+    #[test]
+    fn test_sandbox_config_deserialization() {
+        let json = r#"{
+            "sandbox_type": "namespace",
+            "allowed_paths": ["/tmp", "/var"],
+            "denied_paths": ["/etc/shadow"],
+            "allow_network": true,
+            "allow_write": false,
+            "memory_limit_mb": 256,
+            "cpu_limit": 0.5,
+            "timeout_secs": 30
+        }"#;
+        let cfg: SandboxConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.sandbox_type, SandboxType::Namespace);
+        assert_eq!(cfg.allowed_paths.len(), 2);
+        assert_eq!(cfg.denied_paths.len(), 1);
+        assert!(cfg.allow_network);
+        assert!(!cfg.allow_write);
+        assert_eq!(cfg.memory_limit_mb, Some(256));
+        assert_eq!(cfg.cpu_limit, Some(0.5));
+        assert_eq!(cfg.timeout_secs, Some(30));
+    }
+
+    #[test]
+    fn test_sandbox_config_none_type() {
+        let cfg = SandboxConfig {
+            sandbox_type: SandboxType::None,
+            ..Default::default()
+        };
+        assert_eq!(cfg.sandbox_type, SandboxType::None);
+    }
+
+    #[test]
+    fn test_sandbox_config_docker_type() {
+        let cfg = SandboxConfig {
+            sandbox_type: SandboxType::Docker,
+            ..Default::default()
+        };
+        assert_eq!(cfg.sandbox_type, SandboxType::Docker);
+    }
+
+    #[test]
+    fn test_sandbox_config_with_empty_paths() {
+        let cfg = SandboxConfig {
+            allowed_paths: vec![],
+            denied_paths: vec![],
+            ..Default::default()
+        };
+        assert!(cfg.allowed_paths.is_empty());
+        assert!(cfg.denied_paths.is_empty());
+    }
+
+    #[test]
+    fn test_sandbox_config_optional_fields_none() {
+        let cfg = SandboxConfig {
+            memory_limit_mb: None,
+            cpu_limit: None,
+            timeout_secs: None,
+            ..Default::default()
+        };
+        assert!(cfg.memory_limit_mb.is_none());
+        assert!(cfg.cpu_limit.is_none());
+        assert!(cfg.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn test_sandbox_type_all_variants() {
+        let variants = vec![
+            SandboxType::Process,
+            SandboxType::Docker,
+            SandboxType::Namespace,
+            SandboxType::None,
+        ];
+        for v in variants {
+            let json = serde_json::to_string(&v).unwrap();
+            let deserialized: SandboxType = serde_json::from_str(&json).unwrap();
+            assert_eq!(v, deserialized);
+        }
+    }
+
+    // ========== SandboxExecutor 额外测试 ==========
+
+    #[tokio::test]
+    async fn test_unsandboxed_with_workdir() {
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::None,
+            ..Default::default()
+        });
+        let result = executor.execute("pwd", Some("/tmp")).await;
+        assert!(result.success);
+        assert!(result.stdout.trim().contains("/tmp"));
+    }
+
+    #[tokio::test]
+    async fn test_unsandboxed_failure_exit_code() {
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::None,
+            ..Default::default()
+        });
+        let result = executor.execute("exit 99", None).await;
+        assert!(!result.success);
+        assert_eq!(result.exit_code, 99);
+    }
+
+    #[tokio::test]
+    async fn test_unsandboxed_stderr_capture() {
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::None,
+            ..Default::default()
+        });
+        let result = executor.execute("echo error_msg >&2", None).await;
+        assert!(result.success);
+        assert!(result.stderr.contains("error_msg"));
+    }
+
+    #[tokio::test]
+    async fn test_process_sandbox_env_set() {
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Process,
+            ..Default::default()
+        });
+        let result = executor.execute("echo $AgentGuard_SANDBOX", None).await;
+        assert!(result.success);
+        assert!(result.stdout.contains("true"));
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_custom_timeout() {
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::None,
+            timeout_secs: Some(2),
+            ..Default::default()
+        });
+        let result = executor.execute("sleep 10", None).await;
+        assert!(!result.success);
+        assert!(result.timed_out);
+        assert!(result.stderr.contains("Timed out"));
+    }
+
+    // ========== shell_escape 额外测试 ==========
+
+    #[test]
+    fn test_shell_escape_empty_string() {
+        assert_eq!(shell_escape(""), "''");
+    }
+
+    #[test]
+    fn test_shell_escape_alphanumeric() {
+        assert_eq!(shell_escape("abc123"), "abc123");
+    }
+
+    #[test]
+    fn test_shell_escape_with_slashes() {
+        assert_eq!(shell_escape("/usr/local/bin"), "/usr/local/bin");
+    }
+
+    #[test]
+    fn test_shell_escape_with_dots() {
+        assert_eq!(shell_escape("file.txt"), "file.txt");
+    }
+
+    #[test]
+    fn test_shell_escape_with_underscores() {
+        assert_eq!(shell_escape("my_var"), "my_var");
+    }
+
+    #[test]
+    fn test_shell_escape_with_dashes() {
+        assert_eq!(shell_escape("my-var"), "my-var");
+    }
+
+    #[test]
+    fn test_shell_escape_with_spaces() {
+        assert_eq!(shell_escape("hello world"), "'hello world'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_single_quotes() {
+        let result = shell_escape("it's");
+        assert!(result.contains("'"));
+        // Should be: 'it'\''s'
+        assert_eq!(result, "'it'\\''s'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_dollar_sign() {
+        assert_eq!(shell_escape("$HOME"), "'$HOME'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_semicolon() {
+        assert_eq!(shell_escape("cmd;rm -rf /"), "'cmd;rm -rf /'");
+    }
+
+    // ========== SandboxResult 额外测试 ==========
+
+    #[test]
+    fn test_sandbox_result_failed() {
+        let r = SandboxResult {
+            success: false,
+            stdout: String::new(),
+            stderr: "command not found".to_string(),
+            exit_code: 127,
+            timed_out: false,
+        };
+        assert!(!r.success);
+        assert_eq!(r.exit_code, 127);
+        assert!(r.stderr.contains("command not found"));
+    }
+
+    #[test]
+    fn test_sandbox_result_timed_out() {
+        let r = SandboxResult {
+            success: false,
+            stdout: String::new(),
+            stderr: "Timed out after 10s".to_string(),
+            exit_code: -1,
+            timed_out: true,
+        };
+        assert!(!r.success);
+        assert!(r.timed_out);
+        assert_eq!(r.exit_code, -1);
+    }
+
+    #[test]
+    fn test_sandbox_result_debug_format() {
+        let r = SandboxResult {
+            success: true,
+            stdout: "out".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            timed_out: false,
+        };
+        let debug = format!("{:?}", r);
+        assert!(debug.contains("SandboxResult"));
+        assert!(debug.contains("true"));
+    }
+
+    #[test]
+    fn test_sandbox_result_clone_full() {
+        let r = SandboxResult {
+            success: false,
+            stdout: "some output".to_string(),
+            stderr: "some error".to_string(),
+            exit_code: 1,
+            timed_out: true,
+        };
+        let r2 = r.clone();
+        assert_eq!(r2.success, r.success);
+        assert_eq!(r2.stdout, r.stdout);
+        assert_eq!(r2.stderr, r.stderr);
+        assert_eq!(r2.exit_code, r.exit_code);
+        assert_eq!(r2.timed_out, r.timed_out);
+    }
 }

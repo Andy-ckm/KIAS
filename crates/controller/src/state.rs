@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesiredState {
@@ -312,5 +312,275 @@ mod tests {
         let elapsed = info.time_since_heartbeat();
         // Should be very small (nearly zero)
         assert!(elapsed.num_milliseconds() < 1000);
+    }
+}
+
+// ── DeliveryLog: Observable-Read Isolation for multi-agent state ──────
+//
+// Tracks per-agent read-sets to prevent structural race conditions.
+// When agent A reads key "X", we record it. When agent B writes "X",
+// we detect the conflict and can intervene (block, notify, merge).
+
+/// A single read observation by an agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReadEntry {
+    /// Which key/path was read.
+    pub key: String,
+    /// Version of the value at read time.
+    pub version: u64,
+    /// When the read happened.
+    pub read_at: DateTime<Utc>,
+}
+
+/// Per-agent read-set: everything this agent has read during its current operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReadSet {
+    pub agent_id: String,
+    pub entries: Vec<ReadEntry>,
+    pub operation_id: String,
+    pub started_at: DateTime<Utc>,
+}
+
+impl ReadSet {
+    pub fn new(agent_id: impl Into<String>, operation_id: impl Into<String>) -> Self {
+        Self {
+            agent_id: agent_id.into(),
+            entries: Vec::new(),
+            operation_id: operation_id.into(),
+            started_at: Utc::now(),
+        }
+    }
+
+    pub fn record_read(&mut self, key: impl Into<String>, version: u64) {
+        self.entries.push(ReadEntry {
+            key: key.into(),
+            version,
+            read_at: Utc::now(),
+        });
+    }
+
+    pub fn keys(&self) -> HashSet<&str> {
+        self.entries.iter().map(|e| e.key.as_str()).collect()
+    }
+}
+
+/// Result of a write-conflict check.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConflictCheck {
+    /// No conflict — safe to write.
+    Safe,
+    /// Conflict detected: another agent read the same key at an older version.
+    Conflict {
+        key: String,
+        conflicting_agents: Vec<String>,
+        expected_version: u64,
+        actual_version: u64,
+    },
+}
+
+/// Observable-Read Isolation delivery log.
+///
+/// Tracks read-sets per agent and detects write conflicts.
+pub struct DeliveryLog {
+    /// Active read-sets per agent.
+    read_sets: HashMap<String, ReadSet>,
+    /// Current version per key.
+    versions: HashMap<String, u64>,
+    /// History of completed operations (for audit).
+    completed: Vec<CompletedOperation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletedOperation {
+    pub agent_id: String,
+    pub operation_id: String,
+    pub read_keys: HashSet<String>,
+    pub wrote_keys: HashSet<String>,
+    pub completed_at: DateTime<Utc>,
+    pub had_conflict: bool,
+}
+
+impl DeliveryLog {
+    pub fn new() -> Self {
+        Self {
+            read_sets: HashMap::new(),
+            versions: HashMap::new(),
+            completed: Vec::new(),
+        }
+    }
+
+    /// Begin tracking reads for an agent operation.
+    pub fn begin_operation(&mut self, agent_id: &str, operation_id: &str) {
+        let read_set = ReadSet::new(agent_id, operation_id);
+        self.read_sets.insert(agent_id.to_string(), read_set);
+    }
+
+    /// Record that an agent read a key.
+    pub fn record_read(&mut self, agent_id: &str, key: &str) {
+        let version = self.versions.get(key).copied().unwrap_or(0);
+        if let Some(rs) = self.read_sets.get_mut(agent_id) {
+            rs.record_read(key, version);
+        }
+    }
+
+    /// Check if a write would conflict with any other agent's read-set.
+    pub fn check_write(&self, writer_id: &str, key: &str) -> ConflictCheck {
+        let current_version = self.versions.get(key).copied().unwrap_or(0);
+        let mut conflicting_agents = Vec::new();
+
+        for (agent_id, rs) in &self.read_sets {
+            if agent_id == writer_id {
+                continue;
+            }
+            for entry in &rs.entries {
+                if entry.key == key && entry.version < current_version {
+                    conflicting_agents.push(agent_id.clone());
+                }
+            }
+        }
+
+        if conflicting_agents.is_empty() {
+            ConflictCheck::Safe
+        } else {
+            ConflictCheck::Conflict {
+                key: key.to_string(),
+                conflicting_agents,
+                expected_version: current_version,
+                actual_version: current_version + 1,
+            }
+        }
+    }
+
+    /// Commit a write: bump version and record completion.
+    pub fn commit_write(&mut self, agent_id: &str, key: &str) {
+        let version = self.versions.entry(key.to_string()).or_insert(0);
+        *version += 1;
+    }
+
+    /// Complete an agent's operation, moving read-set to history.
+    pub fn end_operation(
+        &mut self,
+        agent_id: &str,
+        wrote_keys: HashSet<String>,
+        had_conflict: bool,
+    ) {
+        if let Some(rs) = self.read_sets.remove(agent_id) {
+            let read_keys = rs.entries.iter().map(|e| e.key.clone()).collect();
+            self.completed.push(CompletedOperation {
+                agent_id: agent_id.to_string(),
+                operation_id: rs.operation_id,
+                read_keys,
+                wrote_keys,
+                completed_at: Utc::now(),
+                had_conflict,
+            });
+        }
+    }
+
+    /// Get current version of a key.
+    pub fn get_version(&self, key: &str) -> u64 {
+        self.versions.get(key).copied().unwrap_or(0)
+    }
+
+    /// Get all keys an agent has read in its current operation.
+    pub fn agent_read_keys(&self, agent_id: &str) -> HashSet<String> {
+        self.read_sets
+            .get(agent_id)
+            .map(|rs| rs.keys().into_iter().map(|s| s.to_string()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Get number of completed operations.
+    pub fn completed_count(&self) -> usize {
+        self.completed.len()
+    }
+}
+
+impl Default for DeliveryLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── DeliveryLog tests ──────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_delivery_log_basic_read_write() {
+        let mut log = DeliveryLog::new();
+        log.begin_operation("agent-1", "op-1");
+        log.record_read("agent-1", "config.timeout");
+        log.commit_write("agent-1", "config.timeout");
+        log.end_operation(
+            "agent-1",
+            HashSet::from(["config.timeout".to_string()]),
+            false,
+        );
+        assert_eq!(log.get_version("config.timeout"), 1);
+        assert_eq!(log.completed_count(), 1);
+    }
+
+    #[test]
+    fn test_delivery_log_no_conflict_different_keys() {
+        let mut log = DeliveryLog::new();
+        log.begin_operation("agent-1", "op-1");
+        log.record_read("agent-1", "key-a");
+
+        log.begin_operation("agent-2", "op-2");
+        log.record_read("agent-2", "key-b");
+
+        // agent-1 writes key-a: no conflict (agent-2 didn't read it)
+        assert_eq!(log.check_write("agent-1", "key-a"), ConflictCheck::Safe);
+    }
+
+    #[test]
+    fn test_delivery_log_conflict_detected() {
+        let mut log = DeliveryLog::new();
+        // Set initial version
+        log.commit_write("system", "shared-state");
+
+        log.begin_operation("agent-1", "op-1");
+        log.record_read("agent-1", "shared-state");
+
+        log.begin_operation("agent-2", "op-2");
+        log.record_read("agent-2", "shared-state");
+
+        // agent-1 writes: conflict because agent-2 read the same key
+        let result = log.check_write("agent-1", "shared-state");
+        assert!(matches!(result, ConflictCheck::Conflict { .. }));
+    }
+
+    #[test]
+    fn test_delivery_log_read_set_keys() {
+        let mut log = DeliveryLog::new();
+        log.begin_operation("agent-1", "op-1");
+        log.record_read("agent-1", "a");
+        log.record_read("agent-1", "b");
+        log.record_read("agent-1", "a"); // duplicate read
+
+        let keys = log.agent_read_keys("agent-1");
+        assert!(keys.contains("a"));
+        assert!(keys.contains("b"));
+    }
+
+    #[test]
+    fn test_delivery_log_version_tracking() {
+        let mut log = DeliveryLog::new();
+        assert_eq!(log.get_version("new-key"), 0);
+
+        log.commit_write("agent-1", "counter");
+        assert_eq!(log.get_version("counter"), 1);
+
+        log.commit_write("agent-2", "counter");
+        assert_eq!(log.get_version("counter"), 2);
+    }
+
+    #[test]
+    fn test_delivery_log_default_trait() {
+        let log = DeliveryLog::default();
+        assert_eq!(log.completed_count(), 0);
     }
 }

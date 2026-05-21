@@ -45,7 +45,7 @@ impl KanbanStore {
     }
 
     fn init_tables(&self) -> KiasResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS kanban_boards (
                 id TEXT PRIMARY KEY,
@@ -89,7 +89,7 @@ impl KanbanStore {
     // ─── Board operations ───
 
     pub fn save_board(&self, board: &KanbanBoard) -> KiasResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let wip_json = serde_json::to_string(&board.wip_limits)
             .map_err(|e| KiasError::Config(format!("Serialize WIP: {}", e)))?;
         let now = st_to_str(SystemTime::now());
@@ -103,7 +103,7 @@ impl KanbanStore {
     }
 
     pub fn load_board(&self, board_id: &str) -> KiasResult<Option<KanbanBoard>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let row: Option<(String, String, String, String, String)> = conn
             .query_row(
                 "SELECT id, name, description, wip_limits, created_at FROM kanban_boards WHERE id=?1",
@@ -129,7 +129,7 @@ impl KanbanStore {
     }
 
     pub fn list_boards(&self) -> KiasResult<Vec<(String, String)>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let mut stmt = conn
             .prepare("SELECT id, name FROM kanban_boards ORDER BY created_at DESC")
             .map_err(|e| KiasError::Config(format!("Prepare: {}", e)))?;
@@ -144,7 +144,7 @@ impl KanbanStore {
     }
 
     pub fn delete_board(&self, board_id: &str) -> KiasResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         conn.execute(
             "DELETE FROM kanban_tasks WHERE board_id=?1",
             params![board_id],
@@ -158,7 +158,7 @@ impl KanbanStore {
     // ─── Task operations ───
 
     pub fn save_task(&self, task: &KanbanTask) -> KiasResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         self.save_task_inner(&conn, task)
     }
 
@@ -200,7 +200,7 @@ impl KanbanStore {
     }
 
     pub fn load_task(&self, task_id: &str) -> KiasResult<Option<KanbanTask>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let r = conn
             .query_row(
                 "SELECT id,board_id,title,description,column_name,priority,assigned_to,
@@ -217,7 +217,7 @@ impl KanbanStore {
     }
 
     pub fn load_tasks_for_board(&self, board_id: &str) -> KiasResult<Vec<KanbanTask>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         self.load_tasks_inner(&conn, board_id)
     }
 
@@ -247,7 +247,7 @@ impl KanbanStore {
         board_id: &str,
         column: KanbanColumn,
     ) -> KiasResult<Vec<KanbanTask>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let mut stmt = conn
             .prepare(
                 "SELECT id,board_id,title,description,column_name,priority,assigned_to,
@@ -271,7 +271,7 @@ impl KanbanStore {
     }
 
     pub fn count_in_column(&self, board_id: &str, column: KanbanColumn) -> KiasResult<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         let count: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM kanban_tasks WHERE board_id=?1 AND column_name=?2",
@@ -283,7 +283,7 @@ impl KanbanStore {
     }
 
     pub fn delete_task(&self, task_id: &str) -> KiasResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("Mutex poisoned");
         conn.execute("DELETE FROM kanban_tasks WHERE id=?1", params![task_id])
             .map_err(|e| KiasError::Config(format!("Delete: {}", e)))?;
         Ok(())

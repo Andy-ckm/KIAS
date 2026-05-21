@@ -1110,4 +1110,563 @@ mod tests {
             _ => panic!("Expected File content"),
         }
     }
+
+    // ===== FeishuAdapter tests (expanded) =====
+
+    fn feishu_text_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_001",
+                        "message_type": "text",
+                        "content": "{\"text\":\"Hello Feishu\"}",
+                        "chat_id": "oc_abc",
+                        "chat_type": "p2p",
+                        "create_time": "1700000000"
+                    },
+                    "sender": {
+                        "sender_id": {
+                            "open_id": "ou_xyz",
+                            "name": "TestUser"
+                        }
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn feishu_group_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_002",
+                        "message_type": "text",
+                        "content": "{\"text\":\"Group hello\"}",
+                        "chat_id": "oc_group",
+                        "chat_type": "group",
+                        "create_time": "1700000001"
+                    },
+                    "sender": {
+                        "sender_id": {
+                            "open_id": "ou_abc"
+                        }
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    fn feishu_image_request() -> WebhookRequest {
+        WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_003",
+                        "message_type": "image",
+                        "content": "img_v2_key_123",
+                        "chat_id": "oc_img",
+                        "chat_type": "p2p",
+                        "create_time": "1700000002"
+                    },
+                    "sender": {
+                        "sender_id": {
+                            "open_id": "ou_img"
+                        }
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_feishu_parse_text_message() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&feishu_text_request()).unwrap();
+        assert_eq!(msg.id, "msg_001");
+        assert_eq!(msg.platform, ImPlatform::Feishu);
+        assert_eq!(msg.sender_id, "ou_xyz");
+        assert_eq!(msg.sender_name, Some("TestUser".to_string()));
+        assert_eq!(msg.receiver_id, Some("oc_abc".to_string()));
+        assert_eq!(msg.message_type, MessageType::Private);
+        assert_eq!(msg.timestamp, 1700000000);
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Hello Feishu"),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_feishu_parse_group_message() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&feishu_group_request()).unwrap();
+        assert_eq!(msg.message_type, MessageType::Group);
+        assert_eq!(msg.receiver_id, Some("oc_group".to_string()));
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Group hello"),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_feishu_parse_image_message() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&feishu_image_request()).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, caption } => {
+                assert_eq!(url, "img_v2_key_123");
+                assert!(caption.is_none());
+            }
+            _ => panic!("Expected Image content"),
+        }
+    }
+
+    #[test]
+    fn test_feishu_url_verification_challenge() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({"type": "url_verification", "challenge": "xyz"}),
+            query_params: HashMap::new(),
+        };
+        let result = adapter.parse_webhook(&request);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "url_verification");
+    }
+
+    #[test]
+    fn test_feishu_build_reply_text() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&feishu_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Text("Feishu reply".to_string()),
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert!(resp.should_reply);
+        assert_eq!(resp.body["msg_type"], "text");
+        assert_eq!(resp.body["content"]["text"], "Feishu reply");
+    }
+
+    #[test]
+    fn test_feishu_build_reply_non_text() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&feishu_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Image {
+                url: "http://img.jpg".to_string(),
+                caption: None,
+            },
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["content"]["text"], "Unsupported message type");
+    }
+
+    #[test]
+    fn test_feishu_verify_signature_always_true() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        assert!(adapter.verify_signature(&HashMap::new(), b"body"));
+    }
+
+    #[test]
+    fn test_feishu_parse_missing_fields() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({"event": {}}),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "unknown");
+        assert_eq!(msg.sender_id, "unknown");
+        assert_eq!(msg.timestamp, 0);
+        assert_eq!(msg.message_type, MessageType::Private);
+    }
+
+    #[test]
+    fn test_feishu_parse_unsupported_message_type() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_x",
+                        "message_type": "video",
+                        "content": "some_video_data",
+                        "chat_id": "oc_x",
+                        "chat_type": "p2p",
+                        "create_time": "0"
+                    },
+                    "sender": {"sender_id": {"open_id": "ou_x"}}
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "some_video_data"),
+            _ => panic!("Expected fallback Text content"),
+        }
+    }
+
+    // ===== Non-text reply content tests =====
+
+    #[test]
+    fn test_wechat_build_reply_non_text() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&wechat_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::File {
+                url: "http://file.txt".to_string(),
+                filename: "f.txt".to_string(),
+                mime_type: None,
+            },
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["Content"], "Unsupported message type");
+    }
+
+    #[test]
+    fn test_telegram_build_reply_non_text() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let msg = adapter.parse_webhook(&telegram_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Image {
+                url: "http://img.jpg".to_string(),
+                caption: None,
+            },
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["text"], "Unsupported message type");
+    }
+
+    #[test]
+    fn test_slack_build_reply_non_text() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let msg = adapter.parse_webhook(&slack_text_request()).unwrap();
+        let reply = ReplyMessage {
+            content: MessageContent::Location {
+                latitude: 39.9,
+                longitude: 116.4,
+                address: None,
+            },
+            reply_to: Some("thread_123".to_string()),
+            silent: true,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["text"], "Unsupported message type");
+        assert_eq!(resp.body["thread_ts"], "thread_123");
+    }
+
+    // ===== Verify signature tests =====
+
+    #[test]
+    fn test_telegram_verify_signature() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        assert!(adapter.verify_signature(&HashMap::new(), b"body"));
+    }
+
+    #[test]
+    fn test_slack_verify_signature() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        assert!(adapter.verify_signature(&HashMap::new(), b"body"));
+    }
+
+    // ===== Slack edge cases =====
+
+    #[test]
+    fn test_slack_parse_missing_fields() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({"event": {}}),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "unknown");
+        assert_eq!(msg.sender_id, "unknown");
+        assert_eq!(msg.timestamp, 0);
+    }
+
+    #[test]
+    fn test_slack_parse_unknown_event_type() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "reaction_added",
+                    "user": "U999",
+                    "channel": "C999",
+                    "ts": "1700000999",
+                    "channel_type": "im"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.sender_id, "U999");
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, ""),
+            _ => panic!("Expected Text content"),
+        }
+    }
+
+    #[test]
+    fn test_slack_group_channel_type() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "message",
+                    "text": "group msg",
+                    "user": "U001",
+                    "channel": "C_grp",
+                    "ts": "1700000300",
+                    "channel_type": "group"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.message_type, MessageType::Group);
+    }
+
+    // ===== Telegram edge cases =====
+
+    #[test]
+    fn test_telegram_parse_empty_photo_array() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 300,
+                    "photo": [],
+                    "from": {"id": 60, "first_name": "Dave"},
+                    "chat": {"id": 60, "type": "private"},
+                    "date": 1700000200
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, .. } => assert_eq!(url, ""),
+            _ => panic!("Expected Image content"),
+        }
+    }
+
+    #[test]
+    fn test_telegram_parse_missing_message_id() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "text": "no id",
+                    "from": {"id": 70},
+                    "chat": {"id": 70, "type": "private"},
+                    "date": 1700000300
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "0");
+        assert_eq!(msg.sender_name, None);
+    }
+
+    // ===== ImIntegrationManager edge cases =====
+
+    #[test]
+    fn test_manager_handle_feishu_no_adapter() {
+        let manager = ImIntegrationManager::new();
+        let request = feishu_text_request();
+        let result = manager.handle_webhook(&request);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Feishu"));
+    }
+
+    #[test]
+    fn test_manager_handle_slack_no_adapter() {
+        let manager = ImIntegrationManager::new();
+        let request = slack_text_request();
+        let result = manager.handle_webhook(&request);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Slack"));
+    }
+
+    #[test]
+    fn test_manager_handle_telegram_success() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Telegram,
+            Box::new(TelegramAdapter::new("t".to_string())),
+        );
+        let request = telegram_text_request();
+        let resp = manager.handle_webhook(&request).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
+
+    #[test]
+    fn test_manager_handle_feishu_success() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Feishu,
+            Box::new(FeishuAdapter::new("t".to_string(), None)),
+        );
+        let request = feishu_text_request();
+        let resp = manager.handle_webhook(&request).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
+
+    #[test]
+    fn test_manager_register_overwrites() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("first".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("second".to_string(), None)),
+        );
+        assert_eq!(manager.adapters.len(), 1);
+    }
+
+    // ===== AdapterFactory with config =====
+
+    #[test]
+    fn test_factory_telegram_with_config() {
+        let mut config = HashMap::new();
+        config.insert("bot_token".to_string(), "bot123:abc".to_string());
+        let adapter = AdapterFactory::create(&ImPlatform::Telegram, &config);
+        assert_eq!(adapter.platform_type(), ImPlatform::Telegram);
+    }
+
+    #[test]
+    fn test_factory_slack_with_config() {
+        let mut config = HashMap::new();
+        config.insert("verification_token".to_string(), "xoxb".to_string());
+        config.insert("signing_secret".to_string(), "secret".to_string());
+        let adapter = AdapterFactory::create(&ImPlatform::Slack, &config);
+        assert_eq!(adapter.platform_type(), ImPlatform::Slack);
+    }
+
+    #[test]
+    fn test_factory_feishu_with_config() {
+        let mut config = HashMap::new();
+        config.insert("verification_token".to_string(), "vt".to_string());
+        config.insert("encrypt_key".to_string(), "ek".to_string());
+        let adapter = AdapterFactory::create(&ImPlatform::Feishu, &config);
+        assert_eq!(adapter.platform_type(), ImPlatform::Feishu);
+    }
+
+    // ===== ImPlatform serialization =====
+
+    #[test]
+    fn test_im_platform_serde_roundtrip() {
+        let platforms = vec![
+            ImPlatform::Wechat,
+            ImPlatform::Telegram,
+            ImPlatform::Slack,
+            ImPlatform::Feishu,
+            ImPlatform::Custom,
+        ];
+        for p in platforms {
+            let json = serde_json::to_string(&p).unwrap();
+            let back: ImPlatform = serde_json::from_str(&json).unwrap();
+            assert_eq!(p, back);
+        }
+    }
+
+    // ===== MessageContent / EventType serialization =====
+
+    #[test]
+    fn test_event_type_serde_roundtrip() {
+        let events = vec![
+            EventType::Subscribe,
+            EventType::Unsubscribe,
+            EventType::JoinGroup,
+            EventType::LeaveGroup,
+            EventType::Custom("custom".to_string()),
+        ];
+        for e in events {
+            let json = serde_json::to_string(&e).unwrap();
+            let back: EventType = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&back).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    // ===== ReplyMessage / WebhookRequest / WebhookResponse serialization =====
+
+    #[test]
+    fn test_reply_message_serde() {
+        let reply = ReplyMessage {
+            content: MessageContent::Text("test".to_string()),
+            reply_to: Some("msg_1".to_string()),
+            silent: true,
+        };
+        let json = serde_json::to_string(&reply).unwrap();
+        let back: ReplyMessage = serde_json::from_str(&json).unwrap();
+        assert!(back.silent);
+        assert_eq!(back.reply_to, Some("msg_1".to_string()));
+    }
+
+    #[test]
+    fn test_webhook_request_serde() {
+        let req = wechat_text_request();
+        let json = serde_json::to_string(&req).unwrap();
+        let back: WebhookRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.platform, ImPlatform::Wechat);
+    }
+
+    #[test]
+    fn test_webhook_response_serde() {
+        let resp = WebhookResponse {
+            status_code: 200,
+            body: serde_json::json!({"ok": true}),
+            should_reply: true,
+            reply: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: WebhookResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.status_code, 200);
+        assert!(back.should_reply);
+        assert!(back.reply.is_none());
+    }
 }

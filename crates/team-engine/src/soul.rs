@@ -228,7 +228,11 @@ impl SoulLoader {
             self.cache.insert(agent_id.to_string(), (config, mtime));
         }
 
-        Ok(&self.cache.get(agent_id).unwrap().0)
+        Ok(&self
+            .cache
+            .get(agent_id)
+            .ok_or_else(|| format!("Agent {} not found in cache after insert", agent_id))?
+            .0)
     }
 
     /// Check if file changed since last load

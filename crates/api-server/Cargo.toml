@@ -14,6 +14,7 @@ kias-knowledge = { path = "../knowledge" }
 kias-data-store = { path = "../data-store" }
 kias-scheduler = { path = "../scheduler" }
 auto-loop = { path = "../auto-loop" }
+kias-monitor = { path = "../monitor" }
 
 tokio.workspace = true
 axum.workspace = true
@@ -46,6 +47,9 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 num_cpus = "1.16"
 libc = "0.2"
 once_cell.workspace = true
+
+# SQLite via sqlx (for token budget persistence)
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }

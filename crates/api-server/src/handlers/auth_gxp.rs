@@ -78,7 +78,9 @@ pub async fn login(
     match auth.authenticate(&req.username, &req.password) {
         Ok(session) => {
             // Check if 2FA is required
-            let user = auth.get_user(&session.user_id).unwrap();
+            let user = auth.get_user(&session.user_id).ok_or_else(|| {
+                auth_error_response(AuthError::InvalidCredentials, "User not found after authentication")
+            })?;
             if user.two_factor_enabled {
                 return Ok(Json(LoginResponse {
                     token: String::new(),
@@ -374,6 +376,8 @@ mod tests {
             tier_routing: crate::handlers::tier_routing::TierRoutingState::new(),
             gxp_auth: Arc::new(Mutex::new(auth)),
             jwt_config: crate::auth::JwtConfig::new("test-jwt-secret-key", "kias", 24),
+            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         }
     }
 

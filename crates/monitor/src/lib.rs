@@ -1,6 +1,7 @@
 pub mod alert;
 pub mod metrics;
 pub mod prometheus;
+pub mod slow_trace;
 pub mod telemetry;
 
 pub use alert::{
@@ -10,6 +11,10 @@ pub use metrics::{Histogram, MetricSnapshot, MetricType, MetricValue, MetricsCol
 pub use prometheus::{
     build_kias_registry, kias_metrics, MetricFamily, PrometheusMetric, PrometheusRegistry,
     PrometheusType, PrometheusValue,
+};
+pub use slow_trace::{
+    ActionCategory, RootCauseHint, SlowAgentSummary, SlowSeverity, SlowTrace, SlowTraceCollector,
+    SlowTraceConfig, SlowTraceSummary,
 };
 pub use telemetry::{
     EventFilter, EventStats, EventType, Severity, TelemetryCollector, TelemetryEvent,

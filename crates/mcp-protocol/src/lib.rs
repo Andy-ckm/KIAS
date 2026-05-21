@@ -31,6 +31,7 @@ pub mod types;
 // Feature-gated modules
 #[cfg(feature = "browser")]
 pub mod browser;
+pub mod schema_validation;
 
 #[cfg(feature = "auth")]
 pub mod auth;

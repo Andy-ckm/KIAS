@@ -64,6 +64,7 @@ impl AgentRegistry {
         }
 
         agents.insert(card.agent_id.clone(), registration.clone());
+        let result = registration.clone();
         info!(
             agent_id = %card.agent_id,
             org_id = %card.org_id,
@@ -78,7 +79,7 @@ impl AgentRegistry {
             timestamp: now,
         });
 
-        Ok(agents.get(&card.agent_id).cloned().unwrap())
+        Ok(result)
     }
 
     /// Deregister an agent

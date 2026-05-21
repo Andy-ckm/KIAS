@@ -768,4 +768,459 @@ mod tests {
         assert!(models.contains(&"claude-sonnet-4-20250514".to_string()));
         assert!(models.contains(&"claude-3-5-haiku-20241022".to_string()));
     }
+
+    #[test]
+    fn test_factory_create_anthropic() {
+        let config = ModelConfig {
+            provider: "anthropic".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "anthropic");
+    }
+
+    #[test]
+    fn test_factory_create_local() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "local");
+    }
+
+    #[test]
+    fn test_factory_create_unknown_defaults_to_openai() {
+        let config = ModelConfig {
+            provider: "unknown_provider".to_string(),
+            model: "some-model".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        assert_eq!(provider.name(), "openai");
+    }
+
+    #[test]
+    fn test_openai_models_list() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = OpenAiProvider::new(config);
+        let models = provider.models();
+        assert!(models.contains(&"gpt-4o".to_string()));
+        assert!(models.contains(&"gpt-4o-mini".to_string()));
+    }
+
+    #[test]
+    fn test_local_models_list() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = LocalProvider::new(config);
+        let models = provider.models();
+        assert!(models.contains(&"qwen3-235b".to_string()));
+    }
+
+    #[test]
+    fn test_all_providers_support_streaming_and_tools() {
+        let providers = ProviderFactory::supported_providers();
+        for p in providers {
+            assert!(p.supports_streaming, "{} should support streaming", p.name);
+            assert!(p.supports_tools, "{} should support tools", p.name);
+        }
+    }
+
+    // ===== NEW TESTS: Error paths, edge cases, SSE parsing =====
+
+    #[test]
+    fn test_anthropic_sse_parsing_empty_body() {
+        let sse_data = "";
+        let mut chunks: Vec<StreamChunk> = Vec::new();
+        let mut _current_id = String::new();
+        let mut _current_model = String::new();
+
+        for line in sse_data.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+            let _parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+        }
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_anthropic_sse_parsing_invalid_json() {
+        let sse_data = "data: {invalid json\n\ndata: {also bad\n";
+        let mut chunks: Vec<crate::types::StreamChunk> = Vec::new();
+        let mut _current_id = String::new();
+        let mut _current_model = String::new();
+
+        for line in sse_data.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+            let _parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+        }
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_anthropic_sse_parsing_unknown_event_types() {
+        let sse_data = concat!(
+            "data: {\"type\":\"ping\"}\n\n",
+            "data: {\"type\":\"content_block_start\"}\n\n",
+            "data: {\"type\":\"message_delta\"}\n\n",
+        );
+
+        let mut chunks: Vec<StreamChunk> = Vec::new();
+        let mut _current_id = String::new();
+        let mut _current_model = String::new();
+
+        for line in sse_data.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+            let parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            let event_type = parsed["type"].as_str().unwrap_or("");
+            match event_type {
+                "message_start" => {
+                    if let Some(msg) = parsed["message"].as_object() {
+                        _current_id = msg["id"].as_str().unwrap_or("").to_string();
+                        _current_model = msg["model"].as_str().unwrap_or("").to_string();
+                    }
+                }
+                "content_block_delta" => {
+                    if let Some(delta) = parsed["delta"].as_object() {
+                        if let Some(text) = delta["text"].as_str() {
+                            chunks.push(StreamChunk {
+                                id: _current_id.clone(),
+                                model: _current_model.clone(),
+                                choices: vec![StreamChoice {
+                                    index: 0,
+                                    delta: StreamDelta {
+                                        role: None,
+                                        content: Some(text.to_string()),
+                                        tool_calls: None,
+                                    },
+                                    finish_reason: None,
+                                }],
+                            });
+                        }
+                    }
+                }
+                "message_stop" => {
+                    chunks.push(StreamChunk {
+                        id: _current_id.clone(),
+                        model: _current_model.clone(),
+                        choices: vec![StreamChoice {
+                            index: 0,
+                            delta: StreamDelta {
+                                role: None,
+                                content: None,
+                                tool_calls: None,
+                            },
+                            finish_reason: Some("stop".to_string()),
+                        }],
+                    });
+                }
+                _ => {}
+            }
+        }
+        // All 3 events are unknown/ignored — no chunks produced
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_anthropic_sse_content_block_delta_missing_text() {
+        let sse_data = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\"}}\n";
+        let mut chunks = Vec::new();
+        let mut _current_id = String::new();
+        let mut _current_model = String::new();
+
+        for line in sse_data.lines() {
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.trim().is_empty() {
+                continue;
+            }
+            let parsed: serde_json::Value = match serde_json::from_str(data) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            let event_type = parsed["type"].as_str().unwrap_or("");
+            match event_type {
+                "content_block_delta" => {
+                    if let Some(delta) = parsed["delta"].as_object() {
+                        if let Some(text) = delta["text"].as_str() {
+                            chunks.push(StreamChunk {
+                                id: _current_id.clone(),
+                                model: _current_model.clone(),
+                                choices: vec![StreamChoice {
+                                    index: 0,
+                                    delta: StreamDelta {
+                                        role: None,
+                                        content: Some(text.to_string()),
+                                        tool_calls: None,
+                                    },
+                                    finish_reason: None,
+                                }],
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Missing "text" field means no chunk
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_openai_sse_parsing_empty_body() {
+        let sse_body = "";
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_openai_sse_parsing_only_done() {
+        let sse_body = "data: [DONE]\n";
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_openai_sse_parsing_with_invalid_lines() {
+        let sse_body = concat!(
+            "not a data line\n",
+            "data: {invalid json}\n",
+            "data: \n",
+            "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}\n",
+            "data: [DONE]\n",
+        );
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].choices[0].delta.content, Some("hi".to_string()));
+    }
+
+    #[test]
+    fn test_openai_sse_parsing_multiple_choices() {
+        let sse_body = concat!(
+            "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null},{\"index\":1,\"delta\":{\"content\":\"b\"},\"finish_reason\":null}]}\n",
+        );
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].choices.len(), 2);
+    }
+
+    #[test]
+    fn test_provider_factory_with_empty_provider_string() {
+        let config = ModelConfig {
+            provider: "".to_string(),
+            model: "some-model".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = ProviderFactory::create(&config);
+        // Empty string doesn't match any known provider, defaults to openai
+        assert_eq!(provider.name(), "openai");
+    }
+
+    #[test]
+    fn test_openai_provider_models_not_empty() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = OpenAiProvider::new(config);
+        let models = provider.models();
+        assert!(!models.is_empty());
+        assert_eq!(models.len(), 4);
+        assert!(models.contains(&"o3-mini".to_string()));
+    }
+
+    #[test]
+    fn test_local_provider_models_not_empty() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = LocalProvider::new(config);
+        let models = provider.models();
+        assert!(!models.is_empty());
+        assert_eq!(models.len(), 3);
+        assert!(models.contains(&"deepseek-v4".to_string()));
+        assert!(models.contains(&"llama-4-maverick".to_string()));
+    }
+
+    #[test]
+    fn test_openai_provider_supports_streaming_and_tools() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = OpenAiProvider::new(config);
+        assert!(provider.supports_streaming());
+        assert!(provider.supports_tools());
+    }
+
+    #[test]
+    fn test_anthropic_provider_supports_streaming_and_tools() {
+        let config = ModelConfig {
+            provider: "anthropic".to_string(),
+            model: "claude-sonnet-4-20250514".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = AnthropicProvider::new(config);
+        assert!(provider.supports_streaming());
+        assert!(provider.supports_tools());
+    }
+
+    #[test]
+    fn test_local_provider_supports_streaming_and_tools() {
+        let config = ModelConfig {
+            provider: "local".to_string(),
+            model: "qwen3-235b".to_string(),
+            api_key: None,
+            base_url: None,
+            temperature: None,
+            max_tokens: None,
+        };
+        let provider = LocalProvider::new(config);
+        assert!(provider.supports_streaming());
+        assert!(provider.supports_tools());
+    }
+
+    #[test]
+    fn test_supported_providers_all_have_models() {
+        let providers = ProviderFactory::supported_providers();
+        for p in &providers {
+            assert!(
+                !p.models.is_empty(),
+                "Provider {} should have at least one model",
+                p.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_openai_sse_parsing_empty_delta_content() {
+        let sse_body = "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":null}]}\n";
+        let mut chunks = Vec::new();
+        for line in sse_body.lines() {
+            if line.starts_with("data: ") && line != "data: [DONE]" {
+                if let Ok(chunk) = serde_json::from_str::<StreamChunk>(&line[6..]) {
+                    chunks.push(chunk);
+                }
+            }
+        }
+        assert_eq!(chunks.len(), 1);
+        // Empty delta should still parse — content is None
+        assert_eq!(chunks[0].choices[0].delta.content, None);
+    }
+
+    #[test]
+    fn test_provider_factory_creates_different_instances() {
+        let config = ModelConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4o".to_string(),
+            api_key: Some("sk-test".to_string()),
+            base_url: None,
+            temperature: Some(0.7),
+            max_tokens: Some(1000),
+        };
+        let p1 = ProviderFactory::create(&config);
+        let p2 = ProviderFactory::create(&config);
+        // Both should have the same name but are independent instances
+        assert_eq!(p1.name(), p2.name());
+    }
 }

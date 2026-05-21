@@ -735,11 +735,13 @@ mod tests {
         let pool = setup_db().await;
         let dlq = DeadLetterQueue::new(pool);
 
-        let reasons = [DeadLetterReason::MaxRetriesExceeded,
+        let reasons = [
+            DeadLetterReason::MaxRetriesExceeded,
             DeadLetterReason::Timeout,
             DeadLetterReason::Cancelled,
             DeadLetterReason::DependencyMissing,
-            DeadLetterReason::Unknown];
+            DeadLetterReason::Unknown,
+        ];
 
         for (i, reason) in reasons.iter().enumerate() {
             dlq.enqueue(

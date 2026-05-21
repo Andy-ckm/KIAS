@@ -472,20 +472,50 @@ mod tests {
 
     #[test]
     fn test_workflow_status_serialize_pascal_case() {
-        assert_eq!(serde_json::to_string(&WorkflowStatus::Draft).unwrap(), "\"Draft\"");
-        assert_eq!(serde_json::to_string(&WorkflowStatus::Running).unwrap(), "\"Running\"");
-        assert_eq!(serde_json::to_string(&WorkflowStatus::Completed).unwrap(), "\"Completed\"");
-        assert_eq!(serde_json::to_string(&WorkflowStatus::Failed).unwrap(), "\"Failed\"");
-        assert_eq!(serde_json::to_string(&WorkflowStatus::Cancelled).unwrap(), "\"Cancelled\"");
+        assert_eq!(
+            serde_json::to_string(&WorkflowStatus::Draft).unwrap(),
+            "\"Draft\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WorkflowStatus::Running).unwrap(),
+            "\"Running\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WorkflowStatus::Completed).unwrap(),
+            "\"Completed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WorkflowStatus::Failed).unwrap(),
+            "\"Failed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&WorkflowStatus::Cancelled).unwrap(),
+            "\"Cancelled\""
+        );
     }
 
     #[test]
     fn test_workflow_status_deserialize_pascal_case() {
-        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Draft\"").unwrap(), WorkflowStatus::Draft);
-        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Running\"").unwrap(), WorkflowStatus::Running);
-        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Completed\"").unwrap(), WorkflowStatus::Completed);
-        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Failed\"").unwrap(), WorkflowStatus::Failed);
-        assert_eq!(serde_json::from_str::<WorkflowStatus>("\"Cancelled\"").unwrap(), WorkflowStatus::Cancelled);
+        assert_eq!(
+            serde_json::from_str::<WorkflowStatus>("\"Draft\"").unwrap(),
+            WorkflowStatus::Draft
+        );
+        assert_eq!(
+            serde_json::from_str::<WorkflowStatus>("\"Running\"").unwrap(),
+            WorkflowStatus::Running
+        );
+        assert_eq!(
+            serde_json::from_str::<WorkflowStatus>("\"Completed\"").unwrap(),
+            WorkflowStatus::Completed
+        );
+        assert_eq!(
+            serde_json::from_str::<WorkflowStatus>("\"Failed\"").unwrap(),
+            WorkflowStatus::Failed
+        );
+        assert_eq!(
+            serde_json::from_str::<WorkflowStatus>("\"Cancelled\"").unwrap(),
+            WorkflowStatus::Cancelled
+        );
     }
 
     #[test]
@@ -580,7 +610,9 @@ mod tests {
                 description: String::new(),
                 nodes: vec![],
             };
-            let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+            let wf = create_workflow(State(state.clone()), Json(req))
+                .await
+                .unwrap();
             ids.push(wf.id.clone());
         }
 
@@ -614,8 +646,12 @@ mod tests {
             description: String::new(),
             nodes: vec![],
         };
-        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
-        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone())).await.unwrap();
+        let wf = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
+        let _ = delete_workflow(State(state.clone()), Path(wf.id.clone()))
+            .await
+            .unwrap();
         let result = delete_workflow(State(state.clone()), Path(wf.id.clone())).await;
         assert!(result.is_err());
     }
@@ -642,7 +678,9 @@ mod tests {
             description: "special chars".to_string(),
             nodes: vec![],
         };
-        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let wf = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert_eq!(wf.name, "workflow-测试_2026.special@v2");
     }
 
@@ -680,7 +718,9 @@ mod tests {
                 dependencies: vec![],
             }],
         };
-        let wf = create_workflow(State(state.clone()), Json(req)).await.unwrap();
+        let wf = create_workflow(State(state.clone()), Json(req))
+            .await
+            .unwrap();
         assert_eq!(wf.nodes[0].node_type, "subworkflow");
     }
 

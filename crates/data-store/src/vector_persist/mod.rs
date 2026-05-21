@@ -65,6 +65,7 @@ impl HnswIndex {
     }
 
     /// Remove a vector from this index.
+    #[allow(dead_code)] // Reserved for future cleanup operations
     async fn remove(&self, node_id: &str) {
         let mut store = self.store.write().await;
         store.remove(node_id);

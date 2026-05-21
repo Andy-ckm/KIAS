@@ -683,4 +683,124 @@ mod tests {
         assert!(result.total_estimated_duration > 0);
         assert!(result.task_count > 0);
     }
+
+    #[test]
+    fn test_task_status_default_pending() {
+        assert_eq!(TaskStatus::Pending, TaskStatus::Pending);
+        assert_ne!(TaskStatus::Pending, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn test_topological_sort_empty_graph() {
+        let graph = TaskGraph {
+            nodes: HashMap::new(),
+            edges: vec![],
+            roots: vec![],
+            leaves: vec![],
+        };
+        let sorted = TaskDecomposer::topological_sort(&graph);
+        assert!(sorted.is_ok());
+        assert!(sorted.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_topological_sort_single_node() {
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "task_0".to_string(),
+            TaskNode {
+                id: "task_0".into(),
+                name: "solo".into(),
+                description: "single task".into(),
+                dependencies: vec![],
+                required_skills: vec![],
+                estimated_duration: 10,
+                status: TaskStatus::Pending,
+            },
+        );
+        let graph = TaskGraph {
+            nodes,
+            edges: vec![],
+            roots: vec!["task_0".into()],
+            leaves: vec!["task_0".into()],
+        };
+        let sorted = TaskDecomposer::topological_sort(&graph).unwrap();
+        assert_eq!(sorted, vec!["task_0"]);
+    }
+
+    #[test]
+    fn test_get_ready_tasks_all_completed() {
+        let decomposer = TaskDecomposer::new();
+        let intent = create_test_intent(IntentType::BugFix, Complexity::Simple);
+        let mut result = decomposer.decompose(&intent);
+        // Mark all tasks as completed
+        for node in result.task_graph.nodes.values_mut() {
+            node.status = TaskStatus::Completed;
+        }
+        let ready = TaskDecomposer::get_ready_tasks(&result.task_graph);
+        assert!(
+            ready.is_empty(),
+            "No tasks should be ready if all completed"
+        );
+    }
+
+    #[test]
+    fn test_complexity_affects_task_count() {
+        let decomposer = TaskDecomposer::new();
+        let simple = decomposer.decompose(&create_test_intent(
+            IntentType::CodeGeneration,
+            Complexity::Simple,
+        ));
+        let complex = decomposer.decompose(&create_test_intent(
+            IntentType::CodeGeneration,
+            Complexity::Complex,
+        ));
+        assert!(
+            complex.task_count >= simple.task_count,
+            "Complex should have >= tasks than simple"
+        );
+    }
+
+    #[test]
+    fn test_decompose_performance_optimization() {
+        let decomposer = TaskDecomposer::new();
+        let intent = create_test_intent(IntentType::PerformanceOptimization, Complexity::Medium);
+        let result = decomposer.decompose(&intent);
+        assert!(result.task_count > 0);
+    }
+
+    #[test]
+    fn test_decompose_test_generation() {
+        let decomposer = TaskDecomposer::new();
+        let intent = create_test_intent(IntentType::TestGeneration, Complexity::Medium);
+        let result = decomposer.decompose(&intent);
+        assert!(result.task_count > 0);
+    }
+
+    #[test]
+    fn test_decompose_documentation() {
+        let decomposer = TaskDecomposer::new();
+        let intent = create_test_intent(IntentType::Documentation, Complexity::Simple);
+        let result = decomposer.decompose(&intent);
+        assert!(result.task_count > 0);
+    }
+
+    #[test]
+    fn test_graph_edges_are_valid() {
+        let decomposer = TaskDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        for (from, to) in &result.task_graph.edges {
+            assert!(
+                result.task_graph.nodes.contains_key(from),
+                "Edge from {} missing",
+                from
+            );
+            assert!(
+                result.task_graph.nodes.contains_key(to),
+                "Edge to {} missing",
+                to
+            );
+        }
+    }
 }

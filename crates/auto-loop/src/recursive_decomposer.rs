@@ -54,6 +54,7 @@ pub struct RecursiveDecompositionResult {
 /// 递归任务分解器
 pub struct RecursiveDecomposer {
     /// 配置
+    #[allow(dead_code)] // Stored for future use in decomposition logic
     config: DecompositionConfig,
     /// 任务模板库
     templates: HashMap<IntentType, Vec<RecursiveTaskTemplate>>,
@@ -76,10 +77,12 @@ struct RecursiveTaskTemplate {
 #[derive(Debug, Clone)]
 enum DecomposeCondition {
     /// 总是分解
+    #[allow(dead_code)]
     Always,
     /// 按复杂度分解
     ByComplexity(Complexity),
     /// 按描述长度分解
+    #[allow(dead_code)]
     ByDescriptionLength(usize),
     /// 不分解（原子任务）
     Never,
@@ -506,5 +509,90 @@ mod tests {
         };
         let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Simple);
         assert!(!decomposer.should_decompose(&template, &intent));
+    }
+
+    #[test]
+    fn test_decomposition_result_serialization() {
+        let decomposer = RecursiveDecomposer::new();
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("total_tasks"));
+        assert!(json.contains("task_graph"));
+    }
+
+    #[test]
+    fn test_task_graph_node_ids() {
+        let decomposer = RecursiveDecomposer::new();
+        let intent = create_test_intent(IntentType::BugFix, Complexity::Complex);
+        let result = decomposer.decompose(&intent);
+        // All node IDs should be unique
+        let ids: Vec<&String> = result.task_graph.nodes.keys().collect();
+        let unique_ids: std::collections::HashSet<&String> = ids.iter().copied().collect();
+        assert_eq!(ids.len(), unique_ids.len());
+    }
+
+    #[test]
+    fn test_decompose_by_depth_condition() {
+        let decomposer = RecursiveDecomposer::new();
+        let template = RecursiveTaskTemplate {
+            name: "test".into(),
+            description: "test".into(),
+            skills: vec![],
+            base_duration: 60,
+            sub_templates: vec![],
+            decompose_when: DecomposeCondition::Always,
+        };
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Simple);
+        // At depth 0, should decompose (max_depth default is higher)
+        assert!(decomposer.should_decompose(&template, &intent));
+    }
+
+    #[test]
+    fn test_decompose_condition_always() {
+        let decomposer = RecursiveDecomposer::new();
+        let template = RecursiveTaskTemplate {
+            name: "test".into(),
+            description: "test".into(),
+            skills: vec![],
+            base_duration: 60,
+            sub_templates: vec![],
+            decompose_when: DecomposeCondition::Always,
+        };
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Simple);
+        assert!(decomposer.should_decompose(&template, &intent));
+    }
+
+    #[test]
+    fn test_decompose_condition_never() {
+        let decomposer = RecursiveDecomposer::new();
+        let template = RecursiveTaskTemplate {
+            name: "test".into(),
+            description: "test".into(),
+            skills: vec![],
+            base_duration: 60,
+            sub_templates: vec![],
+            decompose_when: DecomposeCondition::Never,
+        };
+        let intent = create_test_intent(IntentType::CodeGeneration, Complexity::Complex);
+        assert!(!decomposer.should_decompose(&template, &intent));
+    }
+
+    #[test]
+    fn test_multiple_intent_types() {
+        let decomposer = RecursiveDecomposer::new();
+        let intents = vec![
+            IntentType::CodeGeneration,
+            IntentType::BugFix,
+            IntentType::Documentation,
+            IntentType::TestGeneration,
+            IntentType::CodeReview,
+        ];
+        for intent_type in intents {
+            let intent = create_test_intent(intent_type, Complexity::Complex);
+            let result = decomposer.decompose(&intent);
+            // Should not panic for any intent type
+            let _ = result;
+        }
     }
 }

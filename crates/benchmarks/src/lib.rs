@@ -19,4 +19,5 @@
 //! make bench                                 # Via Makefile
 //! ```
 
+pub mod fixture_gen;
 pub mod fixtures;

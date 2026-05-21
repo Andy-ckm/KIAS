@@ -565,4 +565,54 @@ error[E0308]: mismatched types
             ErrorCategory::LifetimeError
         );
     }
+
+    #[test]
+    fn test_analysis_result_serialization() {
+        let result = AnalysisResult {
+            found_root_cause: true,
+            error_category: Some(ErrorCategory::TypeError),
+            root_cause: Some("mismatched types".to_string()),
+            related_files: vec!["src/main.rs".to_string()],
+            details: std::collections::HashMap::new(),
+            impact: None,
+            difficulty: None,
+            estimated_hours: None,
+            analyzed_at: chrono::Utc::now(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("found_root_cause"));
+        assert!(json.contains("TypeError"));
+    }
+
+    #[test]
+    fn test_multiple_errors_in_output() {
+        let analyzer = CargoOutputAnalyzer::new();
+        let output = r#"error[E0308]: mismatched types
+  --> src/main.rs:10:5
+error[E0382]: borrow of moved value
+  --> src/main.rs:20:5"#;
+        let result = analyzer.analyze(output);
+        assert!(result.found_root_cause);
+        // Should detect at least one error
+        assert!(result.error_category.is_some());
+    }
+
+    #[test]
+    fn test_analyzer_manager_multiple_analyzers() {
+        let mut manager = AnalyzerManager::new();
+        manager.register_analyzer(Box::new(CargoOutputAnalyzer::new()));
+        manager.register_analyzer(Box::new(CargoOutputAnalyzer::new()));
+
+        // Both analyzers should run
+        manager.analyze("error[E0308]: mismatched types");
+        assert!(manager.history().len() >= 1);
+    }
+
+    #[test]
+    fn test_empty_output() {
+        let analyzer = CargoOutputAnalyzer::new();
+        let result = analyzer.analyze("");
+        assert!(!result.found_root_cause);
+        assert!(result.error_category.is_none());
+    }
 }

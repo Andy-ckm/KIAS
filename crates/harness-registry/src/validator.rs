@@ -3,13 +3,12 @@
 //! This module validates engineering artifacts against their specifications,
 //! preventing non-compliant artifacts from entering production.
 
-use std::collections::HashMap;
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::artifact::{ArtifactMetadata, ArtifactType};
-use crate::error::{HarnessError, HarnessResult};
+use crate::error::HarnessResult;
 
 /// Result of validating a single artifact.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,8 +69,12 @@ pub struct ValidationReport {
 /// Trait for validating specific artifact types.
 pub trait ArtifactValidator: Send + Sync {
     /// Validate an artifact and return validation result.
-    fn validate(&self, metadata: &ArtifactMetadata, content: &str) -> HarnessResult<ValidationResult>;
-    
+    fn validate(
+        &self,
+        metadata: &ArtifactMetadata,
+        content: &str,
+    ) -> HarnessResult<ValidationResult>;
+
     /// Get the artifact type this validator handles.
     fn artifact_type(&self) -> ArtifactType;
 }
@@ -80,7 +83,11 @@ pub trait ArtifactValidator: Send + Sync {
 pub struct AgentsMdValidator;
 
 impl ArtifactValidator for AgentsMdValidator {
-    fn validate(&self, metadata: &ArtifactMetadata, content: &str) -> HarnessResult<ValidationResult> {
+    fn validate(
+        &self,
+        metadata: &ArtifactMetadata,
+        content: &str,
+    ) -> HarnessResult<ValidationResult> {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
 
@@ -94,12 +101,7 @@ impl ArtifactValidator for AgentsMdValidator {
         }
 
         // Check for required sections
-        let required_sections = [
-            "## 项目概述",
-            "## 快速命令",
-            "## 后端架构",
-            "## 关键约定",
-        ];
+        let required_sections = ["## 项目概述", "## 快速命令", "## 后端架构", "## 关键约定"];
 
         for section in &required_sections {
             if !content.contains(section) {
@@ -112,11 +114,7 @@ impl ArtifactValidator for AgentsMdValidator {
         }
 
         // Check for prohibited patterns
-        let prohibited_patterns = [
-            "unwrap()",
-            "println!",
-            "dbg!",
-        ];
+        let prohibited_patterns = ["unwrap()", "println!", "dbg!"];
 
         for pattern in &prohibited_patterns {
             if content.contains(pattern) {
@@ -147,7 +145,11 @@ impl ArtifactValidator for AgentsMdValidator {
 pub struct SkillMdValidator;
 
 impl ArtifactValidator for SkillMdValidator {
-    fn validate(&self, metadata: &ArtifactMetadata, content: &str) -> HarnessResult<ValidationResult> {
+    fn validate(
+        &self,
+        metadata: &ArtifactMetadata,
+        content: &str,
+    ) -> HarnessResult<ValidationResult> {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
 
@@ -206,7 +208,7 @@ impl HarnessValidator {
     /// Create a new HarnessValidator with default validators.
     pub fn new() -> Self {
         let mut validators: HashMap<ArtifactType, Box<dyn ArtifactValidator>> = HashMap::new();
-        
+
         // Register default validators
         validators.insert(ArtifactType::AgentsMd, Box::new(AgentsMdValidator));
         validators.insert(ArtifactType::Skills, Box::new(SkillMdValidator));
@@ -227,7 +229,7 @@ impl HarnessValidator {
     ) -> HarnessResult<ValidationResult> {
         // Find validator for artifact type
         let validator = self.validators.get(&metadata.artifact_type);
-        
+
         match validator {
             Some(validator) => validator.validate(metadata, content),
             None => {
@@ -262,13 +264,13 @@ impl HarnessValidator {
 
         for (metadata, content) in artifacts {
             let result = self.validate_artifact(metadata, content).await?;
-            
+
             if result.passed {
                 passed_count += 1;
             } else {
                 failed_count += 1;
             }
-            
+
             results.push(result);
         }
 
@@ -317,12 +319,18 @@ mod tests {
 
         // Valid AGENTS.md
         let valid_content = "# AGENTS.md\n\n## 项目概述\n\nTest content";
-        let result = validator.validate_artifact(&metadata, valid_content).await.unwrap();
+        let result = validator
+            .validate_artifact(&metadata, valid_content)
+            .await
+            .unwrap();
         assert!(result.passed);
 
         // Invalid AGENTS.md (missing header)
         let invalid_content = "## 项目概述\n\nTest content";
-        let result = validator.validate_artifact(&metadata, invalid_content).await.unwrap();
+        let result = validator
+            .validate_artifact(&metadata, invalid_content)
+            .await
+            .unwrap();
         assert!(!result.passed);
         assert!(!result.errors.is_empty());
     }
@@ -334,12 +342,18 @@ mod tests {
 
         // Valid SKILL.md
         let valid_content = "---\nname: test-skill\ndescription: test\ntriggers: []\n---\n\n## Steps\n\n1. Do something";
-        let result = validator.validate_artifact(&metadata, valid_content).await.unwrap();
+        let result = validator
+            .validate_artifact(&metadata, valid_content)
+            .await
+            .unwrap();
         assert!(result.passed);
 
         // Invalid SKILL.md (missing frontmatter)
         let invalid_content = "# Test Skill\n\n## Steps\n\n1. Do something";
-        let result = validator.validate_artifact(&metadata, invalid_content).await.unwrap();
+        let result = validator
+            .validate_artifact(&metadata, invalid_content)
+            .await
+            .unwrap();
         assert!(!result.passed);
     }
 
@@ -354,7 +368,8 @@ mod tests {
             ),
             (
                 create_test_metadata(ArtifactType::Skills),
-                "---\nname: test\ndescription: test\ntriggers: []\n---\n\n## Steps\n\n1. Test".to_string(),
+                "---\nname: test\ndescription: test\ntriggers: []\n---\n\n## Steps\n\n1. Test"
+                    .to_string(),
             ),
         ];
 

@@ -5,16 +5,16 @@
 //! - Validator: Ensures artifacts comply with specifications
 //! - Evolution Analyzer: Tracks artifact changes and identifies patterns
 
-pub mod artifact;
-pub mod validator;
 pub mod analytics;
-pub mod scanner;
-pub mod persistence;
+pub mod artifact;
 pub mod error;
+pub mod persistence;
+pub mod scanner;
+pub mod validator;
 
-pub use artifact::{ArtifactRegistry, ArtifactType, ArtifactMetadata};
-pub use validator::{HarnessValidator, ValidationReport, ValidationResult};
-pub use analytics::{EvolutionAnalyzer, ChangePattern, OptimizationRecommendation};
-pub use scanner::{ArtifactScanner, ScannerConfig, ScanResult};
-pub use persistence::{RegistryPersistence, RegistrySnapshot};
+pub use analytics::{ChangePattern, EvolutionAnalyzer, OptimizationRecommendation};
+pub use artifact::{ArtifactMetadata, ArtifactRegistry, ArtifactType};
 pub use error::{HarnessError, HarnessResult};
+pub use persistence::{RegistryPersistence, RegistrySnapshot};
+pub use scanner::{ArtifactScanner, ScanResult, ScannerConfig};
+pub use validator::{HarnessValidator, ValidationReport, ValidationResult};

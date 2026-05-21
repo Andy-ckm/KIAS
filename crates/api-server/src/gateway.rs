@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 
 /// Multi-protocol gateway framework for AgentGuard.
 ///
@@ -153,85 +153,111 @@ impl GatewayManager {
         tokio::spawn(async move {
             let mut descs = descriptors.write().await;
 
-            descs.insert("http".to_string(), GatewayDescriptor {
-                name: "http".to_string(),
-                description: "HTTP/REST API gateway".to_string(),
-                protocol: "http".to_string(),
-                default_port: 8080,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "http".to_string(),
+                GatewayDescriptor {
+                    name: "http".to_string(),
+                    description: "HTTP/REST API gateway".to_string(),
+                    protocol: "http".to_string(),
+                    default_port: 8080,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("grpc".to_string(), GatewayDescriptor {
-                name: "grpc".to_string(),
-                description: "gRPC protocol gateway".to_string(),
-                protocol: "grpc".to_string(),
-                default_port: 9090,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "grpc".to_string(),
+                GatewayDescriptor {
+                    name: "grpc".to_string(),
+                    description: "gRPC protocol gateway".to_string(),
+                    protocol: "grpc".to_string(),
+                    default_port: 9090,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("websocket".to_string(), GatewayDescriptor {
-                name: "websocket".to_string(),
-                description: "WebSocket gateway for real-time communication".to_string(),
-                protocol: "websocket".to_string(),
-                default_port: 8081,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "websocket".to_string(),
+                GatewayDescriptor {
+                    name: "websocket".to_string(),
+                    description: "WebSocket gateway for real-time communication".to_string(),
+                    protocol: "websocket".to_string(),
+                    default_port: 8081,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("coap".to_string(), GatewayDescriptor {
-                name: "coap".to_string(),
-                description: "CoAP gateway for IoT devices (RFC 7252)".to_string(),
-                protocol: "coap".to_string(),
-                default_port: 5683,
-                supports_tls: true,
-                supports_auth: false,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "coap".to_string(),
+                GatewayDescriptor {
+                    name: "coap".to_string(),
+                    description: "CoAP gateway for IoT devices (RFC 7252)".to_string(),
+                    protocol: "coap".to_string(),
+                    default_port: 5683,
+                    supports_tls: true,
+                    supports_auth: false,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("nats".to_string(), GatewayDescriptor {
-                name: "nats".to_string(),
-                description: "NATS messaging gateway for microservices".to_string(),
-                protocol: "nats".to_string(),
-                default_port: 4222,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "nats".to_string(),
+                GatewayDescriptor {
+                    name: "nats".to_string(),
+                    description: "NATS messaging gateway for microservices".to_string(),
+                    protocol: "nats".to_string(),
+                    default_port: 4222,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("stomp".to_string(), GatewayDescriptor {
-                name: "stomp".to_string(),
-                description: "STOMP messaging gateway (Simple Text Oriented Messaging Protocol)".to_string(),
-                protocol: "stomp".to_string(),
-                default_port: 61613,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "stomp".to_string(),
+                GatewayDescriptor {
+                    name: "stomp".to_string(),
+                    description:
+                        "STOMP messaging gateway (Simple Text Oriented Messaging Protocol)"
+                            .to_string(),
+                    protocol: "stomp".to_string(),
+                    default_port: 61613,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("mqtt".to_string(), GatewayDescriptor {
-                name: "mqtt".to_string(),
-                description: "MQTT gateway for IoT/A2A communication".to_string(),
-                protocol: "mqtt".to_string(),
-                default_port: 1883,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "mqtt".to_string(),
+                GatewayDescriptor {
+                    name: "mqtt".to_string(),
+                    description: "MQTT gateway for IoT/A2A communication".to_string(),
+                    protocol: "mqtt".to_string(),
+                    default_port: 1883,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
 
-            descs.insert("mcp".to_string(), GatewayDescriptor {
-                name: "mcp".to_string(),
-                description: "Model Context Protocol gateway for Agent tool calls".to_string(),
-                protocol: "mcp".to_string(),
-                default_port: 3000,
-                supports_tls: true,
-                supports_auth: true,
-                version: "1.0.0".to_string(),
-            });
+            descs.insert(
+                "mcp".to_string(),
+                GatewayDescriptor {
+                    name: "mcp".to_string(),
+                    description: "Model Context Protocol gateway for Agent tool calls".to_string(),
+                    protocol: "mcp".to_string(),
+                    default_port: 3000,
+                    supports_tls: true,
+                    supports_auth: true,
+                    version: "1.0.0".to_string(),
+                },
+            );
         });
     }
 
@@ -256,11 +282,9 @@ impl GatewayManager {
     /// Start a gateway
     pub async fn start(&self, name: &str, config: GatewayConfig) -> Result<(), GatewayError> {
         let descs = self.descriptors.read().await;
-        let descriptor = descs
-            .get(name)
-            .ok_or_else(|| GatewayError::NotFound {
-                name: name.to_string(),
-            })?;
+        let descriptor = descs.get(name).ok_or_else(|| GatewayError::NotFound {
+            name: name.to_string(),
+        })?;
 
         let bind_address = format!("{}:{}", config.host, config.port);
 
@@ -373,7 +397,11 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         let descs = manager.list_descriptors().await;
-        assert!(descs.len() >= 8, "Expected at least 8 built-in gateways, got {}", descs.len());
+        assert!(
+            descs.len() >= 8,
+            "Expected at least 8 built-in gateways, got {}",
+            descs.len()
+        );
 
         let names: Vec<String> = descs.iter().map(|d| d.name.clone()).collect();
         assert!(names.contains(&"http".to_string()));
@@ -420,8 +448,20 @@ mod tests {
         let manager = GatewayManager::new();
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        manager.start("http", GatewayConfig::default()).await.unwrap();
-        manager.start("grpc", GatewayConfig { port: 9090, ..Default::default() }).await.unwrap();
+        manager
+            .start("http", GatewayConfig::default())
+            .await
+            .unwrap();
+        manager
+            .start(
+                "grpc",
+                GatewayConfig {
+                    port: 9090,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         let instances = manager.list_instances().await;
         assert_eq!(instances.len(), 2);
@@ -431,15 +471,17 @@ mod tests {
     async fn test_custom_gateway() {
         let manager = GatewayManager::new();
 
-        manager.register(GatewayDescriptor {
-            name: "custom-protocol".to_string(),
-            description: "Custom protocol gateway".to_string(),
-            protocol: "custom".to_string(),
-            default_port: 7777,
-            supports_tls: false,
-            supports_auth: false,
-            version: "0.1.0".to_string(),
-        }).await;
+        manager
+            .register(GatewayDescriptor {
+                name: "custom-protocol".to_string(),
+                description: "Custom protocol gateway".to_string(),
+                protocol: "custom".to_string(),
+                default_port: 7777,
+                supports_tls: false,
+                supports_auth: false,
+                version: "0.1.0".to_string(),
+            })
+            .await;
 
         let descs = manager.list_descriptors().await;
         assert!(descs.iter().any(|d| d.name == "custom-protocol"));

@@ -111,6 +111,7 @@ impl DefaultEvaluator {
 
 /// Result of a constraint check
 struct ConstraintCheck {
+    #[allow(dead_code)] // Set during evaluation, available for diagnostics
     constraint_name: String,
     passed: bool,
     reason: String,

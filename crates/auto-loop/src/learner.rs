@@ -825,4 +825,70 @@ mod tests {
         assert_eq!(learner.stats().total_lessons, 0);
         assert!(learner.all_lessons().is_empty());
     }
+
+    #[test]
+    fn test_record_outcome_nonexistent_lesson() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+
+        // Record outcome for non-existent lesson - should not panic
+        learner.record_outcome(FixOutcome {
+            lesson_id: "nonexistent".to_string(),
+            success: true,
+            fix_duration_secs: 5.0,
+            root_cause_tags: vec!["test".to_string()],
+            feedback_at: chrono::Utc::now(),
+        });
+
+        // Original lesson should be unchanged
+        assert_eq!(learner.all_lessons()[0].success_count, 0);
+    }
+
+    #[test]
+    fn test_empty_learner_trends() {
+        let learner = Learner::new();
+        let trends = learner.analyze_trends();
+        assert!(trends.is_empty());
+    }
+
+    #[test]
+    fn test_search_empty_keyword() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+
+        // Empty keyword should match everything (contains("") is always true)
+        let results = learner.search("");
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_recommendations_limit_exceeds_available() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+
+        let recs = learner.get_recommendations("test", 100);
+        assert_eq!(recs.len(), 1); // Only 1 available
+    }
+
+    #[test]
+    fn test_multiple_mark_used_increments() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Success, "test"));
+
+        learner.mark_used("l1");
+        learner.mark_used("l1");
+        learner.mark_used("l1");
+
+        assert_eq!(learner.all_lessons()[0].usage_count, 3);
+    }
+
+    #[test]
+    fn test_record_optimization_lesson() {
+        let mut learner = Learner::new();
+        learner.record_lesson(create_test_entry("l1", LessonType::Optimization, "perf"));
+        assert_eq!(learner.stats().total_lessons, 1);
+        // Optimization is not success or failure
+        assert_eq!(learner.stats().success_count, 0);
+        assert_eq!(learner.stats().failure_count, 0);
+    }
 }

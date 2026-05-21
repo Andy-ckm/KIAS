@@ -1,11 +1,11 @@
+use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use chrono::Utc;
 use tracing::info;
 
-use crate::types::*;
 use crate::error::RegistryError;
+use crate::types::*;
 
 /// A2A Agent Registry — manages agent registration, discovery, and lifecycle.
 ///
@@ -149,11 +149,12 @@ impl AgentRegistry {
         }
 
         let mut agents = self.agents.write().await;
-        let registration = agents
-            .get_mut(&card.agent_id)
-            .ok_or_else(|| RegistryError::NotFound {
-                agent_id: card.agent_id.clone(),
-            })?;
+        let registration =
+            agents
+                .get_mut(&card.agent_id)
+                .ok_or_else(|| RegistryError::NotFound {
+                    agent_id: card.agent_id.clone(),
+                })?;
 
         registration.card = card;
         registration.last_seen = Utc::now();
@@ -319,7 +320,10 @@ mod tests {
 
         registry.register(card.clone()).await.unwrap();
         let result = registry.register(card).await;
-        assert!(matches!(result, Err(RegistryError::AlreadyRegistered { .. })));
+        assert!(matches!(
+            result,
+            Err(RegistryError::AlreadyRegistered { .. })
+        ));
     }
 
     #[tokio::test]

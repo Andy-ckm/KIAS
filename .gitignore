@@ -86,3 +86,5 @@ docs/papers/2605.15187.pdf
 .matrix-qa-marker
 .research-queue.yaml
 config/kias.toml
+target-worktree/
+kias/target-worktree/

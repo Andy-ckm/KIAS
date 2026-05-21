@@ -247,7 +247,11 @@ impl SelfBoundaryReasoner {
                     .split_whitespace()
                     .any(|word| task_lower.contains(word))
             })
-            .max_by(|a, b| a.proficiency.partial_cmp(&b.proficiency).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.proficiency
+                    .partial_cmp(&b.proficiency)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// 匹配工具（完整词匹配，避免子串误匹配）
@@ -261,7 +265,11 @@ impl SelfBoundaryReasoner {
                     .iter()
                     .any(|d| words.iter().any(|w| *w == d.to_lowercase().as_str()))
             })
-            .max_by(|a, b| a.reliability.partial_cmp(&b.reliability).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.reliability
+                    .partial_cmp(&b.reliability)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// 更新自我模型（任务完成后反馈）
@@ -536,17 +544,32 @@ mod tests {
     fn test_self_model_kias_default_domain_count() {
         let model = SelfModel::kias_default();
         assert_eq!(model.knowledge_domains.len(), 4);
-        assert!(model.knowledge_domains.iter().any(|d| d.domain == "Rust programming"));
-        assert!(model.knowledge_domains.iter().any(|d| d.domain == "Agent architecture"));
-        assert!(model.knowledge_domains.iter().any(|d| d.domain == "GxP compliance"));
-        assert!(model.knowledge_domains.iter().any(|d| d.domain == "System design"));
+        assert!(model
+            .knowledge_domains
+            .iter()
+            .any(|d| d.domain == "Rust programming"));
+        assert!(model
+            .knowledge_domains
+            .iter()
+            .any(|d| d.domain == "Agent architecture"));
+        assert!(model
+            .knowledge_domains
+            .iter()
+            .any(|d| d.domain == "GxP compliance"));
+        assert!(model
+            .knowledge_domains
+            .iter()
+            .any(|d| d.domain == "System design"));
     }
 
     #[test]
     fn test_self_model_kias_default_tool_count() {
         let model = SelfModel::kias_default();
         assert_eq!(model.tools_available.len(), 3);
-        assert!(model.tools_available.iter().any(|t| t.name == "file_operations"));
+        assert!(model
+            .tools_available
+            .iter()
+            .any(|t| t.name == "file_operations"));
         assert!(model.tools_available.iter().any(|t| t.name == "shell_exec"));
         assert!(model.tools_available.iter().any(|t| t.name == "web_search"));
     }
@@ -555,7 +578,9 @@ mod tests {
     fn test_self_model_kias_default_high_risk_topics() {
         let model = SelfModel::kias_default();
         assert_eq!(model.high_risk_topics.len(), 5);
-        assert!(model.high_risk_topics.contains(&"medical diagnosis".to_string()));
+        assert!(model
+            .high_risk_topics
+            .contains(&"medical diagnosis".to_string()));
         assert!(model.high_risk_topics.contains(&"legal advice".to_string()));
     }
 

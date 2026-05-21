@@ -67,6 +67,7 @@ pub struct GraphRAGEngine {
     /// Pre-computed IDF values for TF-IDF scoring
     idf_cache: HashMap<String, f64>,
     /// Total document count for IDF computation
+    #[allow(dead_code)] // Computed at init, available for future IDF weighting
     doc_count: usize,
     /// Cached community assignments (node_id -> community_label)
     community_cache: Option<HashMap<String, usize>>,

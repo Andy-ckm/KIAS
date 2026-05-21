@@ -35,7 +35,9 @@ impl std::fmt::Display for SkillPermission {
 }
 
 /// Risk level for progressive disclosure (SDOF-inspired L0/L1/L2).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum RiskLevel {
     /// L0: Atomic, safe, low-risk operations.
     #[default]
@@ -57,7 +59,9 @@ impl std::fmt::Display for RiskLevel {
 }
 
 /// Disclosure level for progressive information revelation.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum DisclosureLevel {
     /// L0: Compact summary only (name + description).
     #[default]

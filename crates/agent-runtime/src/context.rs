@@ -118,12 +118,15 @@ impl AgentContext {
             if last.tool_calls.is_none() {
                 last.tool_calls = Some(Vec::new());
             }
-            last.tool_calls.as_mut().expect("tool_calls initialized above").push(ToolCallRecord {
-                name: name.to_string(),
-                arguments: args,
-                result: result.to_string(),
-                success,
-            });
+            last.tool_calls
+                .as_mut()
+                .expect("tool_calls initialized above")
+                .push(ToolCallRecord {
+                    name: name.to_string(),
+                    arguments: args,
+                    result: result.to_string(),
+                    success,
+                });
         }
 
         // 更新统计

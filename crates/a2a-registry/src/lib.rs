@@ -9,10 +9,10 @@
 //! - Online/offline/lwt status tracking
 //! - Governance: every registration/discovery is audited
 
-mod types;
-mod registry;
 mod error;
+mod registry;
+mod types;
 
-pub use types::*;
-pub use registry::AgentRegistry;
 pub use error::RegistryError;
+pub use registry::AgentRegistry;
+pub use types::*;

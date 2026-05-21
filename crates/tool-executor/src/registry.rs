@@ -348,7 +348,10 @@ mod tests {
             serde_json::json!({"path": tmp.path().to_str().unwrap(), "content": "written_by_registry"}),
         ));
         assert!(result.success);
-        assert_eq!(std::fs::read_to_string(tmp.path()).unwrap(), "written_by_registry");
+        assert_eq!(
+            std::fs::read_to_string(tmp.path()).unwrap(),
+            "written_by_registry"
+        );
     }
 
     #[test]
@@ -377,7 +380,9 @@ mod tests {
     async fn test_execute_with_params() {
         let mut registry = ToolRegistry::new();
         registry.register(Box::new(MockTool::new("tool")));
-        let result = registry.execute("tool", serde_json::json!({"key": "value"})).await;
+        let result = registry
+            .execute("tool", serde_json::json!({"key": "value"}))
+            .await;
         assert!(result.success);
     }
 

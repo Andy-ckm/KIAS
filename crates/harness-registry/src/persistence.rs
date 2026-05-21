@@ -3,12 +3,12 @@
 //! Provides JSON-based persistence for the artifact registry,
 //! allowing state to survive process restarts.
 
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use serde::{Deserialize, Serialize};
 
 use crate::artifact::{ArtifactMetadata, ArtifactRegistry};
-use crate::error::{HarnessResult};
+use crate::error::HarnessResult;
 
 /// Serializable snapshot of the registry state.
 #[derive(Debug, Serialize, Deserialize)]
@@ -42,13 +42,11 @@ impl RegistrySnapshot {
         let snapshot: Self = serde_json::from_str(&content)?;
 
         if snapshot.version != Self::CURRENT_VERSION {
-            return Err(crate::error::HarnessError::InvalidArtifactFormat(
-                format!(
-                    "Snapshot version mismatch: expected {}, found {}",
-                    Self::CURRENT_VERSION,
-                    snapshot.version
-                )
-            ));
+            return Err(crate::error::HarnessError::InvalidArtifactFormat(format!(
+                "Snapshot version mismatch: expected {}, found {}",
+                Self::CURRENT_VERSION,
+                snapshot.version
+            )));
         }
 
         Ok(snapshot)
@@ -131,10 +129,10 @@ impl RegistryPersistence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use std::collections::HashMap;
     use chrono::Utc;
+    use std::collections::HashMap;
     use std::path::PathBuf as StdPathBuf;
+    use tempfile::TempDir;
 
     fn create_test_artifact(id: &str) -> ArtifactMetadata {
         ArtifactMetadata {

@@ -241,10 +241,10 @@ impl AppState {
 pub mod auth;
 pub mod contract_test;
 pub mod error;
+pub mod gateway;
 pub mod handlers;
 pub mod middleware;
 pub mod models;
 pub mod routes;
 pub mod tls;
 pub mod websocket;
-pub mod gateway;

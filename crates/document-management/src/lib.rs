@@ -9,20 +9,26 @@
 //! - 文档检索（全文搜索 + 元数据搜索）
 
 pub mod audit;
+pub mod doc_lock;
 pub mod document;
 pub mod error;
+pub mod export;
 pub mod repository;
 pub mod search;
 pub mod signature;
 pub mod storage;
+pub mod tags;
 pub mod template;
 pub mod version;
 
+pub use doc_lock::DocumentLockManager;
 pub use document::*;
 pub use error::{DocumentError, Result};
+pub use export::DocumentExporter;
 pub use repository::DocumentRepository;
 pub use signature::SignatureService;
 pub use storage::DocumentStorage;
+pub use tags::{Classification, Tag, TagManager};
 pub use version::VersionControl;
 
 /// 文档管理系统

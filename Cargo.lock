@@ -654,6 +654,7 @@ dependencies = [
  "chrono",
  "hmac",
  "kias-common",
+ "libc",
  "regex",
  "serde",
  "serde_json",
@@ -1939,6 +1940,19 @@ dependencies = [
  "serde",
  "serde_json",
  "simple_asn1",
+]
+
+[[package]]
+name = "kias-a2a-registry"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

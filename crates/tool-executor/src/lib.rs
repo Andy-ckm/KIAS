@@ -13,6 +13,7 @@
 pub mod builtin;
 pub mod registry;
 pub mod sandbox;
+pub mod vulnerability_scan;
 
 pub use builtin::*;
 pub use registry::ToolRegistry;

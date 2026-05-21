@@ -10,13 +10,12 @@
 //! - requirements/: Structured intents (PRD)
 //! - scripts/: Reusable deterministic logic
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
 
 use crate::error::{HarnessError, HarnessResult};
 
@@ -112,7 +111,7 @@ impl ArtifactRegistry {
     /// Register a new artifact in the registry.
     pub async fn register(&self, metadata: ArtifactMetadata) -> HarnessResult<()> {
         let mut artifacts = self.artifacts.write().await;
-        
+
         // Check if artifact already exists
         if artifacts.contains_key(&metadata.id) {
             return Err(HarnessError::ArtifactAlreadyExists(metadata.id.clone()));
@@ -150,7 +149,7 @@ impl ArtifactRegistry {
         let id = name_index
             .get(name)
             .ok_or_else(|| HarnessError::ArtifactNotFound(name.to_string()))?;
-        
+
         let artifacts = self.artifacts.read().await;
         artifacts
             .get(id)
@@ -162,7 +161,7 @@ impl ArtifactRegistry {
     pub async fn get_by_type(&self, artifact_type: &ArtifactType) -> Vec<ArtifactMetadata> {
         let type_index = self.type_index.read().await;
         let artifacts = self.artifacts.read().await;
-        
+
         type_index
             .get(artifact_type)
             .map(|ids| {
@@ -176,7 +175,7 @@ impl ArtifactRegistry {
     /// Update an existing artifact.
     pub async fn update(&self, metadata: ArtifactMetadata) -> HarnessResult<()> {
         let mut artifacts = self.artifacts.write().await;
-        
+
         // Check if artifact exists
         if !artifacts.contains_key(&metadata.id) {
             return Err(HarnessError::ArtifactNotFound(metadata.id.clone()));
@@ -191,7 +190,7 @@ impl ArtifactRegistry {
     /// Remove an artifact from the registry.
     pub async fn remove(&self, id: &str) -> HarnessResult<()> {
         let mut artifacts = self.artifacts.write().await;
-        
+
         // Get artifact before removing
         let metadata = artifacts
             .remove(id)
@@ -327,5 +326,202 @@ mod tests {
 
         registry.remove("test-1").await.unwrap();
         assert!(!registry.exists("test-1").await);
+    }
+
+    fn make_metadata(id: &str, name: &str, atype: ArtifactType) -> ArtifactMetadata {
+        ArtifactMetadata {
+            id: id.to_string(),
+            name: name.to_string(),
+            artifact_type: atype,
+            path: PathBuf::from(name),
+            version: "1.0.0".to_string(),
+            owner: "test".to_string(),
+            dependencies: vec![],
+            created_at: Utc::now(),
+            last_modified: Utc::now(),
+            content_hash: "hash".to_string(),
+            custom_metadata: HashMap::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_by_name() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        registry
+            .register(make_metadata("id1", "SKILL.md", ArtifactType::Skills))
+            .await
+            .unwrap();
+
+        let found = registry.get_by_name("SKILL.md").await.unwrap();
+        assert_eq!(found.id, "id1");
+    }
+
+    #[tokio::test]
+    async fn test_get_by_name_not_found() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert!(registry.get_by_name("nonexistent").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_by_type() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        registry
+            .register(make_metadata("id1", "a.md", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        registry
+            .register(make_metadata("id2", "b.md", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        registry
+            .register(make_metadata("id3", "c.md", ArtifactType::Skills))
+            .await
+            .unwrap();
+
+        let agents = registry.get_by_type(&ArtifactType::AgentsMd).await;
+        assert_eq!(agents.len(), 2);
+        let skills = registry.get_by_type(&ArtifactType::Skills).await;
+        assert_eq!(skills.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_update() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        registry
+            .register(make_metadata("id1", "test.md", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+
+        let mut updated = make_metadata("id1", "test.md", ArtifactType::AgentsMd);
+        updated.version = "2.0.0".to_string();
+        registry.update(updated).await.unwrap();
+
+        let found = registry.get_by_id("id1").await.unwrap();
+        assert_eq!(found.version, "2.0.0");
+    }
+
+    #[tokio::test]
+    async fn test_update_not_found() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert!(registry
+            .update(make_metadata("nope", "x", ArtifactType::AgentsMd))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_not_found() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert!(registry.remove("nonexistent").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_count() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert_eq!(registry.count().await, 0);
+
+        registry
+            .register(make_metadata("id1", "a", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        assert_eq!(registry.count().await, 1);
+
+        registry
+            .register(make_metadata("id2", "b", ArtifactType::Skills))
+            .await
+            .unwrap();
+        assert_eq!(registry.count().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_exists() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert!(!registry.exists("id1").await);
+
+        registry
+            .register(make_metadata("id1", "a", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        assert!(registry.exists("id1").await);
+        assert!(!registry.exists("id2").await);
+    }
+
+    #[tokio::test]
+    async fn test_get_all() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert!(registry.get_all().await.is_empty());
+
+        registry
+            .register(make_metadata("id1", "a", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        registry
+            .register(make_metadata("id2", "b", ArtifactType::Skills))
+            .await
+            .unwrap();
+        let all = registry.get_all().await;
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_base_path() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        assert_eq!(registry.base_path(), dir.path());
+    }
+
+    #[tokio::test]
+    async fn test_register_duplicate() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        registry
+            .register(make_metadata("id1", "a", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        assert!(registry
+            .register(make_metadata("id1", "a", ArtifactType::AgentsMd))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_cleans_name_index() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        registry
+            .register(make_metadata("id1", "unique.md", ArtifactType::AgentsMd))
+            .await
+            .unwrap();
+        registry.remove("id1").await.unwrap();
+        assert!(registry.get_by_name("unique.md").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_by_type_empty() {
+        let dir = tempdir().unwrap();
+        let registry = ArtifactRegistry::new(dir.path());
+        let result = registry.get_by_type(&ArtifactType::Scripts).await;
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_artifact_type_display() {
+        assert_eq!(format!("{}", ArtifactType::AgentsMd), "AGENTS.md");
+        assert_eq!(format!("{}", ArtifactType::Skills), "skills/");
+        assert_eq!(format!("{}", ArtifactType::Agents), "agents/");
+        assert_eq!(format!("{}", ArtifactType::Scripts), "scripts/");
+        assert_eq!(
+            format!("{}", ArtifactType::Custom("test".to_string())),
+            "test"
+        );
     }
 }

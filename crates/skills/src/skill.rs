@@ -34,6 +34,50 @@ impl std::fmt::Display for SkillPermission {
     }
 }
 
+/// Risk level for progressive disclosure (SDOF-inspired L0/L1/L2).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum RiskLevel {
+    /// L0: Atomic, safe, low-risk operations.
+    #[default]
+    Low,
+    /// L1: Composite, moderate risk, may have side effects.
+    Medium,
+    /// L2: Strategic, high risk, requires authorization.
+    High,
+}
+
+impl std::fmt::Display for RiskLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Low => write!(f, "low"),
+            Self::Medium => write!(f, "medium"),
+            Self::High => write!(f, "high"),
+        }
+    }
+}
+
+/// Disclosure level for progressive information revelation.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum DisclosureLevel {
+    /// L0: Compact summary only (name + description).
+    #[default]
+    Summary,
+    /// L1: Full metadata (parameters, permissions, dependencies).
+    Full,
+    /// L2: Complete source including implementation details.
+    Complete,
+}
+
+impl std::fmt::Display for DisclosureLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Summary => write!(f, "summary"),
+            Self::Full => write!(f, "full"),
+            Self::Complete => write!(f, "complete"),
+        }
+    }
+}
+
 /// A dependency declared by a skill on another skill.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillDependency {
@@ -91,6 +135,12 @@ pub struct SkillConfig {
     /// Used by the registry for dependency validation and resolution.
     #[serde(default)]
     pub dependencies: Vec<SkillDependency>,
+    /// Risk level for progressive disclosure (L0/L1/L2).
+    #[serde(default)]
+    pub risk_level: RiskLevel,
+    /// Current disclosure level for queries.
+    #[serde(default)]
+    pub disclosure_level: DisclosureLevel,
 }
 
 impl SkillConfig {
@@ -104,6 +154,8 @@ impl SkillConfig {
             requires_elevation: false,
             permissions: Vec::new(),
             dependencies: Vec::new(),
+            risk_level: RiskLevel::Low,
+            disclosure_level: DisclosureLevel::Summary,
         }
     }
 

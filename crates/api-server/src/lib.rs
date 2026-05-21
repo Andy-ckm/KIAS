@@ -42,6 +42,12 @@ pub struct AppState {
     pub gxp_auth: handlers::auth_gxp::GxpAuthState,
     /// JWT configuration for token generation
     pub jwt_config: auth::JwtConfig,
+    /// Slow action trace collector (surpasses EMQ slow subscription tracking)
+    pub slow_trace_collector: kias_monitor::SlowTraceCollector,
+    /// Per-agent token budgets (enforced at API layer)
+    pub token_budgets: Arc<RwLock<std::collections::HashMap<String, handlers::token_budget::TokenBudget>>>,
+    /// SQLite-backed token budget store (optional, for persistent budget management)
+    pub token_budget_repo: Option<Arc<crate::handlers::token_budget::TokenBudgetStore>>,
 }
 
 /// An ingested document stored in memory
@@ -133,6 +139,9 @@ impl AppState {
                 kias_common::gxp_auth::PasswordPolicy::default(),
             ),
             jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
+            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
+            token_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            token_budget_repo: None,
         }
     }
 
@@ -225,6 +234,8 @@ impl AppState {
                 kias_common::gxp_auth::PasswordPolicy::default(),
             ),
             jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
+            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
+            token_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
 }

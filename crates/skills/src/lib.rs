@@ -1,4 +1,5 @@
 pub mod builtin;
+pub mod precondition;
 pub mod composition;
 pub mod curator;
 pub mod distillation;
@@ -16,9 +17,10 @@ pub use pipeline::{
     ErrorPolicy, InputMapping, PipelineBuilder, PipelineResult, PipelineStep, SkillPipeline,
 };
 pub use registry::SkillRegistry;
+pub use precondition::{Precondition, PreconditionContext, PreconditionSet, PreconditionType};
 pub use skill::{
-    HttpCallSkill, JsonTransformSkill, ShellSkill, Skill, SkillConfig, SkillDependency,
-    SkillPermission,
+    DisclosureLevel, HttpCallSkill, JsonTransformSkill, RiskLevel, ShellSkill, Skill,
+    SkillConfig, SkillDependency, SkillPermission,
 };
 pub use web_recorder::{
     BrowserAction, BrowserRecording, BrowserWorkflowSkill, ParameterDefinition, ParameterType,

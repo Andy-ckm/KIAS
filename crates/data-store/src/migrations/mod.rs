@@ -58,6 +58,12 @@ pub const MIGRATIONS: &[Migration] = &[
         up_sql: include_str!("006_hnsw_graphs.sql"),
         down_sql: "DROP TABLE IF EXISTS hnsw_graphs;",
     },
+    Migration {
+        version: 7,
+        description: "Create token budget management tables",
+        up_sql: include_str!("007_token_budgets.sql"),
+        down_sql: "DROP TABLE IF EXISTS spend_alerts; DROP TABLE IF EXISTS token_usage; DROP TABLE IF EXISTS token_budgets;",
+    },
 ];
 
 /// Manages database migrations.

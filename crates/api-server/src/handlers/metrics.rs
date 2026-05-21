@@ -293,6 +293,8 @@ mod tests {
                 "kias",
                 24,
             ),
+            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         }
     }
 

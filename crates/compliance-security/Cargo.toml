@@ -1,0 +1,24 @@
+[package]
+name = "compliance-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Enterprise compliance & security: multi-auth, zero-trust, prompt injection defense, sandbox, PKI, EU AI Act"
+
+[dependencies]
+kias-common = { path = "../common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+async-trait = "0.1"
+thiserror = { workspace = true }
+regex = { workspace = true }
+base64 = "0.22"
+hmac = "0.12"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

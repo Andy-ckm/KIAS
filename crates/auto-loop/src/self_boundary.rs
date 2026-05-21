@@ -531,4 +531,108 @@ mod tests {
         reasoner.evaluate("Test task 2");
         assert_eq!(reasoner.history().len(), 2);
     }
+
+    #[test]
+    fn test_self_model_kias_default_domain_count() {
+        let model = SelfModel::kias_default();
+        assert_eq!(model.knowledge_domains.len(), 4);
+        assert!(model.knowledge_domains.iter().any(|d| d.domain == "Rust programming"));
+        assert!(model.knowledge_domains.iter().any(|d| d.domain == "Agent architecture"));
+        assert!(model.knowledge_domains.iter().any(|d| d.domain == "GxP compliance"));
+        assert!(model.knowledge_domains.iter().any(|d| d.domain == "System design"));
+    }
+
+    #[test]
+    fn test_self_model_kias_default_tool_count() {
+        let model = SelfModel::kias_default();
+        assert_eq!(model.tools_available.len(), 3);
+        assert!(model.tools_available.iter().any(|t| t.name == "file_operations"));
+        assert!(model.tools_available.iter().any(|t| t.name == "shell_exec"));
+        assert!(model.tools_available.iter().any(|t| t.name == "web_search"));
+    }
+
+    #[test]
+    fn test_self_model_kias_default_high_risk_topics() {
+        let model = SelfModel::kias_default();
+        assert_eq!(model.high_risk_topics.len(), 5);
+        assert!(model.high_risk_topics.contains(&"medical diagnosis".to_string()));
+        assert!(model.high_risk_topics.contains(&"legal advice".to_string()));
+    }
+
+    #[test]
+    fn test_performance_stats_default_values() {
+        let stats = PerformanceStats::default();
+        assert_eq!(stats.total_tasks, 0);
+        assert_eq!(stats.direct_success_rate, 0.8);
+        assert_eq!(stats.tool_success_rate, 0.9);
+        assert_eq!(stats.escalation_rate, 0.1);
+        assert_eq!(stats.false_confidence_count, 0);
+    }
+
+    #[test]
+    fn test_record_outcome_use_tool_updates_tool_success_rate() {
+        let mut reasoner = test_reasoner();
+        let initial_rate = reasoner.self_model().performance_stats.tool_success_rate;
+        reasoner.record_outcome(
+            &ResponseStrategy::UseTool {
+                tool_name: "test_tool".to_string(),
+            },
+            true,
+        );
+        let stats = &reasoner.self_model().performance_stats;
+        assert_eq!(stats.total_tasks, 1);
+        // After a success, tool_success_rate should increase or stay high
+        assert!(stats.tool_success_rate >= initial_rate);
+    }
+
+    #[test]
+    fn test_record_outcome_escalate_updates_escalation_rate() {
+        let mut reasoner = test_reasoner();
+        let initial_rate = reasoner.self_model().performance_stats.escalation_rate;
+        reasoner.record_outcome(
+            &ResponseStrategy::Escalate {
+                reason: "test".to_string(),
+            },
+            false,
+        );
+        let stats = &reasoner.self_model().performance_stats;
+        assert_eq!(stats.total_tasks, 1);
+        // Escalation should increase escalation_rate
+        assert!(stats.escalation_rate >= initial_rate);
+    }
+
+    #[test]
+    fn test_high_risk_topic_case_insensitive() {
+        let mut reasoner = test_reasoner();
+        // "medical diagnosis" is a high-risk topic
+        let analysis = reasoner.evaluate("I need MEDICAL DIAGNOSIS help");
+        assert!(matches!(
+            analysis.strategy,
+            ResponseStrategy::Escalate { .. }
+        ));
+    }
+
+    #[test]
+    fn test_stats_empty_history() {
+        let reasoner = test_reasoner();
+        let stats = reasoner.stats();
+        assert_eq!(stats.total_evaluations, 0);
+        assert_eq!(stats.direct_count, 0);
+        assert_eq!(stats.tool_count, 0);
+        assert_eq!(stats.escalated_count, 0);
+        assert_eq!(stats.caveat_count, 0);
+        assert_eq!(stats.avg_confidence, 0.0);
+    }
+
+    #[test]
+    fn test_evaluate_builds_domain_confidence() {
+        let mut reasoner = test_reasoner();
+        // "GxP compliance" domain (proficiency=0.7) should be matched
+        let analysis = reasoner.evaluate("Check GxP compliance requirements");
+        assert!(analysis.confidence >= 0.7);
+        assert!(matches!(
+            analysis.strategy,
+            ResponseStrategy::ReasonDirectly
+        ));
+    }
 }

@@ -930,4 +930,254 @@ mod tests {
         assert!(results[0].allowed);
         assert!(results[1].allowed);
     }
+
+    fn make_problem(id: &str, title: &str, desc: &str, severity: u8) -> DiscoveredProblem {
+        DiscoveredProblem {
+            id: id.to_string(),
+            title: title.to_string(),
+            description: desc.to_string(),
+            discovery_method: DiscoveryMethod::SelfCheck,
+            severity,
+            impact: "low".to_string(),
+            code_locations: vec![],
+            logs: vec![],
+            discovered_at: chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_loop_status_default_is_idle() {
+        let status = LoopStatus::default();
+        assert_eq!(status, LoopStatus::Idle);
+    }
+
+    #[test]
+    fn test_auto_loop_config_default_values() {
+        let config = AutoLoopConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.max_concurrent_problems, 5);
+        assert_eq!(config.auto_fix_threshold, 7);
+        assert!(!config.require_human_confirmation);
+        assert_eq!(config.loop_interval_seconds, 300);
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_analyze_problem_nonexistent_id_no_panic() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config);
+        let _loop_id = manager.start_loop(make_problem("p1", "Test", "Fix Rust compilation error", 5));
+        // Verify the loop started in Discovering status (not escalated)
+        assert_eq!(manager.records()[0].status, LoopStatus::Discovering);
+
+        let analysis = AnalysisResult {
+            problem_id: "p1".to_string(),
+            root_cause: "root".to_string(),
+            impact_analysis: "impact".to_string(),
+            difficulty: 3,
+            estimated_hours: 1.0,
+            affected_modules: vec![],
+            analyzed_at: chrono::Utc::now(),
+        };
+        // Nonexistent id should be a no-op
+        manager.analyze_problem("nonexistent_id", analysis);
+        // Original record should remain unchanged
+        assert_eq!(manager.records()[0].status, LoopStatus::Discovering);
+        // The actual record should still have no analysis
+        assert!(manager.records()[0].analysis.is_none());
+    }
+
+    #[test]
+    fn test_create_plan_human_required_with_confirmation() {
+        let mut config = AutoLoopConfig::default();
+        config.require_human_confirmation = true;
+        let mut manager = AutoLoopManager::new(config);
+
+        let loop_id = manager.start_loop(make_problem("p1", "Test", "desc", 5));
+
+        let plan = FixPlan {
+            id: "plan1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix it".to_string(),
+            steps: vec![],
+            expected_outcome: "Fixed".to_string(),
+            risks: vec![],
+            requires_human: true,
+            created_at: chrono::Utc::now(),
+        };
+        manager.create_plan(&loop_id, plan);
+        assert_eq!(manager.current_status(), &LoopStatus::WaitingForHuman);
+        assert_eq!(manager.records()[0].status, LoopStatus::WaitingForHuman);
+    }
+
+    #[test]
+    fn test_verify_fix_with_new_issues_introduced() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config);
+        let loop_id = manager.start_loop(make_problem("p1", "Test", "desc", 5));
+
+        let analysis = AnalysisResult {
+            problem_id: "p1".to_string(),
+            root_cause: "root".to_string(),
+            impact_analysis: "impact".to_string(),
+            difficulty: 3,
+            estimated_hours: 1.0,
+            affected_modules: vec![],
+            analyzed_at: chrono::Utc::now(),
+        };
+        manager.analyze_problem(&loop_id, analysis);
+
+        let plan = FixPlan {
+            id: "plan1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix".to_string(),
+            steps: vec![],
+            expected_outcome: "Fixed".to_string(),
+            risks: vec![],
+            requires_human: false,
+            created_at: chrono::Utc::now(),
+        };
+        manager.create_plan(&loop_id, plan);
+
+        let impl_result = ImplementationResult {
+            plan_id: "plan1".to_string(),
+            success: true,
+            changed_files: vec!["test.rs".to_string()],
+            new_tests: vec![],
+            lines_changed: 5,
+            duration_seconds: 30,
+            issues: vec![],
+            implemented_at: chrono::Utc::now(),
+        };
+        manager.implement_fix(&loop_id, impl_result);
+
+        // Verify with new issues introduced -> should fail
+        let verification = VerificationResult {
+            implementation_id: "impl1".to_string(),
+            tests_passed: true,
+            problem_resolved: true,
+            new_issues_introduced: true,
+            performance_improved: false,
+            details: "New issues found".to_string(),
+            verified_at: chrono::Utc::now(),
+        };
+        manager.verify_fix(&loop_id, verification);
+        assert_eq!(manager.current_status(), &LoopStatus::Idle);
+        assert_eq!(manager.records()[0].status, LoopStatus::Failed);
+    }
+
+    #[test]
+    fn test_verify_fix_problem_not_resolved() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config);
+        let loop_id = manager.start_loop(make_problem("p1", "Unfixed Bug", "desc", 5));
+
+        let analysis = AnalysisResult {
+            problem_id: "p1".to_string(),
+            root_cause: "root".to_string(),
+            impact_analysis: "impact".to_string(),
+            difficulty: 5,
+            estimated_hours: 2.0,
+            affected_modules: vec![],
+            analyzed_at: chrono::Utc::now(),
+        };
+        manager.analyze_problem(&loop_id, analysis);
+
+        let plan = FixPlan {
+            id: "plan1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix".to_string(),
+            steps: vec![],
+            expected_outcome: "Fixed".to_string(),
+            risks: vec![],
+            requires_human: false,
+            created_at: chrono::Utc::now(),
+        };
+        manager.create_plan(&loop_id, plan);
+
+        let impl_result = ImplementationResult {
+            plan_id: "plan1".to_string(),
+            success: true,
+            changed_files: vec!["lib.rs".to_string()],
+            new_tests: vec![],
+            lines_changed: 3,
+            duration_seconds: 20,
+            issues: vec![],
+            implemented_at: chrono::Utc::now(),
+        };
+        manager.implement_fix(&loop_id, impl_result);
+
+        // Problem not resolved -> should fail
+        let verification = VerificationResult {
+            implementation_id: "impl1".to_string(),
+            tests_passed: false,
+            problem_resolved: false,
+            new_issues_introduced: false,
+            performance_improved: false,
+            details: "Problem persists".to_string(),
+            verified_at: chrono::Utc::now(),
+        };
+        manager.verify_fix(&loop_id, verification);
+        assert_eq!(manager.records()[0].status, LoopStatus::Failed);
+    }
+
+    #[test]
+    fn test_generate_report_with_multiple_records() {
+        let config = AutoLoopConfig::default();
+        let mut manager = AutoLoopManager::new(config);
+
+        // Record 1: successful
+        let id1 = manager.start_loop(make_problem("p1", "Success Bug", "desc", 3));
+        let analysis = AnalysisResult {
+            problem_id: "p1".to_string(),
+            root_cause: "root".to_string(),
+            impact_analysis: "low".to_string(),
+            difficulty: 2,
+            estimated_hours: 0.5,
+            affected_modules: vec![],
+            analyzed_at: chrono::Utc::now(),
+        };
+        manager.analyze_problem(&id1, analysis);
+        let plan = FixPlan {
+            id: "plan1".to_string(),
+            problem_id: "p1".to_string(),
+            title: "Fix".to_string(),
+            description: "Fix".to_string(),
+            steps: vec![],
+            expected_outcome: "Fixed".to_string(),
+            risks: vec![],
+            requires_human: false,
+            created_at: chrono::Utc::now(),
+        };
+        manager.create_plan(&id1, plan);
+        let impl_r = ImplementationResult {
+            plan_id: "plan1".to_string(),
+            success: true,
+            changed_files: vec!["a.rs".to_string()],
+            new_tests: vec![],
+            lines_changed: 5,
+            duration_seconds: 10,
+            issues: vec![],
+            implemented_at: chrono::Utc::now(),
+        };
+        manager.implement_fix(&id1, impl_r);
+        let ver = VerificationResult {
+            implementation_id: "impl1".to_string(),
+            tests_passed: true,
+            problem_resolved: true,
+            new_issues_introduced: false,
+            performance_improved: false,
+            details: "OK".to_string(),
+            verified_at: chrono::Utc::now(),
+        };
+        manager.verify_fix(&id1, ver);
+
+        let report = manager.generate_report();
+        assert!(report.contains("成功完成: 1"));
+        assert!(report.contains("总循环数: 1"));
+        assert!(report.contains("Success Bug"));
+    }
 }

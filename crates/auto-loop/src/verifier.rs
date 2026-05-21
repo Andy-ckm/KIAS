@@ -520,4 +520,88 @@ mod tests {
         assert!(!success);
         assert!(stderr.contains("命令执行失败"));
     }
+
+    #[test]
+    fn test_run_command_with_args() {
+        let (success, stdout, _stderr, _dur) =
+            run_command("echo", &["-n", "hello world"], "/tmp", 10);
+        assert!(success);
+        assert_eq!(stdout.trim(), "hello world");
+    }
+
+    #[test]
+    fn test_compilation_verifier_name_and_type() {
+        let v = CompilationVerifier::new("/tmp".to_string());
+        assert_eq!(v.name(), "CompilationVerifier");
+        assert_eq!(v.verification_type(), VerificationType::Compilation);
+    }
+
+    #[test]
+    fn test_test_verifier_name_and_type() {
+        let v = TestVerifier::new("/tmp".to_string());
+        assert_eq!(v.name(), "TestVerifier");
+        assert_eq!(v.verification_type(), VerificationType::Test);
+    }
+
+    #[test]
+    fn test_clippy_verifier_name_and_type() {
+        let v = ClippyVerifier::new("/tmp".to_string());
+        assert_eq!(v.name(), "ClippyVerifier");
+        assert_eq!(v.verification_type(), VerificationType::Clippy);
+    }
+
+    #[test]
+    fn test_format_verifier_name_and_type() {
+        let v = FormatVerifier::new("/tmp".to_string());
+        assert_eq!(v.name(), "FormatVerifier");
+        assert_eq!(v.verification_type(), VerificationType::Format);
+    }
+
+    #[test]
+    fn test_compilation_verifier_default() {
+        let v = CompilationVerifier::default();
+        assert_eq!(v.workspace_path, "/workspace/kias");
+    }
+
+    #[test]
+    fn test_test_verifier_default() {
+        let v = TestVerifier::default();
+        assert_eq!(v.workspace_path, "/workspace/kias");
+    }
+
+    #[test]
+    fn test_clippy_verifier_default() {
+        let v = ClippyVerifier::default();
+        assert_eq!(v.workspace_path, "/workspace/kias");
+    }
+
+    #[test]
+    fn test_format_verifier_default() {
+        let v = FormatVerifier::default();
+        assert_eq!(v.workspace_path, "/workspace/kias");
+    }
+
+    #[test]
+    fn test_verifier_manager_last_total_duration_ms_empty() {
+        let manager = VerifierManager::new();
+        assert_eq!(manager.last_total_duration_ms(), 0);
+    }
+
+    #[test]
+    fn test_register_verifier_increases_count() {
+        let mut manager = VerifierManager::new();
+        assert_eq!(manager.verifiers.len(), 0);
+        manager.register_verifier(Box::new(CompilationVerifier::new("/tmp".to_string())));
+        assert_eq!(manager.verifiers.len(), 1);
+        manager.register_verifier(Box::new(TestVerifier::new("/tmp".to_string())));
+        assert_eq!(manager.verifiers.len(), 2);
+    }
+
+    #[test]
+    fn test_verification_type_equality() {
+        assert_eq!(VerificationType::Compilation, VerificationType::Compilation);
+        assert_ne!(VerificationType::Compilation, VerificationType::Test);
+        assert_eq!(VerificationType::Format, VerificationType::Format);
+        assert_ne!(VerificationType::Functional, VerificationType::Performance);
+    }
 }

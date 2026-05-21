@@ -1,5 +1,6 @@
 pub mod agent_span;
 pub mod alert;
+pub mod anomaly_detection;
 pub mod metrics;
 pub mod prometheus;
 pub mod slow_trace;

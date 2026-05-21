@@ -36,6 +36,7 @@ members = [
     "crates/a2a-registry",
     # "crates/agentsight",
     # "crates/cache-hub",
+    "crates/benchmarks",
 ]
 
 [workspace.package]

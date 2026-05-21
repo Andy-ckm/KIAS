@@ -16,6 +16,7 @@ pub mod gxp_audit;
 pub mod pki;
 pub mod prompt_defense;
 pub mod sandbox;
+pub mod sandbox_enforcer;
 pub mod zero_trust;
 
 // Re-export key types for convenience

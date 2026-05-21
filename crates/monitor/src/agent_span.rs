@@ -183,9 +183,8 @@ impl AgentSpan {
 
     /// Get duration in milliseconds (if finished)
     pub fn duration_ms(&self) -> Option<i64> {
-        self.end_time.map(|end| {
-            (end - self.start_time).num_milliseconds()
-        })
+        self.end_time
+            .map(|end| (end - self.start_time).num_milliseconds())
     }
 
     /// Check if the span is still in progress
@@ -266,8 +265,8 @@ mod tests {
 
     #[test]
     fn test_span_finish() {
-        let span = AgentSpan::new("tool.execute", "agent-1", SpanKind::Client)
-            .finish(SpanStatus::Ok);
+        let span =
+            AgentSpan::new("tool.execute", "agent-1", SpanKind::Client).finish(SpanStatus::Ok);
 
         assert!(!span.is_in_progress());
         assert_eq!(span.status, SpanStatus::Ok);

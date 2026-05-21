@@ -28,6 +28,8 @@ pub use edge::{
 };
 pub mod agent_shell;
 pub mod agent_tier;
+pub mod auto_scaling;
+pub mod rolling_update;
 
 // Agent tiering & smart routing (PrfaaS-inspired)
 pub use agent_tier::{

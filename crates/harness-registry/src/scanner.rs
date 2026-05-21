@@ -3,14 +3,14 @@
 //! Walks the project directory tree and registers all recognized artifacts
 //! (AGENTS.md, skills/, agents/, .context/, scripts/, requirements/, etc.)
 
+use chrono::Utc;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use chrono::Utc;
-use sha2::{Sha256, Digest};
 
 use crate::artifact::{ArtifactMetadata, ArtifactType};
-use crate::error::{HarnessResult};
+use crate::error::HarnessResult;
 
 /// Configuration for the artifact scanner.
 #[derive(Debug, Clone)]
@@ -90,7 +90,14 @@ impl ArtifactScanner {
         let mut errors = Vec::new();
         let mut files_scanned = 0usize;
 
-        self.scan_directory(&self.config.root, 0, &mut artifacts, &mut errors, &mut files_scanned).await?;
+        self.scan_directory(
+            &self.config.root,
+            0,
+            &mut artifacts,
+            &mut errors,
+            &mut files_scanned,
+        )
+        .await?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -152,7 +159,8 @@ impl ArtifactScanner {
 
                     // Recurse if configured
                     if self.config.recursive && depth < self.config.max_depth {
-                        self.scan_directory(&path, depth + 1, artifacts, errors, files_scanned).await?;
+                        self.scan_directory(&path, depth + 1, artifacts, errors, files_scanned)
+                            .await?;
                     }
                 } else if path.is_file() {
                     // Check if this file is a known artifact type
@@ -217,7 +225,8 @@ impl ArtifactScanner {
         dir: &Path,
         artifact_type: ArtifactType,
     ) -> HarnessResult<ArtifactMetadata> {
-        let name = dir.file_name()
+        let name = dir
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
@@ -227,7 +236,8 @@ impl ArtifactScanner {
         // Compute content hash from directory listing
         let content_hash = self.compute_directory_hash(dir).await?;
 
-        let relative_path = dir.strip_prefix(&self.config.root)
+        let relative_path = dir
+            .strip_prefix(&self.config.root)
             .unwrap_or(dir)
             .to_path_buf();
 
@@ -242,9 +252,10 @@ impl ArtifactScanner {
             created_at: Utc::now(),
             last_modified: Utc::now(),
             content_hash,
-            custom_metadata: HashMap::from([
-                ("item_count".to_string(), serde_json::Value::Number(item_count.into())),
-            ]),
+            custom_metadata: HashMap::from([(
+                "item_count".to_string(),
+                serde_json::Value::Number(item_count.into()),
+            )]),
         })
     }
 
@@ -254,7 +265,8 @@ impl ArtifactScanner {
         path: &Path,
         artifact_type: ArtifactType,
     ) -> HarnessResult<ArtifactMetadata> {
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
@@ -265,7 +277,8 @@ impl ArtifactScanner {
         // Get file size
         let file_size = content.len();
 
-        let relative_path = path.strip_prefix(&self.config.root)
+        let relative_path = path
+            .strip_prefix(&self.config.root)
             .unwrap_or(path)
             .to_path_buf();
 
@@ -280,9 +293,10 @@ impl ArtifactScanner {
             created_at: Utc::now(),
             last_modified: Utc::now(),
             content_hash,
-            custom_metadata: HashMap::from([
-                ("file_size".to_string(), serde_json::Value::Number(file_size.into())),
-            ]),
+            custom_metadata: HashMap::from([(
+                "file_size".to_string(),
+                serde_json::Value::Number(file_size.into()),
+            )]),
         })
     }
 
@@ -346,7 +360,9 @@ mod tests {
     #[tokio::test]
     async fn test_scan_agents_md() {
         let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md\n\nTest").await.unwrap();
+        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md\n\nTest")
+            .await
+            .unwrap();
 
         let scanner = ArtifactScanner::with_root(tmp.path());
         let result = scanner.scan().await.unwrap();
@@ -361,7 +377,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let skills_dir = tmp.path().join("skills");
         fs::create_dir(&skills_dir).await.unwrap();
-        fs::write(skills_dir.join("test-skill.md"), "---\nname: test\n---").await.unwrap();
+        fs::write(skills_dir.join("test-skill.md"), "---\nname: test\n---")
+            .await
+            .unwrap();
 
         let scanner = ArtifactScanner::with_root(tmp.path());
         let result = scanner.scan().await.unwrap();
@@ -373,8 +391,12 @@ mod tests {
     #[tokio::test]
     async fn test_scan_multiple_artifacts() {
         let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md").await.unwrap();
-        fs::write(tmp.path().join("service-matrix.md"), "# Service Matrix").await.unwrap();
+        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md")
+            .await
+            .unwrap();
+        fs::write(tmp.path().join("service-matrix.md"), "# Service Matrix")
+            .await
+            .unwrap();
 
         let skills_dir = tmp.path().join("skills");
         fs::create_dir(&skills_dir).await.unwrap();
@@ -393,12 +415,16 @@ mod tests {
     #[tokio::test]
     async fn test_ignore_patterns() {
         let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md").await.unwrap();
+        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md")
+            .await
+            .unwrap();
 
         // This should be ignored
         let target_dir = tmp.path().join("target");
         fs::create_dir(&target_dir).await.unwrap();
-        fs::write(target_dir.join("AGENTS.md"), "ignored").await.unwrap();
+        fs::write(target_dir.join("AGENTS.md"), "ignored")
+            .await
+            .unwrap();
 
         let scanner = ArtifactScanner::with_root(tmp.path());
         let result = scanner.scan().await.unwrap();
@@ -410,7 +436,9 @@ mod tests {
     #[tokio::test]
     async fn test_content_hash() {
         let tmp = TempDir::new().unwrap();
-        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md\n\nContent").await.unwrap();
+        fs::write(tmp.path().join("AGENTS.md"), "# AGENTS.md\n\nContent")
+            .await
+            .unwrap();
 
         let scanner = ArtifactScanner::with_root(tmp.path());
         let result = scanner.scan().await.unwrap();
@@ -418,6 +446,9 @@ mod tests {
         assert!(!result.artifacts[0].content_hash.is_empty());
         // Same content should produce same hash
         let result2 = scanner.scan().await.unwrap();
-        assert_eq!(result.artifacts[0].content_hash, result2.artifacts[0].content_hash);
+        assert_eq!(
+            result.artifacts[0].content_hash,
+            result2.artifacts[0].content_hash
+        );
     }
 }

@@ -383,12 +383,11 @@ mod tests {
     }
 }
 
-
 #[cfg(test)]
 mod extended_tests {
     use super::*;
-    use chrono::Utc;
     use crate::codegen::PatchType;
+    use chrono::Utc;
 
     fn make_test_patches() -> Vec<CodePatch> {
         vec![CodePatch {
@@ -481,11 +480,11 @@ mod extended_tests {
         ];
         for status in statuses {
             match status {
-                DeployStatus::Pending => {},
-                DeployStatus::Deploying => {},
-                DeployStatus::Success => {},
-                DeployStatus::Failed => {},
-                DeployStatus::RolledBack => {},
+                DeployStatus::Pending => {}
+                DeployStatus::Deploying => {}
+                DeployStatus::Success => {}
+                DeployStatus::Failed => {}
+                DeployStatus::RolledBack => {}
             }
         }
     }

@@ -2042,4 +2042,460 @@ mod tests {
         let adapter = AdapterFactory::create(&ImPlatform::Feishu, &config);
         assert_eq!(adapter.platform_type(), ImPlatform::Feishu);
     }
+
+    // ===== Adapter constructors with all config =====
+
+    #[test]
+    fn test_wechat_adapter_with_encoding_aes_key() {
+        let adapter = WechatAdapter::new("token".to_string(), Some("aes_key_123".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
+    }
+
+    #[test]
+    fn test_slack_adapter_with_signing_secret() {
+        let adapter =
+            SlackAdapter::new("token".to_string(), Some("signing_secret_abc".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Slack);
+    }
+
+    #[test]
+    fn test_feishu_adapter_with_encrypt_key() {
+        let adapter = FeishuAdapter::new("token".to_string(), Some("encrypt_key_xyz".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Feishu);
+    }
+
+    // ===== MessageType Display =====
+
+    #[test]
+    fn test_message_type_display() {
+        assert_eq!(format!("{:?}", MessageType::Private), "Private");
+        assert_eq!(format!("{:?}", MessageType::Group), "Group");
+        assert_eq!(format!("{:?}", MessageType::Channel), "Channel");
+        assert_eq!(format!("{:?}", MessageType::System), "System");
+    }
+
+    // ===== MessageContent Location serialization =====
+
+    #[test]
+    fn test_location_content_serde() {
+        let loc = MessageContent::Location {
+            latitude: 31.2304,
+            longitude: 121.4737,
+            address: Some("Shanghai".to_string()),
+        };
+        let json = serde_json::to_string(&loc).unwrap();
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        match back {
+            MessageContent::Location {
+                latitude,
+                longitude,
+                address,
+            } => {
+                assert!((latitude - 31.2304).abs() < 0.001);
+                assert!((longitude - 121.4737).abs() < 0.001);
+                assert_eq!(address.as_deref(), Some("Shanghai"));
+            }
+            _ => panic!("Expected Location"),
+        }
+    }
+
+    // ===== EventType variants =====
+
+    #[test]
+    fn test_event_type_display() {
+        assert_eq!(format!("{:?}", EventType::Subscribe), "Subscribe");
+        assert_eq!(format!("{:?}", EventType::Unsubscribe), "Unsubscribe");
+        assert_eq!(format!("{:?}", EventType::JoinGroup), "JoinGroup");
+        assert_eq!(format!("{:?}", EventType::LeaveGroup), "LeaveGroup");
+        assert_eq!(
+            format!("{:?}", EventType::Custom("test".to_string())),
+            "Custom(\"test\")"
+        );
+    }
+
+    // ===== ImPlatform Display =====
+
+    #[test]
+    fn test_im_platform_display() {
+        assert_eq!(format!("{:?}", ImPlatform::Wechat), "Wechat");
+        assert_eq!(format!("{:?}", ImPlatform::Telegram), "Telegram");
+        assert_eq!(format!("{:?}", ImPlatform::Slack), "Slack");
+        assert_eq!(format!("{:?}", ImPlatform::Feishu), "Feishu");
+        assert_eq!(format!("{:?}", ImPlatform::Custom), "Custom");
+    }
+
+    // ===== UnifiedMessage with all content types =====
+
+    #[test]
+    fn test_unified_message_with_event_content() {
+        let msg = UnifiedMessage {
+            id: "evt1".to_string(),
+            platform: ImPlatform::Wechat,
+            sender_id: "user1".to_string(),
+            sender_name: None,
+            receiver_id: None,
+            content: MessageContent::Event(EventType::Subscribe),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: UnifiedMessage = serde_json::from_str(&json).unwrap();
+        match &back.content {
+            MessageContent::Event(EventType::Subscribe) => {}
+            _ => panic!("Expected Event(Subscribe)"),
+        }
+    }
+
+    // ===== WebhookResponse with reply Some =====
+
+    #[test]
+    fn test_webhook_response_with_reply() {
+        let resp = WebhookResponse {
+            status_code: 200,
+            body: serde_json::json!({"ok": true}),
+            should_reply: true,
+            reply: Some(ReplyMessage {
+                content: MessageContent::Text("hello".to_string()),
+                reply_to: Some("msg_1".to_string()),
+                silent: false,
+            }),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: WebhookResponse = serde_json::from_str(&json).unwrap();
+        assert!(back.reply.is_some());
+        assert!(!back.reply.as_ref().unwrap().silent);
+    }
+
+    // ===== Manager with all 4 platforms =====
+
+    #[test]
+    fn test_manager_all_four_platforms() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Telegram,
+            Box::new(TelegramAdapter::new("t".to_string())),
+        );
+        manager.register_adapter(
+            ImPlatform::Slack,
+            Box::new(SlackAdapter::new("t".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Feishu,
+            Box::new(FeishuAdapter::new("t".to_string(), None)),
+        );
+        assert_eq!(manager.adapters.len(), 4);
+    }
+
+    // ===== Empty string edge cases =====
+
+    #[test]
+    fn test_wechat_parse_empty_body() {
+        let adapter = WechatAdapter::new("t".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({}),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "unknown");
+        assert_eq!(msg.sender_id, "unknown");
+    }
+
+    #[test]
+    fn test_telegram_parse_empty_body() {
+        let adapter = TelegramAdapter::new("t".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({}),
+            query_params: HashMap::new(),
+        };
+        // Should not panic
+        let _ = adapter.parse_webhook(&request);
+    }
+
+    #[test]
+    fn test_feishu_parse_empty_body() {
+        let adapter = FeishuAdapter::new("t".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({}),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.id, "unknown");
+    }
+
+    // ===== Additional edge case tests =====
+
+    #[test]
+    fn test_telegram_photo_without_caption() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 300,
+                    "photo": [{"file_id": "small"}, {"file_id": "big"}],
+                    "from": {"id": 10, "first_name": "NoCaption"},
+                    "chat": {"id": 10, "type": "private"},
+                    "date": 1700000300
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, caption } => {
+                assert_eq!(url, "big");
+                assert!(caption.is_none());
+            }
+            _ => panic!("Expected Image"),
+        }
+    }
+
+    #[test]
+    fn test_telegram_photo_empty_array() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 301,
+                    "photo": [],
+                    "from": {"id": 11},
+                    "chat": {"id": 11, "type": "private"},
+                    "date": 1700000301
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Image { url, .. } => assert_eq!(url, ""),
+            _ => panic!("Expected Image with empty url"),
+        }
+    }
+
+    #[test]
+    fn test_slack_file_shared_without_mimetype() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "file_shared",
+                    "file": {
+                        "url_private": "https://slack.com/file/456",
+                        "name": "no-mime.txt"
+                    },
+                    "user": "U111",
+                    "channel": "C222",
+                    "ts": "1700000300.000001",
+                    "channel_type": "im"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.message_type, MessageType::Private);
+        match &msg.content {
+            MessageContent::File { url, filename, mime_type } => {
+                assert_eq!(url, "https://slack.com/file/456");
+                assert_eq!(filename, "no-mime.txt");
+                assert!(mime_type.is_none());
+            }
+            _ => panic!("Expected File"),
+        }
+    }
+
+    #[test]
+    fn test_feishu_file_message_type() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_file",
+                        "message_type": "file",
+                        "content": "file_key_abc",
+                        "chat_id": "oc_file",
+                        "chat_type": "p2p",
+                        "create_time": "1700000400"
+                    },
+                    "sender": {
+                        "sender_id": {"open_id": "ou_file"}
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        // "file" is not "text" or "image", falls through to default
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "file_key_abc"),
+            _ => panic!("Expected Text fallback for file type"),
+        }
+    }
+
+    #[test]
+    fn test_wechat_build_reply_with_reply_to() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = UnifiedMessage {
+            id: "1".to_string(),
+            platform: ImPlatform::Wechat,
+            sender_id: "user1".to_string(),
+            sender_name: None,
+            receiver_id: Some("bot1".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("hello back".to_string()),
+            reply_to: Some("msg_1".to_string()),
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["FromUserName"], "bot1");
+        assert_eq!(resp.body["ToUserName"], "user1");
+    }
+
+    #[test]
+    fn test_slack_build_reply_with_receiver_none() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let msg = UnifiedMessage {
+            id: "1".to_string(),
+            platform: ImPlatform::Slack,
+            sender_id: "U999".to_string(),
+            sender_name: None,
+            receiver_id: None,
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("reply".to_string()),
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        // When receiver_id is None, falls back to sender_id
+        assert_eq!(resp.body["channel"], "U999");
+    }
+
+    #[test]
+    fn test_manager_handle_wrong_platform_request() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
+        // Send a Telegram request but only Wechat adapter registered
+        let request = telegram_text_request();
+        let result = manager.handle_webhook(&request);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No adapter registered"));
+    }
+
+    #[test]
+    fn test_webhook_request_with_query_params() {
+        let mut query = HashMap::new();
+        query.insert("timestamp".to_string(), "12345".to_string());
+        query.insert("nonce".to_string(), "abc".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({"MsgType": "text", "Content": "hello"}),
+            query_params: query,
+        };
+        assert_eq!(request.query_params.get("timestamp").unwrap(), "12345");
+    }
+
+    #[test]
+    fn test_unified_message_with_raw_data() {
+        let raw = serde_json::json!({"extra": "data"});
+        let msg = UnifiedMessage {
+            id: "1".to_string(),
+            platform: ImPlatform::Telegram,
+            sender_id: "u1".to_string(),
+            sender_name: Some("User".to_string()),
+            receiver_id: Some("c1".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Group,
+            timestamp: 999,
+            raw_data: Some(raw.clone()),
+        };
+        assert_eq!(msg.raw_data.unwrap()["extra"], "data");
+        assert_eq!(msg.sender_name.unwrap(), "User");
+    }
+
+    #[test]
+    fn test_message_content_image_without_caption() {
+        let content = MessageContent::Image {
+            url: "http://img.jpg".to_string(),
+            caption: None,
+        };
+        let json = serde_json::to_string(&content).unwrap();
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        match back {
+            MessageContent::Image { url, caption } => {
+                assert_eq!(url, "http://img.jpg");
+                assert!(caption.is_none());
+            }
+            _ => panic!("Expected Image"),
+        }
+    }
+
+    #[test]
+    fn test_message_content_file_without_mime() {
+        let content = MessageContent::File {
+            url: "http://f.txt".to_string(),
+            filename: "f.txt".to_string(),
+            mime_type: None,
+        };
+        let json = serde_json::to_string(&content).unwrap();
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        match back {
+            MessageContent::File { mime_type, .. } => assert!(mime_type.is_none()),
+            _ => panic!("Expected File"),
+        }
+    }
+
+    #[test]
+    fn test_event_type_subscribe_serde() {
+        let et = EventType::Subscribe;
+        let json = serde_json::to_string(&et).unwrap();
+        let back: EventType = serde_json::from_str(&json).unwrap();
+        match back {
+            EventType::Subscribe => {}
+            _ => panic!("Expected Subscribe"),
+        }
+    }
+
+    #[test]
+    fn test_event_type_custom_serde() {
+        let et = EventType::Custom("deploy_complete".to_string());
+        let json = serde_json::to_string(&et).unwrap();
+        let back: EventType = serde_json::from_str(&json).unwrap();
+        match back {
+            EventType::Custom(s) => assert_eq!(s, "deploy_complete"),
+            _ => panic!("Expected Custom"),
+        }
+    }
 }

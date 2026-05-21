@@ -260,7 +260,10 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 
         let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
         // alice has role admin, admin can reboot server1
-        let result = manager.check_permission("alice", "server1", "reboot").await.unwrap();
+        let result = manager
+            .check_permission("alice", "server1", "reboot")
+            .await
+            .unwrap();
         assert!(result.allowed);
         assert_eq!(result.user, "alice");
         assert_eq!(result.resource, "server1");
@@ -275,7 +278,10 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 
         let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
         // bob has role operator, operator cannot shutdown server1
-        let result = manager.check_permission("bob", "server1", "shutdown").await.unwrap();
+        let result = manager
+            .check_permission("bob", "server1", "shutdown")
+            .await
+            .unwrap();
         assert!(!result.allowed);
     }
 
@@ -286,7 +292,10 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
         let policy_path = create_test_policy_file(tmp.path());
 
         let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
-        let result = manager.check_permission("unknown", "server1", "reboot").await.unwrap();
+        let result = manager
+            .check_permission("unknown", "server1", "reboot")
+            .await
+            .unwrap();
         assert!(!result.allowed);
     }
 
@@ -298,7 +307,10 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 
         let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
         // admin can reboot server1, but not server2
-        let result = manager.check_permission("alice", "server2", "reboot").await.unwrap();
+        let result = manager
+            .check_permission("alice", "server2", "reboot")
+            .await
+            .unwrap();
         assert!(!result.allowed);
     }
 
@@ -368,12 +380,18 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 
         let manager = RbacManager::new(&model_path, &policy_path).await.unwrap();
         // dave has no role initially
-        let result = manager.check_permission("dave", "server1", "reboot").await.unwrap();
+        let result = manager
+            .check_permission("dave", "server1", "reboot")
+            .await
+            .unwrap();
         assert!(!result.allowed);
 
         // add operator role to dave
         manager.add_role("dave", "operator").await.unwrap();
-        let result = manager.check_permission("dave", "server1", "reboot").await.unwrap();
+        let result = manager
+            .check_permission("dave", "server1", "reboot")
+            .await
+            .unwrap();
         assert!(result.allowed);
     }
 }

@@ -472,4 +472,218 @@ mod tests {
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains(r#""type":"done""#));
     }
+
+    #[test]
+    fn test_stream_event_tool_call_start_serialization() {
+        let event = StreamEvent::ToolCallStart {
+            id: "call_1".to_string(),
+            name: "get_weather".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("tool_call_start"));
+        assert!(json.contains("call_1"));
+        assert!(json.contains("get_weather"));
+    }
+
+    #[test]
+    fn test_stream_event_tool_call_delta_serialization() {
+        let event = StreamEvent::ToolCallDelta {
+            id: "call_1".to_string(),
+            arguments: r#"{"city":"Beijing"}"#.to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("tool_call_delta"));
+        assert!(json.contains("call_1"));
+    }
+
+    #[test]
+    fn test_stream_processor_new() {
+        let proc = StreamProcessor::new();
+        // Should initialize without panic
+        assert!(proc.current_tool_calls.is_empty());
+    }
+
+    #[test]
+    fn test_process_empty_choices() {
+        let mut proc = StreamProcessor::new();
+        let chunk = make_chunk(vec![]);
+        let events = proc.process_chunk(&chunk);
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_process_chunk_with_role_only() {
+        let mut proc = StreamProcessor::new();
+        let choice = StreamChoice {
+            index: 0,
+            delta: StreamDelta {
+                role: Some("assistant".to_string()),
+                content: None,
+                tool_calls: None,
+            },
+            finish_reason: None,
+        };
+        let chunk = make_chunk(vec![choice]);
+        let events = proc.process_chunk(&chunk);
+        // Role-only delta should not produce events
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_done_with_usage() {
+        let event = StreamEvent::Done {
+            finish_reason: "stop".to_string(),
+            usage: Some(crate::types::TokenUsage {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+            }),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("stop"));
+        assert!(json.contains("total_tokens"));
+    }
+
+    #[test]
+    fn test_error_event_serialization() {
+        let event = StreamEvent::Error {
+            message: "rate limit exceeded".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("error"));
+        assert!(json.contains("rate limit exceeded"));
+    }
+
+    #[test]
+    fn test_tool_call_end_serialization() {
+        let event = StreamEvent::ToolCallEnd {
+            id: "call_1".to_string(),
+            result: "42".to_string(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("tool_call_end"));
+        assert!(json.contains("call_1"));
+        assert!(json.contains("42"));
+    }
+
+    #[test]
+    fn test_multiple_tool_calls_in_same_chunk() {
+        let mut proc = StreamProcessor::new();
+        let choice = StreamChoice {
+            index: 0,
+            delta: StreamDelta {
+                role: None,
+                content: None,
+                tool_calls: Some(vec![
+                    StreamToolCall {
+                        index: 0,
+                        id: Some("call_a".to_string()),
+                        function: Some(StreamFunctionCall {
+                            name: Some("search".to_string()),
+                            arguments: Some(r#"{"q":"a"}"#.to_string()),
+                        }),
+                    },
+                    StreamToolCall {
+                        index: 1,
+                        id: Some("call_b".to_string()),
+                        function: Some(StreamFunctionCall {
+                            name: Some("calc".to_string()),
+                            arguments: Some(r#"{"x":1}"#.to_string()),
+                        }),
+                    },
+                ]),
+            },
+            finish_reason: None,
+        };
+        let chunk = make_chunk(vec![choice]);
+        let events = proc.process_chunk(&chunk);
+        // 2 ToolCallStart + 2 ToolCallDelta = 4
+        assert_eq!(events.len(), 4);
+        let tool_calls = proc.get_tool_calls();
+        assert_eq!(tool_calls.len(), 2);
+    }
+
+    #[test]
+    fn test_tool_call_delta_only_no_start() {
+        let mut proc = StreamProcessor::new();
+        // Send delta without name (no ToolCallStart generated)
+        let choice = StreamChoice {
+            index: 0,
+            delta: StreamDelta {
+                role: None,
+                content: None,
+                tool_calls: Some(vec![StreamToolCall {
+                    index: 0,
+                    id: Some("call_1".to_string()),
+                    function: Some(StreamFunctionCall {
+                        name: None,
+                        arguments: Some(r#"{"q":"test"}"#.to_string()),
+                    }),
+                }]),
+            },
+            finish_reason: None,
+        };
+        let chunk = make_chunk(vec![choice]);
+        let events = proc.process_chunk(&chunk);
+        // No ToolCallStart because no name, and no ToolCallDelta because call_1 not in current_tool_calls
+        assert_eq!(events.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_stream_chunk() {
+        let chunk = StreamChunk {
+            id: "empty".to_string(),
+            model: "test".to_string(),
+            choices: vec![],
+        };
+        let mut proc = StreamProcessor::new();
+        let events = proc.process_chunk(&chunk);
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_tool_call_result_serialization() {
+        let result = ToolCallResult {
+            id: "call_1".to_string(),
+            name: "search".to_string(),
+            arguments: serde_json::json!({"q": "test"}),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("call_1"));
+        assert!(json.contains("search"));
+    }
+
+    #[test]
+    fn test_stream_event_deserialization_roundtrip() {
+        let events = vec![
+            StreamEvent::Text {
+                content: "hi".to_string(),
+            },
+            StreamEvent::ToolCallStart {
+                id: "c1".to_string(),
+                name: "fn".to_string(),
+            },
+            StreamEvent::ToolCallDelta {
+                id: "c1".to_string(),
+                arguments: "{}".to_string(),
+            },
+            StreamEvent::ToolCallEnd {
+                id: "c1".to_string(),
+                result: "ok".to_string(),
+            },
+            StreamEvent::Done {
+                finish_reason: "stop".to_string(),
+                usage: None,
+            },
+            StreamEvent::Error {
+                message: "err".to_string(),
+            },
+        ];
+        for event in &events {
+            let json = serde_json::to_string(event).unwrap();
+            let roundtrip: StreamEvent = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&roundtrip).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
 }

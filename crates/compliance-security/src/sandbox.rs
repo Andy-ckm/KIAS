@@ -72,13 +72,13 @@ pub struct ResourceLimits {
 impl Default for ResourceLimits {
     fn default() -> Self {
         Self {
-            max_memory_bytes: 512 * 1024 * 1024,       // 512MB
-            max_cpu_time_ms: 30_000,                    // 30s
+            max_memory_bytes: 512 * 1024 * 1024, // 512MB
+            max_cpu_time_ms: 30_000,             // 30s
             max_open_files: 64,
             max_network_connections: 16,
-            max_write_bytes: 64 * 1024 * 1024,          // 64MB
+            max_write_bytes: 64 * 1024 * 1024, // 64MB
             max_child_processes: 4,
-            max_output_bytes: 10 * 1024 * 1024,         // 10MB
+            max_output_bytes: 10 * 1024 * 1024, // 10MB
             timeout_seconds: 60,
         }
     }
@@ -462,11 +462,7 @@ impl SandboxManager {
     }
 
     /// Check syscall permission.
-    pub fn check_syscall(
-        &self,
-        sandbox_id: &str,
-        syscall: &str,
-    ) -> Result<(), SandboxError> {
+    pub fn check_syscall(&self, sandbox_id: &str, syscall: &str) -> Result<(), SandboxError> {
         let sandbox = self
             .sandboxes
             .get(sandbox_id)
@@ -474,7 +470,11 @@ impl SandboxManager {
 
         match sandbox.syscall_filter.mode {
             SyscallFilterMode::Allowlist => {
-                if sandbox.syscall_filter.syscalls.contains(&syscall.to_string()) {
+                if sandbox
+                    .syscall_filter
+                    .syscalls
+                    .contains(&syscall.to_string())
+                {
                     Ok(())
                 } else {
                     Err(SandboxError::SyscallDenied(format!(
@@ -483,7 +483,11 @@ impl SandboxManager {
                 }
             }
             SyscallFilterMode::Denylist => {
-                if sandbox.syscall_filter.syscalls.contains(&syscall.to_string()) {
+                if sandbox
+                    .syscall_filter
+                    .syscalls
+                    .contains(&syscall.to_string())
+                {
                     Err(SandboxError::SyscallDenied(format!(
                         "Syscall {syscall} is denylisted"
                     )))
@@ -543,7 +547,11 @@ fn cidr_matches_host(host: &str, cidr: &str) -> bool {
         .unwrap_or(32);
 
     let octets_to_check = (mask_bits as usize).div_ceil(8);
-    for i in 0..octets_to_check.min(4).min(prefix_parts.len()).min(host_parts.len()) {
+    for i in 0..octets_to_check
+        .min(4)
+        .min(prefix_parts.len())
+        .min(host_parts.len())
+    {
         if prefix_parts[i] != host_parts[i] {
             return false;
         }
@@ -572,7 +580,9 @@ mod tests {
         assert_eq!(config.agent_id, "agent-1");
         assert!(config.active);
         assert!(config.capabilities.contains(&SandboxCapability::FileRead));
-        assert!(config.capabilities.contains(&SandboxCapability::NetworkOutbound));
+        assert!(config
+            .capabilities
+            .contains(&SandboxCapability::NetworkOutbound));
     }
 
     #[test]
@@ -581,7 +591,9 @@ mod tests {
         assert!(config.filesystem.read_only);
         assert!(!config.network.enabled);
         assert!(!config.capabilities.contains(&SandboxCapability::ShellExec));
-        assert!(!config.capabilities.contains(&SandboxCapability::NetworkOutbound));
+        assert!(!config
+            .capabilities
+            .contains(&SandboxCapability::NetworkOutbound));
     }
 
     #[test]
@@ -616,10 +628,13 @@ mod tests {
             .unwrap();
 
         // Has FileRead
-        assert!(mgr.check_capability("sb-1", &SandboxCapability::FileRead).is_ok());
+        assert!(mgr
+            .check_capability("sb-1", &SandboxCapability::FileRead)
+            .is_ok());
         // Does not have ShellExec
         assert!(matches!(
-            mgr.check_capability("sb-1", &SandboxCapability::ShellExec).unwrap_err(),
+            mgr.check_capability("sb-1", &SandboxCapability::ShellExec)
+                .unwrap_err(),
             SandboxError::CapabilityDenied(_)
         ));
     }
@@ -631,10 +646,13 @@ mod tests {
             .unwrap();
 
         // Allowed path
-        assert!(mgr.check_filesystem_access("sb-1", "/tmp/sandbox/data.txt", false).is_ok());
+        assert!(mgr
+            .check_filesystem_access("sb-1", "/tmp/sandbox/data.txt", false)
+            .is_ok());
         // Denied path
         assert!(matches!(
-            mgr.check_filesystem_access("sb-1", "/etc/passwd", false).unwrap_err(),
+            mgr.check_filesystem_access("sb-1", "/etc/passwd", false)
+                .unwrap_err(),
             SandboxError::FilesystemDenied(_)
         ));
     }
@@ -648,7 +666,8 @@ mod tests {
         mgr.create_sandbox(config).unwrap();
 
         assert!(matches!(
-            mgr.check_filesystem_access("sb-1", "/tmp/sandbox/data.txt", true).unwrap_err(),
+            mgr.check_filesystem_access("sb-1", "/tmp/sandbox/data.txt", true)
+                .unwrap_err(),
             SandboxError::FilesystemDenied(_)
         ));
     }
@@ -661,7 +680,8 @@ mod tests {
         mgr.create_sandbox(config).unwrap();
 
         assert!(matches!(
-            mgr.check_network_access("sb-1", "example.com", 443).unwrap_err(),
+            mgr.check_network_access("sb-1", "example.com", 443)
+                .unwrap_err(),
             SandboxError::NetworkDenied(_)
         ));
     }
@@ -673,11 +693,13 @@ mod tests {
             .unwrap();
 
         assert!(matches!(
-            mgr.check_network_access("sb-1", "10.0.0.1", 443).unwrap_err(),
+            mgr.check_network_access("sb-1", "10.0.0.1", 443)
+                .unwrap_err(),
             SandboxError::NetworkDenied(_)
         ));
         assert!(matches!(
-            mgr.check_network_access("sb-1", "192.168.1.1", 443).unwrap_err(),
+            mgr.check_network_access("sb-1", "192.168.1.1", 443)
+                .unwrap_err(),
             SandboxError::NetworkDenied(_)
         ));
     }
@@ -740,7 +762,8 @@ mod tests {
     fn test_sandbox_not_found() {
         let mgr = SandboxManager::new();
         assert!(matches!(
-            mgr.check_capability("nonexistent", &SandboxCapability::FileRead).unwrap_err(),
+            mgr.check_capability("nonexistent", &SandboxCapability::FileRead)
+                .unwrap_err(),
             SandboxError::Internal(_)
         ));
     }

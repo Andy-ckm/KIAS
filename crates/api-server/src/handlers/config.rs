@@ -329,7 +329,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -540,7 +542,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         };
 
         let result = get_config(State(state)).await;
@@ -712,8 +716,12 @@ mod tests {
         let (_, body) = result.unwrap();
         let changes = body.get("changes").unwrap().as_array().unwrap();
         assert_eq!(changes.len(), 3);
-        assert!(changes.iter().any(|c| c.as_str().unwrap().contains("error")));
-        assert!(changes.iter().any(|c| c.as_str().unwrap().contains("least_loaded")));
+        assert!(changes
+            .iter()
+            .any(|c| c.as_str().unwrap().contains("error")));
+        assert!(changes
+            .iter()
+            .any(|c| c.as_str().unwrap().contains("least_loaded")));
         assert!(changes.iter().any(|c| c.as_str().unwrap().contains("1000")));
     }
 

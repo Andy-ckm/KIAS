@@ -30,7 +30,7 @@ pub enum ExecutionMode {
 // ─── Action Type ───────────────────────────────────────────────────────
 
 /// 动作类型分类（决定风险等级）
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ActionType {
     /// 写文件（本地）
     FileWrite,
@@ -759,5 +759,82 @@ mod tests {
         let stats = gate.stats();
         assert_eq!(stats.rejected, 1);
         assert_eq!(stats.approved, 0);
+    }
+
+    #[test]
+    fn test_action_type_variants() {
+        let types = vec![
+            ActionType::FileWrite,
+            ActionType::FileDelete,
+            ActionType::GitPush,
+            ActionType::DataMutation,
+            ActionType::NetworkRequest,
+            ActionType::CommandExec,
+        ];
+        // All variants should be distinct
+        let unique: std::collections::HashSet<_> = types.iter().collect();
+        assert_eq!(unique.len(), 6);
+    }
+
+    #[test]
+    fn test_gate_policy_variants() {
+        let policies = vec![
+            GatePolicy::AutoLow,
+            GatePolicy::AutoMedium,
+            GatePolicy::Always,
+        ];
+        assert_eq!(policies.len(), 3);
+    }
+
+    #[test]
+    fn test_approval_decision_serialization() {
+        let decision = ApprovalDecision {
+            approver: "admin".to_string(),
+            decision: ApprovalOutcome::Approved,
+            reason: "looks good".to_string(),
+            timestamp: Utc::now(),
+        };
+        let json = serde_json::to_string(&decision).unwrap();
+        assert!(json.contains("admin"));
+        assert!(json.contains("Approved"));
+    }
+
+    #[test]
+    fn test_side_effect_action_serialization() {
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test".to_string(),
+            serde_json::json!({"content": "hello"}),
+        );
+        let json = serde_json::to_string(&action).unwrap();
+        assert!(json.contains("FileWrite"));
+        assert!(json.contains("/tmp/test"));
+    }
+
+    #[test]
+    fn test_gate_stats_clone() {
+        let stats = GateStats {
+            total: 10,
+            auto_approved: 5,
+            requires_approval: 3,
+            approved: 1,
+            rejected: 1,
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.total, 10);
+        assert_eq!(cloned.auto_approved, 5);
+    }
+
+    #[test]
+    fn test_low_risk_auto_approve() {
+        let mut gate = SideEffectGate::new(GatePolicy::AutoLow);
+        let action = SideEffectAction::new(
+            ActionType::FileWrite,
+            "/tmp/test.txt".to_string(),
+            serde_json::json!({}),
+        );
+        let result = gate.process(action);
+        // Low risk with HighRiskOnly policy should auto-approve
+        assert!(matches!(result, GateResult::AutoApproved { .. }));
     }
 }

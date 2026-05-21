@@ -319,7 +319,12 @@ impl PkiManager {
         self.root_cas.insert(serial.clone(), cert.clone());
         self.key_pairs.insert(fp.clone(), kp);
 
-        Ok((cert, self.key_pairs.get(&fp).expect("key pair just inserted above")))
+        Ok((
+            cert,
+            self.key_pairs
+                .get(&fp)
+                .expect("key pair just inserted above"),
+        ))
     }
 
     /// Issue a certificate signed by a CA.
@@ -398,10 +403,7 @@ impl PkiManager {
             .chain(self.intermediate_cas.values())
             .find(|ca| ca.subject == cert.issuer)
             .ok_or_else(|| {
-                PkiError::ChainBroken(format!(
-                    "Issuer '{}' not found",
-                    cert.issuer.to_dn_string()
-                ))
+                PkiError::ChainBroken(format!("Issuer '{}' not found", cert.issuer.to_dn_string()))
             })?;
 
         // Verify signature
@@ -473,7 +475,11 @@ impl Default for PkiManager {
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
-    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
@@ -642,11 +648,13 @@ mod tests {
 
     #[test]
     fn test_key_usage_types() {
-        let usages = [KeyUsage::DigitalSignature,
+        let usages = [
+            KeyUsage::DigitalSignature,
             KeyUsage::KeyEncipherment,
             KeyUsage::KeyCertSign,
             KeyUsage::CrlSign,
-            KeyUsage::DataEncipherment];
+            KeyUsage::DataEncipherment,
+        ];
         // Just ensure they're distinct
         let unique: std::collections::HashSet<_> = usages.iter().collect();
         assert_eq!(unique.len(), 5);
@@ -660,7 +668,10 @@ mod tests {
             .unwrap();
         // Modify to be in the future
         ca_cert.not_before = Utc::now() + Duration::days(30);
-        assert_eq!(ca_cert.is_valid().unwrap_err(), PkiError::CertificateNotYetValid);
+        assert_eq!(
+            ca_cert.is_valid().unwrap_err(),
+            PkiError::CertificateNotYetValid
+        );
     }
 
     #[test]

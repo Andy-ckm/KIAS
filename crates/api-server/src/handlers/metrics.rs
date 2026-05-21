@@ -294,7 +294,9 @@ mod tests {
                 24,
             ),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            token_budgets: std::sync::Arc::new(tokio::sync::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
         }
     }
 
@@ -875,10 +877,7 @@ mod tests {
         {
             let mut agents = state.agents.write().await;
             // Insert same ID twice — second should overwrite
-            agents.insert(
-                "a1".into(),
-                make_agent("a1", "first", AgentStatus::Pending),
-            );
+            agents.insert("a1".into(), make_agent("a1", "first", AgentStatus::Pending));
             agents.insert(
                 "a1".into(),
                 make_agent("a1", "second", AgentStatus::Running),

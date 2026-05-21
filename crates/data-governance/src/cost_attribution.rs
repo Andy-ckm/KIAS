@@ -139,10 +139,8 @@ impl CostEngine {
     /// Get cost summary for a specific agent
     pub async fn agent_summary(&self, agent_id: &str) -> AgentCostSummary {
         let entries = self.entries.read().await;
-        let agent_entries: Vec<&CostEntry> = entries
-            .iter()
-            .filter(|e| e.agent_id == agent_id)
-            .collect();
+        let agent_entries: Vec<&CostEntry> =
+            entries.iter().filter(|e| e.agent_id == agent_id).collect();
 
         let total_cost: f64 = agent_entries.iter().map(|e| e.cost_usd).sum();
         let total_input: u64 = agent_entries.iter().map(|e| e.input_tokens).sum();
@@ -172,7 +170,11 @@ impl CostEngine {
             total_output_tokens: total_output,
             call_count: count,
             cached_calls: cached,
-            avg_cost_per_call: if count > 0 { total_cost / count as f64 } else { 0.0 },
+            avg_cost_per_call: if count > 0 {
+                total_cost / count as f64
+            } else {
+                0.0
+            },
             by_model,
         }
     }
@@ -200,24 +202,35 @@ impl CostEngine {
     /// Check budget status for an agent
     pub async fn check_budget(&self, agent_id: &str) -> Option<BudgetStatus> {
         let alerts = self.alerts.read().await;
-        let alert = alerts.iter().find(|a| a.agent_id == agent_id || a.agent_id == "*")?;
+        let alert = alerts
+            .iter()
+            .find(|a| a.agent_id == agent_id || a.agent_id == "*")?;
 
         let entries = self.entries.read().await;
         let now = Utc::now();
         let today_start = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
         let today_start = DateTime::<Utc>::from_naive_utc_and_offset(today_start, Utc);
-        let month_start = now.date_naive().with_day(1).unwrap().and_hms_opt(0, 0, 0).unwrap();
+        let month_start = now
+            .date_naive()
+            .with_day(1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
         let month_start = DateTime::<Utc>::from_naive_utc_and_offset(month_start, Utc);
 
         let daily_spent: f64 = entries
             .iter()
-            .filter(|e| (e.agent_id == agent_id || alert.agent_id == "*") && e.timestamp >= today_start)
+            .filter(|e| {
+                (e.agent_id == agent_id || alert.agent_id == "*") && e.timestamp >= today_start
+            })
             .map(|e| e.cost_usd)
             .sum();
 
         let monthly_spent: f64 = entries
             .iter()
-            .filter(|e| (e.agent_id == agent_id || alert.agent_id == "*") && e.timestamp >= month_start)
+            .filter(|e| {
+                (e.agent_id == agent_id || alert.agent_id == "*") && e.timestamp >= month_start
+            })
             .map(|e| e.cost_usd)
             .sum();
 
@@ -325,12 +338,14 @@ mod tests {
     async fn test_budget_alert() {
         let engine = CostEngine::default();
 
-        engine.set_alert(BudgetAlert {
-            agent_id: "agent-1".to_string(),
-            daily_limit_usd: 1.0,
-            monthly_limit_usd: 20.0,
-            alert_threshold: 0.8,
-        }).await;
+        engine
+            .set_alert(BudgetAlert {
+                agent_id: "agent-1".to_string(),
+                daily_limit_usd: 1.0,
+                monthly_limit_usd: 20.0,
+                alert_threshold: 0.8,
+            })
+            .await;
 
         // Spend 0.9 (90% of daily limit)
         engine.record(make_entry("agent-1", 0.9, "gpt-4")).await;
@@ -345,7 +360,9 @@ mod tests {
         let engine = CostEngine::default();
 
         engine.record(make_entry("agent-1", 0.05, "gpt-4")).await;
-        engine.record(make_entry("agent-1", 0.02, "gpt-3.5-turbo")).await;
+        engine
+            .record(make_entry("agent-1", 0.02, "gpt-3.5-turbo"))
+            .await;
         engine.record(make_entry("agent-1", 0.08, "gpt-4")).await;
 
         let summary = engine.agent_summary("agent-1").await;
@@ -360,12 +377,14 @@ mod tests {
     async fn test_budget_not_exceeded() {
         let engine = CostEngine::default();
 
-        engine.set_alert(BudgetAlert {
-            agent_id: "agent-1".to_string(),
-            daily_limit_usd: 10.0,
-            monthly_limit_usd: 200.0,
-            alert_threshold: 0.8,
-        }).await;
+        engine
+            .set_alert(BudgetAlert {
+                agent_id: "agent-1".to_string(),
+                daily_limit_usd: 10.0,
+                monthly_limit_usd: 200.0,
+                alert_threshold: 0.8,
+            })
+            .await;
 
         engine.record(make_entry("agent-1", 0.05, "gpt-4")).await;
 
@@ -377,12 +396,14 @@ mod tests {
     async fn test_global_budget() {
         let engine = CostEngine::default();
 
-        engine.set_alert(BudgetAlert {
-            agent_id: "*".to_string(),
-            daily_limit_usd: 5.0,
-            monthly_limit_usd: 100.0,
-            alert_threshold: 0.8,
-        }).await;
+        engine
+            .set_alert(BudgetAlert {
+                agent_id: "*".to_string(),
+                daily_limit_usd: 5.0,
+                monthly_limit_usd: 100.0,
+                alert_threshold: 0.8,
+            })
+            .await;
 
         engine.record(make_entry("agent-1", 3.0, "gpt-4")).await;
         engine.record(make_entry("agent-2", 2.5, "claude-3")).await;

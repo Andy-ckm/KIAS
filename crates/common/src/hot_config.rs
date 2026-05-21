@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 use tracing::info;
 
 /// Hot config reload — update configuration without restarting.
@@ -286,7 +286,10 @@ mod tests {
     async fn test_basic_update_and_get() {
         let config = HotConfig::default();
 
-        config.update("app.name", json!("AgentGuard"), "admin").await.unwrap();
+        config
+            .update("app.name", json!("AgentGuard"), "admin")
+            .await
+            .unwrap();
 
         assert_eq!(config.get("app.name").await, Some(json!("AgentGuard")));
     }
@@ -295,17 +298,22 @@ mod tests {
     async fn test_handler_validation() {
         let config = HotConfig::default();
 
-        config.register_handler("app.port", |value| {
-            if let Some(port) = value.as_u64() {
-                if port > 0 && port < 65536 {
-                    return ConfigValidationResult { valid: true, errors: vec![] };
+        config
+            .register_handler("app.port", |value| {
+                if let Some(port) = value.as_u64() {
+                    if port > 0 && port < 65536 {
+                        return ConfigValidationResult {
+                            valid: true,
+                            errors: vec![],
+                        };
+                    }
                 }
-            }
-            ConfigValidationResult {
-                valid: false,
-                errors: vec!["Port must be 1-65535".to_string()],
-            }
-        }).await;
+                ConfigValidationResult {
+                    valid: false,
+                    errors: vec!["Port must be 1-65535".to_string()],
+                }
+            })
+            .await;
 
         // Valid port
         let result = config.update("app.port", json!(8080), "admin").await;
@@ -320,8 +328,14 @@ mod tests {
     async fn test_rollback() {
         let config = HotConfig::default();
 
-        config.update("app.debug", json!(false), "admin").await.unwrap();
-        config.update("app.debug", json!(true), "dev").await.unwrap();
+        config
+            .update("app.debug", json!(false), "admin")
+            .await
+            .unwrap();
+        config
+            .update("app.debug", json!(true), "dev")
+            .await
+            .unwrap();
 
         assert_eq!(config.get("app.debug").await, Some(json!(true)));
 
@@ -348,7 +362,10 @@ mod tests {
     async fn test_remove() {
         let config = HotConfig::default();
 
-        config.update("key1", json!("value"), "admin").await.unwrap();
+        config
+            .update("key1", json!("value"), "admin")
+            .await
+            .unwrap();
         assert!(config.get("key1").await.is_some());
 
         config.remove("key1", "admin").await.unwrap();
@@ -375,16 +392,21 @@ mod tests {
     async fn test_bulk_update_rollback_on_validation_failure() {
         let config = HotConfig::default();
 
-        config.register_handler("b", |value| {
-            if value.as_i64() == Some(2) {
-                ConfigValidationResult {
-                    valid: false,
-                    errors: vec!["2 is not allowed".to_string()],
+        config
+            .register_handler("b", |value| {
+                if value.as_i64() == Some(2) {
+                    ConfigValidationResult {
+                        valid: false,
+                        errors: vec!["2 is not allowed".to_string()],
+                    }
+                } else {
+                    ConfigValidationResult {
+                        valid: true,
+                        errors: vec![],
+                    }
                 }
-            } else {
-                ConfigValidationResult { valid: true, errors: vec![] }
-            }
-        }).await;
+            })
+            .await;
 
         let updates = vec![
             ("a".to_string(), json!(1)),

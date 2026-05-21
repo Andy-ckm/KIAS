@@ -539,10 +539,7 @@ mod tests {
             TrustDecision::AllowRestricted.to_string(),
             "allow_restricted"
         );
-        assert_eq!(
-            TrustDecision::RequireStepUp.to_string(),
-            "require_step_up"
-        );
+        assert_eq!(TrustDecision::RequireStepUp.to_string(), "require_step_up");
         assert_eq!(
             TrustDecision::Deny("reason".to_string()).to_string(),
             "deny: reason"

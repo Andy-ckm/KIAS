@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 regex = { workspace = true }
 base64 = "0.22"
 hmac = "0.12"
+libc = "0.2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

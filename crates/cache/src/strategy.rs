@@ -469,10 +469,12 @@ impl MLACacheMetrics {
 #[derive(Debug, Clone)]
 struct KVBlock {
     /// Block hash (hash of token IDs in this block).
+    #[allow(dead_code)] // Stored for future eviction/pinning logic
     block_hash: u64,
     /// The serialized KV cache data.
     data: Vec<u8>,
     /// Number of tokens in this block.
+    #[allow(dead_code)] // Stored for future metrics/accounting
     token_count: usize,
     /// When this block was last accessed.
     last_access: Instant,

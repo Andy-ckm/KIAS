@@ -52,6 +52,7 @@ pub struct HybridRetriever {
     /// Pre-computed IDF values for terms across the corpus
     idf_cache: HashMap<String, f64>,
     /// Total number of documents in the corpus
+    #[allow(dead_code)] // Computed at init, available for future IDF weighting
     doc_count: usize,
 }
 

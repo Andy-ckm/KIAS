@@ -4,8 +4,8 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::handlers::{
-    a2a, agents, config, context, health, im, knowledge, metrics, nl_command, nodes, scheduler,
-    tier_routing, tokens, token_budget, visualization, workflows, dashboard, slow_trace,
+    a2a, agents, config, context, dashboard, health, im, knowledge, metrics, nl_command, nodes,
+    scheduler, slow_trace, tier_routing, token_budget, tokens, visualization, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
@@ -159,15 +159,16 @@ pub fn create_router(state: AppState) -> Router {
         );
 
     // --- Token analytics routes ---
-    let token_routes = Router::new().route(
-        "/api/v1/tokens",
-        axum::routing::get(tokens::token_analytics),
-    )
-    // --- Real-time Dashboard route ---
-    .route(
-        "/api/v1/dashboard/realtime",
-        axum::routing::get(dashboard::realtime_dashboard),
-    );
+    let token_routes = Router::new()
+        .route(
+            "/api/v1/tokens",
+            axum::routing::get(tokens::token_analytics),
+        )
+        // --- Real-time Dashboard route ---
+        .route(
+            "/api/v1/dashboard/realtime",
+            axum::routing::get(dashboard::realtime_dashboard),
+        );
 
     // --- Token Budget Management routes ---
     let token_budget_routes = Router::new()
@@ -205,8 +206,7 @@ pub fn create_router(state: AppState) -> Router {
     let slow_trace_routes = Router::new()
         .route(
             "/api/v1/observability/slow-traces",
-            axum::routing::get(slow_trace::list_slow_traces)
-                .delete(slow_trace::clear_slow_traces),
+            axum::routing::get(slow_trace::list_slow_traces).delete(slow_trace::clear_slow_traces),
         )
         .route(
             "/api/v1/observability/slow-traces/summary",

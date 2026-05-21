@@ -810,24 +810,28 @@ mod tests {
 
     #[test]
     fn test_inspiration_status_variants() {
-        let statuses = [InspirationStatus::Discovered,
+        let statuses = [
+            InspirationStatus::Discovered,
             InspirationStatus::Injected,
             InspirationStatus::Viewed,
             InspirationStatus::Adopted,
             InspirationStatus::Ignored,
-            InspirationStatus::Expired];
+            InspirationStatus::Expired,
+        ];
         assert_eq!(statuses.len(), 6);
     }
 
     #[test]
     fn test_inspiration_source_variants() {
-        let sources = [InspirationSource::GitHubTrending,
+        let sources = [
+            InspirationSource::GitHubTrending,
             InspirationSource::Paper,
             InspirationSource::Blog,
             InspirationSource::InnovationAgent,
             InspirationSource::UserReference,
             InspirationSource::Memory,
-            InspirationSource::ConversationInsight];
+            InspirationSource::ConversationInsight,
+        ];
         assert_eq!(sources.len(), 7);
     }
 

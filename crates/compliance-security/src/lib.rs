@@ -11,6 +11,8 @@
 //! 6. **EU AI Act Compliance** — Risk classification, transparency obligations, conformity checks
 
 pub mod auth_providers;
+pub mod bias_detection;
+pub mod compliance_report;
 pub mod eu_ai_act;
 pub mod gxp_audit;
 pub mod pki;
@@ -23,6 +25,8 @@ pub mod zero_trust;
 pub use auth_providers::{
     AuthCredential, AuthProvider, AuthProviderType, AuthResult, MultiAuthProvider,
 };
+pub use bias_detection::{BiasDetector, BiasReport};
+pub use compliance_report::{ComplianceReport, ComplianceReportGenerator, ReportType};
 pub use eu_ai_act::{AiActChecker, AiSystem, ConformityReport, RiskLevel};
 pub use pki::{Certificate, DistinguishedName, KeyPair, PkiManager, SignatureAlgorithm};
 pub use prompt_defense::{InjectionDetector, InjectionSeverity, PromptAnalysis};

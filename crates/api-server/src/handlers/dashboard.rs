@@ -284,8 +284,6 @@ mod tests {
     use crate::websocket::EventType;
     use axum::extract::State;
     use std::collections::HashMap;
-    
-    
 
     async fn test_state() -> AppState {
         AppState::new_async(kias_common::config::KiasConfig::default()).await
@@ -324,14 +322,8 @@ mod tests {
         let state = test_state().await;
         {
             let mut agents = state.agents.write().await;
-            agents.insert(
-                "a1".to_string(),
-                make_agent("runner", AgentStatus::Running),
-            );
-            agents.insert(
-                "a2".to_string(),
-                make_agent("done", AgentStatus::Succeeded),
-            );
+            agents.insert("a1".to_string(), make_agent("runner", AgentStatus::Running));
+            agents.insert("a2".to_string(), make_agent("done", AgentStatus::Succeeded));
             agents.insert(
                 "a3".to_string(),
                 make_agent("waiting", AgentStatus::Pending),
@@ -371,10 +363,7 @@ mod tests {
         let state = test_state().await;
         {
             let mut agents = state.agents.write().await;
-            agents.insert(
-                "a1".to_string(),
-                make_agent("runner", AgentStatus::Running),
-            );
+            agents.insert("a1".to_string(), make_agent("runner", AgentStatus::Running));
         }
 
         let result = realtime_dashboard(State(state)).await;
@@ -392,8 +381,18 @@ mod tests {
         assert_eq!(result.nodes.total, 2);
         assert_eq!(result.nodes.ready, 2);
         assert_eq!(result.nodes.not_ready, 0);
-        let node1 = result.nodes.nodes.iter().find(|n| n.id == "node-1").unwrap();
-        let node2 = result.nodes.nodes.iter().find(|n| n.id == "node-2").unwrap();
+        let node1 = result
+            .nodes
+            .nodes
+            .iter()
+            .find(|n| n.id == "node-1")
+            .unwrap();
+        let node2 = result
+            .nodes
+            .nodes
+            .iter()
+            .find(|n| n.id == "node-2")
+            .unwrap();
         assert_eq!(node1.cpu, "8");
         assert_eq!(node2.cpu, "4");
     }

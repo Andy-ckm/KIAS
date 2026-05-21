@@ -13,9 +13,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use kias_monitor::slow_trace::{
-    SlowTrace, SlowTraceConfig, SlowTraceSummary,
-};
+use kias_monitor::slow_trace::{SlowTrace, SlowTraceConfig, SlowTraceSummary};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -61,9 +59,7 @@ pub async fn list_slow_traces(
 /// GET /api/v1/observability/slow-traces/summary
 ///
 /// Returns aggregated slow trace statistics.
-pub async fn slow_trace_summary(
-    State(state): State<AppState>,
-) -> Json<SlowTraceSummary> {
+pub async fn slow_trace_summary(State(state): State<AppState>) -> Json<SlowTraceSummary> {
     Json(state.slow_trace_collector.summary().await)
 }
 
@@ -86,7 +82,10 @@ pub async fn update_slow_trace_config(
     State(state): State<AppState>,
     Json(config): Json<SlowTraceConfig>,
 ) -> Json<SlowTraceConfigResponse> {
-    state.slow_trace_collector.update_config(config.clone()).await;
+    state
+        .slow_trace_collector
+        .update_config(config.clone())
+        .await;
     Json(SlowTraceConfigResponse {
         threshold_ms: config.threshold_ms,
         max_traces: config.max_traces,
@@ -117,11 +116,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_slow_traces_empty() {
         let state = test_state().await;
-        let result = list_slow_traces(
-            State(state),
-            Query(SlowTraceQuery { limit: None }),
-        )
-        .await;
+        let result = list_slow_traces(State(state), Query(SlowTraceQuery { limit: None })).await;
         assert!(result.traces.is_empty());
         assert_eq!(result.total, 0);
     }
@@ -143,11 +138,7 @@ mod tests {
             )
             .await;
 
-        let result = list_slow_traces(
-            State(state),
-            Query(SlowTraceQuery { limit: None }),
-        )
-        .await;
+        let result = list_slow_traces(State(state), Query(SlowTraceQuery { limit: None })).await;
         assert_eq!(result.traces.len(), 1);
         assert_eq!(result.total, 1);
         assert_eq!(result.traces[0].agent_id, "a1");
@@ -171,11 +162,7 @@ mod tests {
                 .await;
         }
 
-        let result = list_slow_traces(
-            State(state),
-            Query(SlowTraceQuery { limit: Some(3) }),
-        )
-        .await;
+        let result = list_slow_traces(State(state), Query(SlowTraceQuery { limit: Some(3) })).await;
         assert_eq!(result.traces.len(), 3);
         assert_eq!(result.total, 5);
     }

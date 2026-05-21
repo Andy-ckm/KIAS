@@ -382,7 +382,10 @@ impl GxpAuthManager {
         let lockout_attempts = self.policy.lockout_attempts;
         let lockout_duration = self.policy.lockout_duration_minutes;
 
-        let user = self.users.get_mut(&user_id).unwrap();
+        let user = self
+            .users
+            .get_mut(&user_id)
+            .ok_or(AuthError::InvalidCredentials)?;
 
         // Check lockout
         if let Some(locked_until) = user.locked_until {

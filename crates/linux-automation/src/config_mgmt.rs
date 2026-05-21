@@ -191,7 +191,11 @@ mod tests {
         let detector = DriftDetector::new("/tmp/baseline");
         let commands = detector.build_check_commands();
         for cmd in &commands {
-            assert!(cmd.ends_with('\''), "command should end with quote: {}", cmd);
+            assert!(
+                cmd.ends_with('\''),
+                "command should end with quote: {}",
+                cmd
+            );
         }
     }
 

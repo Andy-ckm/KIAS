@@ -3,12 +3,12 @@
 //! This module analyzes the evolution of engineering artifacts to identify
 //! patterns, optimization opportunities, and potential issues.
 
-use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Duration};
+use std::collections::HashMap;
 
 use crate::artifact::ArtifactMetadata;
-use crate::error::{HarnessResult};
+use crate::error::HarnessResult;
 
 /// Pattern identified in artifact evolution.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -30,9 +30,7 @@ pub enum ChangePattern {
         dependent_count: usize,
     },
     /// Artifact has no dependents (orphan).
-    OrphanArtifact {
-        artifact_id: String,
-    },
+    OrphanArtifact { artifact_id: String },
     /// Artifact version is outdated.
     OutdatedVersion {
         artifact_id: String,
@@ -40,9 +38,7 @@ pub enum ChangePattern {
         latest_version: String,
     },
     /// Artifact has circular dependencies.
-    CircularDependency {
-        artifact_ids: Vec<String>,
-    },
+    CircularDependency { artifact_ids: Vec<String> },
 }
 
 /// Recommendation for optimizing artifact management.
@@ -152,9 +148,10 @@ impl EvolutionAnalyzer {
         artifact_id: &str,
         entry: ChangeHistoryEntry,
     ) -> HarnessResult<()> {
-        let history = self.change_history
+        let history = self
+            .change_history
             .entry(artifact_id.to_string())
-            .or_insert_with(Vec::new);
+            .or_default();
         history.push(entry);
         Ok(())
     }
@@ -176,7 +173,7 @@ impl EvolutionAnalyzer {
 
         // Identify stable artifacts (no changes in last 90 days)
         let now = Utc::now();
-        for (artifact_id, _metadata) in &self.artifacts {
+        for artifact_id in self.artifacts.keys() {
             if let Some(history) = self.change_history.get(artifact_id) {
                 if let Some(last_change) = history.last() {
                     let days_since = (now - last_change.timestamp).num_days();
@@ -232,9 +229,12 @@ impl EvolutionAnalyzer {
 
         for pattern in &patterns {
             match pattern {
-                ChangePattern::FrequentChanger { artifact_id, change_count, .. } => {
-                    if *change_count > 10 {
-                        recommendations.push(OptimizationRecommendation {
+                ChangePattern::FrequentChanger {
+                    artifact_id,
+                    change_count,
+                    ..
+                } if *change_count > 10 => {
+                    recommendations.push(OptimizationRecommendation {
                             recommendation_type: RecommendationType::Split,
                             artifact_ids: vec![artifact_id.clone()],
                             description: format!(
@@ -244,7 +244,6 @@ impl EvolutionAnalyzer {
                             expected_impact: "Reduce change frequency and improve maintainability".to_string(),
                             priority: RecommendationPriority::Medium,
                         });
-                    }
                 }
                 ChangePattern::OrphanArtifact { artifact_id } => {
                     recommendations.push(OptimizationRecommendation {
@@ -258,7 +257,10 @@ impl EvolutionAnalyzer {
                         priority: RecommendationPriority::Low,
                     });
                 }
-                ChangePattern::HighImpactArtifact { artifact_id, dependent_count } => {
+                ChangePattern::HighImpactArtifact {
+                    artifact_id,
+                    dependent_count,
+                } => {
                     recommendations.push(OptimizationRecommendation {
                         recommendation_type: RecommendationType::AddTests,
                         artifact_ids: vec![artifact_id.clone()],
@@ -266,7 +268,8 @@ impl EvolutionAnalyzer {
                             "Artifact '{}' has {} dependents. Ensure comprehensive test coverage.",
                             artifact_id, dependent_count
                         ),
-                        expected_impact: "Prevent regressions affecting multiple artifacts".to_string(),
+                        expected_impact: "Prevent regressions affecting multiple artifacts"
+                            .to_string(),
                         priority: RecommendationPriority::High,
                     });
                 }
@@ -287,22 +290,26 @@ impl EvolutionAnalyzer {
             0.0
         };
 
-        let most_changed = self.change_history
+        let most_changed = self
+            .change_history
             .iter()
             .max_by_key(|(_, h)| h.len())
             .map(|(id, _)| id.clone());
 
-        let most_stable = self.change_history
+        let most_stable = self
+            .change_history
             .iter()
             .min_by_key(|(_, h)| h.len())
             .map(|(id, _)| id.clone());
 
-        let orphan_count = self.analyze()
+        let orphan_count = self
+            .analyze()
             .iter()
             .filter(|p| matches!(p, ChangePattern::OrphanArtifact { .. }))
             .count();
 
-        let high_impact_count = self.analyze()
+        let high_impact_count = self
+            .analyze()
             .iter()
             .filter(|p| matches!(p, ChangePattern::HighImpactArtifact { .. }))
             .count();
@@ -355,7 +362,8 @@ mod tests {
         analyzer.add_artifact(create_test_metadata("c", vec![])); // Orphan
 
         let patterns = analyzer.analyze();
-        let orphans: Vec<_> = patterns.iter()
+        let orphans: Vec<_> = patterns
+            .iter()
             .filter(|p| matches!(p, ChangePattern::OrphanArtifact { .. }))
             .collect();
 
@@ -372,17 +380,23 @@ mod tests {
 
         // Add many changes
         for i in 0..15 {
-            analyzer.record_change("frequent", ChangeHistoryEntry {
-                timestamp: Utc::now(),
-                version: format!("1.0.{}", i),
-                description: format!("Change {}", i),
-                changed_by: "test".to_string(),
-                content_hash: format!("hash{}", i),
-            }).unwrap();
+            analyzer
+                .record_change(
+                    "frequent",
+                    ChangeHistoryEntry {
+                        timestamp: Utc::now(),
+                        version: format!("1.0.{}", i),
+                        description: format!("Change {}", i),
+                        changed_by: "test".to_string(),
+                        content_hash: format!("hash{}", i),
+                    },
+                )
+                .unwrap();
         }
 
         let patterns = analyzer.analyze();
-        let frequent: Vec<_> = patterns.iter()
+        let frequent: Vec<_> = patterns
+            .iter()
             .filter(|p| matches!(p, ChangePattern::FrequentChanger { .. }))
             .collect();
 
@@ -397,7 +411,8 @@ mod tests {
         analyzer.add_artifact(create_test_metadata("orphan", vec![]));
 
         let recommendations = analyzer.recommend();
-        let remove_recs: Vec<_> = recommendations.iter()
+        let remove_recs: Vec<_> = recommendations
+            .iter()
             .filter(|r| r.recommendation_type == RecommendationType::RemoveUnused)
             .collect();
 

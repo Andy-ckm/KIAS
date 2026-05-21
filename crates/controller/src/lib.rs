@@ -1,4 +1,5 @@
 pub mod autonomy_integration;
+pub mod cluster;
 pub mod controller_loop;
 pub mod events;
 pub mod handoff;

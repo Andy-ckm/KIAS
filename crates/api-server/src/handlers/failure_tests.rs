@@ -56,7 +56,10 @@ async fn test_failure_get_agent_not_found_returns_404_with_error_body() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     // Verify error body structure
-    assert!(body["error"].is_object(), "response must contain 'error' object");
+    assert!(
+        body["error"].is_object(),
+        "response must contain 'error' object"
+    );
     assert_eq!(body["error"]["code"], 404, "error.code must be 404");
     assert!(
         body["error"]["message"]
@@ -97,7 +100,10 @@ async fn test_failure_update_status_of_nonexistent_agent_returns_404() {
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let body: Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(body["error"]["message"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -281,7 +287,10 @@ async fn test_failure_create_agent_name_too_long_returns_400() {
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let err: Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(err["error"]["message"].is_string(), "error must have a message");
+    assert!(
+        err["error"]["message"].is_string(),
+        "error must have a message"
+    );
 }
 
 #[tokio::test]
@@ -302,5 +311,8 @@ async fn test_failure_create_duplicate_agent_returns_409() {
     assert_eq!(resp.status(), StatusCode::CONFLICT);
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let err: Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(err["error"]["message"].as_str().unwrap().contains("already exists"));
+    assert!(err["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("already exists"));
 }

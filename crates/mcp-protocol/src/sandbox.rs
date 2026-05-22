@@ -2428,7 +2428,8 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
             if !stderr.contains("is not running") {
                 tracing::warn!(
                     "gVisor kill returned non-zero: sandbox_id={}, stderr={}",
-                    instance.id, stderr
+                    instance.id,
+                    stderr
                 );
             }
         }

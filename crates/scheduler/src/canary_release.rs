@@ -122,11 +122,11 @@ impl CanaryAnalysis {
     pub fn health_score(&self) -> f64 {
         let error_score = 50.0 * (1.0 - self.canary_error_rate.min(1.0));
         let latency_ratio = if self.stable_latency_p99_ms > 0.0 {
-            (self.stable_latency_p99_ms / self.canary_latency_p99_ms.max(1.0)).min(2.0)
+            (self.stable_latency_p99_ms / self.canary_latency_p99_ms.max(1.0)).min(1.0)
         } else {
-            50.0
+            1.0
         };
-        let latency_score = 50.0 * (latency_ratio / 2.0).min(1.0);
+        let latency_score = 50.0 * latency_ratio;
         error_score + latency_score
     }
 }
@@ -495,8 +495,8 @@ mod tests {
         let mut release = CanaryRelease::new("agent-v2".to_string(), make_config());
         release.start();
         let analysis = CanaryAnalysis {
-            stable_error_rate: 0.5,
-            canary_error_rate: 0.6,
+            stable_error_rate: 0.005,
+            canary_error_rate: 0.006,
             stable_latency_p50_ms: 100.0,
             canary_latency_p50_ms: 105.0,
             stable_latency_p99_ms: 500.0,

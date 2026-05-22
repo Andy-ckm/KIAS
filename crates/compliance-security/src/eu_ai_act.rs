@@ -19,16 +19,17 @@ use std::fmt;
 // ── Risk Level ─────────────────────────────────────────────────────────
 
 /// EU AI Act risk classification (Article 6 + Annex III).
+/// Variants ordered from least to most severe so derived `Ord` matches risk severity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum RiskLevel {
-    /// Article 5: Prohibited AI practices.
-    Unacceptable,
-    /// Annex III: High-risk AI systems (biometrics, critical infra, education, etc.).
-    High,
-    /// Article 52: Limited risk (chatbots, deepfakes, emotion recognition).
-    Limited,
     /// Minimal or no risk.
     Minimal,
+    /// Article 52: Limited risk (chatbots, deepfakes, emotion recognition).
+    Limited,
+    /// Annex III: High-risk AI systems (biometrics, critical infra, education, etc.).
+    High,
+    /// Article 5: Prohibited AI practices.
+    Unacceptable,
 }
 
 impl fmt::Display for RiskLevel {

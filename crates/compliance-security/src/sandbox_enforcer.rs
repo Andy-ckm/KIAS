@@ -625,20 +625,6 @@ impl SeccompEnforcer {
                         jf: 0,
                         k: nr as u32,
                     });
-                    // Set jt to jump to DENY
-                    let deny_idx = program.len() - 1;
-                    // DENY instruction (will be inserted later if needed)
-                    if remaining == 0 {
-                        // Last syscall checked, if we get here it's allowed
-                        program.push(sock_filter {
-                            code: 0x06, // RET
-                            jt: 0,
-                            jf: 0,
-                            k: allow_action,
-                        });
-                        // Fix the jt for all denylist entries to point to ALLOW
-                        // (since we haven't added DENY instructions inline)
-                    }
                 }
             }
         }
@@ -670,10 +656,15 @@ impl SeccompEnforcer {
             // Now fix all JEQ instructions: in denylist mode,
             // if syscall matches, jump to DENY; otherwise fall through
             // The first instruction loads the syscall number
-            for i in 1..=num_syscalls {
-                if program[i].code == 0x15 {
+            for (i, instr) in program
+                .iter_mut()
+                .enumerate()
+                .take(num_syscalls + 1)
+                .skip(1)
+            {
+                if instr.code == 0x15 {
                     // JEQ
-                    program[i].jt = (deny_idx - i) as u8;
+                    instr.jt = (deny_idx - i) as u8;
                 }
             }
         }

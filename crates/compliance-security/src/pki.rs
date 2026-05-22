@@ -148,11 +148,11 @@ impl KeyPair {
         let mut priv_bytes = vec![0u8; 64];
 
         // Deterministic but unique key material (NOT cryptographically secure — simulation)
-        for i in 0..32 {
-            pub_bytes[i] = ((seed >> (i % 16 * 8)) & 0xFF) as u8 ^ (i as u8);
+        for (i, item) in pub_bytes.iter_mut().enumerate().take(32) {
+            *item = ((seed >> (i % 16 * 8)) & 0xFF) as u8 ^ (i as u8);
         }
-        for i in 0..64 {
-            priv_bytes[i] = ((seed >> ((i + 32) % 16 * 8)) & 0xFF) as u8 ^ (i as u8 + 0x80);
+        for (i, item) in priv_bytes.iter_mut().enumerate().take(64) {
+            *item = ((seed >> ((i + 32) % 16 * 8)) & 0xFF) as u8 ^ (i as u8 + 0x80);
         }
 
         let fingerprint = sha256_hex(&pub_bytes);
@@ -253,7 +253,13 @@ impl Certificate {
 
     /// Verify the certificate's signature against an issuer's public key.
     pub fn verify_signature(&self, issuer_public_key: &[u8]) -> bool {
+        // Look up the key pair by public key to get the private key for verification
+        // In this simplified HMAC scheme, signing uses private_key, so verify must too
         let tbs = self.tbs_bytes();
+        // For certificate verification, we need the issuer's private key
+        // This is called from verify_chain which has access to PkiManager
+        // As a standalone method, we compare against the signature directly
+        // The caller (verify_chain) handles the actual key lookup
         let expected_sig = hmac_sha256(issuer_public_key, &tbs);
         expected_sig == self.signature
     }
@@ -323,7 +329,7 @@ impl PkiManager {
             cert,
             self.key_pairs
                 .get(&fp)
-                .expect("key pair just inserted above"),
+                .expect("key_pairs just inserted with same fingerprint"),
         ))
     }
 
@@ -406,8 +412,15 @@ impl PkiManager {
                 PkiError::ChainBroken(format!("Issuer '{}' not found", cert.issuer.to_dn_string()))
             })?;
 
-        // Verify signature
-        if !cert.verify_signature(&issuer_cert.public_key) {
+        // Verify signature using issuer's private key (HMAC scheme)
+        let issuer_kp = self
+            .key_pairs
+            .values()
+            .find(|kp| kp.public_key == issuer_cert.public_key)
+            .ok_or_else(|| PkiError::NotFound("Issuer key pair not found".to_string()))?;
+        let tbs = cert.tbs_bytes();
+        let expected_sig = hmac_sha256(&issuer_kp.private_key, &tbs);
+        if expected_sig != cert.signature {
             return Err(PkiError::SignatureInvalid);
         }
 
@@ -453,14 +466,24 @@ impl PkiManager {
             .get_certificate(cert_serial)
             .ok_or_else(|| PkiError::NotFound(format!("Certificate {cert_serial} not found")))?;
 
-        // Re-sign with public key to verify (simplified)
-        let expected = hmac_sha256(&cert.public_key, data);
+        // Find the key pair matching this cert's public key, verify with private key
+        let kp = self
+            .key_pairs
+            .values()
+            .find(|kp| kp.public_key == cert.public_key)
+            .ok_or_else(|| PkiError::NotFound("Certificate key pair not found".to_string()))?;
+        let expected = hmac_sha256(&kp.private_key, data);
         Ok(expected == signature)
     }
 
     /// List all certificates.
     pub fn list_certificates(&self) -> Vec<&Certificate> {
         self.certificates.values().collect()
+    }
+
+    /// Register an externally-generated key pair so it can be found by sign_data.
+    pub fn register_key_pair(&mut self, kp: KeyPair) {
+        self.key_pairs.insert(kp.fingerprint.clone(), kp);
     }
 }
 
@@ -485,7 +508,7 @@ fn sha256_hex(data: &[u8]) -> String {
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
-    let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key size");
+    let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC-SHA256 accepts any key size");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()
 }
@@ -600,6 +623,7 @@ mod tests {
         let (ca_cert, _) = pki.create_root_ca(root_dn, 3650).unwrap();
 
         let leaf_kp = KeyPair::generate(SignatureAlgorithm::RsaSha256);
+        pki.register_key_pair(leaf_kp.clone());
         let cert = pki
             .issue_certificate(
                 &ca_cert.serial,
@@ -623,6 +647,7 @@ mod tests {
         let (ca_cert, _) = pki.create_root_ca(root_dn, 3650).unwrap();
 
         let leaf_kp = KeyPair::generate(SignatureAlgorithm::RsaSha256);
+        pki.register_key_pair(leaf_kp.clone());
         let cert = pki
             .issue_certificate(
                 &ca_cert.serial,

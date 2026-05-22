@@ -32,7 +32,7 @@ impl TraceConvention {
 
     /// Validate a span name against the convention
     pub fn validate_span_name(&self, name: &str) -> bool {
-        let re = Regex::new(&self.span_name_pattern).unwrap();
+        let re = Regex::new(&self.span_name_pattern).expect("span_name_pattern should always be a valid regex");
         re.is_match(name)
     }
 
@@ -252,7 +252,7 @@ impl MetricNaming {
             return false;
         }
         // Only alphanumeric and underscore
-        let re = Regex::new(r"^[a-z][a-z0-9_]*$").unwrap();
+        let re = Regex::new(r"^[a-z][a-z0-9_]*$").expect("metric name pattern should always be a valid regex");
         re.is_match(name)
     }
 

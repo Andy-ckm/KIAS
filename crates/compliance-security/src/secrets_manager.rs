@@ -266,40 +266,41 @@ impl Default for SecretPatternDetector {
 
 impl SecretPatternDetector {
     pub fn new() -> Self {
+        // These regex patterns are hardcoded and known to be valid
         let patterns = vec![
             (
                 "AWS Access Key".to_string(),
-                regex::Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(),
+                regex::Regex::new(r"AKIA[0-9A-Z]{16}").expect("invalid AWS access key pattern"),
             ),
             (
                 "GitHub Token".to_string(),
-                regex::Regex::new(r"ghp_[0-9a-zA-Z]{36}").unwrap(),
+                regex::Regex::new(r"ghp_[0-9a-zA-Z]{36}").expect("invalid GitHub token pattern"),
             ),
             (
                 "Generic API Key".to_string(),
                 regex::Regex::new(r#"(?i)(api[_-]?key|apikey)\s*[:=]\s*['"]?[0-9a-zA-Z_-]{20,}"#)
-                    .unwrap(),
+                    .expect("invalid generic API key pattern"),
             ),
             (
                 "Generic Secret".to_string(),
                 regex::Regex::new(r#"(?i)(secret|password|passwd|pwd)\s*[:=]\s*['"]?[^\s'"]{8,}"#)
-                    .unwrap(),
+                    .expect("invalid generic secret pattern"),
             ),
             (
                 "Private Key Header".to_string(),
-                regex::Regex::new(r"-----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----").unwrap(),
+                regex::Regex::new(r"-----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----").expect("invalid private key pattern"),
             ),
             (
                 "JWT Token".to_string(),
-                regex::Regex::new(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*").unwrap(),
+                regex::Regex::new(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*").expect("invalid JWT pattern"),
             ),
             (
                 "Slack Token".to_string(),
-                regex::Regex::new(r"xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*").unwrap(),
+                regex::Regex::new(r"xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*").expect("invalid Slack token pattern"),
             ),
             (
                 "Stripe Key".to_string(),
-                regex::Regex::new(r"sk_live_[0-9a-zA-Z]{24,}").unwrap(),
+                regex::Regex::new(r"sk_live_[0-9a-zA-Z]{24,}").expect("invalid Stripe key pattern"),
             ),
         ];
         Self { patterns }

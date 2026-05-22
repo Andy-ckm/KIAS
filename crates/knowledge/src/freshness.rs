@@ -24,7 +24,7 @@ pub struct StaleRef {
     /// Age in seconds since last refresh.
     pub age_seconds: u64,
     /// Timestamp when the entry was marked stale (not serialized).
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub marked_at: Instant,
 }
 
@@ -140,7 +140,6 @@ impl KnowledgeEntry {
 }
 
 /// Expiry policy for knowledge entries.
-#[derive(Debug, Clone)]
 pub enum ExpiryPolicy {
     /// Entry expires after max_age duration.
     MaxAge(Duration),
@@ -150,6 +149,28 @@ pub enum ExpiryPolicy {
     Never,
     /// Custom expiry based on a closure.
     Custom(Box<dyn Fn(&KnowledgeEntry) -> bool + Send + Sync>),
+}
+
+impl std::fmt::Debug for ExpiryPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MaxAge(d) => f.debug_tuple("MaxAge").field(d).finish(),
+            Self::ExpiresAt(i) => f.debug_tuple("ExpiresAt").field(i).finish(),
+            Self::Never => write!(f, "Never"),
+            Self::Custom(_) => f.debug_tuple("Custom").field(&"<fn>").finish(),
+        }
+    }
+}
+
+impl Clone for ExpiryPolicy {
+    fn clone(&self) -> Self {
+        match self {
+            Self::MaxAge(d) => Self::MaxAge(*d),
+            Self::ExpiresAt(i) => Self::ExpiresAt(*i),
+            Self::Never => Self::Never,
+            Self::Custom(_) => Self::default(),
+        }
+    }
 }
 
 impl ExpiryPolicy {
@@ -248,7 +269,7 @@ impl FreshnessChecker {
         let mut entries = self
             .entries
             .write()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
         let entry = if let Some(existing) = entries.get_mut(id) {
             existing.content = content.to_string();
@@ -273,7 +294,7 @@ impl FreshnessChecker {
         let mut entries = self
             .entries
             .write()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
         Ok(entries.remove(id).is_some())
     }
 
@@ -282,7 +303,7 @@ impl FreshnessChecker {
         let entries = self
             .entries
             .read()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
         Ok(entries.get(id).cloned())
     }
 
@@ -291,7 +312,7 @@ impl FreshnessChecker {
         let entries = self
             .entries
             .read()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
         let stale_refs: Vec<StaleRef> = entries
             .values()
@@ -315,7 +336,7 @@ impl FreshnessChecker {
             let mut entries = self
                 .entries
                 .write()
-                .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+                .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
             for stale in &stale_refs {
                 if let Some(entry) = entries.get_mut(&stale.id) {
@@ -332,7 +353,7 @@ impl FreshnessChecker {
         let mut entries = self
             .entries
             .write()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
         let entry = entries
             .get_mut(id)
@@ -346,7 +367,7 @@ impl FreshnessChecker {
         let entries = self
             .entries
             .read()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
         Ok(entries.keys().cloned().collect())
     }
 
@@ -355,7 +376,7 @@ impl FreshnessChecker {
         let entries = self
             .entries
             .read()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
         Ok(entries.len())
     }
 
@@ -369,7 +390,7 @@ impl FreshnessChecker {
         let entries = self
             .entries
             .read()
-            .map_err(|e| KiasError::InvalidConfiguration(format!("RwLock poisoned: {}", e)))?;
+            .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
         let total = entries.len();
         let stale = entries

@@ -395,7 +395,9 @@ impl ConnectionMigrator {
 
     /// Create with source and target.
     pub fn with_pair(source: &str, target: &str, config: MigrationConfig) -> Self {
-        Self::new(source.to_string(), config)
+        let mut cfg = config;
+        cfg.target_node = target.to_string();
+        Self::new(source.to_string(), cfg)
     }
 
     /// Get source node.

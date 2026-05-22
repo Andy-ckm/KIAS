@@ -625,8 +625,6 @@ mod tests {
         assert!(RiskLevel::High.should_alert());
         assert!(RiskLevel::Critical.should_alert());
 
-        assert!(!RiskLevel::Critical.should_block());
-        // Actually Critical.should_block is true
         assert!(RiskLevel::Critical.should_block());
     }
 

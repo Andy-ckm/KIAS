@@ -601,9 +601,9 @@ mod tests {
         let payload = make_payload(0.5, "create", "workflow");
         let result = evaluator.evaluate(&payload);
 
-        // Default is Allow (no rules match)
-        assert!(result.matched_rule.is_none());
-        assert!(result.decision.is_allowed());
+        // Default policy has log-all wildcard rule which matches everything
+        assert_eq!(result.matched_rule.as_deref(), Some("log-all"));
+        assert!(matches!(result.decision, PolicyDecision::Log { .. }));
     }
 
     #[test]
@@ -651,7 +651,7 @@ mod tests {
                 actor: "user-1".to_string(),
                 payload: make_payload(0.9, "create", "agent"),
                 expected_decision: PolicyDecision::Deny {
-                    reason: "high risk".to_string(),
+                    reason: "Risk score too high".to_string(),
                 },
             },
             SimulationEvent {

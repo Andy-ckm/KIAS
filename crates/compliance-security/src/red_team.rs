@@ -867,7 +867,7 @@ mod tests {
         assert_eq!(report.total_scenarios, scenarios.len());
         assert!(!report.findings.is_empty() || report.findings.is_empty()); // Either is valid
         assert_eq!(report.target_id, "agent-test-1");
-        assert!(report.duration_ms >= 0);
+        // duration_ms is u64, always >= 0; just check report was created
     }
 
     #[test]

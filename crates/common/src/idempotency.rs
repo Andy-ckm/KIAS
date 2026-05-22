@@ -353,7 +353,7 @@ mod tests {
 
         // Manually fast-forward by setting expiry in the past
         let store_key = key.to_store_key();
-        if let Some((state, exp)) = store.entries.get_mut(&store_key) {
+        if let Some((_state, exp)) = store.entries.get_mut(&store_key) {
             *exp = Utc::now() - Duration::seconds(10);
         }
         store.prune();

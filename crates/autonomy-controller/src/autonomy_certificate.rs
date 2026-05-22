@@ -617,7 +617,7 @@ mod tests {
     fn test_certificate_days_until_expiry() {
         let cert = make_test_cert(CertAutonomyLevel::Suggest);
         let days = cert.days_until_expiry();
-        assert!(days >= 29 && days <= 30);
+        assert!((29..=30).contains(&days));
     }
 
     #[test]
@@ -626,7 +626,7 @@ mod tests {
         let days = cert.days_until_expiry();
         // A freshly-created 30-day cert should NOT be near expiry with threshold 30
         // (accounting for truncation: days can be 29 or 30)
-        assert!(days >= 29 && days <= 30);
+        assert!((29..=30).contains(&days));
         assert!(!cert.is_near_expiry(28)); // threshold below remaining
         assert!(cert.is_near_expiry(31)); // Should be near expiry when threshold > validity
     }
@@ -637,7 +637,7 @@ mod tests {
         let remaining = cert.remaining_validity();
         assert!(remaining.is_some());
         let days = remaining.unwrap().num_days();
-        assert!(days >= 29 && days <= 30);
+        assert!((29..=30).contains(&days));
     }
 
     #[test]
@@ -887,7 +887,7 @@ mod tests {
         let result = verifier.verify_action(&cert, "tool.call");
         let json = serde_json::to_string(&result).unwrap();
         let decoded: TrustVerificationResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(decoded.trusted, true);
+        assert!(decoded.trusted);
     }
 
     #[test]

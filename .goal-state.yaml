@@ -1,0 +1,63 @@
+# /goal 状态文件
+# 机制：cronjob 每10分钟读取此文件，执行 in_progress 任务，更新状态
+# /stop：将 status 改为 "stopped"
+# /goal：将 status 改为 "running"
+
+status: running
+
+# 当前目标（达成条件）
+goal: |
+  完成审计老师的P0-P2全部整改任务 + 审计报告中的开发目标
+  验收标准：make ci 全绿 + 所有checked项完成
+
+# 原子任务队列（按优先级排序）
+tasks:
+  - id: push-current
+    desc: "推送当前已修复代码到GitHub"
+    status: pending
+    priority: 0
+
+  - id: fix-minimax-test
+    desc: "修复 minimax_client 测试失败（环境变量依赖）"
+    status: pending
+    priority: 1
+
+  - id: println-to-tracing
+    desc: "生产代码 println! → tracing 替换（280处）"
+    status: pending
+    priority: 2
+
+  - id: failure-path-tests
+    desc: "每个核心 crate 增加失败路径测试"
+    status: pending
+    priority: 3
+
+  - id: api-smoke-tests
+    desc: "API 验证脚本纳入 CI smoke"
+    status: pending
+    priority: 4
+
+  - id: data-bridge
+    desc: "数据桥接框架（Kafka/Postgres/S3）"
+    status: pending
+    priority: 5
+
+  - id: multi-tenant
+    desc: "多租户隔离（命名空间+资源配额）"
+    status: pending
+    priority: 6
+
+  - id: rolling-update
+    desc: "滚动更新（版本无缝切换）"
+    status: pending
+    priority: 7
+
+  - id: auto-scaling
+    desc: "弹性伸缩（负载驱动自动调整）"
+    status: pending
+    priority: 8
+
+# 进度追踪
+completed: []
+last_run: null
+last_error: null

@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_change_impact_analyzer_add_low_risk() {
-        let mut analyzer = ChangeImpactAnalyzer::new();
+        let analyzer = ChangeImpactAnalyzer::new();
         let report = analyzer.analyze("src/new_file.rs", ChangeType::Add);
         assert_eq!(report.scope.risk_level, RiskLevel::Low);
     }

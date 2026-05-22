@@ -593,6 +593,9 @@ mod tests {
             decided_by: "human-1".to_string(),
             decided_at: Utc::now(),
             duration_ms: 5000,
+            approver_level: Some(0),
+            opinion: None,
+            decision_reason: None,
         };
 
         store.save_record(record).await.unwrap();
@@ -625,6 +628,9 @@ mod tests {
                 decided_by: "auto".to_string(),
                 decided_at: Utc::now(),
                 duration_ms: 100,
+                approver_level: Some(i as u32),
+                opinion: None,
+                decision_reason: None,
             };
             store.save_record(record).await.unwrap();
         }
@@ -647,6 +653,8 @@ mod tests {
             risk_score: 0.7,
             preview_output: serde_json::json!({"env": "production"}),
             history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
         };
 
         let json = serde_json::to_string(&ctx).unwrap();

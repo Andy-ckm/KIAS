@@ -22,14 +22,16 @@ pub use approval::{
     ApprovalPolicy, ApprovalRecord, ApprovalStore, InMemoryApprovalStore, TimeoutAction,
 };
 pub use checkpoint::{
-    Checkpoint, CheckpointInfo, CheckpointStore, InMemoryCheckpointStore, SqliteCheckpointStore,
+    replay_wal, scan_incomplete_workflows, Checkpoint, CheckpointInfo, CheckpointRecovery,
+    CheckpointStore, DeltaRecord, InMemoryCheckpointStore, InMemoryWalStore, RecoveryResult,
+    SqliteCheckpointStore, SqliteWalStore, WalRecord, WalStatus, WalStore, WalWorkflowInfo,
 };
 pub use dispatcher::{AgentInfo, AgentStatus, Dispatcher, DispatcherConfig, DispatcherEvent};
 pub use edge::{Condition, Edge};
 pub use engine::WorkflowEngine;
 pub use error_handler::{
-    AbortOnError, ConditionalErrorHandler, ErrorAction, ErrorHandler, ErrorHandlerConfig,
-    FallbackOnError, NodeErrorContext, RetryOnError, SkipOnError,
+    AbortOnError, ConditionalErrorHandler, DefaultErrorHandler, ErrorAction, ErrorHandler,
+    ErrorHandlerConfig, FallbackOnError, NodeErrorContext, RetryOnError, SkipOnError,
 };
 pub use executor::{
     ExecutorRegistry, HttpExecutor, LlmExecutor, NodeExecutor, ShellExecutor, SubWorkflowExecutor,

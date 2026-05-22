@@ -991,8 +991,10 @@ mod tests {
 
     #[test]
     fn test_create_plan_human_required_with_confirmation() {
-        let mut config = AutoLoopConfig::default();
-        config.require_human_confirmation = true;
+        let config = AutoLoopConfig {
+            require_human_confirmation: true,
+            ..AutoLoopConfig::default()
+        };
         let mut manager = AutoLoopManager::new(config);
 
         let loop_id = manager.start_loop(make_problem("p1", "Test", "desc", 5));

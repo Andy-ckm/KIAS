@@ -487,7 +487,7 @@ mod tests {
             alert_threshold: 0.8,
         };
 
-        set_budget(State(state.clone()), Path("a1".to_string()), Json(budget))
+        let _ = set_budget(State(state.clone()), Path("a1".to_string()), Json(budget))
             .await
             .unwrap();
 

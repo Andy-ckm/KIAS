@@ -1,3 +1,4 @@
+pub mod agent_tool;
 pub mod compaction;
 pub mod crew;
 pub mod delegation;
@@ -18,6 +19,10 @@ pub mod verifier;
 pub mod worker;
 pub mod workspace;
 
+pub use agent_tool::{
+    AgentExecutor, AgentTool, AgentToolError, EchoAgentExecutor, FailingAgentExecutor,
+    OrchestrationMode, TeamTool, ToolDescriptor, ToolRegistry, ToolResult,
+};
 pub use compaction::{
     extract_key_facts, CompactionConfig, CompactionResult, ContextCompactor, Message,
 };
@@ -29,6 +34,10 @@ pub use delegation::{
 pub use embedder::{Embedder, HashingEmbedder};
 pub use engine::TeamEngine;
 pub use memory::{
+    compaction::{
+        estimate_messages_tokens, estimate_tokens, should_compact, CompactedHistory,
+        CompactionManager, CompactionStrategy, HistorySnapshot, SlidingWindow, SummarizeOld,
+    },
     ContextBuilder, EntityFact, EntityMemory, LongTermMemory, MemoryCategory, MemoryEntry,
     MemoryManager, MidTermEntry, MidTermMemory, ShortTermMemory,
 };

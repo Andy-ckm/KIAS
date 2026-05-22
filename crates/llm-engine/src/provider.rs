@@ -856,7 +856,7 @@ mod tests {
     #[test]
     fn test_anthropic_sse_parsing_empty_body() {
         let sse_data = "";
-        let mut chunks: Vec<StreamChunk> = Vec::new();
+        let chunks: Vec<StreamChunk> = Vec::new();
         let mut _current_id = String::new();
         let mut _current_model = String::new();
 
@@ -878,8 +878,8 @@ mod tests {
 
     #[test]
     fn test_anthropic_sse_parsing_invalid_json() {
-        let sse_data = "data: {invalid json\n\ndata: {also bad\n";
-        let mut chunks: Vec<crate::types::StreamChunk> = Vec::new();
+        let sse_data = "data: {invalid json\ndata: {also bad\n";
+        let chunks: Vec<crate::types::StreamChunk> = Vec::new();
         let mut _current_id = String::new();
         let mut _current_model = String::new();
 
@@ -992,27 +992,24 @@ mod tests {
                 Err(_) => continue,
             };
             let event_type = parsed["type"].as_str().unwrap_or("");
-            match event_type {
-                "content_block_delta" => {
-                    if let Some(delta) = parsed["delta"].as_object() {
-                        if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
-                            chunks.push(StreamChunk {
-                                id: _current_id.clone(),
-                                model: _current_model.clone(),
-                                choices: vec![StreamChoice {
-                                    index: 0,
-                                    delta: StreamDelta {
-                                        role: None,
-                                        content: Some(text.to_string()),
-                                        tool_calls: None,
-                                    },
-                                    finish_reason: None,
-                                }],
-                            });
-                        }
+            if event_type == "content_block_delta" {
+                if let Some(delta) = parsed["delta"].as_object() {
+                    if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
+                        chunks.push(StreamChunk {
+                            id: _current_id.clone(),
+                            model: _current_model.clone(),
+                            choices: vec![StreamChoice {
+                                index: 0,
+                                delta: StreamDelta {
+                                    role: None,
+                                    content: Some(text.to_string()),
+                                    tool_calls: None,
+                                },
+                                finish_reason: None,
+                            }],
+                        });
                     }
                 }
-                _ => {}
             }
         }
         // Missing "text" field means no chunk
@@ -1070,9 +1067,8 @@ mod tests {
 
     #[test]
     fn test_openai_sse_parsing_multiple_choices() {
-        let sse_body = concat!(
-            "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null},{\"index\":1,\"delta\":{\"content\":\"b\"},\"finish_reason\":null}]}\n",
-        );
+        let sse_body =
+            "data: {\"id\":\"chatcmpl-1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"a\"},\"finish_reason\":null},{\"index\":1,\"delta\":{\"content\":\"b\"},\"finish_reason\":null}]}\n";
         let mut chunks = Vec::new();
         for line in sse_body.lines() {
             if line.starts_with("data: ") && line != "data: [DONE]" {

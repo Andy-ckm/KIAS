@@ -313,7 +313,7 @@ mod tests {
         for i in 0..15 {
             collector
                 .record(
-                    AgentSpan::new(format!("op-{}", i), "agent-1", SpanKind::Internal)
+                    AgentSpan::new(&format!("op-{}", i), "agent-1", SpanKind::Internal)
                         .finish(SpanStatus::Ok),
                 )
                 .await;

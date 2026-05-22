@@ -23,22 +23,19 @@ async fn main() -> anyhow::Result<()> {
     metrics.register_histogram("task_latency");
     metrics.observe_histogram("task_latency", 42.0);
 
-    tracing::info!(count = telemetry.count(), "Collected telemetry events");
-    tracing::info!(
-        count = metrics.get_counter("tasks_started"),
-        "Tasks started"
+    println!("Collected {} telemetry events", telemetry.count());
+    println!("Tasks started: {}", metrics.get_counter("tasks_started"));
+    println!(
+        "Latency P50: {:.2}ms",
+        metrics.histogram_percentile("task_latency", 50.0)
     );
-    tracing::info!(
-        latency_p50 = %format!("{:.2}ms", metrics.histogram_percentile("task_latency", 50.0)),
-        "Latency P50"
-    );
-    tracing::info!(prometheus = %metrics.export_prometheus(), "Prometheus export");
+    println!("\nPrometheus export:\n{}", metrics.export_prometheus());
 
     let stats = telemetry.stats();
-    tracing::info!(
-        total_events = stats.total_events,
-        error_rate = %format!("{:.2}%", stats.error_rate * 100.0),
-        "Event stats"
+    println!(
+        "\nEvent stats: {} events, error rate: {:.2}%",
+        stats.total_events,
+        stats.error_rate * 100.0
     );
 
     tracing::info!("AgentGuard Monitor Service finished");

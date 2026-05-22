@@ -281,7 +281,7 @@ impl ToolRegistry {
                     match self.register_from_file(&path).await {
                         Ok(()) => count += 1,
                         Err(e) => {
-                            tracing::warn!("Failed to load tool from {}: {}", path.display(), e);
+                            eprintln!("Failed to load tool from {}: {}", path.display(), e);
                         }
                     }
                 }

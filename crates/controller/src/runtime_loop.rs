@@ -561,7 +561,6 @@ mod tests {
 
     // ── Helper ──────────────────────────────────────────────────────────────
 
-    #[allow(dead_code)]
     fn fast_config() -> RuntimeLoopConfig {
         RuntimeLoopConfig {
             max_rounds: 5,

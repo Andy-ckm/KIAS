@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
     let retriever = HybridRetriever::new(graph);
     let results = retriever.retrieve("AgentGuard", 10).await?;
 
-    tracing::info!(count = results.len(), "Retrieved knowledge nodes");
+    println!("Retrieved {} knowledge nodes", results.len());
 
     tracing::info!("AgentGuard Knowledge Service finished");
     Ok(())

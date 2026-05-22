@@ -29,15 +29,10 @@ pub use edge::{
 pub mod agent_shell;
 pub mod agent_tier;
 pub mod auto_scaling;
-pub mod canary_release;
 pub mod rolling_update;
-pub mod zero_downtime;
 
 // Agent tiering & smart routing (PrfaaS-inspired)
 pub use agent_tier::{
     AgentPool, AgentTier, ComplexityEvaluator, CompositeEvaluator, HeuristicEvaluator,
     PatternEvaluator, PooledAgent, RoutingDecision, SmartRouter, TaskComplexity, TaskDescriptor,
 };
-
-// pub // mod agent_scheduler; // TODO: fix compilation // TODO: fix compilation
-// pub // mod sla_products; // TODO: fix compilation // TODO: fix compilation

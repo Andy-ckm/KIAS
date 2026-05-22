@@ -19,7 +19,7 @@
 //! - Provides root cause hints (queue depth, token count, model latency)
 //! - Integrates with GxP audit trail
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -342,10 +342,10 @@ impl SlowTraceCollector {
         let mut by_severity: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         let mut durations: Vec<u64> = Vec::new();
-        /// Agent stats accumulator: (name, durations, category_counts)
-        type AgentAccum = (String, Vec<u64>, HashMap<String, usize>);
-
-        let mut agent_map: HashMap<String, AgentAccum> = HashMap::new();
+        let mut agent_map: std::collections::HashMap<
+            String,
+            (String, Vec<u64>, std::collections::HashMap<String, usize>),
+        > = std::collections::HashMap::new();
 
         for trace in traces.iter() {
             *by_category.entry(trace.category.to_string()).or_insert(0) += 1;
@@ -395,7 +395,7 @@ impl SlowTraceCollector {
                 }
             })
             .collect();
-        top_slow_agents.sort_by_key(|b| std::cmp::Reverse(b.slow_count));
+        top_slow_agents.sort_by(|a, b| b.slow_count.cmp(&a.slow_count));
         top_slow_agents.truncate(5);
 
         SlowTraceSummary {

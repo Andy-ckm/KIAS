@@ -216,7 +216,7 @@ impl SkillDag {
             for &next in adj.get(cur).unwrap_or(&vec![]) {
                 let deg = in_degree
                     .get_mut(next)
-                    .expect("in_degree populated for all nodes in setup loop");
+                    .expect("node must have in_degree entry from setup loop");
                 *deg -= 1;
                 if *deg == 0 {
                     queue.push_back(next);
@@ -303,7 +303,7 @@ impl SkillDag {
             for &next in adj.get(cur).unwrap_or(&vec![]) {
                 let deg = in_degree
                     .get_mut(next)
-                    .expect("in_degree populated for all nodes in setup loop");
+                    .expect("node must have in_degree entry from setup loop");
                 *deg -= 1;
                 if *deg == 0 {
                     queue.push_back((next, level + 1));

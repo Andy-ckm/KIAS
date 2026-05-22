@@ -12,7 +12,6 @@
 //!       ├── add_node()              ├── CheckpointStore (persistence)
 //!       ├── add_edge()              └── ExecutionStream (events)
 //!       ├── add_conditional_edge()
-//!       ├── add_evaluable_edge()
 //!       ├── add_router()
 //!       ├── add_fan_out()
 //!       ├── with_checkpoint_store()
@@ -20,8 +19,6 @@
 //! ```
 
 pub mod checkpoint;
-pub mod condition;
-pub mod edge;
 pub mod graph;
 pub mod state;
 pub mod stream;
@@ -29,11 +26,6 @@ pub mod validation;
 
 // Re-exports for convenience
 pub use checkpoint::{Checkpoint, CheckpointStore, InMemoryCheckpointStore};
-pub use condition::{
-    AllOf, Always, AnyOf, ChannelEquals, CompareOp, ConditionEvaluator, CustomScript, HasChannel,
-    JsonPath, Never, Not, NumericCompare, RegexMatch,
-};
-pub use edge::{AgentExecutionPlan, DagTopology, EvaluableEdge, ExecutionSchedule};
 pub use graph::{EdgeCondition, GraphNode, NodeHandler, RouterFn, StateGraph, StateGraphBuilder};
 pub use state::{GraphState, GraphStateSnapshot, StateMetadata};
 pub use stream::{EventCollector, ExecutionEvent, ExecutionStream};

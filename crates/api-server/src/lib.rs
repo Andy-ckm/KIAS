@@ -115,7 +115,7 @@ impl AppState {
         let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
         let knowledge_retriever = VectorRetriever::new(graph, embedding_engine)
             .await
-            .expect("knowledge retriever init with local embedding engine");
+            .expect("Failed to initialize knowledge retriever");
 
         Self {
             config: Arc::new(config),
@@ -209,7 +209,7 @@ impl AppState {
         let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
         let knowledge_retriever = VectorRetriever::new(graph, embedding_engine)
             .await
-            .expect("knowledge retriever init with local embedding engine");
+            .expect("Failed to initialize knowledge retriever");
 
         Self {
             config: Arc::new(config),
@@ -238,7 +238,6 @@ impl AppState {
     }
 }
 
-pub mod a2a_protocol;
 pub mod auth;
 pub mod contract_test;
 pub mod error;

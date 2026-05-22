@@ -34,7 +34,8 @@ members = [
     "crates/compliance-security",
     "crates/harness-registry",
     "crates/a2a-registry",
-    "crates/agentsight",
+    # "crates/agentsight",
+    # "crates/cache-hub",
 ]
 
 [workspace.package]

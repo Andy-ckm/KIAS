@@ -29,13 +29,13 @@ async fn main() -> anyhow::Result<()> {
     let mut registry = SkillRegistry::new();
     registry.register(Box::new(GreetSkill));
 
-    tracing::info!(skills = ?registry.list_skills(), "Registered skills");
+    println!("Registered skills: {:?}", registry.list_skills());
 
     if let Some(skill) = registry.get("greet") {
         let result = skill
             .execute(serde_json::json!({"name": "AgentGuard"}))
             .await?;
-        tracing::info!(result = %result, "Skill result");
+        println!("Skill result: {}", result);
     }
 
     tracing::info!("AgentGuard Skills Service finished");

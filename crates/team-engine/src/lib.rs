@@ -1,4 +1,3 @@
-pub mod agent_tool;
 pub mod compaction;
 pub mod crew;
 pub mod delegation;
@@ -19,10 +18,6 @@ pub mod verifier;
 pub mod worker;
 pub mod workspace;
 
-pub use agent_tool::{
-    AgentExecutor, AgentTool, AgentToolError, EchoAgentExecutor, FailingAgentExecutor,
-    OrchestrationMode, TeamTool, ToolDescriptor, ToolRegistry, ToolResult,
-};
 pub use compaction::{
     extract_key_facts, CompactionConfig, CompactionResult, ContextCompactor, Message,
 };
@@ -34,10 +29,6 @@ pub use delegation::{
 pub use embedder::{Embedder, HashingEmbedder};
 pub use engine::TeamEngine;
 pub use memory::{
-    compaction::{
-        estimate_messages_tokens, estimate_tokens, should_compact, CompactedHistory,
-        CompactionManager, CompactionStrategy, HistorySnapshot, SlidingWindow, SummarizeOld,
-    },
     ContextBuilder, EntityFact, EntityMemory, LongTermMemory, MemoryCategory, MemoryEntry,
     MemoryManager, MidTermEntry, MidTermMemory, ShortTermMemory,
 };
@@ -56,10 +47,3 @@ pub use team::Team;
 pub use verifier::{QualityGate, RuleBasedVerifier, VerificationRule, Verifier};
 pub use worker::{CodeWorker, LlmWorker, ResearchWorker, Worker};
 pub use workspace::{SkillDef, Workspace, WorkspaceConfig};
-
-// pub // mod task_planner; // TODO: fix compilation // TODO: fix compilation
-pub mod adversarial_validation;
-// pub // mod memory_governance; // TODO: fix compilation // TODO: fix compilation
-// pub // mod self_eval_loop; // TODO: fix compilation // TODO: fix compilation
-// pub // mod memory_enhanced; // TODO: fix compilation // TODO: fix compilation
-// pub // mod memory_conflict; // TODO: fix compilation // TODO: fix compilation

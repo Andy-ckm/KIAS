@@ -154,7 +154,6 @@ pub trait PlatformAdapter: Send + Sync {
 }
 
 /// 微信适配器
-#[allow(dead_code)]
 pub struct WechatAdapter {
     token: String,
     encoding_aes_key: Option<String>,
@@ -236,7 +235,6 @@ impl PlatformAdapter for WechatAdapter {
 }
 
 /// Telegram适配器
-#[allow(dead_code)]
 pub struct TelegramAdapter {
     bot_token: String,
 }
@@ -327,7 +325,6 @@ impl PlatformAdapter for TelegramAdapter {
 }
 
 /// Slack适配器
-#[allow(dead_code)]
 pub struct SlackAdapter {
     verification_token: String,
     signing_secret: Option<String>,
@@ -421,7 +418,6 @@ impl PlatformAdapter for SlackAdapter {
 }
 
 /// 飞书适配器
-#[allow(dead_code)]
 pub struct FeishuAdapter {
     verification_token: String,
     encrypt_key: Option<String>,
@@ -2314,11 +2310,7 @@ mod tests {
         let msg = adapter.parse_webhook(&request).unwrap();
         assert_eq!(msg.message_type, MessageType::Private);
         match &msg.content {
-            MessageContent::File {
-                url,
-                filename,
-                mime_type,
-            } => {
+            MessageContent::File { url, filename, mime_type } => {
                 assert_eq!(url, "https://slack.com/file/456");
                 assert_eq!(filename, "no-mime.txt");
                 assert!(mime_type.is_none());

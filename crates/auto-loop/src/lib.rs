@@ -4,7 +4,6 @@
 //! 人类适当时候介入，默认自动迭代
 
 pub mod analyzer;
-pub mod code_gen_automation;
 pub mod codegen;
 pub mod context_aware_decomposer;
 pub mod deployer;
@@ -20,7 +19,6 @@ pub mod recursive_decomposer;
 pub mod self_boundary;
 pub mod self_dev;
 pub mod side_effect_gate;
-pub mod sprint_tracker;
 pub mod task_decomposer;
 pub mod tool_aware_intent;
 pub mod verifier;
@@ -993,10 +991,8 @@ mod tests {
 
     #[test]
     fn test_create_plan_human_required_with_confirmation() {
-        let config = AutoLoopConfig {
-            require_human_confirmation: true,
-            ..AutoLoopConfig::default()
-        };
+        let mut config = AutoLoopConfig::default();
+        config.require_human_confirmation = true;
         let mut manager = AutoLoopManager::new(config);
 
         let loop_id = manager.start_loop(make_problem("p1", "Test", "desc", 5));

@@ -1,66 +1,23 @@
-## Latest: 2026-05-22 20:04 (Monitoring Cron - Iteration 61)
+## Latest: 2026-05-21 11:33 (Monitoring Cron - Iteration 59)
 
 ### Quality Gates
 | Check | Result |
 |-------|--------|
-| Tests | 6166 passed, 0 failed, 9 ignored |
-| Clippy | 0 warnings (fixed 1 error + 19 warnings across 10 crates) |
-| Disk / | 76% (9.2G free) - CARGO_TARGET_DIR=/mnt/kias-target |
-| Disk /mnt | 43% (22G free) |
-| Git | Clean, pushed 35daee9 |
+| Tests | 4495 passed, 0 failed, 4 ignored |
+| Clippy | 0 warnings |
+| Disk / | 51% (19G free) - symlink target -> /mnt/kias-target |
+| Disk /mnt | 75% (7G free) |
+| Git | 4 untracked (competitive-analysis, papers/) |
 
 ### Changes This Run
-- Fixed 1 clippy error (absurd_extreme_comparisons) + 19 warnings across 10 crates:
-  - compliance-security: u64>=0 always true (red_team), unused vars (behavior_risk), unused mut (change_audit)
-  - autonomy-controller: manual_range_contains x3, bool_assert_comparison
-  - common: unused mut (change_impact), unused Result (idempotency, sandbox_config)
-  - controller: unused mut (connection_migration)
-  - data-store: dead_code allow, io_other_error (buffer)
-  - knowledge: unused Result (developer_guide)
-  - model-router: field assignment outside initializer (smart_router)
-  - agentsight: useless vec! -> array (roi_dashboard)
-- Cleaned stale target/ dir from root partition (freed 2G, 81%->76%)
-- Cleaned /mnt incremental+fingerprint (freed 13G, 75%->43%)
-- All 6166 tests passing, zero clippy warnings
+- Moved target/ to /mnt/kias-target via symlink (root was at 97%, now 51%)
+- Cleaned old kias/target-worktree/ (freed 6G on root)
+- Cleaned incremental+fingerprint from /mnt (freed 5G)
+- All tests stable, zero clippy warnings
 
 ### Test Count Trend
 | Iteration | Tests | Delta |
 |-----------|-------|-------|
-| 61 | 6166 | +635 (from iteration 60's 5531) |
-| 60 | 5531 | +1036 (from iteration 59's 4495) |
-| 58 (prev) | 4495 | +0 |
-
----
-
-## Latest: 2026-05-22 11:07 (Monitoring Cron - Iteration 60)
-
-### Quality Gates
-| Check | Result |
-|-------|--------|
-| Tests | 5531 passed, 0 failed, 4 ignored |
-| Clippy | 0 warnings (fixed 20 warnings across 8 crates) |
-| Disk / | 80% (7.7G free) - CARGO_TARGET_DIR=/mnt/kias-target |
-| Disk /mnt | 56% (17G free) |
-| Git | Clean, pushed 233826e |
-
-### Changes This Run
-- Fixed 20 clippy warnings across 8 crates:
-  - langgraph-engine: iterate on map values (edge.rs)
-  - api-server: unused must_use on Json (token_budget.rs)
-  - auto-loop: len>=1 -> !is_empty, field assignment, vec!->array (analyzer/lib/side_effect_gate)
-  - controller: dead_code allow, module rename (runtime_loop/state.rs)
-  - monitor: remove & from format! (span_collector.rs)
-  - llm-engine: unused mut, match->if, remove concat! (provider.rs)
-  - common: remove & from tracing::field::display (genai_spans.rs)
-  - team-engine: late init, unused var (compaction.rs)
-- Cleaned root partition: removed stale target/ dir (freed 4G, 90%->80%)
-- Cleaned /mnt: removed incremental+fingerprint (freed 10G, 83%->56%)
-- All 5531 tests passing, zero clippy warnings
-
-### Test Count Trend
-| Iteration | Tests | Delta |
-|-----------|-------|-------|
-| 60 | 5531 | +78 (from iteration 59's 4495) |
 | 58 (prev) | 4495 | +0 |
 | 59 (now) | 4495 | +0 (stable) |
 

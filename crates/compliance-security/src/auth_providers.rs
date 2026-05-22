@@ -394,7 +394,6 @@ impl AuthProvider for JwtProvider {
 
 /// OAuth 2.0 introspection-based provider.
 /// Validates access tokens by calling the token introspection endpoint.
-#[allow(dead_code)]
 pub struct OAuth2Provider {
     /// Token introspection endpoint URL.
     introspection_url: String,
@@ -458,7 +457,6 @@ pub struct ScramProvider {
     users: HashMap<String, ScramUser>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ScramUser {
     subject: String,
@@ -558,7 +556,6 @@ pub struct ApiKeyProvider {
     keys: HashMap<String, ApiKeyEntry>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ApiKeyEntry {
     subject: String,
@@ -749,7 +746,6 @@ fn sha256(data: &[u8]) -> Vec<u8> {
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
     use hmac::{Hmac, Mac};
-    // HMAC-SHA256 accepts any key size (keys >64 bytes are hashed internally)
     let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key size");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()

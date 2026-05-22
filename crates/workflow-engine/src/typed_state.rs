@@ -173,10 +173,10 @@ impl ErasedChannel {
                   -> Box<dyn Any + Send + Sync> {
                 let current = current
                     .downcast::<T>()
-                    .expect("TypedState type T matches reduce closure's current param");
+                    .expect("type mismatch in reduce (current)");
                 let incoming = incoming
                     .downcast::<T>()
-                    .expect("TypedState type T matches reduce closure's incoming param");
+                    .expect("type mismatch in reduce (incoming)");
                 let result = reducer_for_closure.reduce(*current, *incoming);
                 Box::new(result)
             },

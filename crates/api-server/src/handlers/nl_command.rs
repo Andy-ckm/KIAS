@@ -168,7 +168,7 @@ pub async fn nl_stream(
             axum::response::Response::builder()
                 .status(500)
                 .body(axum::body::Body::empty())
-                .expect("valid 500 response builder")
+                .expect("Failed to build 500 response")
         })
 }
 
@@ -1006,7 +1006,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("knowledge retriever init with local embedding engine");
+                .expect("Failed to create knowledge retriever");
 
         AppState {
             config: Arc::new(config),

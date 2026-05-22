@@ -31,7 +31,6 @@ pub enum PatchSeverity {
     Low,
 }
 
-#[allow(dead_code)]
 /// 补丁管理器
 pub struct PatchManager {
     package_manager: PackageManager,

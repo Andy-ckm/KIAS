@@ -31,7 +31,7 @@ impl HackerNewsProvider {
             client: Client::builder()
                 .user_agent("kias-data-aggregator/0.1")
                 .build()
-                .expect("valid HTTP client config"),
+                .expect("Failed to build HTTP client"),
         }
     }
 

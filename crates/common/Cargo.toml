@@ -39,14 +39,8 @@ tokio = { workspace = true, features = ["sync", "time"] }
 # Async traits
 async-trait = { workspace = true }
 
-# HTTP client (for MiniMax API)
-reqwest = { workspace = true }
-
 # UUID
 uuid = { workspace = true }
-rand = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-serial_test = "3"

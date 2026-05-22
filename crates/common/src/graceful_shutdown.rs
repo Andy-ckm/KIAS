@@ -240,7 +240,7 @@ pub async fn wait_for_signal() {
     #[cfg(unix)]
     {
         let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("SIGTERM handler registration");
+            .expect("failed to register SIGTERM handler");
 
         tokio::select! {
             _ = ctrl_c => {
@@ -254,7 +254,7 @@ pub async fn wait_for_signal() {
 
     #[cfg(not(unix))]
     {
-        ctrl_c.await.expect("Ctrl+C signal listener");
+        ctrl_c.await.expect("failed to listen for Ctrl+C");
         info!("received Ctrl+C");
     }
 }

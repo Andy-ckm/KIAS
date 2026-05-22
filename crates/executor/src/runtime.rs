@@ -196,7 +196,7 @@ impl TaskRuntime {
                 .clone()
                 .acquire_owned()
                 .await
-                .expect("semaphore acquired for task execution");
+                .expect("semaphore closed unexpectedly");
             let result = self.run_task(task).await;
             results.push(result);
         }

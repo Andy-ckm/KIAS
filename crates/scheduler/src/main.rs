@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
     for i in 0..5 {
         let task_id = format!("task-{}", i);
         let selected = engine.schedule_task(&task_id, &nodes).await?;
-        tracing::info!(task_id = %task_id, selected = %selected, "Task scheduled");
+        println!("Task {} -> {}", task_id, selected);
     }
 
     tracing::info!("AgentGuard Scheduler finished");

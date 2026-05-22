@@ -9,7 +9,6 @@ use std::time::Instant;
 use uuid::Uuid;
 
 use crate::checkpoint::{Checkpoint, CheckpointStore, InMemoryCheckpointStore};
-use crate::condition::ConditionEvaluator;
 use crate::state::GraphState;
 use crate::stream::{ExecutionEvent, ExecutionStream};
 use crate::validation::{self, GraphTopology, ValidationError};
@@ -44,12 +43,6 @@ pub enum EdgeType {
         from: String,
         to: String,
         condition: EdgeCondition,
-    },
-    /// Evaluable conditional edge: uses a ConditionEvaluator for inspectable, composable logic.
-    EvaluableConditional {
-        from: String,
-        to: String,
-        evaluator: Box<dyn ConditionEvaluator>,
     },
     /// Router edge: the router function returns the name of the next node.
     Router { from: String, router: RouterFn },
@@ -122,24 +115,6 @@ impl StateGraphBuilder {
         self
     }
 
-    /// Add an evaluable conditional edge using a `ConditionEvaluator`.
-    ///
-    /// This provides named, inspectable, composable conditions using the
-    /// evaluator framework (RegexMatch, JsonPath, NumericCompare, etc.).
-    pub fn add_evaluable_edge(
-        mut self,
-        from: &str,
-        to: &str,
-        evaluator: Box<dyn ConditionEvaluator>,
-    ) -> Self {
-        self.edges.push(EdgeType::EvaluableConditional {
-            from: from.to_string(),
-            to: to.to_string(),
-            evaluator,
-        });
-        self
-    }
-
     /// Add a router edge: the router function returns the name of the next node.
     ///
     /// This enables dynamic multi-target branching based on state.
@@ -194,9 +169,6 @@ impl StateGraphBuilder {
             .filter_map(|e| match e {
                 EdgeType::Direct { from, to } => Some((from.clone(), to.clone(), false)),
                 EdgeType::Conditional { from, to, .. } => Some((from.clone(), to.clone(), true)),
-                EdgeType::EvaluableConditional { from, to, .. } => {
-                    Some((from.clone(), to.clone(), true))
-                }
                 _ => None,
             })
             .collect();
@@ -588,20 +560,6 @@ impl StateGraph {
             }
         }
 
-        // 1b. Evaluable conditional edges
-        for edge in &self.edges {
-            if let EdgeType::EvaluableConditional {
-                from,
-                to,
-                evaluator,
-            } = edge
-            {
-                if from == current && evaluator.evaluate(state) {
-                    return Ok(Some(NextNode::Single(to.clone())));
-                }
-            }
-        }
-
         // 2. Router edges
         for edge in &self.edges {
             if let EdgeType::Router { from, router } = edge {
@@ -643,8 +601,11 @@ impl StateGraph {
 
     fn is_conditional_edge(&self, from: &str) -> bool {
         self.edges.iter().any(|e| match e {
-            EdgeType::Conditional { from: f, .. } => f == from,
-            EdgeType::EvaluableConditional { from: f, .. } => f == from,
+            EdgeType::Conditional {
+                from: f,
+                condition: _,
+                ..
+            } => f == from,
             _ => false,
         })
     }

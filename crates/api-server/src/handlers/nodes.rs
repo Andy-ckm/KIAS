@@ -103,7 +103,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("knowledge retriever init with local embedding engine");
+                .expect("Failed to create knowledge retriever");
 
         let mut node_map = HashMap::new();
         for node in nodes {

@@ -5,7 +5,6 @@ pub mod edge;
 pub mod engine;
 pub mod error_handler;
 pub mod executor;
-// pub // mod flow_persistence; // TODO: fix compilation // TODO: fix compilation
 pub mod graph;
 pub mod kanban;
 pub mod kanban_store;
@@ -16,7 +15,6 @@ pub mod stage;
 pub mod state;
 pub mod subgraph;
 pub mod typed_state;
-pub mod visual_orchestrator;
 pub mod yaml_loader;
 
 pub use approval::{
@@ -24,16 +22,14 @@ pub use approval::{
     ApprovalPolicy, ApprovalRecord, ApprovalStore, InMemoryApprovalStore, TimeoutAction,
 };
 pub use checkpoint::{
-    replay_wal, scan_incomplete_workflows, Checkpoint, CheckpointInfo, CheckpointRecovery,
-    CheckpointStore, DeltaRecord, InMemoryCheckpointStore, InMemoryWalStore, RecoveryResult,
-    SqliteCheckpointStore, SqliteWalStore, WalRecord, WalStatus, WalStore, WalWorkflowInfo,
+    Checkpoint, CheckpointInfo, CheckpointStore, InMemoryCheckpointStore, SqliteCheckpointStore,
 };
 pub use dispatcher::{AgentInfo, AgentStatus, Dispatcher, DispatcherConfig, DispatcherEvent};
 pub use edge::{Condition, Edge};
 pub use engine::WorkflowEngine;
 pub use error_handler::{
-    AbortOnError, ConditionalErrorHandler, DefaultErrorHandler, ErrorAction, ErrorHandler,
-    ErrorHandlerConfig, FallbackOnError, NodeErrorContext, RetryOnError, SkipOnError,
+    AbortOnError, ConditionalErrorHandler, ErrorAction, ErrorHandler, ErrorHandlerConfig,
+    FallbackOnError, NodeErrorContext, RetryOnError, SkipOnError,
 };
 pub use executor::{
     ExecutorRegistry, HttpExecutor, LlmExecutor, NodeExecutor, ShellExecutor, SubWorkflowExecutor,
@@ -54,7 +50,3 @@ pub use typed_state::{
     Append, ChannelReducer, EventSink, KeepFirst, Merge, Replace, StateDiff, StateError,
     StreamingEvent, Sum, TypedState,
 };
-
-// pub // mod flow_durable; // TODO: fix compilation // TODO: fix compilation
-// pub // mod hitl_enhanced; // TODO: fix compilation // TODO: fix compilation
-// pub // mod session_buffer; // TODO: fix compilation // TODO: fix compilation

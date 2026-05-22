@@ -22,11 +22,7 @@ pub fn blake3_hex(data: &[u8]) -> String {
 /// used by cache-hub and scheduler.
 pub fn hash_prefix(prefix: &str) -> u64 {
     let hash = blake3::hash(prefix.as_bytes());
-    u64::from_be_bytes(
-        hash.as_bytes()[..8]
-            .try_into()
-            .expect("blake3 hash is 32 bytes"),
-    )
+    u64::from_be_bytes(hash.as_bytes()[..8].try_into().expect("slice len"))
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────

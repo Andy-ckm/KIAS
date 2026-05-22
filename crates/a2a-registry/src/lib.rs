@@ -16,7 +16,3 @@ mod types;
 pub use error::RegistryError;
 pub use registry::AgentRegistry;
 pub use types::*;
-
-pub mod a2a_registry;
-pub mod agent_registry;
-// pub // mod a2a_enhanced; // TODO: fix compilation // TODO: fix compilation

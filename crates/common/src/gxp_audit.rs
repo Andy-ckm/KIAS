@@ -238,7 +238,7 @@ impl GxpAuditLog {
 
         self.next_sequence += 1;
         self.entries.push(entry);
-        Ok(self.entries.last().expect("entries non-empty after push"))
+        Ok(self.entries.last().expect("entry was just pushed"))
     }
 
     /// Verify the integrity of the entire hash chain.

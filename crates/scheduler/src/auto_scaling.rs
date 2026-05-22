@@ -9,7 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -185,29 +185,6 @@ impl AutoScaler {
                 let q_desired =
                     (metrics.pending_tasks as f64 / state.config.target_queue_depth).ceil() as u32;
                 desired_replicas = desired_replicas.max(q_desired);
-            }
-        }
-
-        // Underutilization-based scale-down: when below 50% of target, estimate needed replicas
-        if desired_replicas == metrics.current_replicas && metrics.current_replicas > 1 {
-            let below_target = metrics.avg_cpu_utilization
-                < state.config.target_cpu_utilization * 0.5
-                && metrics.avg_memory_utilization < state.config.target_memory_utilization * 0.5;
-            if below_target {
-                // Estimate based on the higher of CPU/memory utilization ratio
-                let cpu_ratio = if state.config.target_cpu_utilization > 0.0 {
-                    metrics.avg_cpu_utilization / state.config.target_cpu_utilization
-                } else {
-                    1.0
-                };
-                let mem_ratio = if state.config.target_memory_utilization > 0.0 {
-                    metrics.avg_memory_utilization / state.config.target_memory_utilization
-                } else {
-                    1.0
-                };
-                let utilization_ratio = cpu_ratio.max(mem_ratio).max(0.1);
-                let estimated = (metrics.current_replicas as f64 * utilization_ratio).ceil() as u32;
-                desired_replicas = estimated.max(state.config.min_replicas);
             }
         }
 

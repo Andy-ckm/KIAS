@@ -120,7 +120,6 @@ pub enum BreakingChangeType {
 // ---------------------------------------------------------------------------
 
 /// Validates API responses against an OpenAPI specification.
-#[derive(Debug)]
 pub struct ContractValidator {
     spec: Arc<OpenApiSpec>,
 }

@@ -1,14 +1,11 @@
 pub mod autonomy_integration;
 pub mod cluster;
-pub mod connection_migration;
 pub mod controller_loop;
 pub mod events;
 pub mod handoff;
 pub mod health;
-pub mod health_model;
 pub mod heartbeat;
 pub mod lifecycle;
-pub mod process_supervisor;
 pub mod reconciler;
 pub mod recovery;
 pub mod runtime_loop;
@@ -39,6 +36,3 @@ pub use state::{
     ActualState, AgentConfig, AgentInfo, AgentStatus, ControllerState, DesiredState,
     ResourceRequirements,
 };
-
-// pub // mod federation; // TODO: fix compilation // TODO: fix compilation
-// pub // mod cluster_link; // TODO: fix compilation // TODO: fix compilation

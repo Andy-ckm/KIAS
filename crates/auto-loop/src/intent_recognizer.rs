@@ -224,7 +224,7 @@ impl IntentRecognizer {
                 && (best_match.is_none()
                     || match_count
                         > best_match
-                            .expect("best_match checked Some in outer condition")
+                            .expect("best_match is guaranteed Some when checked above")
                             .1)
             {
                 best_match = Some((rule, match_count));

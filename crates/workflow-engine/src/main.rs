@@ -7,7 +7,7 @@ use std::collections::HashMap;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    tracing::info!("AgentGuard Workflow Engine starting...");
+    println!("AgentGuard Workflow Engine starting...");
 
     // Create a workflow graph with real node executors
     let mut graph = WorkflowGraph::new("example-workflow");
@@ -85,10 +85,10 @@ async fn main() -> anyhow::Result<()> {
     let engine = WorkflowEngine::new();
     let final_state = engine.execute(&graph, initial_state).await?;
 
-    tracing::info!(status = ?final_state.status, "Workflow completed");
-    tracing::info!(
-        keys = ?final_state.data.keys().collect::<Vec<_>>(),
-        "Final state data keys"
+    println!("Workflow completed with status: {:?}", final_state.status);
+    println!(
+        "Final state data keys: {:?}",
+        final_state.data.keys().collect::<Vec<_>>()
     );
 
     Ok(())

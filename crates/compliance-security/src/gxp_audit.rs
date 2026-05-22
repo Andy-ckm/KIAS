@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 /// - EU GMP Annex 11
 /// - ICH E6(R2) GCP
 /// - ISO 42001 (AI Management System)
-///
-///   An ALCOA+ compliant audit entry
+
+/// An ALCOA+ compliant audit entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GxpAuditEntry {
     /// Unique entry ID
@@ -193,7 +193,6 @@ impl GxpAuditTrail {
     }
 
     /// Record with before/after values (for change tracking)
-    #[allow(clippy::too_many_arguments)]
     pub fn record_change(
         &mut self,
         actor_id: &str,

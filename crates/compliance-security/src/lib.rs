@@ -13,26 +13,12 @@
 pub mod auth_providers;
 pub mod bias_detection;
 pub mod compliance_report;
-// pub // mod data_masking; // TODO: fix compilation // TODO: fix compilation
-pub mod error;
 pub mod eu_ai_act;
 pub mod gxp_audit;
 pub mod pki;
-pub mod policy_as_code;
-pub mod policy_simulator;
 pub mod prompt_defense;
-pub mod red_team;
 pub mod sandbox;
 pub mod sandbox_enforcer;
-pub mod secrets_manager;
-// pub // mod security_drill; // TODO: fix compilation // TODO: fix compilation
-// pub // mod supply_chain; // TODO: fix compilation // TODO: fix compilation
-// pub // mod runtime_protection; // TODO: fix compilation // TODO: fix compilation
-pub mod audit_console;
-pub mod behavior_risk;
-pub mod change_audit;
-pub mod compliance_as_service;
-pub mod whitepaper_data;
 pub mod zero_trust;
 
 // Re-export key types for convenience

@@ -8,7 +8,6 @@ description = "KIAS Auto Loop - 自动迭代循环，运行时闭环，自动发
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-time = { version = "0.3", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4"] }
 kias-common = { path = "../common" }
 tracing = "0.1"

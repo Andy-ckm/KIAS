@@ -47,9 +47,7 @@ pub struct NamespaceNode {
 pub struct UnifiedNamespace {
     nodes: HashMap<String, NamespaceNode>,
     /// Default permissions for new nodes.
-    #[allow(dead_code)]
     default_read: HashSet<String>,
-    #[allow(dead_code)]
     default_write: HashSet<String>,
 }
 
@@ -85,7 +83,7 @@ impl UnifiedNamespace {
         }
         // Validate parent exists
         let parent = parent_path(&node.path);
-        if !self.nodes.contains_key(&parent) && !parent.is_empty() {
+        if !self.nodes.contains_key(&parent) && parent != "" {
             return Err(format!("Parent namespace '{}' does not exist", parent));
         }
         self.nodes.insert(node.path.clone(), node);
@@ -117,26 +115,16 @@ impl UnifiedNamespace {
     pub fn can_read(&self, path: &str, identity: &str) -> bool {
         // Walk up the tree to find a permission
         let mut current = path.to_string();
-        let mut is_exact = true;
         loop {
             if let Some(node) = self.nodes.get(&current) {
-                // Empty permissions = open access only at the exact requested path
-                if is_exact && node.read_permissions.is_empty() {
+                if node.read_permissions.is_empty() || node.read_permissions.contains(identity) {
                     return true;
-                }
-                if node.read_permissions.contains(identity) {
-                    return true;
-                }
-                // Explicit empty set on ancestor = no wildcard, stop walking
-                if !is_exact {
-                    return false;
                 }
             }
             if current == "/" || current.is_empty() {
                 break;
             }
             current = parent_path(&current);
-            is_exact = false;
             if current.is_empty() {
                 break;
             }
@@ -147,26 +135,16 @@ impl UnifiedNamespace {
     /// Check write permission.
     pub fn can_write(&self, path: &str, identity: &str) -> bool {
         let mut current = path.to_string();
-        let mut is_exact = true;
         loop {
             if let Some(node) = self.nodes.get(&current) {
-                // Empty permissions = open access only at the exact requested path
-                if is_exact && node.write_permissions.is_empty() {
+                if node.write_permissions.is_empty() || node.write_permissions.contains(identity) {
                     return true;
-                }
-                if node.write_permissions.contains(identity) {
-                    return true;
-                }
-                // Explicit empty set on ancestor = no wildcard, stop walking
-                if !is_exact {
-                    return false;
                 }
             }
             if current == "/" || current.is_empty() {
                 break;
             }
             current = parent_path(&current);
-            is_exact = false;
             if current.is_empty() {
                 break;
             }
@@ -204,6 +182,7 @@ impl UnifiedNamespace {
 
     /// List all paths matching a glob pattern (simple * wildcard).
     pub fn glob(&self, pattern: &str) -> Vec<&NamespaceNode> {
+        let regex_pattern = pattern.replace("*", "([^/]+)");
         self.nodes
             .values()
             .filter(|n| simple_glob_match(&n.path, pattern))
@@ -243,7 +222,7 @@ fn simple_glob_match(text: &str, pattern: &str) -> bool {
     if parts.len() == 2 {
         text.starts_with(parts[0]) && text.ends_with(parts[1])
     } else {
-        text.contains(parts[0])
+        text.contains(&parts[0])
     }
 }
 

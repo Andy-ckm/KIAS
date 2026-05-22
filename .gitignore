@@ -89,3 +89,12 @@ config/kias.toml
 target-worktree/
 kias/target-worktree/
 cargo-target/
+
+# 敏感文件 - 不允许推送到GitHub
+scripts/fire_minimax*.sh
+scripts/minimax*.py
+scripts/minimax*.sh
+scripts/minimax_log*.txt
+scripts/minimax_wave*.txt
+*.env
+.env*

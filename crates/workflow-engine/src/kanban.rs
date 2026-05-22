@@ -543,7 +543,7 @@ impl KanbanBoard {
             .tasks
             .iter_mut()
             .find(|t| t.id == child_id)
-            .expect("Child task verified to exist");
+            .expect("child task existence verified by parent check above");
         if !child.parents.contains(&parent_id.to_string()) {
             child.parents.push(parent_id.to_string());
         }
@@ -555,7 +555,7 @@ impl KanbanBoard {
             .tasks
             .iter_mut()
             .find(|t| t.id == parent_id)
-            .expect("Parent task verified to exist");
+            .expect("parent task existence verified by ok_or_else above");
         if !parent.children.contains(&child_id.to_string()) {
             parent.children.push(child_id.to_string());
         }

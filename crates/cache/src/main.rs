@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     hub.set(entry).await?;
 
     if let Some(cached) = hub.get("test-key").await? {
-        println!("Cache hit: {:?}", String::from_utf8_lossy(&cached.value));
+        tracing::info!(value = %String::from_utf8_lossy(&cached.value), "Cache hit");
     }
 
     tracing::info!("AgentGuard Cache Service finished");

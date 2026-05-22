@@ -17,3 +17,6 @@ pub mod token_budget;
 pub mod tokens;
 pub mod visualization;
 pub mod workflows;
+
+#[cfg(test)]
+pub mod failure_tests;

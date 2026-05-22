@@ -163,7 +163,7 @@ pub struct ConsoleRotationNotifier;
 #[async_trait::async_trait]
 impl RotationNotifier for ConsoleRotationNotifier {
     async fn notify_rotation(&self, event: &RotationEvent) -> Result<(), McpError> {
-        eprintln!(
+        tracing::warn!(
             "[ROTATION] Credential '{}' (id={}, type={}) needs rotation:              elapsed={}s, interval={}s, rotations={}/{:?}",
             event.credential_name,
             event.credential_id,
@@ -532,7 +532,7 @@ impl CredentialManager {
                 loop {
                     tokio::time::sleep(mgr.config.rotation_check_interval).await;
                     if let Err(e) = mgr.check_rotations().await {
-                        eprintln!("Rotation check error: {}", e);
+                        tracing::warn!("Rotation check error: {}", e);
                     }
                 }
             });
@@ -742,7 +742,7 @@ impl CredentialManager {
                             max_rotations: policy.max_rotations,
                         };
                         if let Err(e) = self.notifier.notify_rotation(&event).await {
-                            eprintln!(
+                            tracing::warn!(
                                 "[ROTATION ERROR] Failed to notify for credential {}: {}",
                                 event.credential_id, e
                             );

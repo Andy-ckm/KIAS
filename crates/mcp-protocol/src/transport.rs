@@ -124,11 +124,13 @@ impl Default for HttpTransportConfig {
     }
 }
 
+#[allow(dead_code)]
 /// Shared state for the HTTP transport.
 struct HttpTransportState {
     pending_requests: tokio::sync::mpsc::Sender<McpRequest>,
 }
 
+#[allow(dead_code)]
 /// HTTP-based transport using axum with SSE support.
 ///
 /// Clients POST JSON-RPC requests to the `/rpc` endpoint and receive

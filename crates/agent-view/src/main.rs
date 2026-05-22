@@ -4,7 +4,7 @@ use kias_agent_view::{AgentView, Session};
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    println!("AgentGuard Agent View starting...");
+    tracing::info!("AgentGuard Agent View starting...");
 
     // Create agent view
     let mut view = AgentView::new("agent-1");

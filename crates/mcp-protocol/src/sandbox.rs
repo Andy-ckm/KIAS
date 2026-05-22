@@ -715,7 +715,7 @@ impl SandboxManager {
             loop {
                 tokio::time::sleep(mgr.config.cleanup_interval).await;
                 if let Err(e) = mgr.cleanup_expired().await {
-                    eprintln!("Sandbox cleanup error: {}", e);
+                    tracing::warn!("Sandbox cleanup error: {}", e);
                 }
             }
         });
@@ -923,7 +923,7 @@ impl SandboxManager {
 
         for id in to_remove {
             if let Err(e) = self.terminate(&id, "system").await {
-                eprintln!("Failed to terminate expired sandbox {}: {}", id, e);
+                tracing::warn!("Failed to terminate expired sandbox {}: {}", id, e);
             }
         }
 
@@ -2426,7 +2426,7 @@ impl SandboxBackendTrait for GVisorSandboxBackend {
             // Container may have already exited — not an error.
             let stderr = String::from_utf8_lossy(&output.stderr);
             if !stderr.contains("is not running") {
-                eprintln!(
+                tracing::warn!(
                     "gVisor kill returned non-zero: sandbox_id={}, stderr={}",
                     instance.id, stderr
                 );

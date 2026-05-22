@@ -225,14 +225,14 @@ fn markdown_to_html(md: &str) -> String {
             continue;
         }
 
-        if line.starts_with("### ") {
-            html.push_str(&format!("<h3>{}</h3>\n", html_escape(&line[4..])));
-        } else if line.starts_with("## ") {
-            html.push_str(&format!("<h2>{}</h3>\n", html_escape(&line[3..])));
-        } else if line.starts_with("# ") {
-            html.push_str(&format!("<h1>{}</h1>\n", html_escape(&line[2..])));
-        } else if line.starts_with("- ") {
-            html.push_str(&format!("<li>{}</li>\n", html_escape(&line[2..])));
+        if let Some(stripped) = line.strip_prefix("### ") {
+            html.push_str(&format!("<h3>{}</h3>\n", html_escape(stripped)));
+        } else if let Some(stripped) = line.strip_prefix("## ") {
+            html.push_str(&format!("<h2>{}</h3>\n", html_escape(stripped)));
+        } else if let Some(stripped) = line.strip_prefix("# ") {
+            html.push_str(&format!("<h1>{}</h1>\n", html_escape(stripped)));
+        } else if let Some(stripped) = line.strip_prefix("- ") {
+            html.push_str(&format!("<li>{}</li>\n", html_escape(stripped)));
         } else if line.trim().is_empty() {
             html.push('\n');
         } else {

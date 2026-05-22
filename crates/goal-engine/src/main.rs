@@ -29,8 +29,8 @@ async fn main() -> anyhow::Result<()> {
     // 运行训练循环（model.fit() = /goal）
     let result = runner.run(goal).await?;
 
-    println!("Goal status: {:?}", result.status);
-    println!("Rounds: {}", result.current_round);
+    tracing::info!(status = ?result.status, "Goal status");
+    tracing::info!(rounds = result.current_round, "Goal rounds");
 
     tracing::info!("AgentGuard Goal Engine finished");
     Ok(())

@@ -178,7 +178,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         // Seed 2 default nodes matching AppState::new()
         let mut nodes = std::collections::HashMap::new();
@@ -402,7 +402,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -471,7 +471,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -538,7 +538,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -626,7 +626,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -689,7 +689,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -762,7 +762,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -876,7 +876,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -953,7 +953,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1027,7 +1027,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1096,7 +1096,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1319,7 +1319,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1422,7 +1422,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1492,7 +1492,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),
@@ -1568,7 +1568,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         let state = AppState {
             config: Arc::new(config),

@@ -154,6 +154,7 @@ pub trait PlatformAdapter: Send + Sync {
 }
 
 /// 微信适配器
+#[allow(dead_code)]
 pub struct WechatAdapter {
     token: String,
     encoding_aes_key: Option<String>,
@@ -235,6 +236,7 @@ impl PlatformAdapter for WechatAdapter {
 }
 
 /// Telegram适配器
+#[allow(dead_code)]
 pub struct TelegramAdapter {
     bot_token: String,
 }
@@ -325,6 +327,7 @@ impl PlatformAdapter for TelegramAdapter {
 }
 
 /// Slack适配器
+#[allow(dead_code)]
 pub struct SlackAdapter {
     verification_token: String,
     signing_secret: Option<String>,
@@ -418,6 +421,7 @@ impl PlatformAdapter for SlackAdapter {
 }
 
 /// 飞书适配器
+#[allow(dead_code)]
 pub struct FeishuAdapter {
     verification_token: String,
     encrypt_key: Option<String>,

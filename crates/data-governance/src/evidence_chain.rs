@@ -165,7 +165,7 @@ impl EvidenceChain {
         };
 
         self.events.push(event);
-        Ok(self.events.last().expect("event was just pushed"))
+        Ok(self.events.last().expect("events non-empty after push"))
     }
 
     /// Finalize the chain (make it immutable).

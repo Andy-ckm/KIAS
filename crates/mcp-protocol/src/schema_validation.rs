@@ -13,8 +13,8 @@ use tokio::sync::RwLock;
 /// - Validate tool call inputs/outputs
 /// - Validate inter-Agent message payloads
 /// - Reject non-compliant operations at the gate
-
-/// Schema definition (simplified JSON Schema)
+///
+///   Schema definition (simplified JSON Schema)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaDefinition {
     /// Schema ID

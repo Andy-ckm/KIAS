@@ -271,7 +271,7 @@ impl FreshnessChecker {
             .write()
             .map_err(|e| KiasError::LockPoisoned(format!("RwLock poisoned: {}", e)))?;
 
-        let entry = if let Some(existing) = entries.get_mut(id) {
+        let _entry = if let Some(existing) = entries.get_mut(id) {
             existing.content = content.to_string();
             if let Some(ts) = last_verified {
                 existing.last_verified = ts;

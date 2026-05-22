@@ -210,7 +210,7 @@ impl ContractValidator {
         let mut violations = Vec::new();
         if let Some(contract) = self.contracts.get(&key) {
             if let Some(event) = &contract.event_contract {
-                for (field, expected_type) in &event.payload_schema {
+                for (field, _expected_type) in &event.payload_schema {
                     if !payload.contains_key(field) {
                         violations.push(ContractViolation {
                             contract_name: name.to_string(),

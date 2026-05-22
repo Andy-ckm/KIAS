@@ -12,12 +12,13 @@
 use kias_common::{KiasError, KiasResult};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 
 /// Status of an individual sprint task.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TaskStatus {
     /// Task has not been started yet.
+    #[default]
     Todo,
     /// Task is currently being worked on.
     InProgress,
@@ -27,12 +28,6 @@ pub enum TaskStatus {
     Blocked,
     /// Task was removed from the sprint.
     Removed,
-}
-
-impl Default for TaskStatus {
-    fn default() -> Self {
-        Self::Todo
-    }
 }
 
 /// A single task within a sprint.

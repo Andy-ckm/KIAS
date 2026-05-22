@@ -256,33 +256,23 @@ impl AuditTemplate {
         for field in &self.required_fields {
             if field.required {
                 match field.name.as_str() {
-                    "title" => {
-                        if record.title.is_empty() {
-                            missing_fields.push(field.name.clone());
-                        }
+                    "title" if record.title.is_empty() => {
+                        missing_fields.push(field.name.clone());
                     }
-                    "description" => {
-                        if record.description.is_empty() {
-                            missing_fields.push(field.name.clone());
-                        }
+                    "description" if record.description.is_empty() => {
+                        missing_fields.push(field.name.clone());
                     }
                     "risk_level" => {
                         // Risk level always has a value
                     }
-                    "rollback_plan" => {
-                        if record.rollback_plan.is_empty() {
-                            missing_fields.push(field.name.clone());
-                        }
+                    "rollback_plan" if record.rollback_plan.is_empty() => {
+                        missing_fields.push(field.name.clone());
                     }
-                    "verification_evidence" => {
-                        if record.verification_evidence.is_empty() {
-                            missing_fields.push(field.name.clone());
-                        }
+                    "verification_evidence" if record.verification_evidence.is_empty() => {
+                        missing_fields.push(field.name.clone());
                     }
-                    "affected_components" => {
-                        if record.affected_components.is_empty() {
-                            missing_fields.push(field.name.clone());
-                        }
+                    "affected_components" if record.affected_components.is_empty() => {
+                        missing_fields.push(field.name.clone());
                     }
                     _ => {}
                 }

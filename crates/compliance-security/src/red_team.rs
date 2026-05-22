@@ -22,10 +22,9 @@
 //! RedTeamContext ─────────┘
 //! ```
 
-use kias_common::KiasError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 /// Category of red team attack scenario.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -469,6 +468,12 @@ pub struct RedTeamRunner<C: StepCallback = NoOpCallback> {
     callback: C,
 }
 
+impl Default for RedTeamRunner<NoOpCallback> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RedTeamRunner<NoOpCallback> {
     pub fn new() -> Self {
         Self {
@@ -558,7 +563,7 @@ impl<C: StepCallback> RedTeamRunner<C> {
     fn simulate_target_response(
         &self,
         step: &AttackStep,
-        ctx: &RedTeamContext,
+        _ctx: &RedTeamContext,
         scenario: &RedTeamScenario,
     ) -> String {
         match scenario.category {
@@ -614,7 +619,12 @@ impl<C: StepCallback> RedTeamRunner<C> {
     }
 
     /// Check if a step triggered detection mechanisms.
-    fn check_detection(&self, step: &AttackStep, output: &str, scenario: &RedTeamScenario) -> bool {
+    fn check_detection(
+        &self,
+        step: &AttackStep,
+        output: &str,
+        _scenario: &RedTeamScenario,
+    ) -> bool {
         // In real implementation, this would check actual detection systems.
         // Here we simulate based on step flags and output analysis.
 

@@ -27,8 +27,9 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// Process lifecycle state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ProcessLifecycle {
+    #[default]
     Starting,
     Running,
     Stopping,
@@ -36,12 +37,6 @@ pub enum ProcessLifecycle {
     Stopped,
     /// Circuit is open — no restarts will be attempted.
     CircuitOpen,
-}
-
-impl Default for ProcessLifecycle {
-    fn default() -> Self {
-        ProcessLifecycle::Starting
-    }
 }
 
 impl std::fmt::Display for ProcessLifecycle {

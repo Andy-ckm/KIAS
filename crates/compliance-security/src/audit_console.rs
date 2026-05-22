@@ -18,7 +18,7 @@
 //!                                           └── StatCardData
 //! ```
 
-use chrono::{DateTime, Datelike, Months, Timelike, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -293,7 +293,7 @@ impl AuditVisualizer {
 
         for event in events {
             let key = self.time_bucket.bucket_key(&event.timestamp);
-            let counter = buckets.entry(key).or_insert_with(HashMap::new);
+            let counter = buckets.entry(key).or_default();
             *counter.entry(event.event_type.to_string()).or_insert(0.0) += 1.0;
         }
 

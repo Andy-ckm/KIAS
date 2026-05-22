@@ -116,20 +116,15 @@ impl fmt::Display for MatrixDimension {
 }
 
 /// Hybrid consistency mode for partition tolerance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ConsistencyMode {
     /// CP (Consistency/Partition tolerance) — sacrifice availability.
     Cp,
     /// AP (Availability/Partition tolerance) — sacrifice strong consistency.
     Ap,
     /// Tunable consistency — per-dimension settings.
+    #[default]
     Tunable,
-}
-
-impl Default for ConsistencyMode {
-    fn default() -> Self {
-        ConsistencyMode::Tunable
-    }
 }
 
 /// Per-dimension consistency configuration.

@@ -44,7 +44,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
-use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::{Duration, Instant};
 
 /// Upgrade phase enumeration.
@@ -250,7 +249,7 @@ impl UpgradeConfig {
 
     /// Compute number of batches needed.
     pub fn num_batches(&self) -> usize {
-        (self.total_nodes + self.batch_size - 1) / self.batch_size
+        self.total_nodes.div_ceil(self.batch_size)
     }
 
     /// Compute backoff duration for a given attempt.
@@ -261,7 +260,7 @@ impl UpgradeConfig {
 }
 
 /// Statistics from upgrade execution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UpgradeStats {
     pub total_nodes: usize,
     pub upgraded_nodes: usize,
@@ -273,23 +272,6 @@ pub struct UpgradeStats {
     pub health_check_duration_ms: u64,
     pub drain_duration_ms: u64,
     pub rollback_count: u32,
-}
-
-impl Default for UpgradeStats {
-    fn default() -> Self {
-        Self {
-            total_nodes: 0,
-            upgraded_nodes: 0,
-            failed_nodes: 0,
-            total_batches: 0,
-            completed_batches: 0,
-            current_batch: 0,
-            total_duration_ms: 0,
-            health_check_duration_ms: 0,
-            drain_duration_ms: 0,
-            rollback_count: 0,
-        }
-    }
 }
 
 /// Upgrade state.
@@ -522,7 +504,7 @@ impl RollingUpgrade {
     /// Complete the current batch.
     pub fn complete_batch(&mut self) {
         // Extract fields we need first, before mutating stats
-        let (batch_id, node_ids): (u32, Vec<String>) = {
+        let (_batch_id, node_ids): (u32, Vec<String>) = {
             if let Some(batch) = self.state.current_batch_mut() {
                 batch.completed_at = Some(chrono_lite_now());
                 batch.phase = UpgradePhase::Completed;

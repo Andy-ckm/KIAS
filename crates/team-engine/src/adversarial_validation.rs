@@ -13,8 +13,9 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Validation status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ValidationStatus {
+    #[default]
     Pending,
     InProgress,
     Passed,
@@ -104,12 +105,6 @@ pub struct ValidationSession {
     pub final_verdict: Option<JudgeVerdict>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-impl Default for ValidationStatus {
-    fn default() -> Self {
-        ValidationStatus::Pending
-    }
 }
 
 /// AdversarialTeam - Worker/Verifier/Critic/Judge four-role validation

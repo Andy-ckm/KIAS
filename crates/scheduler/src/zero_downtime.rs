@@ -722,7 +722,7 @@ mod tests {
         upgrade.start();
 
         // Complete all batches
-        while !upgrade.is_complete() {
+        while upgrade.phase() != UpgradePhase::Finalizing {
             upgrade.begin_drain();
             upgrade.complete_batch();
         }
@@ -821,7 +821,7 @@ mod tests {
         upgrade.start();
         assert!(!upgrade.is_complete());
 
-        while !upgrade.is_complete() {
+        while upgrade.phase() != UpgradePhase::Finalizing {
             upgrade.begin_drain();
             upgrade.complete_batch();
         }
@@ -858,7 +858,7 @@ mod tests {
 
     #[test]
     fn test_should_auto_rollback() {
-        let mut upgrade = RollingUpgrade::new("pool-1".to_string(), make_config());
+        let upgrade = RollingUpgrade::new("pool-1".to_string(), make_config());
         assert!(!upgrade.should_auto_rollback()); // 0 failed < 3
     }
 

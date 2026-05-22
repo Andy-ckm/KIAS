@@ -12,7 +12,7 @@
 use kias_common::{KiasError, KiasResult};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 
 /// Status of an individual sprint task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -415,6 +415,7 @@ impl SprintTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use time::Duration;
 
     fn make_date(days_from_now: i64) -> Date {
         let now = OffsetDateTime::now_utc().date();

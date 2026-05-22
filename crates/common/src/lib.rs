@@ -21,6 +21,7 @@ pub mod gxp_auth;
 pub mod hot_config;
 pub mod logging;
 pub mod messaging;
+pub mod minimax_client;
 pub mod metrics;
 pub mod tls;
 pub mod types;

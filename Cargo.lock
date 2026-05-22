@@ -2087,6 +2087,7 @@ dependencies = [
  "config",
  "once_cell",
  "prometheus",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2",

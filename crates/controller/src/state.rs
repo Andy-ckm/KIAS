@@ -314,7 +314,7 @@ mod tests {
         assert!(elapsed.num_milliseconds() < 1000);
     }
 
-    mod tests {
+    mod delivery_tests {
         use super::*;
 
         #[test]

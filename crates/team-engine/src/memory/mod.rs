@@ -14,6 +14,7 @@
 //! 3. Relevance scoring for retrieval
 //! 4. Context window management (max tokens)
 
+pub mod compaction;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

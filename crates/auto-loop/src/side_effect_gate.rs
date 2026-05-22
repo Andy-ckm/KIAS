@@ -763,7 +763,7 @@ mod tests {
 
     #[test]
     fn test_action_type_variants() {
-        let types = vec![
+        let types = [
             ActionType::FileWrite,
             ActionType::FileDelete,
             ActionType::GitPush,
@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn test_gate_policy_variants() {
-        let policies = vec![
+        let policies = [
             GatePolicy::AutoLow,
             GatePolicy::AutoMedium,
             GatePolicy::Always,

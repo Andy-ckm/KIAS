@@ -77,6 +77,12 @@ pub enum TimeoutAction {
     Reject,
     /// Auto-approve on timeout (lenient — workflow continues).
     Approve,
+    /// Degrade to a safe fallback path on timeout.
+    /// The workflow continues but routes to the specified safe path.
+    DegradeTo {
+        /// The fallback path/route to take when timeout occurs.
+        fallback_path: String,
+    },
 }
 
 impl fmt::Display for ApprovalPolicy {
@@ -103,6 +109,89 @@ impl fmt::Display for ApprovalPolicy {
     }
 }
 
+// ─── TimeoutDegradation ─────────────────────────────────────────────────
+
+/// Result of a timeout-driven degradation, indicating the safe path the
+/// workflow should follow after an approval timeout.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeoutDegradation {
+    /// The original approval record id that timed out.
+    pub record_id: String,
+    /// The fallback path chosen by the degradation policy.
+    pub fallback_path: String,
+    /// Timestamp when the degradation was triggered.
+    pub triggered_at: DateTime<Utc>,
+}
+
+/// Evaluate what happens when an approval times out, returning the appropriate
+/// timeout action and, if degradation is configured, a [`TimeoutDegradation`].
+pub fn evaluate_timeout(
+    policy: &ApprovalPolicy,
+    record_id: &str,
+) -> (TimeoutAction, Option<TimeoutDegradation>) {
+    match policy {
+        ApprovalPolicy::HumanReview { on_timeout, .. } => match on_timeout {
+            TimeoutAction::DegradeTo { fallback_path } => {
+                let degradation = TimeoutDegradation {
+                    record_id: record_id.to_string(),
+                    fallback_path: fallback_path.clone(),
+                    triggered_at: Utc::now(),
+                };
+                (on_timeout.clone(), Some(degradation))
+            }
+            other => (other.clone(), None),
+        },
+        _ => (TimeoutAction::Reject, None),
+    }
+}
+
+// ─── ApprovalHistoryTracker ─────────────────────────────────────────────
+
+/// Tracks the multi-level approval history for a single workflow.
+/// Each level can be reviewed by a different approver; the tracker
+/// accumulates records and provides convenience queries.
+#[derive(Debug, Default, Clone)]
+pub struct ApprovalHistoryTracker {
+    records: Vec<ApprovalRecord>,
+}
+
+impl ApprovalHistoryTracker {
+    pub fn new() -> Self {
+        Self {
+            records: Vec::new(),
+        }
+    }
+
+    /// Add a new approval record to the tracker.
+    pub fn push(&mut self, record: ApprovalRecord) {
+        self.records.push(record);
+    }
+
+    /// Get all records sorted by approval level.
+    pub fn by_level(&self) -> Vec<&ApprovalRecord> {
+        let mut sorted: Vec<_> = self.records.iter().collect();
+        sorted.sort_by_key(|r| r.approver_level.unwrap_or(0));
+        sorted
+    }
+
+    /// Get the latest decision (by level).
+    pub fn latest_decision(&self) -> Option<&ApprovalRecord> {
+        self.by_level().into_iter().next_back()
+    }
+
+    /// Check if any level has rejected.
+    pub fn has_rejection(&self) -> bool {
+        self.records
+            .iter()
+            .any(|r| matches!(r.decision, ApprovalDecision::Rejected { .. }))
+    }
+
+    /// Total number of approval levels recorded.
+    pub fn level_count(&self) -> usize {
+        self.records.len()
+    }
+}
+
 // ─── ApprovalContext ─────────────────────────────────────────────────────
 
 /// Context passed to the approval system so it can make an informed decision.
@@ -118,6 +207,14 @@ pub struct ApprovalContext {
     pub preview_output: serde_json::Value,
     /// Previous approval history for this workflow (for context).
     pub history: Vec<ApprovalRecord>,
+    /// Pre-review preview: a human-readable summary shown before the reviewer
+    /// inspects the full output.  Inspired by CrewAI HITL pre-review.
+    #[serde(default)]
+    pub pre_review_preview: Option<String>,
+    /// Whether the reviewer has confirmed the distilled/knowledge summary
+    /// before proceeding.  Used in RAG / distillation pipelines.
+    #[serde(default)]
+    pub distillation_confirm: Option<bool>,
 }
 
 // ─── ApprovalDecision ────────────────────────────────────────────────────
@@ -176,6 +273,15 @@ pub struct ApprovalRecord {
     pub decided_at: DateTime<Utc>,
     /// How long the decision took (from request to resolution).
     pub duration_ms: u64,
+    /// The approval level/tier (0 = first reviewer, 1 = escalation, …).
+    #[serde(default)]
+    pub approver_level: Option<u32>,
+    /// Free-text opinion from the reviewer.
+    #[serde(default)]
+    pub opinion: Option<String>,
+    /// Structured decision reasoning for audit.
+    #[serde(default)]
+    pub decision_reason: Option<String>,
 }
 
 // ─── ApprovalStore trait ─────────────────────────────────────────────────
@@ -314,6 +420,8 @@ mod tests {
             risk_score,
             preview_output: serde_json::json!({"status": "ok"}),
             history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
         }
     }
 

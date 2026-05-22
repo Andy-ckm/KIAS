@@ -63,8 +63,7 @@ impl MiniMaxClient {
             .map_err(|_| KiasError::Config("MINIMAX_API_KEY not set".into()))?;
         let api_url = std::env::var("MINIMAX_API_URL")
             .unwrap_or_else(|_| "https://api.minimaxi.com/v1".to_string());
-        let model = std::env::var("MINIMAX_MODEL")
-            .unwrap_or_else(|_| "MiniMax-M2.7".to_string());
+        let model = std::env::var("MINIMAX_MODEL").unwrap_or_else(|_| "MiniMax-M2.7".to_string());
 
         Ok(Self {
             client: Client::new(),
@@ -75,7 +74,11 @@ impl MiniMaxClient {
     }
 
     /// Create a client with explicit parameters (useful for testing).
-    pub fn new(api_url: impl Into<String>, api_key: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        api_url: impl Into<String>,
+        api_key: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
             client: Client::new(),
             api_url: api_url.into(),

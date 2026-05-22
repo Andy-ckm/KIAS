@@ -744,7 +744,8 @@ impl CredentialManager {
                         if let Err(e) = self.notifier.notify_rotation(&event).await {
                             tracing::warn!(
                                 "[ROTATION ERROR] Failed to notify for credential {}: {}",
-                                event.credential_id, e
+                                event.credential_id,
+                                e
                             );
                         }
                     }

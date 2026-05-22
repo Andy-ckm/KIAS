@@ -81,7 +81,8 @@ async fn main() -> anyhow::Result<()> {
     let final_state = state.lock().await;
     tracing::info!(
         "  Final state:      {}/{} replicas running",
-        final_state.actual.running_replicas, final_state.desired.replicas
+        final_state.actual.running_replicas,
+        final_state.desired.replicas
     );
     tracing::info!("  Agents tracked:   {}", final_state.agents.len());
 

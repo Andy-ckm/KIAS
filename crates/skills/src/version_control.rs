@@ -78,9 +78,7 @@ impl SkillVersionHistory {
 
         self.current_version = version_str;
         self.versions.push(snapshot);
-        self.versions
-            .last()
-            .expect("versions non-empty after push")
+        self.versions.last().expect("versions non-empty after push")
     }
 
     /// Get the current version
@@ -121,10 +119,7 @@ impl SkillVersionHistory {
         let new_version = rollback_snapshot.version.clone();
         self.versions.push(rollback_snapshot);
         self.current_version = new_version;
-        Ok(self
-            .versions
-            .last()
-            .expect("versions non-empty after push"))
+        Ok(self.versions.last().expect("versions non-empty after push"))
     }
 
     /// Check if content has changed since a version

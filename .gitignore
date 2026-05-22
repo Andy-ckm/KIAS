@@ -1,100 +1,52 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# 项目开发文件 - 推送到GitHub
+# 内部运行文件 - 不推送到GitHub
+
+# 敏感文件
+.env*
+.env.local
+*.key
+*.pem
+*.p12
+
+# 内部运行脚本（mimo/MiniMax协调）
+scripts/backup-mechanism.sh
+scripts/loop-fix.sh
+scripts/secret-scanner.py
+scripts/pre-commit-hook.sh
+scripts/load-env.sh
+scripts/cicd-push.sh
+scripts/minimax-*.py
+scripts/minimax-*.sh
+scripts/fire_minimax*.sh
+scripts/minimax_log*.txt
+scripts/minimax_wave*.txt
+
+# 内部日志
+logs/
+*.log
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.temp
+
+# 编译产物
+target/
+*.o
 *.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+*.dylib
 
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
-.env
+# 依赖目录
+node_modules/
+vendor/
 
-# IDE
+# IDE配置
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Logs
-logs/
-*.log
-
-# Data
-*.db
-*.sqlite
-
-# Models
-*.joblib
-*.pkl
-*.pth
-*.h5
-
-# OS
+# 系统文件
 .DS_Store
 Thumbs.db
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-.nox/
-
-# Documentation
-docs/_build/
-
-# Rust
-target/
-target
-
-# Node.js
-node_modules/
-dashboard/node_modules/
-dashboard/dist/config/kias.toml
-2605.15181.pdf
-docs/papers/2605.15187.pdf
-.task-queue/
-2605.10813.pdf
-.dev-state
-.worktrees/
-.trace/
-2512.04745.pdf
-.task-queue/api_keys.json
-.task-queue/api_key_state.json
-
-# Dev planning files
-.dev-insights.md
-.dev-tasks.yaml
-.matrix-qa-marker
-.research-queue.yaml
-config/kias.toml
-target-worktree/
-kias/target-worktree/
-cargo-target/
-
-# 敏感文件 - 不允许推送到GitHub
-scripts/fire_minimax*.sh
-scripts/minimax*.py
-scripts/minimax*.sh
-scripts/minimax_log*.txt
-scripts/minimax_wave*.txt
-*.env
-.env*

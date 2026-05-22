@@ -177,7 +177,7 @@ impl Learner {
         learner.persist_path = Some(path.into());
         // 尝试加载已有数据
         if let Err(e) = learner.load_from_disk() {
-            eprintln!("警告：无法加载经验数据: {}", e);
+            tracing::warn!("警告：无法加载经验数据: {}", e);
         }
         learner
     }

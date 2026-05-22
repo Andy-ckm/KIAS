@@ -358,7 +358,7 @@ impl DocumentManagement {
                         Ok(doc) => imported.push(doc),
                         Err(e) => {
                             // 记录错误但继续处理其他文件
-                            eprintln!("导入文件 {} 失败: {}", path.display(), e);
+                            tracing::warn!("导入文件 {} 失败: {}", path.display(), e);
                         }
                     }
                 }

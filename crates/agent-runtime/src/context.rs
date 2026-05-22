@@ -120,7 +120,7 @@ impl AgentContext {
             }
             last.tool_calls
                 .as_mut()
-                .expect("tool_calls initialized above")
+                .expect("tool_calls set to Some just above")
                 .push(ToolCallRecord {
                     name: name.to_string(),
                     arguments: args,

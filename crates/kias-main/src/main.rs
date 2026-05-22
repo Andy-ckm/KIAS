@@ -44,14 +44,14 @@ async fn main() -> anyhow::Result<()> {
             start_server(host, port).await?;
         }
         Some(Commands::Status) => {
-            println!("AgentGuard Status: Running");
-            println!("Version: {}", env!("CARGO_PKG_VERSION"));
+            tracing::info!("AgentGuard Status: Running");
+            tracing::info!("Version: {}", env!("CARGO_PKG_VERSION"));
         }
         Some(Commands::Health) => {
-            println!("Health: OK");
+            tracing::info!("Health: OK");
         }
         Some(Commands::Version) => {
-            println!("kias {}", env!("CARGO_PKG_VERSION"));
+            tracing::info!("kias {}", env!("CARGO_PKG_VERSION"));
         }
         None => {
             // Default: start server

@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 ///
 /// Key capability that EMQ completely lacks: "Which Agent spent how much on what?"
 /// This is the feature CFOs love.
-
+///
 /// Cost entry for a single LLM call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostEntry {
@@ -195,7 +195,11 @@ impl CostEngine {
         for agent_id in agent_ids {
             summaries.push(self.agent_summary(&agent_id).await);
         }
-        summaries.sort_by(|a, b| b.total_cost_usd.partial_cmp(&a.total_cost_usd).unwrap());
+        summaries.sort_by(|a, b| {
+            b.total_cost_usd
+                .partial_cmp(&a.total_cost_usd)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         summaries
     }
 
@@ -208,14 +212,9 @@ impl CostEngine {
 
         let entries = self.entries.read().await;
         let now = Utc::now();
-        let today_start = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
+        let today_start = now.date_naive().and_hms_opt(0, 0, 0)?;
         let today_start = DateTime::<Utc>::from_naive_utc_and_offset(today_start, Utc);
-        let month_start = now
-            .date_naive()
-            .with_day(1)
-            .unwrap()
-            .and_hms_opt(0, 0, 0)
-            .unwrap();
+        let month_start = now.date_naive().with_day(1)?.and_hms_opt(0, 0, 0)?;
         let month_start = DateTime::<Utc>::from_naive_utc_and_offset(month_start, Utc);
 
         let daily_spent: f64 = entries

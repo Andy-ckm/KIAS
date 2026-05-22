@@ -54,36 +54,36 @@ async fn main() -> anyhow::Result<()> {
     let metrics = controller.run().await?;
 
     // ── Report results ──
-    println!("═══════════════════════════════════════════════════════");
-    println!("  Controller Loop Results");
-    println!("═══════════════════════════════════════════════════════");
-    println!("  Status:           {:?}", metrics.status);
-    println!("  Rounds executed:  {}", metrics.rounds_executed);
-    println!(
+    tracing::info!("═══════════════════════════════════════════════════════");
+    tracing::info!("  Controller Loop Results");
+    tracing::info!("═══════════════════════════════════════════════════════");
+    tracing::info!("  Status:           {:?}", metrics.status);
+    tracing::info!("  Rounds executed:  {}", metrics.rounds_executed);
+    tracing::info!(
         "  Achieved on:      {}",
         metrics
             .achieved_on_round
             .map(|r| r.to_string())
             .unwrap_or_else(|| "N/A".to_string())
     );
-    println!(
+    tracing::info!(
         "  Total duration:   {:.2}s",
         metrics.total_duration.as_secs_f64()
     );
-    println!("  Quality scores:   {:?}", metrics.quality_scores);
-    println!(
+    tracing::info!("  Quality scores:   {:?}", metrics.quality_scores);
+    tracing::info!(
         "  Feedback chain:   {} entries",
         metrics.feedback_chain.len()
     );
-    println!("═══════════════════════════════════════════════════════");
+    tracing::info!("═══════════════════════════════════════════════════════");
 
     // Show final state
     let final_state = state.lock().await;
-    println!(
+    tracing::info!(
         "  Final state:      {}/{} replicas running",
         final_state.actual.running_replicas, final_state.desired.replicas
     );
-    println!("  Agents tracked:   {}", final_state.agents.len());
+    tracing::info!("  Agents tracked:   {}", final_state.agents.len());
 
     tracing::info!("AgentGuard Controller finished");
     Ok(())

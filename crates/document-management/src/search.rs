@@ -42,6 +42,7 @@ pub struct SearchResult {
     pub query_time_ms: u64,
 }
 
+#[allow(dead_code)]
 /// 文档搜索引擎
 pub struct DocumentSearchEngine {
     index_path: String,

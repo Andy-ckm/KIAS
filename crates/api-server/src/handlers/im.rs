@@ -747,7 +747,7 @@ mod tests {
         let knowledge_retriever =
             kias_knowledge::vector::VectorRetriever::new(graph, embedding_engine)
                 .await
-                .expect("Failed to create knowledge retriever");
+                .expect("knowledge retriever init with local embedding engine");
 
         AppState {
             config: Arc::new(config),

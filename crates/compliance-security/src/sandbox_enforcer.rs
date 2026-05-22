@@ -656,7 +656,12 @@ impl SeccompEnforcer {
             // Now fix all JEQ instructions: in denylist mode,
             // if syscall matches, jump to DENY; otherwise fall through
             // The first instruction loads the syscall number
-            for (i, instr) in program.iter_mut().enumerate().take(num_syscalls + 1).skip(1) {
+            for (i, instr) in program
+                .iter_mut()
+                .enumerate()
+                .take(num_syscalls + 1)
+                .skip(1)
+            {
                 if instr.code == 0x15 {
                     // JEQ
                     instr.jt = (deny_idx - i) as u8;

@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     // 执行任务
     let result = team.execute("写一个 Hello World 程序").await?;
 
-    println!("Result: {}", result);
+    tracing::info!(result = %result, "Team execution result");
 
     tracing::info!("AgentGuard Team Engine finished");
     Ok(())

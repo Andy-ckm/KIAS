@@ -59,6 +59,7 @@ pub struct SystemHealthReport {
     pub uptime_secs: u64,
 }
 
+#[allow(dead_code)]
 impl SystemHealthReport {
     /// Returns `true` when every subsystem is [`HealthStatus::Healthy`].
     pub fn is_healthy(&self) -> bool {
@@ -68,6 +69,7 @@ impl SystemHealthReport {
 
 // ── Shutdown coordinator ───────────────────────────────────────────────
 
+#[allow(dead_code)]
 /// Coordinates graceful shutdown across all subsystems using a broadcast channel.
 ///
 /// Each subsystem task subscribes via [`subscribe`](Self::subscribe) and selects
@@ -78,6 +80,7 @@ pub struct ShutdownCoordinator {
     started_at: Instant,
 }
 
+#[allow(dead_code)]
 impl ShutdownCoordinator {
     /// Create a new coordinator (capacity = 1 signal).
     pub fn new() -> Self {
@@ -115,6 +118,7 @@ impl Default for ShutdownCoordinator {
 
 // ── Service manager ────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 /// Top-level orchestrator that owns every KIAS subsystem.
 pub struct KiasServiceManager {
     config: KiasConfig,
@@ -144,6 +148,7 @@ pub struct KiasServiceManager {
     started_at: Instant,
 }
 
+#[allow(dead_code)]
 impl KiasServiceManager {
     /// Create and initialise every subsystem from the provided config.
     ///
@@ -370,6 +375,7 @@ impl KiasServiceManager {
 
 // ── Configuration validation ───────────────────────────────────────────
 
+#[allow(dead_code)]
 impl KiasServiceManager {
     /// Validate critical config values before initialization.
     fn validate_config(config: &KiasConfig) -> KiasResult<()> {
@@ -404,6 +410,7 @@ impl KiasServiceManager {
 
 // ── Legacy compatibility ───────────────────────────────────────────────
 
+#[allow(dead_code)]
 /// Legacy boolean flags kept for backward compatibility.
 pub struct KiasServices {
     pub api_server: bool,
@@ -419,6 +426,7 @@ pub struct KiasServices {
 /// Legacy initialisation entry-point (kept for backward compat).
 ///
 /// Prefer [`KiasServiceManager::new`] for new code.
+#[allow(dead_code)]
 pub async fn init_services() -> KiasResult<KiasServices> {
     tracing::info!("Initializing AgentGuard services (legacy mode)");
 

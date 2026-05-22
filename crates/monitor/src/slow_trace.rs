@@ -342,8 +342,8 @@ impl SlowTraceCollector {
         let mut by_severity: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         let mut durations: Vec<u64> = Vec::new();
-/// Agent stats accumulator: (name, durations, category_counts)
-type AgentAccum = (String, Vec<u64>, HashMap<String, usize>);
+        /// Agent stats accumulator: (name, durations, category_counts)
+        type AgentAccum = (String, Vec<u64>, HashMap<String, usize>);
 
         let mut agent_map: HashMap<String, AgentAccum> = HashMap::new();
 

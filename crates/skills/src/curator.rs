@@ -311,7 +311,7 @@ impl Curator {
             let meta = self
                 .metadata
                 .get_mut(&name_owned)
-                .expect("metadata entry must exist after or_insert above");
+                .expect("metadata entry just inserted with or_default above");
             match status {
                 SkillHealthStatus::Unhealthy | SkillHealthStatus::Expired => {
                     meta.consecutive_failures += 1;

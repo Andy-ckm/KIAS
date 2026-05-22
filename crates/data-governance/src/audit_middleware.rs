@@ -125,7 +125,7 @@ pub async fn audit_middleware(
     }
 
     // SAFETY: should_audit is true only when action is Some
-    let action = action.expect("action is Some when should_audit is true");
+    let action = action.expect("action checked Some when should_audit is true");
     let resource_type = infer_resource_type(&uri);
     let resource_id = infer_resource_id(&uri);
     let ip = addr.ip().to_string();

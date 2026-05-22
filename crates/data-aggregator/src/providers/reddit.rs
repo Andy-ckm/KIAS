@@ -28,7 +28,7 @@ impl RedditProvider {
             client: Client::builder()
                 .user_agent("kias-data-aggregator/0.1 (by /u/kias_bot)")
                 .build()
-                .expect("Failed to build HTTP client"),
+                .expect("valid HTTP client config"),
         }
     }
 

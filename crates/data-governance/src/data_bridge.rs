@@ -67,6 +67,7 @@ pub struct BridgeResult {
 /// Transform function type: transforms a record before sending to sink.
 pub type TransformFn = Box<dyn Fn(&BridgeRecord) -> BridgeRecord + Send + Sync>;
 
+#[allow(dead_code)]
 /// A data bridge connecting a source to a sink.
 pub struct DataBridge {
     config: BridgeConfig,

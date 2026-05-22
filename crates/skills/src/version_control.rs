@@ -80,7 +80,7 @@ impl SkillVersionHistory {
         self.versions.push(snapshot);
         self.versions
             .last()
-            .expect("versions is non-empty immediately after push")
+            .expect("versions non-empty after push")
     }
 
     /// Get the current version
@@ -124,7 +124,7 @@ impl SkillVersionHistory {
         Ok(self
             .versions
             .last()
-            .expect("versions is non-empty immediately after push"))
+            .expect("versions non-empty after push"))
     }
 
     /// Check if content has changed since a version

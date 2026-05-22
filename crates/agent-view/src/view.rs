@@ -41,16 +41,16 @@ impl AgentView {
     }
 
     pub fn display_summary(&self) {
-        println!("Agent: {}", self.agent_id);
-        println!("Total sessions: {}", self.sessions.len());
-        println!("Active sessions: {}", self.get_active_sessions().len());
-        println!(
-            "Completed sessions: {}",
-            self.get_completed_sessions().len()
+        tracing::info!(agent_id = %self.agent_id, "Agent view summary");
+        tracing::info!(total = self.sessions.len(), "Total sessions");
+        tracing::info!(active = self.get_active_sessions().len(), "Active sessions");
+        tracing::info!(
+            completed = self.get_completed_sessions().len(),
+            "Completed sessions"
         );
-        println!("Recent sessions:");
+        tracing::info!("Recent sessions:");
         for session in self.sessions.iter().take(5) {
-            println!("  - {} [{:?}]", session.id, session.status);
+            tracing::info!(session_id = %session.id, status = ?session.status, "Session");
         }
     }
 }

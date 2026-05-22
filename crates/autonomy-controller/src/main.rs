@@ -4,7 +4,7 @@ use kias_autonomy_controller::{AutonomyController, AutonomyLevel, ToolPermission
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    println!("AgentGuard Autonomy Controller starting...");
+    tracing::info!("AgentGuard Autonomy Controller starting...");
 
     let mut controller = AutonomyController::new();
 
@@ -21,20 +21,20 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // 测试不同自主级别
-    println!("\n=== Suggest Mode ===");
+    tracing::info!("=== Suggest Mode ===");
     controller.set_level(AutonomyLevel::Suggest);
-    println!("{:?}", controller.check_execution_allowed("terminal"));
-    println!("{:?}", controller.check_execution_allowed("file_write"));
+    tracing::info!("{:?}", controller.check_execution_allowed("terminal"));
+    tracing::info!("{:?}", controller.check_execution_allowed("file_write"));
 
-    println!("\n=== AutoEdit Mode ===");
+    tracing::info!("=== AutoEdit Mode ===");
     controller.set_level(AutonomyLevel::AutoEdit);
-    println!("{:?}", controller.check_execution_allowed("terminal"));
-    println!("{:?}", controller.check_execution_allowed("file_write"));
+    tracing::info!("{:?}", controller.check_execution_allowed("terminal"));
+    tracing::info!("{:?}", controller.check_execution_allowed("file_write"));
 
-    println!("\n=== FullAuto Mode ===");
+    tracing::info!("=== FullAuto Mode ===");
     controller.set_level(AutonomyLevel::FullAuto);
-    println!("{:?}", controller.check_execution_allowed("terminal"));
-    println!("{:?}", controller.check_execution_allowed("file_write"));
+    tracing::info!("{:?}", controller.check_execution_allowed("terminal"));
+    tracing::info!("{:?}", controller.check_execution_allowed("file_write"));
 
     Ok(())
 }

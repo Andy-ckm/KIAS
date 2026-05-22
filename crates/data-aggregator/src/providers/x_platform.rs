@@ -33,7 +33,7 @@ impl XProvider {
             client: Client::builder()
                 .user_agent("kias-data-aggregator/0.1")
                 .build()
-                .expect("Failed to build HTTP client"),
+                .expect("valid HTTP client config"),
             bearer_token,
         }
     }
@@ -44,7 +44,7 @@ impl XProvider {
             client: Client::builder()
                 .user_agent("kias-data-aggregator/0.1")
                 .build()
-                .expect("Failed to build HTTP client"),
+                .expect("valid HTTP client config"),
             bearer_token: Some(token.into()),
         }
     }

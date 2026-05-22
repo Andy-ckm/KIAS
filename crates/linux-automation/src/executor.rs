@@ -17,6 +17,7 @@ pub struct SshSession {
     pub last_used: chrono::DateTime<chrono::Utc>,
 }
 
+#[allow(dead_code)]
 /// 任务执行器
 pub struct TaskExecutor {
     ssh_key_path: Option<std::path::PathBuf>,
@@ -25,6 +26,7 @@ pub struct TaskExecutor {
     session_timeout: std::time::Duration,
 }
 
+#[allow(dead_code)]
 impl TaskExecutor {
     /// 创建新的执行器
     pub fn new(config: &LinuxAutomationConfig) -> Result<Self> {
@@ -50,7 +52,9 @@ impl TaskExecutor {
             self.sessions.insert(host.to_string(), session);
         }
         // SAFETY: 上面 insert 保证了 key 存在
-        self.sessions.get_mut(host).expect("session just inserted")
+        self.sessions
+            .get_mut(host)
+            .expect("session key just inserted above")
     }
 
     /// 清理过期会话

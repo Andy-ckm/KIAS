@@ -46,9 +46,10 @@ async fn main() -> anyhow::Result<()> {
 
     let result = runtime.run_task(&task).await?;
 
-    println!(
-        "Task {} completed with status: {:?}",
-        result.task_id, result.status
+    tracing::info!(
+        task_id = %result.task_id,
+        status = ?result.status,
+        "Task completed"
     );
 
     tracing::info!("AgentGuard Executor Service finished");

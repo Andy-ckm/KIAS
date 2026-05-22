@@ -398,7 +398,11 @@ impl AuditVisualizer {
                 },
             })
             .collect();
-        points.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap());
+        points.sort_by(|a, b| {
+            b.value
+                .partial_cmp(&a.value)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         CategoryData {
             label: label.to_string(),

@@ -340,7 +340,7 @@ impl EnhancedCostPanel {
         let truncated = naive
             .date()
             .and_hms_opt(naive.hour(), naive.minute(), 0)
-            .unwrap();
+            .expect("truncated datetime should always be valid");
         // Convert to DateTime<Utc> using TimeZone trait
         chrono::Utc.from_naive_utc_and_offset(truncated, chrono::Utc)
     }
@@ -350,13 +350,13 @@ impl EnhancedCostPanel {
         let truncated = naive
             .date()
             .and_hms_opt(naive.hour(), 0, 0)
-            .unwrap();
+            .expect("truncated datetime should always be valid");
         chrono::Utc.from_naive_utc_and_offset(truncated, chrono::Utc)
     }
 
     fn truncate_to_day(dt: DateTime<Utc>) -> DateTime<Utc> {
         let naive = dt.naive_utc();
-        let truncated = naive.date().and_hms_opt(0, 0, 0).unwrap();
+        let truncated = naive.date().and_hms_opt(0, 0, 0).expect("truncated datetime should always be valid");
         chrono::Utc.from_naive_utc_and_offset(truncated, chrono::Utc)
     }
 }

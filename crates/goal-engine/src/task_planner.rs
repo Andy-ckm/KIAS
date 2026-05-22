@@ -337,7 +337,7 @@ impl TaskPlanner {
             let mut current = Some(end.clone());
             while let Some(id) = current {
                 path.push(id.clone());
-                current = dist.get(&id).unwrap().1.clone();
+                current = dist.get(&id).expect("valid path node").1.clone();
             }
             path.reverse();
             return path;

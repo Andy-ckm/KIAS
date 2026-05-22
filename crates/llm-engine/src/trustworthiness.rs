@@ -374,7 +374,7 @@ impl ConflictDetection {
                 if let Some(&prev) = seen.iter().find(|c| {
                     self.extract_numeric_claim(&c.text).map(|(e, _)| e == entity).unwrap_or(false)
                 }) {
-                    let prev_num = self.extract_numeric_claim(&prev.text).unwrap().1;
+                    let prev_num = self.extract_numeric_claim(&prev.text).expect("numeric claim should exist").1;
                     let diff = (number - prev_num).abs();
                     let avg = (number + prev_num) / 2.0;
                     let relative_diff = if avg > 0.0 { diff / avg } else { diff };

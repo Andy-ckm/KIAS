@@ -1,10 +1,16 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-21 (23:55)
+更新时间: 2026-05-22 (13:45)
 
-## 论文列表 (302 篇)
+## 论文列表 (308 篇)
 
-### 已下载论文 (302 篇)
+### 已下载论文 (308 篇)
+- ✅ 2605.22794.pdf (MOSS: Self-Evolution through Source-Level Rewriting in Autonomous Agent Systems)
+- ✅ 2605.22786.pdf (LCGuard: Latent Communication Guard for Safe KV Sharing in Multi-Agent Systems)
+- ✅ 2605.22781.pdf (DeltaBox: Scaling Stateful AI Agents with Millisecond-Level Sandbox Checkpoint Rollback)
+- ✅ 2605.22721.pdf (Self-Evolving Multi-Agent Systems via Decentralized Memory)
+- ✅ 2605.22662.pdf (Claw AI Lab: An Autonomous Multi-Agent Research Team)
+- ✅ 2605.22748.pdf (Superhuman Safe and Agile Racing through Multi-Agent Reinforcement Learning)
 - ✅ 2605.20704.pdf (Heartbeat-Bound Hierarchical Credentials: Cryptographic Revocation for AI Agent Swarms)
 - ✅ 2605.20734.pdf (An Application-Layer Multi-Modal Covert-Channel Reference Monitor for LLM Agent Egress)
 - ✅ 2605.20563.pdf (STORM: STate-Oriented Multi-agent Collaboration with Conflict Prevention)

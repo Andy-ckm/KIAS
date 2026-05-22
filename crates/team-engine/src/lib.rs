@@ -56,3 +56,10 @@ pub use team::Team;
 pub use verifier::{QualityGate, RuleBasedVerifier, VerificationRule, Verifier};
 pub use worker::{CodeWorker, LlmWorker, ResearchWorker, Worker};
 pub use workspace::{SkillDef, Workspace, WorkspaceConfig};
+
+// pub // mod task_planner; // TODO: fix compilation // TODO: fix compilation
+pub mod adversarial_validation;
+// pub // mod memory_governance; // TODO: fix compilation // TODO: fix compilation
+// pub // mod self_eval_loop; // TODO: fix compilation // TODO: fix compilation
+// pub // mod memory_enhanced; // TODO: fix compilation // TODO: fix compilation
+// pub // mod memory_conflict; // TODO: fix compilation // TODO: fix compilation

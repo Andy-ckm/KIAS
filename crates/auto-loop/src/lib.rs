@@ -4,6 +4,7 @@
 //! 人类适当时候介入，默认自动迭代
 
 pub mod analyzer;
+pub mod code_gen_automation;
 pub mod codegen;
 pub mod context_aware_decomposer;
 pub mod deployer;
@@ -19,6 +20,7 @@ pub mod recursive_decomposer;
 pub mod self_boundary;
 pub mod self_dev;
 pub mod side_effect_gate;
+pub mod sprint_tracker;
 pub mod task_decomposer;
 pub mod tool_aware_intent;
 pub mod verifier;

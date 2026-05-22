@@ -1,0 +1,424 @@
+use crate::error::RegistryError;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// The result of capability matching.
+#[derive(Debug, Clone)]
+pub struct CapabilityMatchResult {
+    /// Overall match score (0.0 to 1.0).
+    pub score: f64,
+    /// Capabilities present in both parties.
+    pub matched: Vec<String>,
+    /// Capabilities only in party B.
+    pub missing_in_a: Vec<String>,
+    /// Capabilities only in party A.
+    pub missing_in_b: Vec<String>,
+}
+
+/// A single capability specification.
+#[derive(Debug, Clone)]
+pub struct Capability {
+    /// Unique name of the capability.
+    pub name: String,
+    /// Version of the capability.
+    pub version: String,
+    /// Weight used in scoring.
+    pub weight: f64,
+}
+
+/// Set of capabilities with a unique identifier.
+#[derive(Debug, Clone, Default)]
+pub struct CapabilitySet {
+    /// Map from capability name to Capability.
+    pub capabilities: HashMap<String, Capability>,
+}
+
+/// Protocol version with semantic versioning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ProtocolVersion {
+    /// Major version number.
+    pub major: u16,
+    /// Minor version number.
+    pub minor: u16,
+    /// Patch version number.
+    pub patch: u16,
+}
+
+impl ProtocolVersion {
+    /// Create a new ProtocolVersion.
+    pub fn new(major: u16, minor: u16, patch: u16) -> Self {
+        ProtocolVersion { major, minor, patch }
+    }
+
+    /// Returns true if this version is compatible with another (same major).
+    pub fn is_compatible(&self, other: &ProtocolVersion) -> bool {
+        self.major == other.major
+    }
+}
+
+/// Unique identifier for a session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SessionId(pub u64);
+
+/// Represents an active session between a client and a server.
+#[derive(Debug, Clone)]
+pub struct Session {
+    /// Unique session identifier.
+    pub id: SessionId,
+    /// Identifier of the client part of the session.
+    pub client_id: String,
+    /// Identifier of the server part of the session.
+    pub server_id: String,
+    /// Capabilities negotiated for this session.
+    pub capabilities: CapabilitySet,
+    /// Protocol version used by this session.
+    pub protocol_version: ProtocolVersion,
+    /// Timestamp when the session was created.
+    pub created_at: Instant,
+    /// Timestamp of the last activity.
+    pub last_activity: Instant,
+    /// Whether the session is active.
+    pub active: bool,
+}
+
+/// A message to be routed.
+#[derive(Debug, Clone)]
+pub struct Message {
+    /// Unique message identifier.
+    pub id: u64,
+    /// Originator of the message.
+    pub from: String,
+    /// Destination of the message.
+    pub to: String,
+    /// Message payload.
+    pub payload: Vec<u8>,
+    /// Message type identifier.
+    pub message_type: String,
+}
+
+/// Result of routing a message.
+#[derive(Debug, Clone)]
+pub struct RoutingResult {
+    /// The session the message was routed to.
+    pub session: SessionId,
+    /// Whether routing succeeded.
+    pub success: bool,
+    /// Optional error message.
+    pub error: Option<String>,
+}
+
+/// Manager for session lifecycle.
+pub struct SessionManager {
+    sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
+    session_timeout: Duration,
+}
+
+impl SessionManager {
+    /// Create a new SessionManager with the given session timeout.
+    pub fn new(session_timeout: Duration) -> Self {
+        SessionManager {
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+            session_timeout,
+        }
+    }
+
+    /// Creates a new session and returns its ID.
+    pub fn create_session(
+        &self,
+        client_id: String,
+        server_id: String,
+        capabilities: CapabilitySet,
+        protocol_version: ProtocolVersion,
+    ) -> Result<SessionId, RegistryError> {
+        let id = {
+            let mut sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+            let now = Instant::now();
+            // Generate a new unique ID
+            let id = SessionId(sessions.len() as u64 + 1);
+            let session = Session {
+                id,
+                client_id,
+                server_id,
+                capabilities,
+                protocol_version,
+                created_at: now,
+                last_activity: now,
+                active: true,
+            };
+            sessions.insert(id, session);
+            id
+        };
+        tracing::info!("Session created with ID: {:?}", id);
+        Ok(id)
+    }
+
+    /// Terminates a session.
+    pub fn terminate_session(&self, id: SessionId) -> Result<(), RegistryError> {
+        let mut sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        if let Some(session) = sessions.get_mut(&id) {
+            session.active = false;
+            tracing::info!("Session {:?} terminated", id);
+            Ok(())
+        } else {
+            tracing::warn!("Attempted to terminate unknown session: {:?}", id);
+            Err(RegistryError::NotFound { agent_id: "session not found".to_string() })
+        }
+    }
+
+    /// Returns a clone of the session if it exists and is active.
+    pub fn get_session(&self, id: SessionId) -> Result<Session, RegistryError> {
+        self.sessions.get(&id).cloned().ok_or(RegistryError::NotFound { agent_id: format!("{:?}", id) })
+    }
+
+    /// Get session by client or server ID
+    pub fn get_session_by_client_or_server(&self, id: &str) -> Result<Session, RegistryError> {
+        self.sessions.values()
+            .find(|s| s.client_id == id || s.server_id == id)
+            .cloned()
+            .ok_or(RegistryError::NotFound { agent_id: id.to_string() })
+    }
+
+    /// Get session (original implementation below)
+        let sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        sessions
+            .get(&id)
+            .cloned()
+            .filter(|s| s.active)
+            .ok_or_else(|| RegistryError::NotFound { agent_id: "session not found or inactive".to_string() })
+    }
+
+    /// Refreshes the last activity timestamp of a session.
+    pub fn touch_session(&self, id: SessionId) -> Result<(), RegistryError> {
+        let mut sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        if let Some(session) = sessions.get_mut(&id) {
+            session.last_activity = Instant::now();
+            Ok(())
+        } else {
+            Err(RegistryError::NotFound { agent_id: "session not found".to_string() })
+        }
+    }
+
+    /// Removes all sessions that have been idle longer than the configured timeout.
+    pub fn cleanup_expired(&self) -> Result<usize, RegistryError> {
+        let mut sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        let now = Instant::now();
+        let mut expired = 0;
+        sessions.retain(|_, session| {
+            let keep = !session.active || now.duration_since(session.last_activity) < self.session_timeout;
+            if !keep {
+                expired += 1;
+                tracing::info!("Session {:?} expired and removed", session.id);
+            }
+            keep
+        });
+        Ok(expired)
+    }
+}
+
+/// Matcher for capability sets.
+pub struct CapabilityMatcher;
+
+impl CapabilityMatcher {
+    /// Matches two capability sets and returns a detailed result.
+    pub fn match_capabilities(
+        &self,
+        a: &CapabilitySet,
+        b: &CapabilitySet,
+    ) -> Result<CapabilityMatchResult, RegistryError> {
+        let mut matched = Vec::new();
+        let mut missing_in_a = Vec::new();
+        let mut missing_in_b = Vec::new();
+        let mut total_weight = 0.0;
+        let mut matched_weight = 0.0;
+
+        // Iterate over all capability names in set A
+        for (name, cap_a) in &a.capabilities {
+            total_weight += cap_a.weight;
+            if let Some(cap_b) = b.capabilities.get(name) {
+                // Capability present in both; check version compatibility (simple exact match)
+                if cap_a.version == cap_b.version {
+                    matched.push(name.clone());
+                    matched_weight += cap_a.weight;
+                } else {
+                    // version mismatch, treat as missing
+                    missing_in_a.push(name.clone());
+                }
+            } else {
+                missing_in_a.push(name.clone());
+            }
+        }
+
+        // Identify capabilities in B that are not in A
+        for (name, cap_b) in &b.capabilities {
+            if !a.capabilities.contains_key(name) {
+                missing_in_b.push(name.clone());
+                total_weight += cap_b.weight;
+            }
+        }
+
+        let score = if total_weight > 0.0 {
+            matched_weight / total_weight
+        } else {
+            0.0
+        };
+
+        tracing::info!(
+            "Capability match score: {:.2} between sets (matched: {:?})",
+            score,
+            matched
+        );
+
+        Ok(CapabilityMatchResult {
+            score,
+            matched,
+            missing_in_a,
+            missing_in_b,
+        })
+    }
+}
+
+/// Negotiator for protocol versions.
+pub struct ProtocolNegotiator;
+
+impl ProtocolNegotiator {
+    /// Negotiates the highest common protocol version between two lists.
+    pub fn negotiate(
+        client_versions: &[ProtocolVersion],
+        server_versions: &[ProtocolVersion],
+    ) -> Result<ProtocolVersion, RegistryError> {
+        // Ensure both lists are non‑empty
+        if client_versions.is_empty() {
+            return Err(RegistryError::NotFound { agent_id: "client version list is empty".to_string() });
+        }
+        if server_versions.is_empty() {
+            return Err(RegistryError::NotFound { agent_id: "server version list is empty".to_string() });
+        }
+
+        // Find the highest common version that is compatible
+        let mut best: Option<ProtocolVersion> = None;
+        for cv in client_versions {
+            for sv in server_versions {
+                if cv.is_compatible(sv) {
+                    let candidate = *cv.max(sv);
+                    if let Some(cur) = best {
+                        if candidate > cur {
+                            best = Some(candidate);
+                        }
+                    } else {
+                        best = Some(candidate);
+                    }
+                }
+            }
+        }
+
+        best.ok_or_else(|| RegistryError::NotFound { agent_id: "no compatible protocol version found".to_string() })
+    }
+}
+
+/// Router for messages based on sessions and capabilities.
+pub struct Router;
+
+impl Router {
+    /// Routes a message to the appropriate session based on the destination.
+    pub fn route(
+        &self,
+        msg: &Message,
+        sessions: &SessionManager,
+    ) -> Result<RoutingResult, RegistryError> {
+        // Try to find an active session where the 'to' field matches either client_id or server_id
+        let all_sessions = sessions
+            .get_session_by_client_or_server(&msg.to)
+            .map_err(|_| RegistryError::NotFound { agent_id: "failed to retrieve sessions".to_string() })?;
+
+        // For simplicity, select the first active session that matches
+        for session in all_sessions {
+            if session.active {
+                // Update last activity
+                let _ = sessions.touch_session(session.id);
+                tracing::info!("Routed message {:?} to session {:?}", msg.id, session.id);
+                return Ok(RoutingResult {
+                    session: session.id,
+                    success: true,
+                    error: None,
+                });
+            }
+        }
+
+        tracing::warn!("No active session found for destination: {}", msg.to);
+        Ok(RoutingResult {
+            session: SessionId(0),
+            success: false,
+            error: Some("No active session".to_string()),
+        })
+    }
+}
+
+/// Enhanced A2A system that combines capability matching, protocol negotiation,
+/// session management, and message routing.
+pub struct EnhancedA2A {
+    session_manager: SessionManager,
+    capability_matcher: CapabilityMatcher,
+    protocol_negotiator: ProtocolNegotiator,
+    router: Router,
+}
+
+impl EnhancedA2A {
+    /// Creates a new EnhancedA2A instance.
+    pub fn new(session_timeout: Duration) -> Self {
+        EnhancedA2A {
+            session_manager: SessionManager::new(session_timeout),
+            capability_matcher: CapabilityMatcher,
+            protocol_negotiator: ProtocolNegotiator,
+            router: Router,
+        }
+    }
+
+    /// Establishes a new session after matching capabilities and negotiating a protocol version.
+    pub fn establish_session(
+        &self,
+        client_id: String,
+        server_id: String,
+        client_capabilities: CapabilitySet,
+        client_versions: Vec<ProtocolVersion>,
+        server_capabilities: CapabilitySet,
+        server_versions: Vec<ProtocolVersion>,
+    ) -> Result<SessionId, RegistryError> {
+        // Step 1: Match capabilities
+        let match_result = self.capability_matcher.match_capabilities(&client_capabilities, &server_capabilities)?;
+        tracing::info!("Capability match result: {:?}", match_result);
+
+        // Step 2: Negotiate protocol version
+        let version = self.protocol_negotiator.negotiate(&client_versions, &server_versions)?;
+        tracing::info!("Negotiated protocol version: {:?}", version);
+
+        // Step 3: Create session with negotiated capabilities
+        let session_capabilities = client_capabilities; // Could be filtered by matched set
+        let session_id = self.session_manager.create_session(
+            client_id,
+            server_id,
+            session_capabilities,
+            version,
+        )?;
+        Ok(session_id)
+    }
+
+    /// Sends a message by routing it to the appropriate session.
+    pub fn send_message(&self, msg: Message) -> Result<RoutingResult, RegistryError> {
+        self.router.route(&msg, &self.session_manager)
+    }
+
+    /// Terminates a session.
+    pub fn close_session(&self, session_id: SessionId) -> Result<(), RegistryError> {
+        self.session_manager.terminate_session(session_id)
+    }
+
+    /// Retrieves the current session information.
+    pub fn get_session(&self, session_id: SessionId) -> Result<Session, RegistryError> {
+        self.session_manager.get_session(session_id)
+    }
+
+    /// Performs periodic cleanup of expired sessions.
+    pub fn cleanup(&self) -> Result<usize, RegistryError> {
+        self.session_manager.cleanup_expired()
+    }

@@ -1,0 +1,65 @@
+14:57:10 OK:280 /workspace/kias/crates/common/src/concurrency_control.rs
+14:57:15 OK:60 /workspace/kias/crates/common/src/uns_namespace.rs
+14:58:04 OK:349 /workspace/kias/crates/common/src/manifest.rs
+14:58:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/circuit_breaker.rs
+14:58:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/plugin_lifecycle.rs
+14:58:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/dynamic_config.rs
+14:58:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/dep_ast_validator.rs
+14:58:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/schema_validation.rs
+14:59:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/test_pyramid.rs
+14:59:15 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/coverage_gate.rs
+14:59:22 OK:18154 /workspace/kias/crates/common/src/property_test.rs
+14:59:25 OK:36545 /workspace/kias/crates/compliance-security/src/compliance_gate.rs
+15:00:04 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/common/src/change_audit.rs
+15:00:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/accountability.rs
+15:00:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/gxp_audit.rs
+15:00:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/rbac_abac.rs
+15:01:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/byok_kms.rs
+15:01:15 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/secrets_vault.rs
+15:01:22 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/digital_signature.rs
+15:01:25 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/eu_ai_act_v2.rs
+15:02:04 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/autonomy_modes.rs
+15:02:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/mtls.rs
+15:02:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/supply_chain.rs
+15:02:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/runtime_protection.rs
+15:03:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/pen_test.rs
+15:03:16 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/compliance_as_service.rs
+15:03:22 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/security_audit_report.rs
+15:03:25 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/monitor/src/health_monitor.rs
+15:03:47 OK:134 /workspace/kias/crates/data-governance/src/tenant_quota.rs
+15:04:05 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/monitor/src/anomaly_detector.rs
+15:04:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/monitor/src/latency_governor.rs
+15:04:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/monitor/src/regression_gate.rs
+15:04:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/monitor/src/observability.rs
+15:05:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/cost_attribution.rs
+15:05:22 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/data_residency.rs
+15:05:25 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/multi_tenant.rs
+15:05:47 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/sla_product.rs
+15:05:57 OK:13702 /workspace/kias/crates/a2a-registry/src/a2a_enhanced.rs
+15:06:05 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/data_bridge_kafka.rs
+15:06:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/data_bridge_db.rs
+15:06:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-governance/src/data_bridge_s3.rs
+15:06:41 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/a2a-registry/src/agent_registry.rs
+15:07:08 OK:1076 /workspace/kias/crates/cache/src/tiered_cache.rs
+15:07:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/a2a-registry/src/a2a_registry.rs
+15:07:25 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/scheduler/src/agent_scheduler.rs
+15:07:47 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/executor/src/sandbox.rs
+15:07:57 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/model-router/src/smart_router.rs
+15:08:05 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/model-router/src/model_agent.rs
+15:08:42 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-aggregator/src/cost_panel.rs
+15:08:42 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-store/src/durable_storage.rs
+15:09:08 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/data-store/src/tiered_storage.rs
+15:09:10 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/controller/src/federation.rs
+15:09:14 OK:26096 /workspace/kias/crates/team-engine/src/self_eval_loop.rs
+15:09:16 OK:29284 /workspace/kias/crates/controller/src/cluster_link.rs
+15:09:47 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/team-engine/src/task_planner.rs
+15:09:57 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/team-engine/src/adversarial_validation.rs
+15:10:05 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/team-engine/src/memory_governance.rs
+15:10:42 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/team-engine/src/memory_enhanced.rs
+15:11:08 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/team-engine/src/memory_conflict.rs
+15:11:11 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/workflow-engine/src/flow_durable.rs
+15:11:14 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/workflow-engine/src/hitl_enhanced.rs
+15:11:16 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/workflow-engine/src/session_buffer.rs
+15:11:47 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/knowledge/src/industry_pack.rs
+15:11:57 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/compliance-security/src/auth_backends.rs
+15:12:05 ERR:Expecting value: line 2 column 1 (char 1) /workspace/kias/crates/autonomy-controller/src/autonomy_modes_v2.rs

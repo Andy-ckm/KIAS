@@ -30,6 +30,7 @@
 //! ```
 
 pub mod audit_persist;
+pub mod buffer;
 pub mod cache_persist;
 pub mod dlq;
 pub mod migrations;
@@ -51,3 +52,6 @@ pub use repository::{
     SkillRepository, SqliteRepository, TaskRepository, WorkflowRepository,
 };
 pub use vector_persist::{PersistentVectorStore, VectorSearchResult};
+
+// pub // mod durable_storage; // TODO: fix compilation // TODO: fix compilation
+// pub // mod tiered_storage; // TODO: fix compilation // TODO: fix compilation

@@ -28,3 +28,6 @@ pub use types::{
     ChatMessage, ChatRequest, ChatResponse, EmbeddingRequest, EmbeddingResponse, ModelCapability,
     ModelInfo, ProviderHealth, RoutingStrategy, Usage,
 };
+
+pub mod smart_router;
+// pub // mod model_agent; // TODO: fix compilation // TODO: fix compilation

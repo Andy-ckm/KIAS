@@ -680,4 +680,618 @@ mod tests {
             }
         ));
     }
+
+    // ── New enhanced tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_timeout_degradation_with_fallback_path() {
+        let policy = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(60),
+            on_timeout: TimeoutAction::DegradeTo {
+                fallback_path: "safe-mode".to_string(),
+            },
+        };
+
+        let (action, degradation) = evaluate_timeout(&policy, "rec-42");
+        assert!(matches!(action, TimeoutAction::DegradeTo { .. }));
+        let deg = degradation.expect("expected degradation record");
+        assert_eq!(deg.record_id, "rec-42");
+        assert_eq!(deg.fallback_path, "safe-mode");
+    }
+
+    #[test]
+    fn test_timeout_evaluation_reject_on_non_human_review_policy() {
+        // For non-HumanReview policies, timeout evaluation returns Reject
+        let policy = ApprovalPolicy::Always;
+        let (action, degradation) = evaluate_timeout(&policy, "rec-1");
+        assert_eq!(action, TimeoutAction::Reject);
+        assert!(degradation.is_none());
+
+        let policy2 = ApprovalPolicy::Threshold {
+            risk_threshold: 0.5,
+        };
+        let (action2, deg2) = evaluate_timeout(&policy2, "rec-2");
+        assert_eq!(action2, TimeoutAction::Reject);
+        assert!(deg2.is_none());
+    }
+
+    #[test]
+    fn test_timeout_evaluation_human_review_approve_on_timeout() {
+        let policy = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(300),
+            on_timeout: TimeoutAction::Approve,
+        };
+        let (action, degradation) = evaluate_timeout(&policy, "rec-3");
+        assert_eq!(action, TimeoutAction::Approve);
+        assert!(degradation.is_none());
+    }
+
+    #[test]
+    fn test_timeout_evaluation_human_review_reject_on_timeout() {
+        let policy = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(300),
+            on_timeout: TimeoutAction::Reject,
+        };
+        let (action, degradation) = evaluate_timeout(&policy, "rec-4");
+        assert_eq!(action, TimeoutAction::Reject);
+        assert!(degradation.is_none());
+    }
+
+    #[test]
+    fn test_approval_history_tracker_multi_level() {
+        let mut tracker = ApprovalHistoryTracker::new();
+
+        tracker.push(ApprovalRecord {
+            id: "ar-0".to_string(),
+            workflow_id: "wf-x".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.1),
+            decision: ApprovalDecision::Approved {
+                comment: Some("L0 OK".into()),
+            },
+            decided_by: "reviewer-0".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 1000,
+            approver_level: Some(0),
+            opinion: Some("looks fine".into()),
+            decision_reason: Some("low risk".into()),
+        });
+
+        tracker.push(ApprovalRecord {
+            id: "ar-1".to_string(),
+            workflow_id: "wf-x".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.6),
+            decision: ApprovalDecision::Approved {
+                comment: Some("escalation approved".into()),
+            },
+            decided_by: "reviewer-1".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 2000,
+            approver_level: Some(1),
+            opinion: Some("acceptable with caution".into()),
+            decision_reason: Some("medium risk, proceed".into()),
+        });
+
+        assert_eq!(tracker.level_count(), 2);
+        assert!(!tracker.has_rejection());
+
+        let latest = tracker.latest_decision().expect("should have latest");
+        assert_eq!(latest.approver_level, Some(1));
+        assert_eq!(latest.opinion.as_deref(), Some("acceptable with caution"));
+    }
+
+    #[test]
+    fn test_approval_history_tracker_rejection_detection() {
+        let mut tracker = ApprovalHistoryTracker::new();
+
+        tracker.push(ApprovalRecord {
+            id: "ar-rej".to_string(),
+            workflow_id: "wf-rej".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.9),
+            decision: ApprovalDecision::Rejected {
+                reason: "too dangerous".into(),
+            },
+            decided_by: "senior-reviewer".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 500,
+            approver_level: Some(0),
+            opinion: Some("rejecting".into()),
+            decision_reason: Some("risk too high".into()),
+        });
+
+        assert!(tracker.has_rejection());
+        assert_eq!(tracker.level_count(), 1);
+    }
+
+    #[test]
+    fn test_approval_history_tracker_by_level_ordering() {
+        let mut tracker = ApprovalHistoryTracker::new();
+
+        // Insert out of order
+        tracker.push(ApprovalRecord {
+            id: "ar-2".to_string(),
+            workflow_id: "wf-order".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.5),
+            decision: ApprovalDecision::Approved { comment: None },
+            decided_by: "auto".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 100,
+            approver_level: Some(2),
+            opinion: None,
+            decision_reason: None,
+        });
+
+        tracker.push(ApprovalRecord {
+            id: "ar-0".to_string(),
+            workflow_id: "wf-order".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.1),
+            decision: ApprovalDecision::Approved { comment: None },
+            decided_by: "auto".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 100,
+            approver_level: Some(0),
+            opinion: None,
+            decision_reason: None,
+        });
+
+        tracker.push(ApprovalRecord {
+            id: "ar-1".to_string(),
+            workflow_id: "wf-order".to_string(),
+            node_id: "n1".to_string(),
+            context: make_ctx("n1", 0.3),
+            decision: ApprovalDecision::Approved { comment: None },
+            decided_by: "auto".to_string(),
+            decided_at: Utc::now(),
+            duration_ms: 100,
+            approver_level: Some(1),
+            opinion: None,
+            decision_reason: None,
+        });
+
+        let sorted = tracker.by_level();
+        assert_eq!(sorted.len(), 3);
+        assert_eq!(sorted[0].approver_level, Some(0));
+        assert_eq!(sorted[1].approver_level, Some(1));
+        assert_eq!(sorted[2].approver_level, Some(2));
+    }
+
+    #[test]
+    fn test_approval_context_with_pre_review_and_distillation() {
+        let ctx = ApprovalContext {
+            node_id: "n-rag".to_string(),
+            action: "rag_retrieve".to_string(),
+            risk_score: 0.2,
+            preview_output: serde_json::json!({"documents": 5, "status": "ok"}),
+            history: vec![],
+            pre_review_preview: Some("Retrieved 5 relevant docs about X".to_string()),
+            distillation_confirm: Some(true),
+        };
+
+        assert!(ctx.pre_review_preview.is_some());
+        assert_eq!(
+            ctx.pre_review_preview.as_deref().unwrap(),
+            "Retrieved 5 relevant docs about X"
+        );
+        assert_eq!(ctx.distillation_confirm, Some(true));
+
+        // Verify serialization roundtrip
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: ApprovalContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.pre_review_preview, ctx.pre_review_preview);
+        assert_eq!(deserialized.distillation_confirm, ctx.distillation_confirm);
+    }
+
+    #[test]
+    fn test_auto_approve_multiple_conditions_all_match() {
+        let policy = ApprovalPolicy::AutoApprove {
+            conditions: vec![
+                ApprovalCondition {
+                    field: "status".to_string(),
+                    expected: serde_json::json!("ok"),
+                },
+                ApprovalCondition {
+                    field: "severity".to_string(),
+                    expected: serde_json::json!("low"),
+                },
+            ],
+        };
+        let ctx = ApprovalContext {
+            node_id: "n-multi".to_string(),
+            action: "scan".to_string(),
+            risk_score: 0.0,
+            preview_output: serde_json::json!({"status": "ok", "severity": "low", "count": 3}),
+            history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+
+        let result = evaluate_policy(&policy, &ctx);
+        assert!(matches!(result, ApprovalEvaluation::AutoApproved(_)));
+    }
+
+    #[test]
+    fn test_auto_approve_multiple_conditions_partial_match() {
+        let policy = ApprovalPolicy::AutoApprove {
+            conditions: vec![
+                ApprovalCondition {
+                    field: "status".to_string(),
+                    expected: serde_json::json!("ok"),
+                },
+                ApprovalCondition {
+                    field: "severity".to_string(),
+                    expected: serde_json::json!("low"),
+                },
+            ],
+        };
+        let ctx = ApprovalContext {
+            node_id: "n-partial".to_string(),
+            action: "scan".to_string(),
+            risk_score: 0.0,
+            preview_output: serde_json::json!({"status": "ok", "severity": "high", "count": 3}),
+            history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+
+        // severity is "high" != "low", so should require human review
+        let result = evaluate_policy(&policy, &ctx);
+        assert!(matches!(result, ApprovalEvaluation::RequiresHumanReview));
+    }
+
+    #[test]
+    fn test_threshold_auto_approved_with_exact_threshold_boundary() {
+        // Risk exactly at threshold → below threshold is false → requires review
+        let policy = ApprovalPolicy::Threshold {
+            risk_threshold: 0.5,
+        };
+        let ctx = make_ctx("n-boundary", 0.499999);
+        let result = evaluate_policy(&policy, &ctx);
+        assert!(matches!(result, ApprovalEvaluation::AutoApproved(_)));
+
+        let ctx2 = make_ctx("n-boundary2", 0.5);
+        let result2 = evaluate_policy(&policy, &ctx2);
+        assert!(matches!(result2, ApprovalEvaluation::RequiresHumanReview));
+    }
+
+    #[test]
+    fn test_timeout_degradation_triggered_at_is_set() {
+        let policy = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(10),
+            on_timeout: TimeoutAction::DegradeTo {
+                fallback_path: "fallback-v2".to_string(),
+            },
+        };
+        let before = Utc::now();
+        let (_, degradation) = evaluate_timeout(&policy, "rec-timing");
+        let after = Utc::now();
+
+        let deg = degradation.expect("degradation must be present");
+        assert!(deg.triggered_at >= before && deg.triggered_at <= after);
+    }
+
+    // ── New enhanced HITL tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_approval_policy_threshold_boundary_exactly_at() {
+        // Exact threshold → below threshold check fails → requires human review
+        let policy = ApprovalPolicy::Threshold {
+            risk_threshold: 0.5,
+        };
+        let ctx = make_ctx("n-boundary", 0.5);
+        assert!(matches!(
+            evaluate_policy(&policy, &ctx),
+            ApprovalEvaluation::RequiresHumanReview
+        ));
+    }
+
+    #[test]
+    fn test_approval_policy_threshold_boundary_just_below() {
+        let policy = ApprovalPolicy::Threshold {
+            risk_threshold: 0.5,
+        };
+        let ctx = make_ctx("n-boundary", 0.4999);
+        assert!(matches!(
+            evaluate_policy(&policy, &ctx),
+            ApprovalEvaluation::AutoApproved(_)
+        ));
+    }
+
+    #[test]
+    fn test_approval_policy_autoapprove_empty_conditions() {
+        // Empty conditions → all conditions match vacuously → auto-approve
+        let policy = ApprovalPolicy::AutoApprove { conditions: vec![] };
+        let ctx = make_ctx("n-empty", 0.0);
+        let result = evaluate_policy(&policy, &ctx);
+        assert!(matches!(result, ApprovalEvaluation::AutoApproved(_)));
+    }
+
+    #[test]
+    fn test_approval_policy_autoapprove_multiple_conditions_all_match() {
+        let policy = ApprovalPolicy::AutoApprove {
+            conditions: vec![
+                ApprovalCondition {
+                    field: "status".into(),
+                    expected: serde_json::json!("ok"),
+                },
+                ApprovalCondition {
+                    field: "verified".into(),
+                    expected: serde_json::json!(true),
+                },
+            ],
+        };
+        let ctx = ApprovalContext {
+            node_id: "n-multi".into(),
+            action: "multi-check".into(),
+            risk_score: 0.0,
+            preview_output: serde_json::json!({"status": "ok", "verified": true, "extra": "field"}),
+            history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+        assert!(matches!(
+            evaluate_policy(&policy, &ctx),
+            ApprovalEvaluation::AutoApproved(_)
+        ));
+    }
+
+    #[test]
+    fn test_approval_policy_autoapprove_multiple_conditions_one_mismatch() {
+        let policy = ApprovalPolicy::AutoApprove {
+            conditions: vec![
+                ApprovalCondition {
+                    field: "status".into(),
+                    expected: serde_json::json!("ok"),
+                },
+                ApprovalCondition {
+                    field: "verified".into(),
+                    expected: serde_json::json!(true),
+                },
+            ],
+        };
+        let ctx = ApprovalContext {
+            node_id: "n-partial".into(),
+            action: "multi-check".into(),
+            risk_score: 0.0,
+            preview_output: serde_json::json!({"status": "ok", "verified": false}),
+            history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+        // verified=false != true → requires human review
+        assert!(matches!(
+            evaluate_policy(&policy, &ctx),
+            ApprovalEvaluation::RequiresHumanReview
+        ));
+    }
+
+    #[test]
+    fn test_approval_record_full_fields_serialization() {
+        let record = ApprovalRecord {
+            id: "ar-full".into(),
+            workflow_id: "wf-full".into(),
+            node_id: "n-full".into(),
+            context: make_ctx("n-full", 0.3),
+            decision: ApprovalDecision::Approved {
+                comment: Some("LGTM".into()),
+            },
+            decided_by: "senior-reviewer".into(),
+            decided_at: Utc::now(),
+            duration_ms: 3500,
+            approver_level: Some(2),
+            opinion: Some("looks good after second look".into()),
+            decision_reason: Some("all checks passed".into()),
+        };
+
+        let json = serde_json::to_string(&record).unwrap();
+        let deserialized: ApprovalRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "ar-full");
+        assert_eq!(deserialized.approver_level, Some(2));
+        assert_eq!(
+            deserialized.opinion.as_deref(),
+            Some("looks good after second look")
+        );
+        assert_eq!(
+            deserialized.decision_reason.as_deref(),
+            Some("all checks passed")
+        );
+    }
+
+    #[test]
+    fn test_approval_context_empty_history() {
+        let ctx = ApprovalContext {
+            node_id: "n-new".into(),
+            action: "new-action".into(),
+            risk_score: 0.1,
+            preview_output: serde_json::json!({"result": "ok"}),
+            history: vec![],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+        assert!(ctx.history.is_empty());
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: ApprovalContext = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.history.is_empty());
+    }
+
+    #[test]
+    fn test_approval_context_with_full_history() {
+        let prior = ApprovalRecord {
+            id: "ar-prior".into(),
+            workflow_id: "wf-hist".into(),
+            node_id: "n-hist".into(),
+            context: make_ctx("n-hist", 0.2),
+            decision: ApprovalDecision::Approved {
+                comment: Some("prior approved".into()),
+            },
+            decided_by: "prior-reviewer".into(),
+            decided_at: Utc::now(),
+            duration_ms: 1000,
+            approver_level: Some(0),
+            opinion: None,
+            decision_reason: None,
+        };
+        let ctx = ApprovalContext {
+            node_id: "n-hist".into(),
+            action: "hist-action".into(),
+            risk_score: 0.5,
+            preview_output: serde_json::json!({"result": "updated"}),
+            history: vec![prior],
+            pre_review_preview: None,
+            distillation_confirm: None,
+        };
+        assert_eq!(ctx.history.len(), 1);
+        assert_eq!(ctx.history[0].approver_level, Some(0));
+    }
+
+    #[test]
+    fn test_timeout_action_serde_roundtrip() {
+        let actions = vec![
+            TimeoutAction::Reject,
+            TimeoutAction::Approve,
+            TimeoutAction::DegradeTo {
+                fallback_path: "safe".into(),
+            },
+        ];
+        for action in actions {
+            let json = serde_json::to_string(&action).unwrap();
+            let decoded: TimeoutAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(action, decoded);
+        }
+    }
+
+    #[test]
+    fn test_approval_evaluation_auto_approved_comment() {
+        let policy = ApprovalPolicy::Threshold {
+            risk_threshold: 0.9,
+        };
+        let ctx = make_ctx("n-low-risk", 0.1);
+        let result = evaluate_policy(&policy, &ctx);
+        if let ApprovalEvaluation::AutoApproved(ApprovalDecision::Approved { comment }) = result {
+            assert!(comment.is_some());
+            assert!(comment.unwrap().contains("Auto-approved"));
+        } else {
+            panic!("Expected AutoApproved");
+        }
+    }
+
+    #[test]
+    fn test_human_review_policy_always_requires_review() {
+        // Any HumanReview policy regardless of timeout or on_timeout always returns RequiresHumanReview
+        let policy1 = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(1),
+            on_timeout: TimeoutAction::Approve,
+        };
+        let ctx = make_ctx("n1", 0.0);
+        assert!(matches!(
+            evaluate_policy(&policy1, &ctx),
+            ApprovalEvaluation::RequiresHumanReview
+        ));
+
+        let policy2 = ApprovalPolicy::HumanReview {
+            timeout: Duration::from_secs(9999),
+            on_timeout: TimeoutAction::DegradeTo {
+                fallback_path: "x".into(),
+            },
+        };
+        assert!(matches!(
+            evaluate_policy(&policy2, &ctx),
+            ApprovalEvaluation::RequiresHumanReview
+        ));
+    }
+
+    #[test]
+    fn test_always_policy_regardless_of_context() {
+        // Always policy requires human regardless of risk_score or output
+        let policy = ApprovalPolicy::Always;
+        for risk in [0.0, 0.3, 0.5, 0.9, 1.0] {
+            let ctx = make_ctx("n-any", risk);
+            assert!(matches!(
+                evaluate_policy(&policy, &ctx),
+                ApprovalEvaluation::RequiresHumanReview
+            ));
+        }
+    }
+
+    #[test]
+    fn test_approval_history_tracker_latest_decision_returns_highest_level() {
+        let mut tracker = ApprovalHistoryTracker::new();
+        tracker.push(ApprovalRecord {
+            id: "ar-l0".into(),
+            workflow_id: "wf".into(),
+            node_id: "n".into(),
+            context: make_ctx("n", 0.1),
+            decision: ApprovalDecision::Approved { comment: None },
+            decided_by: "auto".into(),
+            decided_at: Utc::now(),
+            duration_ms: 100,
+            approver_level: Some(0),
+            opinion: None,
+            decision_reason: None,
+        });
+        tracker.push(ApprovalRecord {
+            id: "ar-l1".into(),
+            workflow_id: "wf".into(),
+            node_id: "n".into(),
+            context: make_ctx("n", 0.5),
+            decision: ApprovalDecision::Approved {
+                comment: Some("escalated".into()),
+            },
+            decided_by: "senior".into(),
+            decided_at: Utc::now(),
+            duration_ms: 200,
+            approver_level: Some(1),
+            opinion: None,
+            decision_reason: None,
+        });
+        tracker.push(ApprovalRecord {
+            id: "ar-l2".into(),
+            workflow_id: "wf".into(),
+            node_id: "n".into(),
+            context: make_ctx("n", 0.8),
+            decision: ApprovalDecision::Approved {
+                comment: Some("final".into()),
+            },
+            decided_by: "admin".into(),
+            decided_at: Utc::now(),
+            duration_ms: 300,
+            approver_level: Some(2),
+            opinion: None,
+            decision_reason: None,
+        });
+
+        let latest = tracker.latest_decision().expect("must have latest");
+        assert_eq!(latest.approver_level, Some(2));
+        assert_eq!(latest.opinion.as_deref(), None); // opinion is None, decision comment is "final"
+                                                     // Check via decision
+        if let ApprovalDecision::Approved { comment } = &latest.decision {
+            assert_eq!(comment.as_deref(), Some("final"));
+        } else {
+            panic!("Expected Approved decision");
+        }
+    }
+
+    #[test]
+    fn test_approval_history_tracker_empty_returns_none() {
+        let tracker = ApprovalHistoryTracker::new();
+        assert!(tracker.latest_decision().is_none());
+        assert!(!tracker.has_rejection());
+        assert_eq!(tracker.level_count(), 0);
+    }
+    //
+    //     #[test]
+    //     fn test_persist_config_auto_save() {
+    //         let config = crate::flow_persistence::persist("test-flow").with_auto_save();
+    //         assert!(config.auto_save);
+    //         assert_eq!(config.key, "test-flow");
+    //     }
+    //
+    //     #[test]
+    //     fn test_persist_config_version() {
+    //         let config = crate::flow_persistence::persist("test-flow").with_version("3.0.0");
+    //         assert_eq!(config.version, Some("3.0.0".to_string()));
+    //     }
 }

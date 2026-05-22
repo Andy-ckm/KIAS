@@ -325,12 +325,17 @@ mod tests {
     use crate::models::agent::{Agent, AgentSpec};
     use axum::extract::{Path, Query, State};
     use std::collections::HashMap;
+    use uuid::Uuid;
 
     async fn test_state() -> AppState {
         AppState::new_async(kias_common::config::KiasConfig::default()).await
     }
 
     fn make_agent(name: &str, status: AgentStatus) -> Agent {
+        make_agent_with_id(&Uuid::new_v4().to_string(), name, status)
+    }
+
+    fn make_agent_with_id(id: &str, name: &str, status: AgentStatus) -> Agent {
         let spec = AgentSpec {
             name: name.to_string(),
             image: "python:3.11".to_string(),
@@ -341,6 +346,7 @@ mod tests {
             env: HashMap::new(),
         };
         let mut agent = Agent::from_spec(spec);
+        agent.id = id.to_string();
         agent.status = status;
         agent
     }
@@ -574,15 +580,15 @@ mod tests {
             let mut agents = state.agents.write().await;
             agents.insert(
                 "a1".to_string(),
-                make_agent("healthy", AgentStatus::Pending),
+                make_agent_with_id("a1", "healthy", AgentStatus::Pending),
             ); // 0 tokens
             agents.insert(
                 "a2".to_string(),
-                make_agent("warning", AgentStatus::Succeeded),
+                make_agent_with_id("a2", "warning", AgentStatus::Succeeded),
             ); // 45000
             agents.insert(
                 "a3".to_string(),
-                make_agent("unlimited", AgentStatus::Running),
+                make_agent_with_id("a3", "unlimited", AgentStatus::Running),
             );
         }
 

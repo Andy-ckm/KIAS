@@ -47,7 +47,8 @@ impl CertAutonomyLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse autonomy level from string (case-insensitive).
+    pub fn parse_level(s: &str) -> Option<Self> {
         match s {
             "suggest" => Some(CertAutonomyLevel::Suggest),
             "auto_edit" | "autoedit" => Some(CertAutonomyLevel::AutoEdit),
@@ -542,20 +543,20 @@ mod tests {
     // --- CertAutonomyLevel tests ---
 
     #[test]
-    fn test_autonomy_level_from_str() {
+    fn test_autonomy_level_parse_level() {
         assert_eq!(
-            CertAutonomyLevel::from_str("suggest"),
+            CertAutonomyLevel::parse_level("suggest"),
             Some(CertAutonomyLevel::Suggest)
         );
         assert_eq!(
-            CertAutonomyLevel::from_str("auto_edit"),
+            CertAutonomyLevel::parse_level("auto_edit"),
             Some(CertAutonomyLevel::AutoEdit)
         );
         assert_eq!(
-            CertAutonomyLevel::from_str("full_auto"),
+            CertAutonomyLevel::parse_level("full_auto"),
             Some(CertAutonomyLevel::FullAuto)
         );
-        assert_eq!(CertAutonomyLevel::from_str("invalid"), None);
+        assert_eq!(CertAutonomyLevel::parse_level("invalid"), None);
     }
 
     #[test]

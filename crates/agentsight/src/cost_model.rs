@@ -165,6 +165,7 @@ impl TimeWindow {
 pub struct CostAggregator {
     records: Arc<RwLock<Vec<CostRecord>>>,
     window_aggregates: Arc<RwLock<BTreeMap<TimeWindow, CostBreakdown>>>,
+    #[allow(dead_code)]
     tenant_snapshots: Arc<RwLock<HashMap<String, TenantCostSnapshot>>>,
 }
 

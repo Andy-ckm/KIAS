@@ -87,6 +87,7 @@ pub struct SecretProvider {
     secrets: RwLock<HashMap<String, SecretValue>>,
     refs: RwLock<HashMap<String, SecretMetadata>>,
     audit_log: RwLock<Vec<SecretAccessRecord>>,
+    #[allow(dead_code)]
     hash_function: String,
 }
 

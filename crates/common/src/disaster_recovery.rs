@@ -669,6 +669,7 @@ impl DrillReport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, RwLock as StdRwLock};
 
     fn small_delay() {
         std::thread::sleep(Duration::from_millis(1));

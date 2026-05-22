@@ -174,7 +174,7 @@ impl QualityScorer {
     /// 评估 Workflow 质量
     pub fn score_workflow(&self, name: &str, metrics: &WorkflowMetrics) -> QualityReport {
         let mut dimension_scores = Vec::new();
-        let mut suggestions = Vec::new();
+        let suggestions = Vec::new();
 
         // 测试覆盖
         let test_score = metrics.test_nodes as f64 / metrics.total_nodes.max(1) as f64 * 100.0;
@@ -255,7 +255,7 @@ impl QualityScorer {
     /// 评估插件质量
     pub fn score_plugin(&self, name: &str, metrics: &PluginMetrics) -> QualityReport {
         let mut dimension_scores = Vec::new();
-        let mut suggestions = Vec::new();
+        let suggestions = Vec::new();
 
         dimension_scores.push(DimensionScore {
             dimension: ScoreDimension::TestCoverage,

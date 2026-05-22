@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 /// Represents a Rust source file to be generated.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,25 +37,13 @@ pub struct GenerationStep {
 }
 
 /// Summary report for a full code generation run.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GenerationReport {
     pub total_steps: usize,
     pub successful_steps: usize,
     pub failed_steps: usize,
     pub generated_files: Vec<String>,
     pub audit_results: Vec<AuditResult>,
-}
-
-impl Default for GenerationReport {
-    fn default() -> Self {
-        Self {
-            total_steps: 0,
-            successful_steps: 0,
-            failed_steps: 0,
-            generated_files: Vec::new(),
-            audit_results: Vec::new(),
-        }
-    }
 }
 
 /// Result of an audit check on a single file.
@@ -156,19 +144,11 @@ impl CodeGenerator {
             Ok(file) => {
                 let full_path = self.output_dir.join(&file.path);
                 if let Some(parent) = full_path.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| {
-                        KiasError::Io(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            e.to_string(),
-                        ))
-                    })?;
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| KiasError::Io(std::io::Error::other(e.to_string())))?;
                 }
-                std::fs::write(&full_path, &file.content).map_err(|e| {
-                    KiasError::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        e.to_string(),
-                    ))
-                })?;
+                std::fs::write(&full_path, &file.content)
+                    .map_err(|e| KiasError::Io(std::io::Error::other(e.to_string())))?;
                 debug!("Generated: {}", full_path.display());
                 Ok(GenerationStep {
                     template_name: template_name.to_string(),

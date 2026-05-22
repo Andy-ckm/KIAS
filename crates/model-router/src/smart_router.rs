@@ -122,17 +122,12 @@ impl Budget {
 }
 
 /// Risk tolerance for routing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RiskTolerance {
-    Low,    // Prefer safe, proven models
+    Low, // Prefer safe, proven models
+    #[default]
     Medium, // Balance cost/quality
-    High,   // Willing to try newer models
-}
-
-impl Default for RiskTolerance {
-    fn default() -> Self {
-        RiskTolerance::Medium
-    }
+    High, // Willing to try newer models
 }
 
 /// Routing decision with reasoning

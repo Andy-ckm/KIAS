@@ -17,7 +17,6 @@
 //!                                └── UnusualVolume
 //! ```
 
-use kias_common::KiasError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
@@ -430,7 +429,7 @@ impl BehaviorRiskDetector {
         &self,
         pattern: &RiskPattern,
         agent_id: &str,
-        current_event: &ToolCallEvent,
+        _current_event: &ToolCallEvent,
         now: SystemTime,
     ) -> Option<RiskAlert> {
         let events = self.event_history.get(agent_id)?;
@@ -461,20 +460,19 @@ impl BehaviorRiskDetector {
         // Volume anomaly pattern (no tool_sequence required)
         if matches!(pattern.category, RiskCategory::VolumeAnomaly)
             && pattern.tool_sequence.is_empty()
+            && window_events.len() >= pattern.min_occurrences
         {
-            if window_events.len() >= pattern.min_occurrences {
-                return Some(RiskAlert::new(
-                    pattern,
-                    agent_id,
-                    window_events.iter().map(|e| e.event.clone()).collect(),
-                    format!(
-                        "Volume anomaly: {} events in {}ms (threshold: {})",
-                        window_events.len(),
-                        pattern.window_ms,
-                        pattern.min_occurrences
-                    ),
-                ));
-            }
+            return Some(RiskAlert::new(
+                pattern,
+                agent_id,
+                window_events.iter().map(|e| e.event.clone()).collect(),
+                format!(
+                    "Volume anomaly: {} events in {}ms (threshold: {})",
+                    window_events.len(),
+                    pattern.window_ms,
+                    pattern.min_occurrences
+                ),
+            ));
         }
 
         // Tool sequence pattern

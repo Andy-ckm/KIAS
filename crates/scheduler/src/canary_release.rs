@@ -319,25 +319,23 @@ impl CanaryRelease {
         self.state.step_count += 1;
 
         // Check if we should rollback
-        if !analysis.is_error_rate_acceptable(self.config.max_error_rate_delta) {
-            if self.config.auto_rollback {
-                self.rollback("Error rate threshold exceeded");
-                return false;
-            }
+        if !analysis.is_error_rate_acceptable(self.config.max_error_rate_delta)
+            && self.config.auto_rollback
+        {
+            self.rollback("Error rate threshold exceeded");
+            return false;
         }
 
-        if !analysis.is_latency_acceptable(self.config.max_latency_increase_ratio) {
-            if self.config.auto_rollback {
-                self.rollback("Latency threshold exceeded");
-                return false;
-            }
+        if !analysis.is_latency_acceptable(self.config.max_latency_increase_ratio)
+            && self.config.auto_rollback
+        {
+            self.rollback("Latency threshold exceeded");
+            return false;
         }
 
-        if analysis.health_score() < self.config.min_health_score {
-            if self.config.auto_rollback {
-                self.rollback("Health score below threshold");
-                return false;
-            }
+        if analysis.health_score() < self.config.min_health_score && self.config.auto_rollback {
+            self.rollback("Health score below threshold");
+            return false;
         }
 
         true

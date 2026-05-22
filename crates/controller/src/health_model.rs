@@ -21,9 +21,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Health state enumeration ordered from most to least healthy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum HealthState {
     /// Fully operational — all systems nominal.
+    #[default]
     Healthy = 4,
     /// Liveness probe passes, readiness not yet confirmed.
     Liveness = 3,
@@ -33,12 +34,6 @@ pub enum HealthState {
     Degraded = 1,
     /// Not accepting new work; draining in-flight requests.
     Draining = 0,
-}
-
-impl Default for HealthState {
-    fn default() -> Self {
-        HealthState::Healthy
-    }
 }
 
 impl std::fmt::Display for HealthState {

@@ -162,7 +162,7 @@ impl OrchestrationLayout {
 
         // 根据层级设置位置
         let mut level_counts: HashMap<usize, usize> = HashMap::new();
-        for (_, level) in &levels {
+        for level in levels.values() {
             *level_counts.entry(*level).or_default() += 1;
         }
 

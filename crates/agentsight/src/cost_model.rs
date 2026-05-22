@@ -3,7 +3,6 @@
 //! Provides per-request, per-tool, per-tenant, and per-strategy cost breakdown
 //! with time-window aggregation and threshold alerting.
 
-use kias_common::KiasResult;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;

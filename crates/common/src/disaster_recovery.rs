@@ -31,7 +31,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::{Duration, Instant};
 
 /// Types of disaster recovery drills.
@@ -531,7 +530,7 @@ impl DisasterRecoveryDrill {
         let targets = self.state.config.targets.clone();
         let steps = self.state.steps.clone();
         let drill_type = self.state.config.drill_type;
-        let dry_run = self.state.config.dry_run;
+        let _dry_run = self.state.config.dry_run;
 
         tokio::task::spawn_blocking(move || {
             let start = Instant::now();

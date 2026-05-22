@@ -16,7 +16,6 @@
 //! PolicyContext ────────────────────┘              └─────────────┘
 //! ```
 
-use kias_common::KiasError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -475,7 +474,7 @@ impl PolicySimulator {
         &self,
         _baseline: &str,
         _new: &str,
-        request: &PolicySimulationRequest,
+        _request: &PolicySimulationRequest,
     ) -> PolicyDiff {
         // Simplified diff: in a real implementation, this would compare
         // two versions of the policy rules stored in a registry.

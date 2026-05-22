@@ -96,25 +96,17 @@ impl LogSchema {
 
         for field in &self.required_fields {
             match field.as_str() {
-                "timestamp" => {
-                    if record.timestamp.is_none() {
-                        missing.push(field.clone());
-                    }
+                "timestamp" if record.timestamp.is_none() => {
+                    missing.push(field.clone());
                 }
-                "level" => {
-                    if record.level.is_none() {
-                        missing.push(field.clone());
-                    }
+                "level" if record.level.is_none() => {
+                    missing.push(field.clone());
                 }
-                "message" => {
-                    if record.message.is_empty() {
-                        missing.push(field.clone());
-                    }
+                "message" if record.message.is_empty() => {
+                    missing.push(field.clone());
                 }
-                "service" => {
-                    if record.service.is_none() {
-                        missing.push(field.clone());
-                    }
+                "service" if record.service.is_none() => {
+                    missing.push(field.clone());
                 }
                 _ => {}
             }

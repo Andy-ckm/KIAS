@@ -1014,3 +1014,92 @@ paper_insights:
   target_module: team-engine
   priority: medium
   status: pending
+- paper_id: '2605.20874'
+  title: 'Governance by Construction for Generalist Agents'
+  core_idea: 'CUGA policy-as-code layer: 5 structural checkpoints (Intent Guard, Playbook, Tool Guide, Tool Approvals, Output Formatter) enforce governance continuously across agent execution pipeline without model fine-tuning. Governance is embedded at every critical stage, not bolted on.'
+  actionable_items:
+  - 'Implement PolicyEngine in autonomy-controller: YAML policy definitions compiled into runtime enforcement guards at 5 checkpoints'
+  - 'Add IntentGuard: pre-planning intent classifier that blocks malicious/accidental harmful requests before agent reasoning starts'
+  - 'Build ToolGuide: tool-call boundary enforcer that validates tool usage against policy before execution'
+  - 'Implement ToolApprovals: human-in-the-loop gate for high-risk actions with configurable severity thresholds'
+  - 'Add OutputFormatter: post-execution output filter that redacts sensitive information and structures responses'
+  target_module: autonomy-controller / api-server
+  priority: high
+  status: pending
+- paper_id: '2512.06556'
+  title: 'Semantic Attacks on Tool-Augmented LLMs: Securing MCP Against Descriptor-Level Manipulation'
+  core_idea: 'MCP tool descriptors are treated as trusted metadata but can be manipulated via 3 attack classes: Tool Poisoning (malicious descriptors), Shadowing (fake tools override real ones), Rug Pull (descriptors change after trust established). 36% unsafe invocations baseline. Layered defense reduces to 15%.'
+  actionable_items:
+  - 'Implement MCP descriptor integrity verification in mcp-protocol: hash and verify tool descriptors on registration and each use'
+  - 'Add pre-context semantic vetting: use auxiliary LLM to score tool descriptor trustworthiness before injecting into agent context'
+  - 'Build runtime guardrails in tool-executor: monitor tool selection patterns for anomalies (sudden switches, unusual tool sequences)'
+  - 'Add descriptor versioning and change detection: alert when registered tool descriptors change unexpectedly (Rug Pull defense)'
+  target_module: mcp-protocol / tool-executor
+  priority: high
+  status: pending
+- paper_id: '2603.14987'
+  title: 'Beyond Benchmark Islands: Toward Representative Trustworthiness Evaluation for Agentic AI'
+  core_idea: 'HAAF framework: 5-property trustworthiness profile (Reliability, Robustness, Safety, Social-Ethical Alignment, Operational Integrity) with distribution-aware scenario sampling. Trustworthy Optimization Factory converts red-team findings into blue-team interventions. Cross-model transfer works without per-model tuning.'
+  actionable_items:
+  - 'Implement 5-property trustworthiness scorer in data-governance: evaluate agents on Reliability, Robustness, Safety, Social-Ethical Alignment, Operational Integrity'
+  - 'Add scenario-sampling framework in benchmarks: generate diverse test scenarios that surface property-level trade-offs'
+  - 'Build red-team-to-blue-team pipeline: automatically convert detected vulnerabilities into enforcement rules'
+  - 'Implement cross-model transfer: interventions designed for one model family generalize to others'
+  target_module: data-governance / benchmarks
+  priority: high
+  status: pending
+- paper_id: '2605.20425'
+  title: 'AgentCo-op: Retrieval-Based Synthesis of Interoperable Multi-Agent Workflows'
+  core_idea: 'Retrieval-based synthesis framework that composes reusable skills, tools, and agents into executable workflows through typed artifact handoffs. Bounded self-guided local repair when execution fails. Outperforms multi-agent baselines on 4/6 benchmarks while reducing per-task cost.'
+  actionable_items:
+  - 'Implement skill/tool retrieval index in skills registry: match task requirements to available skills by typed artifact compatibility'
+  - 'Add typed artifact handoff protocol in workflow-engine: define input/output types for each node, enforce compatibility at composition time'
+  - 'Build local repair mechanism: when workflow node fails, retrieve alternative skills/tools and retry with bounded search'
+  - 'Implement workflow synthesis in workflow-engine: auto-generate DAG from task description using retrieved components'
+  target_module: workflow-engine / skills
+  priority: medium
+  status: pending
+- paper_id: '2605.20923'
+  title: 'Causal Past Logic for Runtime Verification of Distributed LLM Agent Workflows'
+  core_idea: 'Causal Past Logic (CPL): past-time temporal logic for guards in distributed agent workflows. Vector-clock monitor with latest-value views ensures runtime verification is part of coordination language, not post-hoc log analysis. Guards can inspect causally visible events from other lifelines.'
+  actionable_items:
+  - 'Implement vector-clock monitor in controller: track causal dependencies between distributed agent actions'
+  - 'Add CPL guard evaluation in workflow-engine: evaluate temporal logic conditions (previous, since, causally-visible) at each workflow node'
+  - 'Build causal-aware event correlation in monitor: only correlate events that are causally reachable, not just temporally adjacent'
+  - 'Implement source-level guards: embed verification conditions directly in workflow definitions rather than external monitors'
+  target_module: controller / monitor / workflow-engine
+  priority: high
+  status: pending
+- paper_id: '2604.15774'
+  title: 'MemEvoBench: Benchmarking Safety Risks from Memory Misevolution in LLM Agents'
+  core_idea: 'Memory misevolution: gradual behavioral drift from repeated exposure to misleading information in persistent agent memory. 7 domains, 36 risk types. Static prompt-based defenses are insufficient. Memory evolution is a significant contributor to safety degradation.'
+  actionable_items:
+  - 'Implement memory evolution monitor in data-governance: track behavioral drift over time by comparing agent outputs against baseline'
+  - 'Add memory integrity checks: validate new memory entries against existing knowledge before committing to persistent store'
+  - 'Build memory anomaly detection: flag suspicious patterns (rapid belief changes, conflicting memories, adversarial injection signatures)'
+  - 'Implement memory quarantine: new/unverified memories held in staging area before merging into main memory'
+  target_module: data-governance / knowledge
+  priority: high
+  status: pending
+- paper_id: '2509.09215'
+  title: 'Enabling Regulatory Multi-Agent Collaboration: Architecture, Challenges, and Solutions'
+  core_idea: 'Blockchain-enabled layered architecture for regulatory agent collaboration: behavior tracing module for automated accountability, dynamic reputation evaluation for trust assessment, malicious behavior forecasting for early adversarial detection.'
+  actionable_items:
+  - 'Implement behavior tracing module in controller: log all agent actions with causal chain for automated accountability'
+  - 'Add dynamic reputation scoring in scheduler: track agent task completion quality and reliability over time'
+  - 'Build malicious behavior forecasting in monitor: detect early warning signs of adversarial agent activity (unusual patterns, capability probing)'
+  - 'Implement regulatory audit API in api-server: endpoints for querying agent behavior history and reputation scores'
+  target_module: controller / scheduler / monitor
+  priority: medium
+  status: pending
+- paper_id: '2605.21609'
+  title: 'CR4T: Rewrite-Based Guardrails for Adolescent LLM Safety'
+  core_idea: 'Critique-and-Revise framework: instead of refusing unsafe outputs, selectively reconstructs them into safe, guidance-oriented responses while preserving benign intent. Model-agnostic safeguarding that reduces unsafe outcomes without conversational dead-ends.'
+  actionable_items:
+  - 'Implement rewrite-based guardrail in autonomy-controller: when safety check flags output, attempt guided rewrite before refusal'
+  - 'Add risk-aware rewriting pipeline: classify risk type, apply domain-conditioned transformation to remove risk while preserving useful content'
+  - 'Build guardrail effectiveness metrics: track rewrite success rate, false positive rate, and user satisfaction vs pure refusal approach'
+  - 'Implement configurable guardrail modes: refuse (current), rewrite (CR4T-style), or hybrid based on risk severity'
+  target_module: autonomy-controller
+  priority: medium
+  status: pending

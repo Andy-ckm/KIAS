@@ -1,10 +1,14 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-22 (13:45)
+更新时间: 2026-05-23 (00:15)
 
-## 论文列表 (308 篇)
+## 论文列表 (316 篇)
 
-### 已下载论文 (308 篇)
+### 已下载论文 (316 篇)
+- ✅ 2605.21609.pdf (CR4T: Rewrite-Based Guardrails for Adolescent LLM Safety)
+- ✅ 2605.20923.pdf (Causal Past Logic for Runtime Verification of Distributed LLM Agent Workflows)
+- ✅ 2605.20874.pdf (Governance by Construction for Generalist Agents)
+- ✅ 2605.20425.pdf (AgentCo-op: Retrieval-Based Synthesis of Interoperable Multi-Agent Workflows)
 - ✅ 2605.22794.pdf (MOSS: Self-Evolution through Source-Level Rewriting in Autonomous Agent Systems)
 - ✅ 2605.22786.pdf (LCGuard: Latent Communication Guard for Safe KV Sharing in Multi-Agent Systems)
 - ✅ 2605.22781.pdf (DeltaBox: Scaling Stateful AI Agents with Millisecond-Level Sandbox Checkpoint Rollback)
@@ -319,6 +323,70 @@
 
 ## 全部论文清单
 
+
+**[2605.21609]** CR4T: Rewrite-Based Guardrails for Adolescent LLM Safety
+   - 日期: 2026-05-22 | 分类: cs.CL, cs.AI, cs.CY
+   - 主题: guardrails, safety, rewrite, adolescent, model-agnostic
+   - 链接: https://arxiv.org/abs/2605.21609
+   - 状态: ✅ 已下载 (30KB)
+   - 核心贡献: Critique-and-Revise框架将不安全输出重构为安全响应而非拒绝，减少对话死胡同
+   - 可落地idea: autonomy-controller实现重写式护栏，风险分类+领域条件转换
+
+**[2605.20923]** Causal Past Logic for Runtime Verification of Distributed LLM Agent Workflows
+   - 日期: 2026-05-21 | 分类: cs.LO, cs.AI, cs.PL
+   - 主题: runtime verification, causal logic, distributed workflows, vector clocks
+   - 链接: https://arxiv.org/abs/2605.20923
+   - 状态: ✅ 已下载 (465KB)
+   - 核心贡献: 因果过去逻辑(CPL)用于分布式代理工作流的运行时验证，向量时钟监视器
+   - 可落地idea: controller实现向量时钟监视器 + workflow-engine添加CPL守卫求值
+
+**[2605.20874]** Governance by Construction for Generalist Agents
+   - 日期: 2026-05-21 | 分类: cs.AI, cs.SE
+   - 主题: governance, policy-as-code, enterprise agents, compliance
+   - 链接: https://arxiv.org/abs/2605.20874
+   - 状态: ✅ 已下载 (511KB)
+   - 核心贡献: CUGA策略即代码层，5个结构化检查点(意图守卫/剧本/工具指南/工具审批/输出格式化)
+   - 可落地idea: autonomy-controller实现PolicyEngine + 5检查点执行
+
+**[2605.20425]** AgentCo-op: Retrieval-Based Synthesis of Interoperable Multi-Agent Workflows
+   - 日期: 2026-05-20 | 分类: cs.AI
+   - 主题: workflow synthesis, multi-agent, retrieval-based, typed artifacts, local repair
+   - 链接: https://arxiv.org/abs/2605.20425
+   - 状态: ✅ 已下载 (2.0MB)
+   - 核心贡献: 检索式合成框架，通过类型化制品交接组合可复用技能/工具/代理，局部修复机制
+   - 可落地idea: workflow-engine实现技能检索索引 + 类型化制品交接协议
+
+**[2603.14987]** Beyond Benchmark Islands: Toward Representative Trustworthiness Evaluation for Agentic AI
+   - 日期: 2026-03-18 | 分类: cs.CL, cs.DB
+   - 主题: trustworthiness, evaluation, benchmark, HAAF, agentic AI
+   - 链接: https://arxiv.org/abs/2603.14987
+   - 状态: ✅ 已下载 (945KB)
+   - 核心贡献: HAAF框架定义5属性可信度(可靠性/鲁棒性/安全性/社会伦理对齐/操作完整性)
+   - 可落地idea: data-governance实现5属性可信度评分 + 红队转蓝队管道
+
+**[2604.15774]** MemEvoBench: Benchmarking Safety Risks from Memory Misevolution in LLM Agents
+   - 日期: 2026-04-21 | 分类: cs.CL
+   - 主题: memory safety, behavioral drift, adversarial injection, LLM agents
+   - 链接: https://arxiv.org/abs/2604.15774
+   - 状态: ✅ 已下载 (2.2MB)
+   - 核心贡献: 首个评估长期记忆安全的基准，7领域36风险类型，静态防御不足
+   - 可落地idea: data-governance实现记忆演进监视器 + 记忆隔离区
+
+**[2509.09215]** Enabling Regulatory Multi-Agent Collaboration: Architecture, Challenges, and Solutions
+   - 日期: 2025-09-11 | 分类: cs.AI, cs.CR
+   - 主题: regulatory, multi-agent, blockchain, reputation, behavior tracing
+   - 链接: https://arxiv.org/abs/2509.09215
+   - 状态: ✅ 已下载 (421KB)
+   - 核心贡献: 区块链分层架构：行为追溯模块+动态声誉评估+恶意行为预测
+   - 可落地idea: controller实现行为追溯 + scheduler添加动态声誉评分
+
+**[2512.06556]** Semantic Attacks on Tool-Augmented LLMs: Securing MCP Against Descriptor-Level Manipulation
+   - 日期: 2025-12-08 | 分类: cs.CR, cs.AI
+   - 主题: MCP security, tool descriptors, semantic attacks, descriptor manipulation
+   - 链接: https://arxiv.org/abs/2512.06556
+   - 状态: ✅ 已下载 (1.9MB)
+   - 核心贡献: 3类MCP描述符攻击(工具投毒/影子/拉地毯)，36%基线不安全调用，分层防御降至15%
+   - 可落地idea: mcp-protocol实现描述符完整性验证 + 语义审查
 
 **[2605.20704]** Heartbeat-Bound Hierarchical Credentials: Cryptographic Revocation for AI Agent Swarms
    - 日期: 2026-05-20 | 分类: cs.MA

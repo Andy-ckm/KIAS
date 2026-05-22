@@ -21,3 +21,9 @@
 
 pub mod fixture_gen;
 pub mod fixtures;
+pub mod regression_gate;
+
+pub use regression_gate::{
+    Baseline, BenchmarkResult, BenchmarkRunner, MetricType, RegressionDecision,
+    RegressionDetector, RegressionReport,
+};

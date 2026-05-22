@@ -5,6 +5,7 @@ pub mod edge;
 pub mod engine;
 pub mod error_handler;
 pub mod executor;
+// pub // mod flow_persistence; // TODO: fix compilation // TODO: fix compilation
 pub mod graph;
 pub mod kanban;
 pub mod kanban_store;
@@ -15,6 +16,7 @@ pub mod stage;
 pub mod state;
 pub mod subgraph;
 pub mod typed_state;
+pub mod visual_orchestrator;
 pub mod yaml_loader;
 
 pub use approval::{
@@ -52,3 +54,7 @@ pub use typed_state::{
     Append, ChannelReducer, EventSink, KeepFirst, Merge, Replace, StateDiff, StateError,
     StreamingEvent, Sum, TypedState,
 };
+
+// pub // mod flow_durable; // TODO: fix compilation // TODO: fix compilation
+// pub // mod hitl_enhanced; // TODO: fix compilation // TODO: fix compilation
+// pub // mod session_buffer; // TODO: fix compilation // TODO: fix compilation

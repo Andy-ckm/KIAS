@@ -238,6 +238,7 @@ impl AppState {
     }
 }
 
+pub mod a2a_protocol;
 pub mod auth;
 pub mod contract_test;
 pub mod error;

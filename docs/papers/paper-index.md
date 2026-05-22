@@ -1,10 +1,18 @@
 # AgentGuard 论文研究库
 
-更新时间: 2026-05-23 (00:15)
+更新时间: 2026-05-23 (07:15)
 
-## 论文列表 (316 篇)
+## 论文列表 (324 篇)
 
-### 已下载论文 (316 篇)
+### 已下载论文 (324 篇)
+- ✅ 2605.22634.pdf (Contractual Skills: A GovernSpec Design Framework for Enterprise AI Agents)
+- ✅ 2605.22608.pdf (Agentic CLEAR: Automating Multi-Level Evaluation of LLM Agents)
+- ✅ 2605.22568.pdf (Measuring Security Without Fooling Ourselves: Why Benchmarking Agents Is Hard)
+- ✅ 2605.22535.pdf (TerminalWorld: Benchmarking Agents on Real-World Terminal Tasks)
+- ✅ 2605.22502.pdf (Compiling Agentic Workflows into LLM Weights: Near-Frontier Quality at Two Orders of Magnitude Less)
+- ✅ 2605.22321.pdf (Benchmarking Autonomous Agents against Temporal, Spatial, and Semantic Evasions)
+- ✅ 2605.22238.pdf (Evaluating Large Language Models as Live Strategic Agents: Provider Performance, Hybrid Decomposition)
+- ✅ 2605.22166.pdf (Runtime Harness Adaptation for Deterministic LLM Agents)
 - ✅ 2605.21609.pdf (CR4T: Rewrite-Based Guardrails for Adolescent LLM Safety)
 - ✅ 2605.20923.pdf (Causal Past Logic for Runtime Verification of Distributed LLM Agent Workflows)
 - ✅ 2605.20874.pdf (Governance by Construction for Generalist Agents)

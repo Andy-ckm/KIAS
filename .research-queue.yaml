@@ -1103,3 +1103,95 @@ paper_insights:
   target_module: autonomy-controller
   priority: medium
   status: pending
+- id: R030
+  paper_id: "2605.22634"
+  title: 'Contractual Skills: A GovernSpec Design Framework for Enterprise AI Agents'
+  core_idea: 'Skills need machine-readable governance contracts (permissions, input/output bounds, evidence requirements, approval points, handoff rules) as first-class constructs. GovernSpec enables automated compliance checking, skill composition verification, and governance-aware orchestration.'
+  actionable_items:
+  - 'Implement SkillContract struct in skills/ crate: {goals, input_bounds, permissions, output_contract, quality_criteria, verification_steps, human_approval_points, handoff_rules}'
+  - 'Add governance_verification(skill: &SkillContract) -> Result<()> in controller/ to check permissions and evidence requirements'
+  - 'Add skill_composition_check(skills: &[SkillContract]) -> Result<()> to verify no permission conflicts when composing skills'
+  - 'Add governance_aware_orchestration(skills, plan) in team-engine/ that respects human_approval_points and handoff rules'
+  target_module: skills, controller, team-engine
+  priority: high
+  status: pending
+- id: R031
+  paper_id: "2605.22608"
+  title: 'Agentic CLEAR: Automating Multi-Level Evaluation of LLM Agents'
+  core_idea: 'Multi-dimensional evaluation at outcome/process/trajectory levels using LLM-generated rubrics and behavior anomaly detection. AutoEval transforms agent logs into fine-grained diagnostic reports automatically.'
+  actionable_items:
+  - 'Add AgentEvaluator in monitor/ with outcome/process/trajectory evaluation methods using existing audit logs'
+  - 'Implement auto_rubric_generation(task_description) -> Rubric using LLM: given task description, generate evaluation criteria and pass/fail thresholds'
+  - 'Add behavior_anomaly_detection(agent_log) -> Vec<Anomaly> for runtime monitoring against learned behavioral baselines'
+  - 'Implement diagnostic_report generation from AgentGuard audit logs (immutable trail is perfect evaluation input)'
+  target_module: monitor, agentsight
+  priority: high
+  status: pending
+- id: R032
+  paper_id: "2605.22321"
+  title: 'Benchmarking Autonomous Agents against Temporal, Spatial, and Semantic Evasions'
+  core_idea: 'Temporal Evasions exploit gap between planning and execution phases. Security benchmarks must test multi-turn stateful interactions, not just single-turn. OpenClawBench has 180 attack scenarios across 18 categories.'
+  actionable_items:
+  - 'Add temporal_gap_detection in tool-executor/: detect when planning phase output diverges from execution phase actions'
+  - 'Build evasion_benchmark_suite: test AgentGuard against TE/SE/SemEvasions (180 scenarios from paper)'
+  - 'Add planning_phase_audit_log and execution_phase_audit_log with drift comparison'
+  - 'Add environment_structure_validation: verify tool responses match expected spatial/contextual schema'
+  target_module: tool-executor, data-governance, benchmarks
+  priority: high
+  status: pending
+- id: R033
+  paper_id: "2605.22568"
+  title: 'Measuring Security Without Fooling Ourselves: Why Benchmarking Agents Is Hard'
+  core_idea: 'Three core challenges: benchmark vulnerability (gaming), temporal staleness (evolving threats), runtime uncertainty (non-determinism). Anti-gaming: use immutable audit logs as ground truth.'
+  actionable_items:
+  - 'Add agent_security_scorecard in benchmarks/: multi-dimensional scoring (vulnerability coverage, staleness age, uncertainty bands)'
+  - 'Implement benchmark_rotation: auto-update test cases with versioned threat models to prevent gaming'
+  - 'Add runtime_uncertainty_quantification: confidence intervals on agent behavior from repeated runs'
+  - 'Use AgentGuard immutable audit log as ground truth evaluation source (cannot be faked by agent)'
+  target_module: benchmarks, monitor
+  priority: medium
+  status: pending
+- id: R034
+  paper_id: "2605.22502"
+  title: 'Compiling Agentic Workflows into LLM Weights'
+  core_idea: 'External orchestrators add latency/cost. WorkflowCompiler converts workflow descriptions (DAGs) into fine-tuned models. Frontier quality at 100x less compute for procedural tasks.'
+  actionable_items:
+  - 'Add workflow_to_training_data converter: export AgentGuard DAG definitions as (instruction, response) fine-tuning pairs'
+  - 'Add model_router routing logic: when workflow is repetitive/procedural -> use compiled model, when dynamic -> use orchestration'
+  - 'Benchmark: compare latency/cost/completeness of compiled model vs dynamic team-engine orchestration'
+  target_module: model-router, workflow-engine
+  priority: medium
+  status: pending
+- id: R035
+  paper_id: "2605.22166"
+  title: 'Runtime Harness Adaptation for Deterministic LLM Agents'
+  core_idea: 'Life-Harness: failures in deterministic/rule-governed domains often stem from model-environment interface mismatches, not model capability. Harness adaptation (not parameter update) fixes these.'
+  actionable_items:
+  - 'Add harness_diagnostic_loop in autonomy-controller/: distinguish harness failures from model failures via interface invariant checks'
+  - 'Implement harness_update_plan: generate runtime harness patch (tool schema, observation parsing, state machine) without changing model'
+  - 'Add interfaceInvariantChecker: verify tool responses conform to expected schemas before passing to model'
+  target_module: autonomy-controller, agent-runtime
+  priority: medium
+  status: pending
+- id: R036
+  paper_id: "2605.22535"
+  title: 'TerminalWorld: Benchmarking Agents on Real-World Terminal Tasks'
+  core_idea: '1,530 validated tasks from 80K real terminal recordings across 18 categories and 1,280 unique commands. Tests agents on workflows up to 50+ steps.'
+  actionable_items:
+  - 'Add linux-automation benchmark suite: 50+ realistic Linux ops tasks drawn from TerminalWorld categories'
+  - 'Implement terminal_recording_to_test_case converter: parse (command_sequence, expected_output) pairs from terminal recordings'
+  - 'Add workflow_step_validator: verify each step of multi-step terminal workflow was executed correctly'
+  target_module: linux-automation, benchmarks
+  priority: medium
+  status: pending
+- id: R037
+  paper_id: "2605.22238"
+  title: 'Evaluating Large Language Models as Live Strategic Agents'
+  core_idea: 'Timed multi-phase environment with repeated planning/execution cycles reveals behavior not visible in static benchmarks. Cross-provider championship with frozen rules.'
+  actionable_items:
+  - 'Add multi_round_evaluation in benchmarks/: test agent across N repeated execution rounds, measure convergence/divergence'
+  - 'Implement agent_performance_drift_detection: compare early-round vs late-round behavior, detect degradation'
+  - 'Add time_budget_testing: measure agent performance under configurable time constraints'
+  target_module: benchmarks, agent-runtime
+  priority: medium
+  status: pending

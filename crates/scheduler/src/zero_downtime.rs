@@ -624,6 +624,7 @@ fn chrono_lite_now() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, RwLock as StdRwLock};
 
     fn make_config() -> UpgradeConfig {
         UpgradeConfig::new(4).with_batch_size(2)

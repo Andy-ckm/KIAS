@@ -292,20 +292,31 @@ mod tests {
         HashMap::from([("cpu".into(), 0.6), ("memory".into(), 0.4)])
     }
 
+    fn make_params(agent: &str, action: DecisionAction, explanation: &str) -> DecisionRecordParams {
+        DecisionRecordParams {
+            agent_id: agent.into(),
+            action,
+            inputs: make_inputs(),
+            rules_applied: vec![],
+            weights: HashMap::new(),
+            candidates: make_candidates(),
+            confidence: 0.9,
+            result: make_result("node-1"),
+            explanation: explanation.into(),
+            prev_hash: String::new(),
+        }
+    }
+
     #[test]
     fn test_record_creation() {
         let mut rec = DecisionRecorder::new();
-        let id = rec.record_decision(
-            "scheduler".into(),
-            DecisionAction::Schedule,
-            make_inputs(),
-            vec!["rule-cpu".into(), "rule-mem".into()],
-            make_weights(),
-            make_candidates(),
-            0.95,
-            make_result("node-1"),
-            "node-1 has most CPU".into(),
-        );
+        let id = rec.record_decision(DecisionRecordParams {
+            rules_applied: vec!["rule-cpu".into(), "rule-mem".into()],
+            weights: make_weights(),
+            confidence: 0.95,
+            explanation: "node-1 has most CPU".into(),
+            ..make_params("scheduler", DecisionAction::Schedule, "")
+        });
         assert!(!id.is_nil());
         assert_eq!(rec.all().len(), 1);
     }
@@ -313,29 +324,15 @@ mod tests {
     #[test]
     fn test_chain_integrity() {
         let mut rec = DecisionRecorder::new();
-        rec.record_decision(
-            "scheduler".into(),
-            DecisionAction::Schedule,
-            make_inputs(),
-            vec![],
-            HashMap::new(),
-            make_candidates(),
-            0.9,
-            make_result("node-1"),
-            "test".into(),
-        );
-        rec.record_decision(
-            "router".into(),
-            DecisionAction::Route,
-            make_inputs(),
-            vec![],
-            HashMap::new(),
-            make_candidates(),
-            0.8,
-            make_result("node-2"),
-            "test2".into(),
-        );
-
+        rec.record_decision(make_params("scheduler", DecisionAction::Schedule, "test"));
+        rec.record_decision(DecisionRecordParams {
+            agent_id: "router".into(),
+            action: DecisionAction::Route,
+            confidence: 0.8,
+            result: make_result("node-2"),
+            explanation: "test2".into(),
+            ..make_params("router", DecisionAction::Route, "test2")
+        });
         let results = rec.verify_chain();
         assert!(results.iter().all(|(_, ok)| *ok));
     }
@@ -343,41 +340,26 @@ mod tests {
     #[test]
     fn test_verify_integrity_false_on_tamper() {
         let mut rec = DecisionRecorder::new();
-        rec.record_decision(
-            "scheduler".into(),
-            DecisionAction::Schedule,
-            make_inputs(),
-            vec![],
-            HashMap::new(),
-            make_candidates(),
-            0.9,
-            make_result("node-1"),
-            "test".into(),
-        );
-
-        // Tamper with first record's explanation
+        rec.record_decision(make_params("scheduler", DecisionAction::Schedule, "test"));
         if let Some(r) = rec.records.first_mut() {
             r.explanation = "TAMPERED".into();
         }
         let results = rec.verify_chain();
-        assert!(!results[0].1); // first record should now fail
+        assert!(!results[0].1);
     }
 
     #[test]
     fn test_export_import_json() {
         let mut rec = DecisionRecorder::new();
-        rec.record_decision(
-            "autonomy".into(),
-            DecisionAction::AutonomyEscalate,
-            make_inputs(),
-            vec!["risk-check".into()],
-            make_weights(),
-            make_candidates(),
-            0.99,
-            make_result("node-1"),
-            "risk score below threshold".into(),
-        );
-
+        rec.record_decision(DecisionRecordParams {
+            agent_id: "autonomy".into(),
+            action: DecisionAction::AutonomyEscalate,
+            rules_applied: vec!["risk-check".into()],
+            weights: make_weights(),
+            confidence: 0.99,
+            explanation: "risk score below threshold".into(),
+            ..make_params("autonomy", DecisionAction::AutonomyEscalate, "")
+        });
         let json = rec.export_json();
         let loaded: Vec<DecisionRecord> = serde_json::from_slice(&json).unwrap();
         assert_eq!(loaded.len(), 1);
@@ -404,12 +386,9 @@ mod tests {
 
     #[test]
     fn test_self_hash_deterministic() {
-        // Verify that hex_hash is deterministic
         let h1 = hex_hash("hello world");
         let h2 = hex_hash("hello world");
         assert_eq!(h1, h2);
-
-        // Verify that different inputs produce different hashes
         let h3 = hex_hash("hello world!");
         assert_ne!(h1, h3);
     }
@@ -419,23 +398,24 @@ mod tests {
         let mut rec = DecisionRecorder::new();
         let ids: Vec<Uuid> = (0..100)
             .map(|_| {
-                rec.record_decision(
-                    "test".into(),
-                    DecisionAction::Other("x".into()),
-                    DecisionInputs {
+                rec.record_decision(DecisionRecordParams {
+                    agent_id: "test".into(),
+                    action: DecisionAction::Other("x".into()),
+                    inputs: DecisionInputs {
                         params: HashMap::new(),
                     },
-                    vec![],
-                    HashMap::new(),
-                    vec![],
-                    1.0,
-                    DecisionResult {
+                    rules_applied: vec![],
+                    weights: HashMap::new(),
+                    candidates: vec![],
+                    confidence: 1.0,
+                    result: DecisionResult {
                         selected_id: "x".into(),
                         rejected_ids: vec![],
                         metadata: HashMap::new(),
                     },
-                    "".into(),
-                )
+                    explanation: "".into(),
+                    prev_hash: String::new(),
+                })
             })
             .collect();
         let mut sorted = ids.clone();

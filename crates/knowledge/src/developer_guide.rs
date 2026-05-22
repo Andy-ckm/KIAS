@@ -209,7 +209,7 @@ impl GuideRegistry {
     }
 
     /// 创建默认开发手册
-    pub fn create_default_guide(&mut self) -> &DeveloperGuide {
+    pub fn create_default_guide(&mut self) -> Result<&DeveloperGuide, GuideError> {
         let mut guide = DeveloperGuide::new("kias-guide", "KIAS Developer Guide", "1.0.0");
 
         // 快速入门章节
@@ -290,7 +290,9 @@ impl GuideRegistry {
         let id = guide.id.clone();
         self.guides.insert(id.clone(), guide);
         self.by_tag.insert("beginner".to_string(), vec![id.clone()]);
-        self.guides.get(&id).unwrap()
+        self.guides
+            .get(&id)
+            .ok_or_else(|| GuideError::NotFound(id))
     }
 }
 

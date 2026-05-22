@@ -491,7 +491,7 @@ impl ModelRegistry {
                     .partial_cmp(&cost_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .unwrap(); // safe because we checked non‑empty
+            .expect("internal invariant violation: candidates should not be empty after non-empty check")
 
         Ok(Some(best))
     }

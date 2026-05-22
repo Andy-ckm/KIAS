@@ -138,7 +138,7 @@ impl DagTopology {
                 let mut sorted_targets: Vec<String> = targets.iter().cloned().collect();
                 sorted_targets.sort();
                 for target in sorted_targets {
-                    let deg = in_degree.get_mut(&target).unwrap();
+                    let deg = in_degree.get_mut(&target).expect("internal invariant violated: target not found in in_degree map");
                     *deg -= 1;
                     if *deg == 0 {
                         sorted_queue.push(target);
@@ -187,7 +187,7 @@ impl DagTopology {
                     let mut sorted_targets: Vec<String> = targets.iter().cloned().collect();
                     sorted_targets.sort();
                     for target in sorted_targets {
-                        let deg = in_degree.get_mut(&target).unwrap();
+                        let deg = in_degree.get_mut(&target).expect("internal invariant violated: target not found in in_degree map");
                         *deg -= 1;
                         if *deg == 0 {
                             next_level.push(target);

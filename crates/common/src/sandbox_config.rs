@@ -268,7 +268,7 @@ impl SandboxRegistry {
     }
 
     /// 创建开发沙盒
-    pub fn create_dev_sandbox(&mut self) -> &SandboxConfig {
+    pub fn create_dev_sandbox(&mut self) -> Result<&SandboxConfig, SandboxError> {
         let config = SandboxConfigBuilder::new(SandboxProfile::Development, "dev-sandbox")
             .description("Development sandbox with full debugging")
             .add_dependency("tokio", "1", false)
@@ -287,11 +287,12 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("dev-sandbox").unwrap()
+        self.sandboxes.get("dev-sandbox")
+            .ok_or_else(|| SandboxError::NotFound("dev-sandbox".to_string()))
     }
 
     /// 创建测试沙盒
-    pub fn create_test_sandbox(&mut self) -> &SandboxConfig {
+    pub fn create_test_sandbox(&mut self) -> Result<&SandboxConfig, SandboxError> {
         let config = SandboxConfigBuilder::new(SandboxProfile::Testing, "test-sandbox")
             .description("Testing sandbox with mocks")
             .add_dependency("tokio", "1", false)
@@ -310,11 +311,12 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("test-sandbox").unwrap()
+        self.sandboxes.get("test-sandbox")
+            .ok_or_else(|| SandboxError::NotFound("test-sandbox".to_string()))
     }
 
     /// 创建生产沙盒
-    pub fn create_prod_sandbox(&mut self) -> &SandboxConfig {
+    pub fn create_prod_sandbox(&mut self) -> Result<&SandboxConfig, SandboxError> {
         let config = SandboxConfigBuilder::new(SandboxProfile::Production, "prod-sandbox")
             .description("Production sandbox with optimized settings")
             .add_dependency("tokio", "1", false)
@@ -331,7 +333,8 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("prod-sandbox").unwrap()
+        self.sandboxes.get("prod-sandbox")
+            .ok_or_else(|| SandboxError::NotFound("prod-sandbox".to_string()))
     }
 }
 

@@ -262,8 +262,11 @@ impl TaskPlanner {
                 if !in_degree.contains_key(dep) {
                     return Err(format!("Unknown dependency: {}", dep));
                 }
-                graph.get_mut(dep).unwrap().push(step.id.clone());
-                *in_degree.get_mut(&step.id).unwrap() += 1;
+                graph.get_mut(dep)
+                    .expect("dependency graph invariant violated: dep not found in adjacency")
+                    .push(step.id.clone());
+                *in_degree.get_mut(&step.id)
+                    .expect("dependency graph invariant violated: step not found in in_degree") += 1;
             }
         }
         
@@ -280,8 +283,8 @@ impl TaskPlanner {
             let node = queue.remove(0);
             result.push(node.clone());
             
-            for neighbor in graph.get(&node).unwrap() {
-                *in_degree.get_mut(neighbor).unwrap() -= 1;
+            for neighbor in graph.get(&node).expect("topological sort invariant violated: current node not in graph") {
+                *in_degree.get_mut(neighbor).expect("topological sort invariant violated: neighbor not in in_degree") -= 1;
                 if in_degree[neighbor] == 0 {
                     queue.push(neighbor.clone());
                     queue.sort();

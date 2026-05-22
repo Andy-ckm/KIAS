@@ -2310,7 +2310,11 @@ mod tests {
         let msg = adapter.parse_webhook(&request).unwrap();
         assert_eq!(msg.message_type, MessageType::Private);
         match &msg.content {
-            MessageContent::File { url, filename, mime_type } => {
+            MessageContent::File {
+                url,
+                filename,
+                mime_type,
+            } => {
                 assert_eq!(url, "https://slack.com/file/456");
                 assert_eq!(filename, "no-mime.txt");
                 assert!(mime_type.is_none());

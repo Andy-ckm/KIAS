@@ -152,7 +152,7 @@ pub async fn realtime_dashboard(State(state): State<AppState>) -> Json<Dashboard
             });
         }
     }
-    flaky.sort_by(|a, b| b.restart_count.cmp(&a.restart_count));
+    flaky.sort_by_key(|b| std::cmp::Reverse(b.restart_count));
     flaky.truncate(5);
 
     let agent_dashboard = AgentDashboard {

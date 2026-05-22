@@ -12,8 +12,8 @@ use tracing::info;
 /// - Atomic config updates with validation
 /// - Config change history for audit trail
 /// - Rollback support
-
-/// Configuration value (JSON)
+///
+/// Configuration value (JSON).
 pub type ConfigValue = serde_json::Value;
 
 /// Config change event

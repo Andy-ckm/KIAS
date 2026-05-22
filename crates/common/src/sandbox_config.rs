@@ -444,8 +444,8 @@ mod tests {
     #[test]
     fn test_sandbox_registry_by_profile() {
         let mut registry = SandboxRegistry::new();
-        registry.create_dev_sandbox();
-        registry.create_test_sandbox();
+        let _ = registry.create_dev_sandbox();
+        let _ = registry.create_test_sandbox();
         let dev_sandboxes = registry.by_profile(SandboxProfile::Development);
         assert_eq!(dev_sandboxes.len(), 1);
     }

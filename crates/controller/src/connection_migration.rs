@@ -816,7 +816,7 @@ mod tests {
 
     #[test]
     fn test_migrator_should_rollback() {
-        let mut migrator = ConnectionMigrator::new("node-1".to_string(), make_config());
+        let migrator = ConnectionMigrator::new("node-1".to_string(), make_config());
         assert!(!migrator.should_rollback());
     }
 

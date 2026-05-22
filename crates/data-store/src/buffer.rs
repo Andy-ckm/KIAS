@@ -526,11 +526,11 @@ mod tests {
     }
 
     // A persist function that always fails.
+    #[allow(dead_code)]
     fn make_failing_persist() -> impl Fn(&[Record]) -> PersistFut + Send + Sync + 'static {
         |_: &[Record]| {
             let fut = async {
-                Err(KiasError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(KiasError::Io(std::io::Error::other(
                     "persist failed",
                 )))
             };

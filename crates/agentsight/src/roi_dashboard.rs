@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_roi_summary_calculation() {
-        let metrics = vec![ROIMetric::new(
+        let metrics = [ROIMetric::new(
             "m1",
             "Metric1",
             ROIMetricType::EfficiencyImprovement,

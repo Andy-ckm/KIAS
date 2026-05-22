@@ -719,7 +719,7 @@ mod tests {
     fn test_risk_alert_serdes() {
         let mut detector = BehaviorRiskDetector::new();
         let event = make_event("agent-1", "exec_shell", true);
-        let alerts = detector.record(event.clone());
+        let _alerts = detector.record(event.clone());
 
         // Also record enough events to trigger a volume alert
         for i in 0..15 {
@@ -728,7 +728,7 @@ mod tests {
         }
 
         // Should have volume anomaly alerts
-        let all_alerts: Vec<_> = detector.record(make_event("agent-1", "tool-x", true));
+        let _all_alerts: Vec<_> = detector.record(make_event("agent-1", "tool-x", true));
         // At this point we may or may not have alerts depending on timing
         // Just verify no panic
     }

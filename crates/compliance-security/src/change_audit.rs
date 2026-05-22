@@ -520,7 +520,7 @@ mod tests {
     #[test]
     fn test_audit_template_approval_warning() {
         let template = AuditTemplate::standard();
-        let mut record = ChangeRecord::new("C001", "Test", "Desc", RiskLevel::High, "auth")
+        let record = ChangeRecord::new("C001", "Test", "Desc", RiskLevel::High, "auth")
             .with_rollback_plan("Rollback")
             .with_verification_evidence(vec!["test1", "test2"]);
         // Not approved

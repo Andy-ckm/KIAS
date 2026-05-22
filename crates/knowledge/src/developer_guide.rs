@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn test_guide_registry_find_by_tag() {
         let mut registry = GuideRegistry::new();
-        registry.create_default_guide();
+        let _ = registry.create_default_guide();
         let results = registry.find_by_tag("beginner");
         assert!(!results.is_empty());
     }
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn test_guide_registry_list_all() {
         let mut registry = GuideRegistry::new();
-        registry.create_default_guide();
+        let _ = registry.create_default_guide();
         let all = registry.list_all();
         assert!(!all.is_empty());
     }

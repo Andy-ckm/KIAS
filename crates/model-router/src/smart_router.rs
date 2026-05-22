@@ -569,8 +569,10 @@ mod tests {
     #[test]
     fn test_route_with_budget_constraint() {
         let router = SmartRouter::new();
-        let mut budget = Budget::default();
-        budget.max_cost_per_request = 0.001;
+        let budget = Budget {
+            max_cost_per_request: 0.001,
+            ..Budget::default()
+        };
 
         let request = RoutingRequest {
             task: TaskCategory::CodeGeneration,

@@ -218,12 +218,15 @@ pub struct FreshnessChecker {
     /// Entries indexed by ID.
     entries: Arc<RwLock<HashMap<String, KnowledgeEntry>>>,
     /// Maximum age before an entry is considered stale.
+    #[allow(dead_code)]
     max_age_secs: u64,
     /// Refresh interval in seconds.
+    #[allow(dead_code)]
     refresh_interval_secs: u64,
     /// Expiry policy.
     policy: ExpiryPolicy,
     /// Auto-refresh configuration.
+    #[allow(dead_code)]
     auto_refresh: AutoRefreshConfig,
 }
 

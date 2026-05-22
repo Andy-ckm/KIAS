@@ -5,6 +5,7 @@ pub type KiasResult<T> = Result<T, RegistryError>;
 /// AgentRegistry provides new, register, discover, heartbeat, deregister
 #[derive(Debug, Clone)]
 pub struct AgentRegistry {
+    #[allow(dead_code)]
     initialized: bool,
 }
 

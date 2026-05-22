@@ -5,6 +5,7 @@ pub type KiasResult<T> = Result<T, RegistryError>;
 /// A2ARegistry provides new, register agent, lookup, subscribe events, unregister
 #[derive(Debug, Clone)]
 pub struct A2ARegistry {
+    #[allow(dead_code)]
     initialized: bool,
 }
 

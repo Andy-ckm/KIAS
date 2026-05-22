@@ -198,6 +198,7 @@ impl WalFile {
 }
 
 /// Recover un-flushed entries from the WAL file and return them.
+#[allow(clippy::ptr_arg)]
 pub fn recover_from_wal<T: Serialize + DeserializeOwned + Debug>(
     wal_path: &PathBuf,
 ) -> KiasResult<Vec<T>> {
@@ -225,6 +226,9 @@ pub fn recover_from_wal<T: Serialize + DeserializeOwned + Debug>(
 /// Type alias for the persist future — boxed so it can be stored in Arc<dyn>.
 type PersistFut = Pin<Box<dyn Future<Output = KiasResult<()>> + Send>>;
 
+/// Type alias for the persist function — boxed so it can be stored in Arc<dyn>.
+type PersistFn<T> = Arc<dyn Fn(&[T]) -> PersistFut + Send + Sync>;
+
 /// The shared state behind `Arc<SessionBufferInner>`.
 struct SessionBufferInner<T>
 where
@@ -234,7 +238,7 @@ where
     wal: RwLock<WalFile>,
     strategy: FlushStrategy,
     /// The persist function: takes a batch of items and returns a future.
-    persist_fn: Arc<dyn Fn(&[T]) -> PersistFut + Send + Sync>,
+    persist_fn: PersistFn<T>,
     stats: RwLock<BufferStats>,
     /// Atomic flag set by Drop to signal the timer task to stop.
     shutdown: Arc<AtomicBool>,

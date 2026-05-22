@@ -242,6 +242,7 @@ pub struct PolicySimulator {
     /// Policy rules in effect: (rule_name, risk_score, conditions, outcome)
     rules: Vec<PolicyRule>,
     /// Historical simulation cache for diffing
+    #[allow(dead_code)]
     simulation_history: Vec<PolicySimulationReport>,
 }
 
@@ -430,8 +431,8 @@ impl PolicySimulator {
         if pattern == "*" || pattern.is_empty() {
             return true;
         }
-        if pattern.ends_with("*") {
-            return value.starts_with(&pattern[..pattern.len() - 1]);
+        if let Some(prefix) = pattern.strip_suffix('*') {
+            return value.starts_with(prefix);
         }
         pattern == value
     }

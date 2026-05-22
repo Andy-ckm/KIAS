@@ -73,20 +73,37 @@ pub struct DecisionResult {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
+/// Parameters for creating a DecisionRecord.
+#[derive(Debug, Clone)]
+pub struct DecisionRecordParams {
+    pub agent_id: String,
+    pub action: DecisionAction,
+    pub inputs: DecisionInputs,
+    pub rules_applied: Vec<String>,
+    pub weights: HashMap<String, f64>,
+    pub candidates: Vec<Candidate>,
+    pub confidence: f64,
+    pub result: DecisionResult,
+    pub explanation: String,
+    pub prev_hash: String,
+}
+
 impl DecisionRecord {
     /// Create a new record, automatically computing hashes.
-    pub fn new(
-        agent_id: String,
-        action: DecisionAction,
-        inputs: DecisionInputs,
-        rules_applied: Vec<String>,
-        weights: HashMap<String, f64>,
-        candidates: Vec<Candidate>,
-        confidence: f64,
-        result: DecisionResult,
-        explanation: String,
-        prev_hash: String,
-    ) -> Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(params: DecisionRecordParams) -> Self {
+        let DecisionRecordParams {
+            agent_id,
+            action,
+            inputs,
+            rules_applied,
+            weights,
+            candidates,
+            confidence,
+            result,
+            explanation,
+            prev_hash,
+        } = params;
         let decision_id = Uuid::new_v4();
         let timestamp = Utc::now();
 
@@ -198,30 +215,12 @@ impl DecisionRecorder {
     }
 
     /// Build a record via builder pattern then record it in one step.
-    pub fn record_decision(
-        &mut self,
-        agent_id: String,
-        action: DecisionAction,
-        inputs: DecisionInputs,
-        rules_applied: Vec<String>,
-        weights: HashMap<String, f64>,
-        candidates: Vec<Candidate>,
-        confidence: f64,
-        result: DecisionResult,
-        explanation: String,
-    ) -> Uuid {
-        let rec = DecisionRecord::new(
-            agent_id,
-            action,
-            inputs,
-            rules_applied,
-            weights,
-            candidates,
-            confidence,
-            result,
-            explanation,
-            self.last_hash.clone(),
-        );
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_decision(&mut self, params: DecisionRecordParams) -> Uuid {
+        let rec = DecisionRecord::new(DecisionRecordParams {
+            prev_hash: self.last_hash.clone(),
+            ..params
+        });
         let id = rec.decision_id;
         self.record(rec);
         id

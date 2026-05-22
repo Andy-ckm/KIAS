@@ -77,7 +77,7 @@ pub struct FunctionDefinition {
 }
 
 /// 聊天请求
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatRequest {
     pub model: String,
     pub messages: Vec<ChatMessage>,
@@ -92,7 +92,7 @@ pub struct ChatRequest {
 }
 
 /// 聊天响应
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
     pub id: String,
     pub model: String,
@@ -101,7 +101,7 @@ pub struct ChatResponse {
 }
 
 /// 选择
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Choice {
     pub index: u32,
     pub message: ChatMessage,
@@ -557,5 +557,73 @@ mod tests {
         };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("system"));
+    }
+
+    // ── Additional coverage tests ─────────────────────────────────────
+
+    #[test]
+    fn test_tool_call_deserialization() {
+        let json =
+            r#"{"id":"call_1","type":"function","function":{"name":"search","arguments":"{}"}}"#;
+        let tc: ToolCall = serde_json::from_str(json).unwrap();
+        assert_eq!(tc.id, "call_1");
+        assert_eq!(tc.call_type, "function");
+        assert_eq!(tc.function.name, "search");
+    }
+
+    #[test]
+    fn test_chat_response_serialization() {
+        let resp = ChatResponse {
+            id: "cmpl-1".to_string(),
+            model: "gpt-4o".to_string(),
+            choices: vec![Choice {
+                index: 0,
+                message: ChatMessage {
+                    role: MessageRole::Assistant,
+                    content: "hello".to_string(),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                finish_reason: Some("stop".to_string()),
+            }],
+            usage: Some(TokenUsage {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+            }),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("cmpl-1"));
+        assert!(json.contains("gpt-4o"));
+        assert!(json.contains("total_tokens"));
+    }
+
+    #[test]
+    fn test_llm_error_timeout_display() {
+        let err = LlmError::Timeout(60);
+        assert_eq!(format!("{err}"), "Timeout after 60s");
+    }
+
+    #[test]
+    fn test_chat_request_deserialization() {
+        let json =
+            r#"{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}],"temperature":0.7}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.model, "gpt-4o");
+        assert_eq!(req.messages.len(), 1);
+        assert_eq!(req.temperature, Some(0.7));
+        assert!(req.max_tokens.is_none());
+    }
+
+    #[test]
+    fn test_model_config_deserialization() {
+        let json = r#"{"provider":"openai","model":"gpt-4o","api_key":"sk-test","base_url":null,"temperature":0.5,"max_tokens":2000}"#;
+        let config: ModelConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.provider, "openai");
+        assert_eq!(config.model, "gpt-4o");
+        assert_eq!(config.api_key, Some("sk-test".to_string()));
+        assert_eq!(config.temperature, Some(0.5));
+        assert_eq!(config.max_tokens, Some(2000));
     }
 }

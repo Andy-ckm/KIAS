@@ -111,7 +111,8 @@ impl Evidence {
 
     /// Effective weight (explicit override or default)
     pub fn effective_weight(&self) -> f64 {
-        self.weight.unwrap_or_else(|| self.evidence_type.default_weight())
+        self.weight
+            .unwrap_or_else(|| self.evidence_type.default_weight())
     }
 
     /// Weighted score contribution
@@ -307,8 +308,7 @@ impl EvidenceGate {
         to_version: impl Into<String>,
     ) -> String {
         let id_str = id.into();
-        let deadline = Utc::now()
-            + chrono::Duration::seconds(self.config.default_deadline_secs);
+        let deadline = Utc::now() + chrono::Duration::seconds(self.config.default_deadline_secs);
 
         let proposal = UpdateProposal::new(
             &id_str,
@@ -325,11 +325,7 @@ impl EvidenceGate {
     }
 
     /// Add evidence to a proposal
-    pub fn add_evidence(
-        &mut self,
-        proposal_id: &str,
-        evidence: Evidence,
-    ) -> Result<(), String> {
+    pub fn add_evidence(&mut self, proposal_id: &str, evidence: Evidence) -> Result<(), String> {
         let proposal = self
             .proposals
             .get_mut(proposal_id)
@@ -398,11 +394,9 @@ impl EvidenceGate {
             .ok_or_else(|| format!("Proposal '{proposal_id}' not found"))?;
 
         proposal.status = ProposalStatus::ManualOverride;
-        proposal.evidence.push(Evidence::new(
-            EvidenceType::PeerReview,
-            1.0,
-            approver,
-        ));
+        proposal
+            .evidence
+            .push(Evidence::new(EvidenceType::PeerReview, 1.0, approver));
 
         if let Some(p) = self.proposals.remove(proposal_id) {
             self.history.push(p);
@@ -514,8 +508,7 @@ mod tests {
 
     #[test]
     fn test_evidence_custom_weight() {
-        let e = Evidence::new(EvidenceType::Custom("x".into()), 0.8, "test")
-            .with_weight(2.0);
+        let e = Evidence::new(EvidenceType::Custom("x".into()), 0.8, "test").with_weight(2.0);
         assert!((e.weighted_score() - 1.6).abs() < 0.01);
     }
 
@@ -570,13 +563,25 @@ mod tests {
     #[test]
     fn test_proposal_threshold_not_met() {
         let mut p = UpdateProposal::new("p1", "skill", "1.0", "2.0", 0.9, Utc::now(), "sys");
-        p.add_evidence(Evidence::new(EvidenceType::Custom("weak".into()), 0.3, "test"));
+        p.add_evidence(Evidence::new(
+            EvidenceType::Custom("weak".into()),
+            0.3,
+            "test",
+        ));
         assert!(!p.is_threshold_met());
     }
 
     #[test]
     fn test_proposal_finalize_accepted() {
-        let mut p = UpdateProposal::new("p1", "skill", "1.0", "2.0", 0.5, Utc::now() + chrono::Duration::hours(1), "sys");
+        let mut p = UpdateProposal::new(
+            "p1",
+            "skill",
+            "1.0",
+            "2.0",
+            0.5,
+            Utc::now() + chrono::Duration::hours(1),
+            "sys",
+        );
         p.add_evidence(Evidence::new(EvidenceType::TestPass, 0.9, "ci"));
         p.add_evidence(Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer"));
 
@@ -587,7 +592,11 @@ mod tests {
     #[test]
     fn test_proposal_finalize_rejected_expired() {
         let mut p = UpdateProposal::new(
-            "p1", "skill", "1.0", "2.0", 0.99,
+            "p1",
+            "skill",
+            "1.0",
+            "2.0",
+            0.99,
             Utc::now() - chrono::Duration::hours(1), // already expired
             "sys",
         );
@@ -611,7 +620,15 @@ mod tests {
 
     #[test]
     fn test_proposal_no_evidence_after_finalized() {
-        let mut p = UpdateProposal::new("p1", "skill", "1.0", "2.0", 0.3, Utc::now() + chrono::Duration::hours(1), "sys");
+        let mut p = UpdateProposal::new(
+            "p1",
+            "skill",
+            "1.0",
+            "2.0",
+            0.3,
+            Utc::now() + chrono::Duration::hours(1),
+            "sys",
+        );
         p.add_evidence(Evidence::new(EvidenceType::TestPass, 0.9, "ci"));
         p.add_evidence(Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer"));
         p.try_finalize(); // accepted
@@ -638,10 +655,7 @@ mod tests {
         let mut gate = EvidenceGate::new(test_config());
         let id = gate.propose("p1", "skill", "1.0", "2.0");
 
-        let result = gate.add_evidence(
-            &id,
-            Evidence::new(EvidenceType::TestPass, 0.9, "ci"),
-        );
+        let result = gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci"));
         assert!(result.is_ok());
     }
 
@@ -660,8 +674,13 @@ mod tests {
         let mut gate = EvidenceGate::new(test_config());
         let id = gate.propose("p1", "skill", "1.0", "2.0");
 
-        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci")).unwrap();
-        gate.add_evidence(&id, Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer")).unwrap();
+        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci"))
+            .unwrap();
+        gate.add_evidence(
+            &id,
+            Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer"),
+        )
+        .unwrap();
 
         let status = gate.finalize(&id).unwrap();
         assert_eq!(status, ProposalStatus::Accepted);
@@ -676,7 +695,8 @@ mod tests {
         let mut gate = EvidenceGate::new(test_config());
         let id = gate.propose("p1", "skill", "1.0", "2.0");
 
-        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci")).unwrap();
+        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci"))
+            .unwrap();
 
         let result = gate.finalize(&id);
         assert!(result.is_err());
@@ -689,8 +709,10 @@ mod tests {
         let id = gate.propose("p1", "skill", "1.0", "2.0");
 
         // Same type twice
-        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci-1")).unwrap();
-        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.8, "ci-2")).unwrap();
+        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci-1"))
+            .unwrap();
+        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.8, "ci-2"))
+            .unwrap();
 
         let result = gate.finalize(&id);
         assert!(result.is_err());
@@ -723,8 +745,13 @@ mod tests {
         let mut gate = EvidenceGate::new(test_config());
         let id = gate.propose("p1", "skill", "1.0", "2.0");
 
-        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci")).unwrap();
-        gate.add_evidence(&id, Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer")).unwrap();
+        gate.add_evidence(&id, Evidence::new(EvidenceType::TestPass, 0.9, "ci"))
+            .unwrap();
+        gate.add_evidence(
+            &id,
+            Evidence::new(EvidenceType::PeerReview, 0.9, "reviewer"),
+        )
+        .unwrap();
         gate.finalize(&id).unwrap();
 
         let stats = gate.stats();

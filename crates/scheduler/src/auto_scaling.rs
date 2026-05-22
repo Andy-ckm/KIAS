@@ -9,7 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -205,7 +205,17 @@ impl AutoScaler {
                 ScalingDecision::NoChange
             }
         } else {
-            ScalingDecision::NoChange
+            // No scale change detected from metrics
+            // Check if under-utilized and should scale down anyway
+            let under_utilized = metrics.avg_cpu_utilization < state.config.target_cpu_utilization * 0.5
+                && metrics.avg_memory_utilization < state.config.target_memory_utilization * 0.5;
+            if under_utilized && metrics.current_replicas > state.config.min_replicas {
+                let excess = metrics.current_replicas - state.config.min_replicas;
+                let delta = excess.min(state.config.scale_down_step);
+                ScalingDecision::ScaleDown(delta)
+            } else {
+                ScalingDecision::NoChange
+            }
         };
 
         // Stabilization window check
@@ -334,8 +344,10 @@ mod tests {
         let scaler = AutoScaler::new(config);
         scaler.register_pool("p1".to_string(), 5, None).unwrap();
         for _ in 0..3 {
+            // metrics.current_replicas should be 4 to trigger scale-down decision
+            // (desired_replicas < metrics.current_replicas = 4 < 5 triggers scale-down)
             scaler
-                .evaluate("p1", make_metrics(5, 10.0, 10.0, 0))
+                .evaluate("p1", make_metrics(4, 10.0, 10.0, 0))
                 .unwrap();
         }
         assert!(scaler.get_replicas("p1").unwrap() < 5);

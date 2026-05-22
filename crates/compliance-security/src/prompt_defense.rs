@@ -115,7 +115,7 @@ const DETECTION_RULES: &[DetectionRule] = &[
     },
     DetectionRule {
         name: "data_exfiltration",
-        pattern: r"(?i)(send|post|upload|transmit|forward)\s+(this|all|the)\s+(data|info|context|prompt|conversation)\s+(to|via|through)",
+        pattern: r"(?i)(send|post|upload|transmit|forward)\s+(this|all|the|all\s+the)\s+(data|info|context|prompt|conversation)\s+(to|via|through)",
         severity: InjectionSeverity::Critical,
         description: "Attempt to exfiltrate conversation data",
     },
@@ -139,7 +139,7 @@ const DETECTION_RULES: &[DetectionRule] = &[
     },
     DetectionRule {
         name: "tool_abuse",
-        pattern: r"(?i)(call|invoke|execute|use|run)\s+(the\s+)?(tool|function|api|command|shell|bash|exec)\s*(to|for|that)",
+        pattern: r"(?i)(call|invoke|execute|use|run)\s+(the\s+)?(tool|function|api|command|shell|bash|exec)(\s+(command|call|script|tool|file))?\s*(to|for|that)",
         severity: InjectionSeverity::Medium,
         description: "Attempt to manipulate tool usage",
     },

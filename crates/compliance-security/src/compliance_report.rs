@@ -10,7 +10,6 @@
 //! Reference: ICH E6(R2) Section 5.5 "Trial Management, Data Handling, and Record Keeping"
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Report type.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

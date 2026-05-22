@@ -34,7 +34,9 @@ pub enum PatchSeverity {
 /// 补丁管理器
 pub struct PatchManager {
     package_manager: PackageManager,
+    #[allow(dead_code)]
     auto_reboot: bool,
+    #[allow(dead_code)]
     exclude_packages: Vec<String>,
 }
 

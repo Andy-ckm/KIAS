@@ -50,3 +50,13 @@ vendor/
 # 系统文件
 .DS_Store
 Thumbs.db
+cargo-target/
+kias.db
+.agentguard.db
+.agentguard-state.db
+.dev-state
+.dev-insights.md
+.dev-tasks.yaml
+.matrix-qa-marker
+.research-queue.yaml
+target-worktree/

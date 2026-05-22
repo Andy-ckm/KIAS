@@ -11,7 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 /// Hallucination severity classification.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -39,7 +39,10 @@ impl HallucinationLevel {
 
     /// Returns true if this level requires human review.
     pub fn requires_review(&self) -> bool {
-        matches!(self, HallucinationLevel::High | HallucinationLevel::Critical)
+        matches!(
+            self,
+            HallucinationLevel::High | HallucinationLevel::Critical
+        )
     }
 
     /// Returns true if this level should be blocked.
@@ -109,7 +112,7 @@ pub struct InvalidCitation {
     pub reason: CitationFailureReason,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CitationFailureReason {
     /// Citation key not found in any source
     NotFound,
@@ -180,7 +183,10 @@ pub struct FactCheck {
 impl FactCheck {
     /// Create a new FactCheck with given sources.
     pub fn new(sources: Vec<Source>) -> Self {
-        Self { sources, match_threshold: 0.75 }
+        Self {
+            sources,
+            match_threshold: 0.75,
+        }
     }
 
     /// Set the similarity match threshold.
@@ -196,7 +202,7 @@ impl FactCheck {
         let mut claims = Vec::new();
         let mut claim_counter = 0u64;
 
-        for sentence in text.split(|c| c == '.' || c == '!' || c == '?') {
+        for sentence in text.split(['.', '!', '?']) {
             let sentence = sentence.trim();
             if sentence.len() < 10 {
                 continue; // Skip very short fragments
@@ -210,7 +216,8 @@ impl FactCheck {
                     r.captures_iter(sentence)
                         .filter_map(|c| c.get(1).map(|m| m.as_str().to_string()))
                         .collect()
-                }).unwrap_or_default()
+                })
+                .unwrap_or_default()
             } else {
                 // Look for "source-N" patterns
                 let re = regex::Regex::new(r"(?i)source[-_]?(\w+)").ok();
@@ -218,7 +225,8 @@ impl FactCheck {
                     r.captures_iter(sentence)
                         .filter_map(|c| c.get(1).map(|m| format!("source-{}", m.as_str())))
                         .collect()
-                }).unwrap_or_default()
+                })
+                .unwrap_or_default()
             };
 
             claim_counter += 1;
@@ -256,17 +264,18 @@ impl FactCheck {
                 .filter(|w| w.len() > 4)
                 .collect();
 
-            let overlap: f64 = claim_words
-                .intersection(&source_words)
-                .count() as f64
+            let overlap: f64 = claim_words.intersection(&source_words).count() as f64
                 / claim_words.len().max(1) as f64;
 
-            if overlap > self.match_threshold {
+            if overlap >= self.match_threshold {
                 matched_sources += 1;
                 consistency_score += overlap;
             } else if overlap < 0.1 && claim_words.len() > 3 {
                 // Very low overlap may indicate a conflict
-                if !source_lower.split_whitespace().any(|w| claim_words.contains(w)) {
+                if !source_lower
+                    .split_whitespace()
+                    .any(|w| claim_words.contains(w))
+                {
                     conflicting.push(claim.id.clone());
                 }
             }
@@ -308,7 +317,9 @@ pub struct CitationCheck {
 impl CitationCheck {
     /// Create with known sources.
     pub fn new(sources: Vec<Source>) -> Self {
-        Self { known_sources: sources }
+        Self {
+            known_sources: sources,
+        }
     }
 
     /// Validate citations referenced in claims against known sources.
@@ -360,7 +371,9 @@ pub struct ConflictDetection {
 impl ConflictDetection {
     /// Create a new ConflictDetection instance.
     pub fn new() -> Self {
-        Self { numeric_claims: HashMap::new() }
+        Self {
+            numeric_claims: HashMap::new(),
+        }
     }
 
     /// Detect conflicts in a list of claims.
@@ -372,9 +385,14 @@ impl ConflictDetection {
             // Try to extract entity-number pairs
             if let Some((entity, number)) = self.extract_numeric_claim(&claim.text) {
                 if let Some(&prev) = seen.iter().find(|c| {
-                    self.extract_numeric_claim(&c.text).map(|(e, _)| e == entity).unwrap_or(false)
+                    self.extract_numeric_claim(&c.text)
+                        .map(|(e, _)| e == entity)
+                        .unwrap_or(false)
                 }) {
-                    let prev_num = self.extract_numeric_claim(&prev.text).expect("numeric claim should exist").1;
+                    let prev_num = self
+                        .extract_numeric_claim(&prev.text)
+                        .expect("numeric claim should exist")
+                        .1;
                     let diff = (number - prev_num).abs();
                     let avg = (number + prev_num) / 2.0;
                     let relative_diff = if avg > 0.0 { diff / avg } else { diff };
@@ -385,7 +403,10 @@ impl ConflictDetection {
                             claim_b: prev.id.clone(),
                             description: format!(
                                 "Conflicting values for '{}': {} vs {} ({:.1}% difference)",
-                                entity, prev_num, number, relative_diff * 100.0
+                                entity,
+                                prev_num,
+                                number,
+                                relative_diff * 100.0
                             ),
                             severity: relative_diff.min(1.0),
                         });
@@ -420,7 +441,8 @@ impl ConflictDetection {
     /// Extract "entity is N" style numeric claims.
     fn extract_numeric_claim(&self, text: &str) -> Option<(String, f64)> {
         // Simple pattern: "X is/was/were N" or "X: N"
-        let re = regex::Regex::new(r"(?i)([A-Z][a-z]+)\s+(?:is|was|were|:)\s+(\d+(?:\.\d+)?)").ok()?;
+        let re =
+            regex::Regex::new(r"(?i)([A-Z][a-z]+)\s+(?:is|was|were|:)\s+(\d+(?:\.\d+)?)").ok()?;
         let caps = re.captures(text)?;
         let entity = caps.get(1)?.as_str().to_string();
         let number: f64 = caps.get(2)?.as_str().parse().ok()?;
@@ -435,14 +457,10 @@ impl ConflictDetection {
         if a_has_neg != b_has_neg {
             // One is negated, one is not — possible contradiction
             // Check for shared significant words
-            let words_a: std::collections::HashSet<_> = text_a
-                .split_whitespace()
-                .filter(|w| w.len() > 5)
-                .collect();
-            let words_b: std::collections::HashSet<_> = text_b
-                .split_whitespace()
-                .filter(|w| w.len() > 5)
-                .collect();
+            let words_a: std::collections::HashSet<_> =
+                text_a.split_whitespace().filter(|w| w.len() > 5).collect();
+            let words_b: std::collections::HashSet<_> =
+                text_b.split_whitespace().filter(|w| w.len() > 5).collect();
             let shared = words_a.intersection(&words_b).count();
             return shared >= 2;
         }
@@ -496,20 +514,12 @@ impl TrustworthinessEvaluator {
         let conflicts = self.conflict_detection.detect(&claims);
 
         // Compute hallucination level
-        let hallucination_level = self.compute_hallucination_level(
-            &claims,
-            &fact_checks,
-            &citation_check,
-            &conflicts,
-        );
+        let hallucination_level =
+            self.compute_hallucination_level(&claims, &fact_checks, &citation_check, &conflicts);
 
         // Compute overall score
-        let overall_score = self.compute_overall_score(
-            &claims,
-            &fact_checks,
-            &citation_check,
-            &conflicts,
-        );
+        let overall_score =
+            self.compute_overall_score(&claims, &fact_checks, &citation_check, &conflicts);
 
         let warnings = self.generate_warnings(
             &claims,
@@ -519,6 +529,9 @@ impl TrustworthinessEvaluator {
             &hallucination_level,
         );
 
+        let should_block = hallucination_level.should_block();
+        let requires_review = hallucination_level.requires_review();
+
         TrustworthinessReport {
             hallucination_level,
             claims,
@@ -526,8 +539,8 @@ impl TrustworthinessEvaluator {
             citation_check,
             conflicts,
             overall_score,
-            should_block: HallucinationLevel::Critical.requires_review(),
-            requires_review: HallucinationLevel::High.requires_review(),
+            should_block,
+            requires_review,
             warnings,
             evaluated_at: SystemTime::now(),
         }
@@ -540,10 +553,7 @@ impl TrustworthinessEvaluator {
         citation_check: &CitationCheckResult,
         conflicts: &[Conflict],
     ) -> HallucinationLevel {
-        let unsupported_count = fact_checks
-            .iter()
-            .filter(|v| !v.consistent)
-            .count();
+        let unsupported_count = fact_checks.iter().filter(|v| !v.consistent).count();
 
         let conflict_count = conflicts.len();
         let citation_valid = citation_check.valid;
@@ -551,9 +561,13 @@ impl TrustworthinessEvaluator {
         // Determine level
         if unsupported_count as f64 / claims.len().max(1) as f64 > 0.6 || conflict_count >= 3 {
             HallucinationLevel::Critical
-        } else if unsupported_count as f64 / claims.len().max(1) as f64 > 0.3 || conflict_count >= 2 {
+        } else if unsupported_count as f64 / claims.len().max(1) as f64 > 0.3 || conflict_count >= 2
+        {
             HallucinationLevel::High
-        } else if unsupported_count as f64 / claims.len().max(1) as f64 > 0.1 || !citation_valid || conflict_count >= 1 {
+        } else if unsupported_count as f64 / claims.len().max(1) as f64 > 0.1
+            || !citation_valid
+            || conflict_count >= 1
+        {
             HallucinationLevel::Medium
         } else {
             HallucinationLevel::Low
@@ -571,11 +585,8 @@ impl TrustworthinessEvaluator {
             return 0.5; // No claims to evaluate
         }
 
-        let fact_score: f64 = fact_checks
-            .iter()
-            .map(|v| v.confidence)
-            .sum::<f64>()
-            / fact_checks.len() as f64;
+        let fact_score: f64 =
+            fact_checks.iter().map(|v| v.confidence).sum::<f64>() / fact_checks.len() as f64;
 
         let conflict_penalty = (conflicts.len() as f64 * 0.1).min(0.5);
         let citation_bonus = if citation_check.valid { 0.1 } else { 0.0 };
@@ -602,7 +613,10 @@ impl TrustworthinessEvaluator {
         }
 
         for v in fact_checks.iter().filter(|v| !v.consistent) {
-            warnings.push(format!("Unsupported claim: {} ({})", v.claim_id, v.explanation));
+            warnings.push(format!(
+                "Unsupported claim: {} ({})",
+                v.claim_id, v.explanation
+            ));
         }
 
         if !citation_check.valid {
@@ -636,7 +650,8 @@ mod tests {
         vec![
             Source {
                 key: "source-1".to_string(),
-                content: "The capital of France is Paris. Paris has a population of 2.1 million.".to_string(),
+                content: "The capital of France is Paris. Paris has a population of 2.1 million."
+                    .to_string(),
                 url: None,
             },
             Source {
@@ -716,17 +731,15 @@ mod tests {
     fn test_citation_check_all_valid() {
         let sources = make_sources();
         let cc = CitationCheck::new(sources.clone());
-        let claims = vec![
-            Claim {
-                id: "c1".to_string(),
-                text: "Paris is the capital [source-1].".to_string(),
-                has_citation: true,
-                citation_keys: vec!["source-1".to_string()],
-                verified: None,
-                support_score: 0.0,
-                source_span: "Paris is the capital".to_string(),
-            },
-        ];
+        let claims = vec![Claim {
+            id: "c1".to_string(),
+            text: "Paris is the capital [source-1].".to_string(),
+            has_citation: true,
+            citation_keys: vec!["source-1".to_string()],
+            verified: None,
+            support_score: 0.0,
+            source_span: "Paris is the capital".to_string(),
+        }];
         let result = cc.validate(&claims);
         assert!(result.valid);
         assert!(result.invalid_citations.is_empty());
@@ -737,17 +750,15 @@ mod tests {
     fn test_citation_check_invalid_key() {
         let sources = make_sources();
         let cc = CitationCheck::new(sources);
-        let claims = vec![
-            Claim {
-                id: "c1".to_string(),
-                text: "Something [fake-source].".to_string(),
-                has_citation: true,
-                citation_keys: vec!["fake-source".to_string()],
-                verified: None,
-                support_score: 0.0,
-                source_span: "Something".to_string(),
-            },
-        ];
+        let claims = vec![Claim {
+            id: "c1".to_string(),
+            text: "Something [fake-source].".to_string(),
+            has_citation: true,
+            citation_keys: vec!["fake-source".to_string()],
+            verified: None,
+            support_score: 0.0,
+            source_span: "Something".to_string(),
+        }];
         let result = cc.validate(&claims);
         assert!(!result.valid);
         assert_eq!(result.invalid_citations.len(), 1);
@@ -901,5 +912,261 @@ mod tests {
         // All correct
         let report = evaluator.evaluate("The capital of France is Paris [source-1]. Water boils at 100 degrees Celsius [source-2].");
         assert!(report.overall_score >= 0.0 && report.overall_score <= 1.0);
+    }
+
+    // ── HallucinationLevel::as_str() all variants ──────────────────────
+
+    #[test]
+    fn test_hallucination_level_as_str_all() {
+        assert_eq!(HallucinationLevel::Low.as_str(), "low");
+        assert_eq!(HallucinationLevel::Medium.as_str(), "medium");
+        assert_eq!(HallucinationLevel::High.as_str(), "high");
+        assert_eq!(HallucinationLevel::Critical.as_str(), "critical");
+    }
+
+    // ── HallucinationLevel::Display ────────────────────────────────────
+
+    #[test]
+    fn test_hallucination_level_display() {
+        assert_eq!(format!("{}", HallucinationLevel::Low), "low");
+        assert_eq!(format!("{}", HallucinationLevel::Critical), "critical");
+    }
+
+    // ── HallucinationLevel serde ───────────────────────────────────────
+
+    #[test]
+    fn test_hallucination_level_serde_roundtrip() {
+        let levels = vec![
+            HallucinationLevel::Low,
+            HallucinationLevel::Medium,
+            HallucinationLevel::High,
+            HallucinationLevel::Critical,
+        ];
+        for level in levels {
+            let json = serde_json::to_string(&level).unwrap();
+            let decoded: HallucinationLevel = serde_json::from_str(&json).unwrap();
+            assert_eq!(level, decoded);
+        }
+    }
+
+    // ── FactCheck::with_threshold ──────────────────────────────────────
+
+    #[test]
+    fn test_fact_check_with_threshold() {
+        let sources = make_sources();
+        let fc = FactCheck::new(sources).with_threshold(0.5);
+        // Lower threshold should match more claims
+        let claims = fc.extract_claims("The capital of France is Paris [source-1].");
+        let verification = fc.verify_claim(&claims[0]);
+        assert!(verification.consistent);
+    }
+
+    // ── FactCheck::verify_all ──────────────────────────────────────────
+
+    #[test]
+    fn test_fact_check_verify_all() {
+        let sources = make_sources();
+        let fc = FactCheck::new(sources);
+        let claims = fc.extract_claims(
+            "The capital of France is Paris [source-1]. Something totally made up.",
+        );
+        let verifications = fc.verify_all(&claims);
+        assert_eq!(verifications.len(), claims.len());
+    }
+
+    // ── TrustworthinessEvaluator::with_match_threshold ─────────────────
+
+    #[test]
+    fn test_evaluator_with_match_threshold() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources).with_match_threshold(0.5);
+        let report = evaluator.evaluate("The capital of France is Paris [source-1].");
+        assert!(report.overall_score > 0.0);
+    }
+
+    // ── Empty text evaluation ──────────────────────────────────────────
+
+    #[test]
+    fn test_evaluate_empty_text() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let report = evaluator.evaluate("");
+        assert!(report.claims.is_empty());
+        assert_eq!(report.overall_score, 0.5); // No claims = neutral
+    }
+
+    #[test]
+    fn test_evaluate_very_short_text() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let report = evaluator.evaluate("Hi.");
+        // "Hi." is too short (<10 chars) to be a claim
+        assert!(report.claims.is_empty());
+    }
+
+    // ── Source with URL ────────────────────────────────────────────────
+
+    #[test]
+    fn test_source_with_url() {
+        let source = Source {
+            key: "src-1".to_string(),
+            content: "Test content".to_string(),
+            url: Some("https://example.com".to_string()),
+        };
+        let json = serde_json::to_string(&source).unwrap();
+        assert!(json.contains("https://example.com"));
+        let decoded: Source = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.url, Some("https://example.com".to_string()));
+    }
+
+    // ── ClaimVerification serde ────────────────────────────────────────
+
+    #[test]
+    fn test_claim_verification_serde_roundtrip() {
+        let cv = ClaimVerification {
+            claim_id: "c1".to_string(),
+            consistent: true,
+            confidence: 0.85,
+            explanation: "Supported by 2 sources".to_string(),
+            conflicting_claims: vec!["c2".to_string()],
+        };
+        let json = serde_json::to_string(&cv).unwrap();
+        let decoded: ClaimVerification = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.claim_id, "c1");
+        assert!(decoded.consistent);
+        assert!((decoded.confidence - 0.85).abs() < 1e-10);
+        assert_eq!(decoded.conflicting_claims, vec!["c2".to_string()]);
+    }
+
+    // ── InvalidCitation serde ──────────────────────────────────────────
+
+    #[test]
+    fn test_invalid_citation_serde_roundtrip() {
+        let ic = InvalidCitation {
+            key: "fake".to_string(),
+            reason: CitationFailureReason::NotFound,
+        };
+        let json = serde_json::to_string(&ic).unwrap();
+        let decoded: InvalidCitation = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.key, "fake");
+        assert_eq!(decoded.reason, CitationFailureReason::NotFound);
+    }
+
+    // ── CitationFailureReason serde ────────────────────────────────────
+
+    #[test]
+    fn test_citation_failure_reason_serde() {
+        let reason = CitationFailureReason::NotFound;
+        let json = serde_json::to_string(&reason).unwrap();
+        let decoded: CitationFailureReason = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, CitationFailureReason::NotFound);
+    }
+
+    // ── Conflict serde ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_conflict_serde_roundtrip() {
+        let conflict = Conflict {
+            claim_a: "c1".to_string(),
+            claim_b: "c2".to_string(),
+            description: "Numeric mismatch".to_string(),
+            severity: 0.75,
+        };
+        let json = serde_json::to_string(&conflict).unwrap();
+        let decoded: Conflict = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.claim_a, "c1");
+        assert!((decoded.severity - 0.75).abs() < 1e-10);
+    }
+
+    // ── CitationCheck edge cases ───────────────────────────────────────
+
+    #[test]
+    fn test_citation_check_no_citations_at_all() {
+        let sources = make_sources();
+        let cc = CitationCheck::new(sources);
+        let claims = vec![Claim {
+            id: "c1".to_string(),
+            text: "No citations here".to_string(),
+            has_citation: false,
+            citation_keys: vec![],
+            verified: None,
+            support_score: 0.0,
+            source_span: "No citations".to_string(),
+        }];
+        let result = cc.validate(&claims);
+        assert!(result.valid); // No invalid citations
+        assert_eq!(result.coverage_score, 0.5); // Neutral
+    }
+
+    // ── ConflictDetection edge cases ───────────────────────────────────
+
+    #[test]
+    fn test_conflict_detection_empty_claims() {
+        let cd = ConflictDetection::new();
+        let conflicts = cd.detect(&[]);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_conflict_detection_no_numeric_claims() {
+        let cd = ConflictDetection::new();
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris is beautiful".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is beautiful".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Berlin is modern".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Berlin is modern".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        assert!(conflicts.is_empty());
+    }
+
+    // ── Evaluate fully unsupported claims ──────────────────────────────
+
+    #[test]
+    fn test_evaluate_all_unsupported() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let text = "The moon is made of cheese. Dragons exist in Antarctica.";
+        let report = evaluator.evaluate(text);
+        // These claims don't match any source
+        assert!(report.hallucination_level >= HallucinationLevel::Medium);
+    }
+
+    // ── Evaluate with conflicts ────────────────────────────────────────
+
+    #[test]
+    fn test_evaluate_numeric_conflict() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let text = "The Population is 50. The Population is 200.";
+        let report = evaluator.evaluate(text);
+        assert!(!report.conflicts.is_empty());
+    }
+
+    // ── TrustworthinessReport serde ────────────────────────────────────
+
+    #[test]
+    fn test_trustworthiness_report_serde_roundtrip() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let report = evaluator.evaluate("The capital of France is Paris [source-1].");
+        let json = serde_json::to_string(&report).unwrap();
+        let decoded: TrustworthinessReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.claims.len(), report.claims.len());
+        assert!((decoded.overall_score - report.overall_score).abs() < 1e-10);
     }
 }

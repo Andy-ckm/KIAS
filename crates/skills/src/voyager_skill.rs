@@ -189,14 +189,14 @@ impl SkillLibrary {
         // Update category index
         self.category_index
             .entry(skill.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(skill.id.clone());
 
         // Update tag index
         for tag in &skill.tags {
             self.tag_index
                 .entry(tag.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(skill.id.clone());
         }
 

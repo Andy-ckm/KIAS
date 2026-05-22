@@ -18,6 +18,7 @@ pub mod quality_gate;
 pub mod recursive_decomposer;
 pub mod self_boundary;
 pub mod self_dev;
+pub mod self_repair;
 pub mod side_effect_gate;
 pub mod task_decomposer;
 pub mod tool_aware_intent;

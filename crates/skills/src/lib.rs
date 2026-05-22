@@ -2,6 +2,7 @@ pub mod builtin;
 pub mod composition;
 pub mod curator;
 pub mod distillation;
+pub mod evidence_gate;
 pub mod pipeline;
 pub mod precondition;
 pub mod registry;

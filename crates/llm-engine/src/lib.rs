@@ -7,8 +7,10 @@
 //! - 失败重试和降级
 
 pub mod cost;
+pub mod output_validator;
 pub mod provider;
 pub mod streaming;
+pub mod trustworthiness;
 pub mod types;
 
 pub use cost::{AgentCostSummary, CostTracker};

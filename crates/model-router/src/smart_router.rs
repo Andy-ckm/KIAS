@@ -354,7 +354,7 @@ impl SmartRouter {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let selected = candidates.first().unwrap();
+        let selected = candidates.first().expect("candidates should not be empty");
         let mut reasoning = Vec::new();
 
         // Generate reasoning

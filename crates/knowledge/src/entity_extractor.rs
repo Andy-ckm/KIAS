@@ -66,7 +66,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:works?\s+at|employed\s+by|is\s+at)\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -76,7 +76,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:invested?\s+in|backed|funded)\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -86,7 +86,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:founded|co-founded|started|created)\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -96,7 +96,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:advises?|advisor\s+(?:to|of)|board\s+member\s+(?:of|at))\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -106,7 +106,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:attended|participated\s+in|joined)\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -116,7 +116,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"(?i)([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+and\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s+[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+(?:collaborated|worked\s+together|partnered)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -126,7 +126,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"([\u{4e00}-\u{9fff}]+)\s+在\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s*[A-Za-z\u{4e00}-\u{9fff}]+)*)\s+工作",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -136,7 +136,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"([\u{4e00}-\u{9fff}]+)\s+创办了?\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s*[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },
@@ -146,7 +146,7 @@ impl EntityExtractor {
                 pattern: Regex::new(
                     r"([\u{4e00}-\u{9fff}]+)\s+投资了?\s+([A-Za-z\u{4e00}-\u{9fff}]+(?:\s*[A-Za-z\u{4e00}-\u{9fff}]+)*)",
                 )
-                .unwrap(),
+                .expect("valid regex pattern"),
                 subject_group: 1,
                 object_group: 2,
             },

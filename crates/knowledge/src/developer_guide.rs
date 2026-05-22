@@ -290,9 +290,7 @@ impl GuideRegistry {
         let id = guide.id.clone();
         self.guides.insert(id.clone(), guide);
         self.by_tag.insert("beginner".to_string(), vec![id.clone()]);
-        self.guides
-            .get(&id)
-            .ok_or_else(|| GuideError::NotFound(id))
+        self.guides.get(&id).ok_or_else(|| GuideError::NotFound(id))
     }
 }
 

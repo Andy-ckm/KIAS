@@ -339,7 +339,7 @@ impl MemoryGovernance {
             .filter(|(_, e)| e.category == category)
             .collect();
         
-        category_memories.sort_by(|a, b| b.trust.0.partial_cmp(&a.trust.0).unwrap());
+        category_memories.sort_by(|a, b| b.trust.0.partial_cmp(&a.trust.0).unwrap_or(std::cmp::Ordering::Equal));
         
         let mut to_remove = Vec::new();
         let mut seen_content: HashMap<String, String> = HashMap::new();

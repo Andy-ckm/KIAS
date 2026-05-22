@@ -288,15 +288,18 @@ impl SecretPatternDetector {
             ),
             (
                 "Private Key Header".to_string(),
-                regex::Regex::new(r"-----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----").expect("invalid private key pattern"),
+                regex::Regex::new(r"-----BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY-----")
+                    .expect("invalid private key pattern"),
             ),
             (
                 "JWT Token".to_string(),
-                regex::Regex::new(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*").expect("invalid JWT pattern"),
+                regex::Regex::new(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*")
+                    .expect("invalid JWT pattern"),
             ),
             (
                 "Slack Token".to_string(),
-                regex::Regex::new(r"xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*").expect("invalid Slack token pattern"),
+                regex::Regex::new(r"xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*")
+                    .expect("invalid Slack token pattern"),
             ),
             (
                 "Stripe Key".to_string(),

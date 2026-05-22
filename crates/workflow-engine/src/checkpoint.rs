@@ -742,7 +742,7 @@ impl<'a> CheckpointRecovery<'a> {
             return Ok(None);
         }
 
-        let last = records.last().unwrap();
+        let last = records.last().expect("records should not be empty");
         let info = WalWorkflowInfo {
             workflow_id: workflow_id.to_string(),
             last_node_id: last.node_id.clone(),

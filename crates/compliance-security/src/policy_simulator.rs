@@ -344,7 +344,11 @@ impl PolicySimulator {
         }
 
         // Use the highest-risk matching rule
-        matched_rules.sort_by(|a, b| b.risk_score.partial_cmp(&a.risk_score).unwrap());
+        matched_rules.sort_by(|a, b| {
+            b.risk_score
+                .partial_cmp(&a.risk_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let rule = matched_rules.remove(0);
 
         let (matched, failed): (Vec<_>, Vec<_>) = rule
@@ -457,8 +461,8 @@ impl PolicySimulator {
         // If version comparison was requested, compute diff
         if request.baseline_version.is_some() && request.new_version.is_some() {
             let diff = self.compute_diff(
-                request.baseline_version.as_deref().unwrap(),
-                request.new_version.as_deref().unwrap(),
+                request.baseline_version.as_deref().unwrap_or(""),
+                request.new_version.as_deref().unwrap_or(""),
                 &request,
             );
             report = report.with_diff(diff);

@@ -19,7 +19,7 @@ impl TraceId {
     pub fn new() -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos();
         let random: u64 = rand_simple();
         Self(format!("{:x}-{:x}", timestamp, random))
@@ -65,7 +65,7 @@ impl SpanId {
     pub fn new() -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos();
         Self(format!("{:016x}", timestamp))
     }
@@ -110,7 +110,7 @@ impl TraceContext {
     pub fn new_root(service_name: String, operation_name: String) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos() as u64;
         
         Self {
@@ -128,7 +128,7 @@ impl TraceContext {
     pub fn child_span(&self, operation_name: String) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos() as u64;
         
         Self {
@@ -183,7 +183,7 @@ impl TraceContext {
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos() as u64;
 
         Ok(Self {

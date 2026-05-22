@@ -287,7 +287,8 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("dev-sandbox")
+        self.sandboxes
+            .get("dev-sandbox")
             .ok_or_else(|| SandboxError::NotFound("dev-sandbox".to_string()))
     }
 
@@ -311,7 +312,8 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("test-sandbox")
+        self.sandboxes
+            .get("test-sandbox")
             .ok_or_else(|| SandboxError::NotFound("test-sandbox".to_string()))
     }
 
@@ -333,7 +335,8 @@ impl SandboxRegistry {
             .build();
         let name = config.name.clone();
         self.sandboxes.insert(name, config);
-        self.sandboxes.get("prod-sandbox")
+        self.sandboxes
+            .get("prod-sandbox")
             .ok_or_else(|| SandboxError::NotFound("prod-sandbox".to_string()))
     }
 }

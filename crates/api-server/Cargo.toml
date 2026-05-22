@@ -3,6 +3,9 @@ name = "kias-api-server"
 version.workspace = true
 edition.workspace = true
 
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("contract-yaml"))'] }
+
 [[bin]]
 name = "kias-api-server"
 path = "src/main.rs"

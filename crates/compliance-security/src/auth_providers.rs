@@ -394,6 +394,7 @@ impl AuthProvider for JwtProvider {
 
 /// OAuth 2.0 introspection-based provider.
 /// Validates access tokens by calling the token introspection endpoint.
+#[allow(dead_code)]
 pub struct OAuth2Provider {
     /// Token introspection endpoint URL.
     introspection_url: String,
@@ -457,6 +458,7 @@ pub struct ScramProvider {
     users: HashMap<String, ScramUser>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ScramUser {
     subject: String,
@@ -556,6 +558,7 @@ pub struct ApiKeyProvider {
     keys: HashMap<String, ApiKeyEntry>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ApiKeyEntry {
     subject: String,

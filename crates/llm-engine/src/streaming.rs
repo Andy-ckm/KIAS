@@ -686,4 +686,178 @@ mod tests {
             assert_eq!(json, json2);
         }
     }
+
+    // ── get_tool_calls edge cases ───────────────────────────────────────
+
+    #[test]
+    fn test_get_tool_calls_malformed_json_fallback() {
+        let mut proc = StreamProcessor::new();
+
+        // Directly manipulate internal state to have malformed JSON
+        proc.current_tool_calls.insert(
+            "call_bad".to_string(),
+            ToolCallState {
+                id: "call_bad".to_string(),
+                name: "test_fn".to_string(),
+                arguments: "not valid json {{{".to_string(),
+            },
+        );
+
+        let results = proc.get_tool_calls();
+        assert_eq!(results.len(), 1);
+        // Invalid JSON should fall back to Null
+        assert_eq!(results[0].arguments, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_get_tool_calls_valid_json_object() {
+        let mut proc = StreamProcessor::new();
+        proc.current_tool_calls.insert(
+            "call_obj".to_string(),
+            ToolCallState {
+                id: "call_obj".to_string(),
+                name: "get_weather".to_string(),
+                arguments: r#"{"city":"Beijing","units":"celsius"}"#.to_string(),
+            },
+        );
+
+        let results = proc.get_tool_calls();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "get_weather");
+        assert_eq!(results[0].arguments["city"], "Beijing");
+        assert_eq!(results[0].arguments["units"], "celsius");
+    }
+
+    #[test]
+    fn test_get_tool_calls_empty_arguments() {
+        let mut proc = StreamProcessor::new();
+        proc.current_tool_calls.insert(
+            "call_empty".to_string(),
+            ToolCallState {
+                id: "call_empty".to_string(),
+                name: "ping".to_string(),
+                arguments: String::new(),
+            },
+        );
+
+        let results = proc.get_tool_calls();
+        assert_eq!(results.len(), 1);
+        // Empty string parses as "null" in JSON
+        assert_eq!(results[0].arguments, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_process_chunk_tool_call_with_index_based_id() {
+        // When tool_call has id=None but index=5, id should be "call_5"
+        let mut proc = StreamProcessor::new();
+        let chunk = StreamChunk {
+            id: "test".to_string(),
+            model: "gpt-4o".to_string(),
+            choices: vec![StreamChoice {
+                index: 0,
+                delta: StreamDelta {
+                    role: None,
+                    content: None,
+                    tool_calls: Some(vec![StreamToolCall {
+                        index: 5,
+                        id: None,
+                        function: Some(StreamFunctionCall {
+                            name: Some("search".to_string()),
+                            arguments: None,
+                        }),
+                    }]),
+                },
+                finish_reason: None,
+            }],
+        };
+
+        let events = proc.process_chunk(&chunk);
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            StreamEvent::ToolCallStart { id, name } => {
+                assert_eq!(id, "call_5");
+                assert_eq!(name, "search");
+            }
+            _ => panic!("Expected ToolCallStart"),
+        }
+    }
+
+    #[test]
+    fn test_process_chunk_tool_call_id_with_special_chars() {
+        let mut proc = StreamProcessor::new();
+        let chunk = StreamChunk {
+            id: "test".to_string(),
+            model: "gpt-4o".to_string(),
+            choices: vec![StreamChoice {
+                index: 0,
+                delta: StreamDelta {
+                    role: None,
+                    content: None,
+                    tool_calls: Some(vec![StreamToolCall {
+                        index: 0,
+                        id: Some("call_abc-123_DEF".to_string()),
+                        function: Some(StreamFunctionCall {
+                            name: Some("test".to_string()),
+                            arguments: None,
+                        }),
+                    }]),
+                },
+                finish_reason: None,
+            }],
+        };
+
+        let events = proc.process_chunk(&chunk);
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            StreamEvent::ToolCallStart { id, name } => {
+                assert_eq!(id, "call_abc-123_DEF");
+            }
+            _ => panic!("Expected ToolCallStart"),
+        }
+
+        let results = proc.get_tool_calls();
+        assert_eq!(results[0].id, "call_abc-123_DEF");
+    }
+
+    #[test]
+    fn test_process_chunk_multiple_choices_only_first_processed() {
+        // StreamProcessor processes all choices in loop
+        let mut proc = StreamProcessor::new();
+        let chunk = StreamChunk {
+            id: "test".to_string(),
+            model: "gpt-4o".to_string(),
+            choices: vec![
+                StreamChoice {
+                    index: 0,
+                    delta: StreamDelta {
+                        role: None,
+                        content: Some("First".to_string()),
+                        tool_calls: None,
+                    },
+                    finish_reason: None,
+                },
+                StreamChoice {
+                    index: 1,
+                    delta: StreamDelta {
+                        role: None,
+                        content: Some("Second".to_string()),
+                        tool_calls: None,
+                    },
+                    finish_reason: None,
+                },
+            ],
+        };
+
+        let events = proc.process_chunk(&chunk);
+        // Both choices should produce Text events (loop over all choices)
+        assert_eq!(events.len(), 2);
+        match &events[0] {
+            StreamEvent::Text { content } => assert_eq!(content, "First"),
+            _ => panic!("Expected Text"),
+        }
+        match &events[1] {
+            StreamEvent::Text { content } => assert_eq!(content, "Second"),
+            _ => panic!("Expected Text"),
+        }
+    }
 }

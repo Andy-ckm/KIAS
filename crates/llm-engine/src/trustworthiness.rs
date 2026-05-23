@@ -1174,4 +1174,309 @@ mod tests {
         assert_eq!(decoded.claims.len(), report.claims.len());
         assert!((decoded.overall_score - report.overall_score).abs() < 1e-10);
     }
+
+    // ── ConflictDetection edge cases ───────────────────────────────────
+
+    #[test]
+    fn test_conflict_detection_decimal_numbers() {
+        let cd = ConflictDetection::new();
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris is 2.5".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 2.5".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Paris is 3.0".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 3.0".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        // 0.5 diff / 2.75 avg = 18.2% > 5% threshold → conflict detected
+        assert!(!conflicts.is_empty());
+        assert_eq!(conflicts[0].claim_a, "c1");
+        assert_eq!(conflicts[0].claim_b, "c2");
+    }
+
+    #[test]
+    fn test_conflict_detection_colon_separator() {
+        let cd = ConflictDetection::new();
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris: 100".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris: 100".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Paris: 200".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris: 200".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        // 100 diff / 150 avg = 66.7% > 5% → conflict
+        assert!(!conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_conflict_detection_below_threshold() {
+        let cd = ConflictDetection::new();
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris is 100".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 100".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Paris is 101".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 101".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        // 1 diff / 100.5 avg = 0.995% < 5% → no conflict
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_conflict_detection_exactly_at_threshold() {
+        let cd = ConflictDetection::new();
+        // Need a difference that's exactly 5%
+        // If first is 100, second needs to be 100 ± 5 = 95 or 105
+        // Let's use 95: diff=5, avg=97.5, 5/97.5 = 5.13% > 5%
+        // Actually 100 vs 105: diff=5, avg=102.5, 5/102.5 = 4.88% < 5% (no conflict)
+        // 100 vs 95: diff=5, avg=97.5, 5/97.5 = 5.13% > 5% (conflict)
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris is 100".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 100".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Paris is 95".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris is 95".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        // 5/97.5 = 5.13% > 5% → conflict
+        assert!(!conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_conflict_detection_was_variants() {
+        let cd = ConflictDetection::new();
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris was 100".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris was 100".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Paris was 200".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Paris was 200".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        assert!(!conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_conflict_detection_case_insensitive_entity() {
+        // Entity must start with [A-Z] followed by [a-z]+
+        let cd = ConflictDetection::new();
+        // "paris" (lowercase) should NOT match
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "paris is 100".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "paris is 100".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "paris is 200".to_string(),
+                has_citation: false,
+                citation_keys: vec![],
+                verified: None,
+                support_score: 0.0,
+                source_span: "paris is 200".to_string(),
+            },
+        ];
+        let conflicts = cd.detect(&claims);
+        // No entity with capital letter → no numeric extraction → no conflict
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_textual_contradiction_wont() {
+        let cd = ConflictDetection::new();
+        // "won't" contains "not" → should count as negation
+        let result = cd.textual_contradiction(
+            "It will work",
+            "It won't work",
+        );
+        assert!(result); // "work" (>5 chars) shared, one has "not"
+    }
+
+    #[test]
+    fn test_textual_contradiction_no_shared_words() {
+        let cd = ConflictDetection::new();
+        // No shared significant words (len > 5)
+        let result = cd.textual_contradiction(
+            "The sky is blue",
+            "The dog runs fast",
+        );
+        assert!(!result); // "blue" (4) and "sky"(3), "dog"(3) all < 5 chars
+    }
+
+    #[test]
+    fn test_textual_contradiction_both_negated() {
+        let cd = ConflictDetection::new();
+        // Both negated → no contradiction
+        let result = cd.textual_contradiction(
+            "The sky is not blue",
+            "The sky is not red",
+        );
+        assert!(!result); // Both have negation
+    }
+
+    // ── Source serde roundtrip ───────────────────────────────────────────
+
+    #[test]
+    fn test_source_serde_roundtrip() {
+        let source = Source {
+            key: "src-1".to_string(),
+            content: "Paris is the capital of France".to_string(),
+            url: None,
+        };
+        let json = serde_json::to_string(&source).unwrap();
+        let decoded: Source = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.key, "src-1");
+        assert_eq!(decoded.content, "Paris is the capital of France");
+        assert_eq!(decoded.url, None);
+    }
+
+    // ── FactCheck edge cases ───────────────────────────────────────────
+
+    #[test]
+    fn test_fact_check_verify_claim_not_in_sources() {
+        let sources = make_sources(); // only has Paris and water facts
+        let fc = FactCheck::new(sources);
+        let claims = fc.extract_claims("The Eiffel Tower is in Berlin.");
+        let verification = fc.verify_claim(&claims[0]);
+        // Not in sources → should be unsupported (consistent=false or neutral)
+        assert!(!verification.consistent || verification.confidence < 1.0);
+    }
+
+    #[test]
+    fn test_fact_check_extract_claims_no_citations() {
+        let sources = make_sources();
+        let fc = FactCheck::new(sources);
+        let claims = fc.extract_claims("Some random text with no citations.");
+        assert_eq!(claims.len(), 1);
+        assert!(!claims[0].has_citation);
+        assert!(claims[0].citation_keys.is_empty());
+    }
+
+    // ── TrustworthinessEvaluator edge cases ────────────────────────────
+
+    #[test]
+    fn test_evaluator_all_supported_claims() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        let report = evaluator.evaluate(
+            "The capital of France is Paris [source-1]. Water boils at 100 degrees Celsius [source-2].",
+        );
+        assert_eq!(report.claims.len(), 2);
+        assert_eq!(report.overall_score, 1.0); // All supported
+        assert!(report.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_evaluator_partial_support() {
+        let sources = make_sources();
+        let evaluator = TrustworthinessEvaluator::new(sources);
+        // One supported, one not
+        let report = evaluator.evaluate(
+            "The capital of France is Paris [source-1]. The sky is green.",
+        );
+        // Should have hallucination warning for "The sky is green"
+        assert!(!report.warnings.is_empty() || report.overall_score < 1.0);
+    }
+
+    #[test]
+    fn test_citation_check_partial_coverage() {
+        let sources = make_sources();
+        let cc = CitationCheck::new(sources);
+        let claims = vec![
+            Claim {
+                id: "c1".to_string(),
+                text: "Paris [source-1].".to_string(),
+                has_citation: true,
+                citation_keys: vec!["source-1".to_string()],
+                verified: Some(true),
+                support_score: 1.0,
+                source_span: "Paris".to_string(),
+            },
+            Claim {
+                id: "c2".to_string(),
+                text: "Unknown [fake].".to_string(),
+                has_citation: true,
+                citation_keys: vec!["fake".to_string()],
+                verified: None,
+                support_score: 0.0,
+                source_span: "Unknown".to_string(),
+            },
+        ];
+        let result = cc.validate(&claims);
+        assert!(!result.valid);
+        assert_eq!(result.invalid_citations.len(), 1);
+        assert_eq!(result.coverage_score, 0.5);
+    }
 }

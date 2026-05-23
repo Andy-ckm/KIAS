@@ -1333,4 +1333,118 @@ mod tests {
         assert!(!result.is_valid);
         assert_eq!(result.errors[0].code, ValidationErrorCode::TooFewItems);
     }
+
+    // ── Description builder and serde ─────────────────────────────────
+
+    #[test]
+    fn test_schema_description_builder() {
+        let schema = JsonSchema::string()
+            .min_length(1)
+            .max_length(100)
+            .description("A user name field");
+        
+        assert_eq!(schema.description, Some("A user name field".to_string()));
+        let json = serde_json::to_string(&schema).unwrap();
+        assert!(json.contains("A user name field"));
+    }
+
+    #[test]
+    fn test_validation_result_serde_roundtrip() {
+        let result = ValidationResult {
+            is_valid: false,
+            errors: vec![
+                ValidationError {
+                    path: "$.name".to_string(),
+                    message: "required field missing".to_string(),
+                    code: ValidationErrorCode::MissingRequired,
+                },
+            ],
+            parsed: Some(serde_json::json!({"name": "test"})),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let decoded: ValidationResult = serde_json::from_str(&json).unwrap();
+        assert!(!decoded.is_valid);
+        assert_eq!(decoded.errors.len(), 1);
+        assert_eq!(decoded.errors[0].path, "$.name");
+        assert!(decoded.parsed.is_some());
+    }
+
+    #[test]
+    fn test_validation_result_valid_roundtrip() {
+        let result = ValidationResult {
+            is_valid: true,
+            errors: vec![],
+            parsed: Some(serde_json::json!({"value": 42})),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let decoded: ValidationResult = serde_json::from_str(&json).unwrap();
+        assert!(decoded.is_valid);
+        assert!(decoded.errors.is_empty());
+        assert_eq!(decoded.parsed.unwrap()["value"], 42);
+    }
+
+    #[test]
+    fn test_validation_error_code_all_variants_serde() {
+        use ValidationErrorCode::*;
+        for code in [
+            ParseError,
+            TypeMismatch,
+            MissingRequired,
+            NotInEnum,
+            PatternMismatch,
+            BelowMinimum,
+            AboveMaximum,
+            TooShort,
+            TooLong,
+            TooFewItems,
+            TooManyItems,
+        ] {
+            let json = serde_json::to_string(&code).unwrap();
+            let decoded: ValidationErrorCode = serde_json::from_str(&json).unwrap();
+            assert_eq!(decoded, code);
+        }
+    }
+
+    #[test]
+    fn test_builder_chaining_all_methods() {
+        let schema = JsonSchema::object()
+            .property("name", JsonSchema::string().min_length(1).max_length(50).description("User name"))
+            .property("age", JsonSchema::integer().minimum(0.0).maximum(150.0))
+            .property("email", JsonSchema::string().pattern(r"^[\w]+@[\w]+\.[\w]+$"))
+            .property("tags", JsonSchema::array(JsonSchema::string()).min_items(0).max_items(10))
+            .required("name")
+            .required("email");
+
+        let validator = OutputValidator::new(schema);
+
+        // Valid object
+        let result = validator.validate(r#"{"name":"Alice","age":30,"email":"a@b.c","tags":[]}"#);
+        assert!(result.is_valid);
+
+        // Missing required
+        let result2 = validator.validate(r#"{"age":30}"#);
+        assert!(!result2.is_valid);
+        assert!(result2.errors.iter().any(|e| e.code == ValidationErrorCode::MissingRequired));
+
+        // Invalid pattern
+        let result3 = validator.validate(r#"{"name":"Alice","email":"invalid"}"#);
+        assert!(!result3.is_valid);
+        assert!(result3.errors.iter().any(|e| e.code == ValidationErrorCode::PatternMismatch));
+    }
+
+    #[test]
+    fn test_schema_serde_preserves_all_fields() {
+        let schema = JsonSchema::object()
+            .property("id", JsonSchema::integer())
+            .property("data", JsonSchema::object())
+            .required("id");
+
+        let json = serde_json::to_string(&schema).unwrap();
+        let decoded: JsonSchema = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(decoded.schema_type, SchemaType::Object);
+        assert!(decoded.properties.contains_key("id"));
+        assert!(decoded.properties.contains_key("data"));
+        assert!(decoded.required.contains(&"id".to_string()));
+    }
 }

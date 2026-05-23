@@ -64,6 +64,12 @@ pub const MIGRATIONS: &[Migration] = &[
         up_sql: include_str!("007_token_budgets.sql"),
         down_sql: "DROP TABLE IF EXISTS spend_alerts; DROP TABLE IF EXISTS token_usage; DROP TABLE IF EXISTS token_budgets;",
     },
+    Migration {
+        version: 8,
+        description: "Create idempotency keys table for API/task/retry end-to-end idempotency",
+        up_sql: include_str!("008_idempotency_keys.sql"),
+        down_sql: "",
+    },
 ];
 
 /// Manages database migrations.

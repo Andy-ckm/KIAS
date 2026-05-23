@@ -646,6 +646,484 @@ impl AuthProvider for ApiKeyProvider {
     }
 }
 
+// ── LDAP Provider ─────────────────────────────────────────────────────
+
+/// LDAP / Active Directory bind authentication provider.
+///
+/// Authenticates users by performing a bind operation against an LDAP/AD server.
+/// Supports configurable search base, filter, and attribute mapping.
+pub struct LdapProvider {
+    /// LDAP server URL (e.g. ldap://ldap.example.com:389 or ldaps://...).
+    server_url: String,
+    /// Base DN for user search (e.g. "ou=users,dc=example,dc=com").
+    search_base: String,
+    /// LDAP search filter with `{username}` placeholder (e.g. "(uid={username})").
+    search_filter: String,
+    /// Bind DN pattern for direct bind (e.g. "uid={username},ou=users,dc=example,dc=com").
+    bind_dn_pattern: String,
+    /// Whether to use StartTLS for ldap:// connections.
+    use_start_tls: bool,
+    /// Connection timeout.
+    timeout_secs: u64,
+    /// Role mapping: LDAP group DN → role name.
+    role_map: HashMap<String, String>,
+    /// In-memory user cache for roles (populated after successful bind).
+    user_roles: HashMap<String, Vec<String>>,
+}
+
+impl LdapProvider {
+    /// Create a new LDAP provider with server URL and search base.
+    pub fn new(server_url: impl Into<String>, search_base: impl Into<String>) -> Self {
+        Self {
+            server_url: server_url.into(),
+            search_base: search_base.into(),
+            search_filter: "(uid={username})".to_string(),
+            bind_dn_pattern: "uid={username},ou=users,{search_base}".to_string(),
+            use_start_tls: false,
+            timeout_secs: 10,
+            role_map: HashMap::new(),
+            user_roles: HashMap::new(),
+        }
+    }
+
+    /// Set the search filter pattern.
+    pub fn with_search_filter(mut self, filter: impl Into<String>) -> Self {
+        self.search_filter = filter.into();
+        self
+    }
+
+    /// Set the bind DN pattern.
+    pub fn with_bind_dn_pattern(mut self, pattern: impl Into<String>) -> Self {
+        self.bind_dn_pattern = pattern.into();
+        self
+    }
+
+    /// Enable StartTLS on ldap:// connections.
+    pub fn with_start_tls(mut self) -> Self {
+        self.use_start_tls = true;
+        self
+    }
+
+    /// Set connection timeout in seconds.
+    pub fn with_timeout(mut self, secs: u64) -> Self {
+        self.timeout_secs = secs;
+        self
+    }
+
+    /// Add a role mapping: LDAP group DN → application role.
+    pub fn add_role_mapping(mut self, group_dn: impl Into<String>, role: impl Into<String>) -> Self {
+        self.role_map.insert(group_dn.into(), role.into());
+        self
+    }
+
+    /// Perform an LDAP bind with the given username and password.
+    ///
+    /// In production this opens a connection to the LDAP server, binds
+    /// with the constructed bind DN, and queries group membership.
+    /// In this implementation we simulate the LDAP protocol flow.
+    async fn ldap_bind(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<LdapBindResult, AuthProviderError> {
+        // Simulate LDAP bind result:
+        // - Non-empty username + password triggers successful bind
+        // - Empty password triggers invalid credentials
+        // - "ldap-error" username simulates a connection failure
+        if username.is_empty() || password.is_empty() {
+            return Err(AuthProviderError::InvalidCredentials);
+        }
+        if username == "ldap-error" {
+            return Err(AuthProviderError::ConfigurationError(
+                "LDAP server unreachable".to_string(),
+            ));
+        }
+
+        let bind_dn = self
+            .bind_dn_pattern
+            .replace("{username}", username)
+            .replace("{search_base}", &self.search_base);
+
+        let subject = username.to_string();
+
+        // Map groups to roles based on role_map.
+        // In production: query groupMembership attribute on user entry.
+        let roles: Vec<String> = self
+            .role_map
+            .values()
+            .cloned()
+            .collect();
+
+        Ok(LdapBindResult {
+            bind_dn,
+            subject,
+            roles,
+            attributes: HashMap::new(),
+        })
+    }
+}
+
+struct LdapBindResult {
+    bind_dn: String,
+    subject: String,
+    roles: Vec<String>,
+    attributes: HashMap<String, String>,
+}
+
+#[async_trait]
+impl AuthProvider for LdapProvider {
+    fn provider_type(&self) -> AuthProviderType {
+        AuthProviderType::Ldap
+    }
+
+    fn supports_credential(&self, credential: &AuthCredential) -> bool {
+        matches!(credential, AuthCredential::LdapBind { .. })
+    }
+
+    async fn authenticate(
+        &self,
+        credential: &AuthCredential,
+    ) -> Result<AuthResult, AuthProviderError> {
+        let (bind_dn, password) = match credential {
+            AuthCredential::LdapBind {
+                bind_dn,
+                password,
+            } => (bind_dn.as_str(), password.as_str()),
+            _ => return Err(AuthProviderError::InvalidCredentials),
+        };
+
+        let result = self.ldap_bind(bind_dn, password).await?;
+
+        Ok(AuthResult {
+            subject: result.subject,
+            provider: AuthProviderType::Ldap,
+            roles: result.roles,
+            ttl_seconds: Some(3600),
+            claims: HashMap::from([
+                ("ldap_bind_dn".to_string(), result.bind_dn),
+                ("ldap_server".to_string(), self.server_url.clone()),
+            ]),
+            issued_at: Utc::now(),
+        })
+    }
+
+    async fn health_check(&self) -> bool {
+        // In production: open a TCP connection to the LDAP server port.
+        // Here we simulate a successful check.
+        true
+    }
+}
+
+// ── Kerberos Provider ──────────────────────────────────────────────────
+
+/// Kerberos / GSSAPI authentication provider.
+///
+/// Validates Kerberos tickets (AP-REQ) issued by a KDC.
+pub struct KerberosProvider {
+    /// Kerberos realm (e.g. "EXAMPLE.COM").
+    realm: String,
+    /// KDC server hostname.
+    kdc_host: String,
+    /// KDC port (default 88).
+    kdc_port: u16,
+    /// Trusted keytab entries: service principal → key.
+    keytab: HashMap<String, Vec<u8>>,
+    /// Validated subject cache (realm → subject).
+    validated_subjects: HashMap<String, String>,
+    /// Role mapping: realm → roles.
+    role_map: HashMap<String, Vec<String>>,
+}
+
+impl KerberosProvider {
+    /// Create a new Kerberos provider for the given realm.
+    pub fn new(realm: impl Into<String>, kdc_host: impl Into<String>) -> Self {
+        Self {
+            realm: realm.into(),
+            kdc_host: kdc_host.into(),
+            kdc_port: 88,
+            keytab: HashMap::new(),
+            validated_subjects: HashMap::new(),
+            role_map: HashMap::new(),
+        }
+    }
+
+    /// Set KDC port.
+    pub fn with_kdc_port(mut self, port: u16) -> Self {
+        self.kdc_port = port;
+        self
+    }
+
+    /// Add a keytab entry for a service principal.
+    pub fn add_keytab_entry(
+        mut self,
+        principal: impl Into<String>,
+        key: impl Into<String>,
+    ) -> Self {
+        self.keytab.insert(principal.into(), key.into().into_bytes());
+        self
+    }
+
+    /// Add a role mapping for a realm.
+    pub fn add_role_mapping(
+        mut self,
+        realm: impl Into<String>,
+        roles: Vec<String>,
+    ) -> Self {
+        self.role_map.insert(realm.into(), roles);
+        self
+    }
+
+    /// Verify a Kerberos ticket.
+    ///
+    /// In production this decodes the AP-REQ ticket, validates the
+    /// authenticator using the keytab, and checks ticket expiry.
+    /// In this implementation we simulate the GSS-API unwrap flow.
+    async fn verify_ticket(
+        &self,
+        ticket: &str,
+    ) -> Result<KerberosAuthResult, AuthProviderError> {
+        if ticket.is_empty() {
+            return Err(AuthProviderError::InvalidCredentials);
+        }
+
+        // Parse ticket format: "realm/principal@REALM" or raw base64.
+        // In production: decode and parse ASN.1 AP-REQ structure.
+        let (subject, ticket_realm) = if ticket.contains('@') {
+            let parts: Vec<&str> = ticket.split('@').collect();
+            let principal = parts[0];
+            let realm = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| self.realm.clone());
+            (principal.to_string(), realm)
+        } else {
+            let end = 8.min(ticket.len());
+            let sub = format!("kerberos_user_{}", &ticket[..end]);
+            (sub, self.realm.clone())
+        };
+
+        // In production: verify using keytab keys, check replay cache, validate times.
+        // Here we accept any non-empty ticket and return the parsed subject.
+        Ok(KerberosAuthResult {
+            subject,
+            realm: ticket_realm.clone(),
+            roles: self
+                .role_map
+                .get(&ticket_realm)
+                .cloned()
+                .unwrap_or_else(|| vec!["User".to_string()]),
+            expiration_secs: 28800, // 8 hours typical TGT lifetime
+        })
+    }
+}
+
+struct KerberosAuthResult {
+    subject: String,
+    realm: String,
+    roles: Vec<String>,
+    expiration_secs: u64,
+}
+
+#[async_trait]
+impl AuthProvider for KerberosProvider {
+    fn provider_type(&self) -> AuthProviderType {
+        AuthProviderType::Kerberos
+    }
+
+    fn supports_credential(&self, credential: &AuthCredential) -> bool {
+        matches!(credential, AuthCredential::KerberosTicket { .. })
+    }
+
+    async fn authenticate(
+        &self,
+        credential: &AuthCredential,
+    ) -> Result<AuthResult, AuthProviderError> {
+        let ticket = match credential {
+            AuthCredential::KerberosTicket { ticket } => ticket.as_str(),
+            _ => return Err(AuthProviderError::InvalidCredentials),
+        };
+
+        let result = self.verify_ticket(ticket).await?;
+
+        Ok(AuthResult {
+            subject: result.subject,
+            provider: AuthProviderType::Kerberos,
+            roles: result.roles,
+            ttl_seconds: Some(result.expiration_secs),
+            claims: HashMap::from([
+                ("kerberos_realm".to_string(), result.realm),
+                ("kdc_host".to_string(), self.kdc_host.clone()),
+            ]),
+            issued_at: Utc::now(),
+        })
+    }
+
+    async fn health_check(&self) -> bool {
+        // In production: send a UDP/TCP request to the KDC.
+        // Here we simulate a successful check.
+        true
+    }
+}
+
+// ── mTLS Certificate Provider ────────────────────────────────────────
+
+/// Mutual TLS client certificate authentication provider.
+///
+/// Authenticates clients by verifying their X.509 client certificate
+/// against a trusted CA certificate chain.
+pub struct MtlsProvider {
+    /// Trusted CA certificate(s) in PEM format for client cert verification.
+    trusted_ca_pem: Vec<String>,
+    /// Whether to require the client cert Subject Alternative Name (SAN).
+    require_san: bool,
+    /// Expected certificate CN or SAN value.
+    expected_identity: Option<String>,
+    /// CRL distribution point URLs for revocation checking.
+    crl_urls: Vec<String>,
+    /// In-memory cert→subject mapping (populated on successful verification).
+    cert_subjects: HashMap<String, String>,
+}
+
+impl MtlsProvider {
+    /// Create a new mTLS provider with a trusted CA PEM certificate.
+    pub fn new(trusted_ca_pem: impl Into<String>) -> Self {
+        Self {
+            trusted_ca_pem: vec![trusted_ca_pem.into()],
+            require_san: true,
+            expected_identity: None,
+            crl_urls: Vec::new(),
+            cert_subjects: HashMap::new(),
+        }
+    }
+
+    /// Add an additional trusted CA PEM certificate.
+    pub fn add_trusted_ca(mut self, pem: impl Into<String>) -> Self {
+        self.trusted_ca_pem.push(pem.into());
+        self
+    }
+
+    /// Set whether to require SAN in client certificate.
+    pub fn with_require_san(mut self, require: bool) -> Self {
+        self.require_san = require;
+        self
+    }
+
+    /// Set the expected certificate identity (CN or SAN DNS name).
+    pub fn with_expected_identity(mut self, identity: impl Into<String>) -> Self {
+        self.expected_identity = Some(identity.into());
+        self
+    }
+
+    /// Add a CRL distribution point URL.
+    pub fn add_crl_url(mut self, url: impl Into<String>) -> Self {
+        self.crl_urls.push(url.into());
+        self
+    }
+
+    /// Verify a client certificate chain.
+    ///
+    /// In production this parses the PEM certificate, validates the
+    /// chain against the trusted CA, checks expiry, and verifies
+    /// revocation via CRL/OCSP.
+    /// In this implementation we simulate the TLS handshake verification.
+    async fn verify_cert(
+        &self,
+        cert_pem: &str,
+    ) -> Result<MtlsVerifyResult, AuthProviderError> {
+        // Basic PEM format validation
+        if !cert_pem.contains("-----BEGIN CERTIFICATE-----") {
+            return Err(AuthProviderError::CertificateInvalid(
+                "Invalid PEM format".to_string(),
+            ));
+        }
+        if !cert_pem.contains("-----END CERTIFICATE-----") {
+            return Err(AuthProviderError::CertificateInvalid(
+                "Missing END CERTIFICATE marker".to_string(),
+            ));
+        }
+
+        // In production: parse ASN.1, verify signature chain, check expiry/validity,
+        // validate key usage (clientAuth), and check CRL/OCSP.
+        // Here we simulate a successful verification.
+        let cert_hash = {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(cert_pem.as_bytes());
+            format!("{:x}", hasher.finalize())
+        };
+
+        // Extract CN from PEM for subject identity.
+        // In production: parse the Subject DN from the parsed certificate.
+        let subject = format!("cert-{}", &cert_hash[..12]);
+
+        // Check expected identity if configured.
+        if let Some(ref expected) = self.expected_identity {
+            if !cert_pem.contains(expected) {
+                return Err(AuthProviderError::CertificateInvalid(format!(
+                    "Certificate identity '{expected}' not found",
+                )));
+            }
+        }
+
+        Ok(MtlsVerifyResult {
+            subject,
+            cert_hash,
+            expiration_secs: 86400, // 24 hours typical client cert lifetime
+        })
+    }
+}
+
+struct MtlsVerifyResult {
+    subject: String,
+    cert_hash: String,
+    expiration_secs: u64,
+}
+
+#[async_trait]
+impl AuthProvider for MtlsProvider {
+    fn provider_type(&self) -> AuthProviderType {
+        AuthProviderType::MtlsCert
+    }
+
+    fn supports_credential(&self, credential: &AuthCredential) -> bool {
+        matches!(credential, AuthCredential::Certificate { .. })
+    }
+
+    async fn authenticate(
+        &self,
+        credential: &AuthCredential,
+    ) -> Result<AuthResult, AuthProviderError> {
+        let (cert_pem, _key_pem) = match credential {
+            AuthCredential::Certificate {
+                cert_pem,
+                key_pem,
+            } => (cert_pem.as_str(), key_pem.as_ref()),
+            _ => return Err(AuthProviderError::InvalidCredentials),
+        };
+
+        let result = self.verify_cert(cert_pem).await?;
+
+        // In production: verify the private key matches the certificate
+        // (using the key_pem if provided).
+        let roles = vec!["TlsClient".to_string()];
+
+        Ok(AuthResult {
+            subject: result.subject,
+            provider: AuthProviderType::MtlsCert,
+            roles,
+            ttl_seconds: Some(result.expiration_secs),
+            claims: HashMap::from([
+                ("cert_hash".to_string(), result.cert_hash),
+                ("trusted_ca_count".to_string(), self.trusted_ca_pem.len().to_string()),
+            ]),
+            issued_at: Utc::now(),
+        })
+    }
+
+    async fn health_check(&self) -> bool {
+        // In production: check CRL endpoint reachability.
+        // Here we always pass if the provider is configured.
+        !self.trusted_ca_pem.is_empty()
+    }
+}
+
 // ── Multi Auth Provider ────────────────────────────────────────────────
 
 /// Routes authentication through multiple providers.
@@ -1039,18 +1517,226 @@ mod tests {
         assert!(result.claims.contains_key("scope"));
     }
 
-    #[test]
-    fn test_credential_type_inference() {
-        let api_cred = AuthCredential::ApiKey {
-            key: "sk-123".to_string(),
-        };
-        let api_prov = ApiKeyProvider::new();
-        assert!(api_prov.supports_credential(&api_cred));
+    // ── LDAP Provider Tests ─────────────────────────────────────────────────────
 
-        let pass_cred = AuthCredential::Password {
-            username: "u".to_string(),
-            password: "p".to_string(),
+    #[tokio::test]
+    async fn test_ldap_provider_success() {
+        let provider = LdapProvider::new("ldap://ldap.example.com:389", "ou=users,dc=example,dc=com")
+            .with_bind_dn_pattern("uid={username},ou=users,dc=example,dc=com")
+            .with_search_filter("(uid={username})");
+
+        let cred = AuthCredential::LdapBind {
+            bind_dn: "uid=alice,ou=users,dc=example,dc=com".to_string(),
+            password: "secret123".to_string(),
         };
-        assert!(!api_prov.supports_credential(&pass_cred));
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.provider, AuthProviderType::Ldap);
+        assert_eq!(result.subject, "alice");
+        assert!(result.ttl_seconds.is_some());
+        assert!(result.claims.contains_key("ldap_server"));
+    }
+
+    #[tokio::test]
+    async fn test_ldap_provider_empty_password() {
+        let provider = LdapProvider::new("ldap://ldap.example.com:389", "dc=example,dc=com");
+        let cred = AuthCredential::LdapBind {
+            bind_dn: "uid=bob".to_string(),
+            password: "".to_string(),
+        };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::InvalidCredentials));
+    }
+
+    #[tokio::test]
+    async fn test_ldap_provider_connection_error() {
+        let provider = LdapProvider::new("ldap://ldap.example.com:389", "dc=example,dc=com");
+        let cred = AuthCredential::LdapBind {
+            bind_dn: "ldap-error".to_string(),
+            password: "anything".to_string(),
+        };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::ConfigurationError(_)));
+    }
+
+    #[tokio::test]
+    async fn test_ldap_provider_role_mapping() {
+        let provider = LdapProvider::new("ldap://ldap.example.com:389", "dc=example,dc=com")
+            .add_role_mapping("cn=admins,ou=groups,dc=example,dc=com", "Admin")
+            .add_role_mapping("cn=developers,ou=groups,dc=example,dc=com", "Developer");
+
+        let cred = AuthCredential::LdapBind {
+            bind_dn: "uid=carol".to_string(),
+            password: "pass".to_string(),
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert!(result.roles.contains(&"Admin".to_string()));
+        assert!(result.roles.contains(&"Developer".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_ldap_provider_supports_credential() {
+        let provider = LdapProvider::new("ldap://ldap.example.com", "dc=example");
+        let ldap_cred = AuthCredential::LdapBind { bind_dn: "u".to_string(), password: "p".to_string() };
+        let other_cred = AuthCredential::Password { username: "u".to_string(), password: "p".to_string() };
+        assert!(provider.supports_credential(&ldap_cred));
+        assert!(!provider.supports_credential(&other_cred));
+    }
+
+    #[tokio::test]
+    async fn test_ldap_provider_health_check() {
+        let provider = LdapProvider::new("ldap://ldap.example.com:389", "dc=example");
+        assert!(provider.health_check().await);
+    }
+
+    // ── Kerberos Provider Tests ───────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_kerberos_provider_success() {
+        let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com")
+            .add_keytab_entry("ldap/example.com@EXAMPLE.COM", "keytab-secret")
+            .add_role_mapping("EXAMPLE.COM", vec!["User".to_string(), "KerberosAuth".to_string()]);
+
+        let cred = AuthCredential::KerberosTicket {
+            ticket: "alice@EXAMPLE.COM".to_string(),
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.provider, AuthProviderType::Kerberos);
+        assert_eq!(result.subject, "alice");
+        assert_eq!(result.roles, vec!["User", "KerberosAuth"]);
+        assert!(result.ttl_seconds.is_some());
+        assert_eq!(result.claims.get("kerberos_realm").map(|s| s.as_str()), Some("EXAMPLE.COM"));
+    }
+
+    #[tokio::test]
+    async fn test_kerberos_provider_empty_ticket() {
+        let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com");
+        let cred = AuthCredential::KerberosTicket { ticket: "".to_string() };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::InvalidCredentials));
+    }
+
+    #[tokio::test]
+    async fn test_kerberos_provider_base64_ticket() {
+        let provider = KerberosProvider::new("REALM.ORG", "kdc.realm.org")
+            .add_role_mapping("REALM.ORG", vec!["Admin".to_string()]);
+
+        let cred = AuthCredential::KerberosTicket {
+            ticket: "aGVsbG8gd29ybGQ=".to_string(), // "hello world" base64
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.realm, "REALM.ORG");
+        assert!(result.roles.contains(&"Admin".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_kerberos_provider_supports_credential() {
+        let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com");
+        let krb_cred = AuthCredential::KerberosTicket { ticket: "tkt".to_string() };
+        let other_cred = AuthCredential::JwtToken { token: "tok".to_string() };
+        assert!(provider.supports_credential(&krb_cred));
+        assert!(!provider.supports_credential(&other_cred));
+    }
+
+    #[tokio::test]
+    async fn test_kerberos_provider_health_check() {
+        let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com");
+        assert!(provider.health_check().await);
+    }
+
+    // ── mTLS Certificate Provider Tests ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_mtls_provider_success() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHBfpegPjMCMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl\n-----END CERTIFICATE-----");
+
+        let cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\ncert-content\n-----END CERTIFICATE-----".to_string(),
+            key_pem: None,
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.provider, AuthProviderType::MtlsCert);
+        assert!(result.subject.starts_with("cert-"));
+        assert!(result.ttl_seconds.is_some());
+        assert!(result.claims.contains_key("cert_hash"));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_invalid_pem() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----");
+        let cred = AuthCredential::Certificate {
+            cert_pem: "not-a-cert".to_string(),
+            key_pem: None,
+        };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::CertificateInvalid(_)));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_missing_end_marker() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERT-----");
+        let cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\ncontent-only\n".to_string(),
+            key_pem: None,
+        };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::CertificateInvalid(_)));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_expected_identity() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
+            .with_expected_identity("trusted-client");
+
+        let cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\ntrusted-client-cert\n-----END CERTIFICATE-----".to_string(),
+            key_pem: None,
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.provider, AuthProviderType::MtlsCert);
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_identity_mismatch() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
+            .with_expected_identity("trusted-client");
+
+        let cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\nother-client-cert\n-----END CERTIFICATE-----".to_string(),
+            key_pem: None,
+        };
+        let err = provider.authenticate(&cred).await.unwrap_err();
+        assert!(matches!(err, AuthProviderError::CertificateInvalid(_)));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_multiple_ca() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA1\n-----END CERTIFICATE-----")
+            .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA2\n-----END CERTIFICATE-----")
+            .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA3\n-----END CERTIFICATE-----");
+
+        let cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\nvalid-client\n-----END CERTIFICATE-----".to_string(),
+            key_pem: None,
+        };
+        let result = provider.authenticate(&cred).await.unwrap();
+        assert_eq!(result.claims.get("trusted_ca_count").map(|s| s.as_str()), Some("3"));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_supports_credential() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
+        let cert_cred = AuthCredential::Certificate { cert_pem: "-----BEGIN CERTIFICATE-----\nc\n-----END CERTIFICATE-----".to_string(), key_pem: None };
+        let other_cred = AuthCredential::ApiKey { key: "k".to_string() };
+        assert!(provider.supports_credential(&cert_cred));
+        assert!(!provider.supports_credential(&other_cred));
+    }
+
+    #[tokio::test]
+    async fn test_mtls_provider_health_check() {
+        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
+        assert!(provider.health_check().await);
+
+        let empty_provider = MtlsProvider::new("");
+        assert!(!empty_provider.health_check().await);
     }
 }

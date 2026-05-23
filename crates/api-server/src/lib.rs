@@ -24,6 +24,8 @@ pub struct AppState {
     pub sqlite_audit_log: Option<Arc<kias_data_store::SqliteAuditLog>>,
     /// Dead letter queue for failed tasks (optional)
     pub dead_letter_queue: Option<Arc<kias_data_store::DeadLetterQueue>>,
+    /// Idempotency key store for API-level duplicate request detection (optional)
+    pub idempotency_store: Option<Arc<kias_data_store::IdempotencyRepository>>,
     pub event_bus: EventBus,
     pub a2a_tasks: handlers::a2a::A2aTaskStore,
     /// Tracks active WebSocket connections and metrics.
@@ -126,6 +128,7 @@ impl AppState {
             audit_log: Arc::new(MemoryAuditLog::new()),
             sqlite_audit_log: None,  // Will be set up if SQLite is configured
             dead_letter_queue: None, // Will be set up if SQLite is configured
+            idempotency_store: None,
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
             connection_registry: ConnectionRegistry::default(),
@@ -153,6 +156,15 @@ impl AppState {
     ) -> Self {
         self.sqlite_audit_log = Some(audit_log);
         self.dead_letter_queue = Some(dlq);
+        self
+    }
+
+    /// Attach idempotency store after repository initialization.
+    pub fn with_idempotency_store(
+        mut self,
+        repo: Arc<kias_data_store::IdempotencyRepository>,
+    ) -> Self {
+        self.idempotency_store = Some(repo);
         self
     }
 
@@ -220,6 +232,7 @@ impl AppState {
             audit_log: Arc::new(MemoryAuditLog::new()),
             sqlite_audit_log: None,  // Will be set up if SQLite is configured
             dead_letter_queue: None, // Will be set up if SQLite is configured
+            idempotency_store: None,
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
             connection_registry: ConnectionRegistry::default(),

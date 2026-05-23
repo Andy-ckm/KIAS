@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeDelta;
+    use std::time::Duration;
 
     #[test]
     fn session_status_equality() {
@@ -48,10 +49,10 @@ mod tests {
         assert!(session.completed_at.is_none());
 
         // timestamps within 2 seconds
-        assert!(session.started_at - before < Duration::from_secs(2));
-        assert!(after - session.started_at < Duration::from_secs(2));
-        assert!(session.updated_at - before < Duration::from_secs(2));
-        assert!(after - session.updated_at < Duration::from_secs(2));
+        assert!(session.started_at - before < TimeDelta::seconds(2));
+        assert!(after - session.started_at < TimeDelta::seconds(2));
+        assert!(session.updated_at - before < TimeDelta::seconds(2));
+        assert!(after - session.updated_at < TimeDelta::seconds(2));
     }
 
     #[test]
@@ -65,8 +66,8 @@ mod tests {
         assert_eq!(session.status, SessionStatus::Completed);
         assert!(session.completed_at.is_some());
         let completed_at = session.completed_at.unwrap();
-        assert!(completed_at - before < Duration::from_secs(1));
-        assert!(after - completed_at < Duration::from_secs(1));
+        assert!(completed_at - before < TimeDelta::seconds(1));
+        assert!(after - completed_at < TimeDelta::seconds(1));
         assert!(session.updated_at >= session.started_at);
     }
 

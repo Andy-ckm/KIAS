@@ -1068,6 +1068,157 @@ pub struct PrefixCacheStats {
     pub total_tokens: i64,
 }
 
+// ── Idempotency Repository ──────────────────────────────────────────────────
+
+use kias_common::{KiasError, KiasResult};
+use sqlx::SqlitePool;
+
+use super::models::IdempotencyRow;
+
+/// Repository for idempotency key storage and lookup.
+pub struct IdempotencyRepository {
+    pool: SqlitePool,
+}
+
+impl IdempotencyRepository {
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+
+    /// Look up an idempotency key. Returns the row if found and not expired.
+    pub async fn get_by_key(&self, key: &str) -> KiasResult<Option<IdempotencyRow>> {
+        let row: Option<IdempotencyRow> = sqlx::query_as(
+            r#"
+            SELECT key, method, path, operation_hash, request_body,
+                   response_status, response_body, response_headers,
+                   created_at, expires_at, hit_count, completed
+            FROM idempotency_keys
+            WHERE key = ? AND expires_at > datetime('now')
+            "#,
+        )
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency get_by_key: {e}")))?;
+        Ok(row)
+    }
+
+    /// Insert a pending (in-progress) idempotency key.
+    /// Returns Ok(true) if inserted, Ok(false) if key already exists.
+    pub async fn insert_pending(&self, entry: &IdempotencyRow) -> KiasResult<bool> {
+        let result = sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO idempotency_keys
+                (key, method, path, operation_hash, request_body,
+                 response_status, response_body, response_headers,
+                 created_at, expires_at, hit_count, completed)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+        )
+        .bind(&entry.key)
+        .bind(&entry.method)
+        .bind(&entry.path)
+        .bind(&entry.operation_hash)
+        .bind(&entry.request_body)
+        .bind(entry.response_status)
+        .bind(&entry.response_body)
+        .bind(&entry.response_headers)
+        .bind(&entry.created_at)
+        .bind(&entry.expires_at)
+        .bind(entry.hit_count)
+        .bind(entry.completed)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency insert_pending: {e}")))?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Complete an in-progress idempotency entry with the response.
+    pub async fn complete(
+        &self,
+        key: &str,
+        response_status: i32,
+        response_body: Vec<u8>,
+        response_headers: &str,
+    ) -> KiasResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE idempotency_keys
+            SET response_status = ?,
+                response_body = ?,
+                response_headers = ?,
+                completed = 1
+            WHERE key = ? AND completed = 0
+            "#,
+        )
+        .bind(response_status)
+        .bind(&response_body)
+        .bind(response_headers)
+        .bind(key)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency complete: {e}")))?;
+        Ok(())
+    }
+
+    /// Increment hit count for an existing key.
+    pub async fn increment_hit(&self, key: &str) -> KiasResult<()> {
+        sqlx::query(
+            r#"UPDATE idempotency_keys SET hit_count = hit_count + 1 WHERE key = ?"#,
+        )
+        .bind(key)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency increment_hit: {e}")))?;
+        Ok(())
+    }
+
+    /// Delete expired idempotency keys. Returns number of deleted rows.
+    pub async fn cleanup_expired(&self) -> KiasResult<u64> {
+        let result = sqlx::query(
+            r#"DELETE FROM idempotency_keys WHERE expires_at <= datetime('now')"#,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency cleanup_expired: {e}")))?;
+        Ok(result.rows_affected())
+    }
+
+    /// Get statistics about the idempotency store.
+    pub async fn stats(&self) -> KiasResult<IdempotencyStats> {
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM idempotency_keys")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| KiasError::Storage(format!("idempotency stats total: {e}")))?;
+        let completed: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM idempotency_keys WHERE completed = 1")
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| KiasError::Storage(format!("idempotency stats completed: {e}")))?;
+        let expired: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM idempotency_keys WHERE expires_at <= datetime('now')")
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| KiasError::Storage(format!("idempotency stats expired: {e}")))?;
+        Ok(IdempotencyStats {
+            total: total.0,
+            completed: completed.0,
+            expired: expired.0,
+            pending: total.0 - completed.0 - expired.0,
+        })
+    }
+}
+
+/// Statistics about the idempotency key store.
+#[derive(Debug, Clone)]
+pub struct IdempotencyStats {
+    pub total: i64,
+    pub completed: i64,
+    pub pending: i64,
+    pub expired: i64,
+}
+
+
 /// Unified data store that holds all repositories.
 ///
 /// This is the primary entry point for the data layer. Create one instance
@@ -1082,6 +1233,7 @@ pub struct SqliteRepository {
     pub components: ComponentRepository,
     pub experience_replay: ExperienceReplayRepository,
     pub prefix_cache: PrefixCacheRepository,
+    pub idempotency: IdempotencyRepository,
 }
 
 impl SqliteRepository {
@@ -1097,6 +1249,7 @@ impl SqliteRepository {
             components: ComponentRepository::new(pool.clone()),
             experience_replay: ExperienceReplayRepository::new(pool.clone()),
             prefix_cache: PrefixCacheRepository::new(pool.clone()),
+            idempotency: IdempotencyRepository::new(pool.clone()),
             pool,
         }
     }

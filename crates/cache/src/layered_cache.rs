@@ -4,7 +4,6 @@
 //! Each layer has independent TTL and eviction policies with hit-rate statistics.
 
 use serde::{Deserialize, Serialize};
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::sync::Arc;
@@ -506,14 +505,12 @@ impl LayeredCache {
             stats.record_miss(CacheLayer::L1Memory);
         }
 
-        // L2: Semantic
+        // L2: Semantic — string key cannot query embedding index, record miss
         {
-            let mut l2 = self.l2.write().await;
-            if !l2.is_empty() {
-                // For semantic cache, key is treated as embedding proxy
+            let l2_len = { self.l2.read().await.len() };
+            if l2_len > 0 {
                 let mut stats = self.stats.write().await;
-                stats.record_hit(CacheLayer::L2Semantic);
-                // Note: semantic cache uses different key scheme
+                stats.record_miss(CacheLayer::L2Semantic);
             }
         }
 

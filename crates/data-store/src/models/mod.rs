@@ -395,3 +395,57 @@ mod tests {
         assert!(cache.last_hit_at.is_none());
     }
 }
+
+// ── Idempotency Row ─────────────────────────────────────────────────────────
+
+/// Persistent idempotency key row for API/task/retry end-to-end idempotency.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct IdempotencyRow {
+    pub key: String,
+    pub method: String,
+    pub path: String,
+    pub operation_hash: String,
+    pub request_body: Option<String>,
+    pub response_status: i32,
+    pub response_body: Option<Vec<u8>>,
+    pub response_headers: String,
+    pub created_at: String,
+    pub expires_at: String,
+    pub hit_count: i32,
+    pub completed: i32,
+}
+
+impl IdempotencyRow {
+    /// Create a new pending idempotency key entry.
+    pub fn new_pending(
+        key: impl Into<String>,
+        method: impl Into<String>,
+        path: impl Into<String>,
+        operation_hash: impl Into<String>,
+        request_body: Option<String>,
+        ttl_seconds: i64,
+    ) -> Self {
+        use chrono::Duration;
+        let now = Utc::now();
+        let expires = now + Duration::seconds(ttl_seconds);
+        Self {
+            key: key.into(),
+            method: method.into(),
+            path: path.into(),
+            operation_hash: operation_hash.into(),
+            request_body,
+            response_status: 0,
+            response_body: None,
+            response_headers: "{}".to_string(),
+            created_at: now.to_rfc3339(),
+            expires_at: expires.to_rfc3339(),
+            hit_count: 1,
+            completed: 0,
+        }
+    }
+
+    /// Returns true if this entry represents a completed (cached) response.
+    pub fn is_completed(&self) -> bool {
+        self.completed != 0
+    }
+}

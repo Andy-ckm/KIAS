@@ -8,7 +8,7 @@ use crate::handlers::{
     scheduler, slow_trace, tier_routing, token_budget, tokens, visualization, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
-use crate::middleware::{auth::auth_middleware, logging::logging_middleware};
+use crate::middleware::{auth::auth_middleware, idempotency::idempotency_middleware, logging::logging_middleware};
 use crate::AppState;
 
 /// Build the full application router with all routes and middleware.
@@ -358,6 +358,10 @@ pub fn create_router(state: AppState) -> Router {
         .layer(from_fn_with_state(
             rate_limiter,
             crate::middleware::rate_limit::rate_limit_middleware,
+        ))
+        .layer(from_fn_with_state(
+            state.clone(),
+            idempotency_middleware,
         ));
 
     // --- CORS layer (allow all origins for dev) ---

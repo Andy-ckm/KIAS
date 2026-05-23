@@ -43,6 +43,86 @@ pub struct PromptsCapability {
     pub list_changed: bool,
 }
 
+// ── Client Capabilities ──────────────────────────────────────────────────────
+
+/// Capabilities advertised by an MCP client during initialization.
+/// Sent in the `initialize` request `params` field.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ClientCapabilities {
+    /// Protocol versions the client supports (newest first).
+    /// Server picks the latest mutually-supported version.
+    #[serde(default)]
+    pub protocol_version: Vec<String>,
+
+    /// Client supports tools.
+    #[serde(default)]
+    pub tools: bool,
+
+    /// Client supports resources.
+    #[serde(default)]
+    pub resources: bool,
+
+    /// Client supports prompts.
+    #[serde(default)]
+    pub prompts: bool,
+}
+
+impl ClientCapabilities {
+    /// Create with a list of supported protocol versions.
+    pub fn with_versions(versions: Vec<String>) -> Self {
+        Self { protocol_version: versions, ..Default::default() }
+    }
+
+    /// Enable tools.
+    pub fn with_tools(mut self) -> Self {
+        self.tools = true;
+        self
+    }
+
+    /// Enable resources.
+    pub fn with_resources(mut self) -> Self {
+        self.resources = true;
+        self
+    }
+
+    /// Enable prompts.
+    pub fn with_prompts(mut self) -> Self {
+        self.prompts = true;
+        self
+    }
+}
+
+/// Negotiation result between client and server protocol versions.
+#[derive(Debug, Clone)]
+pub struct VersionNegotiation {
+    /// The agreed-upon protocol version.
+    pub agreed_version: String,
+    /// Whether the client needs to send an `initialized` notification.
+    pub needs_initialized_notification: bool,
+}
+
+impl ClientCapabilities {
+    /// Negotiate a protocol version with the server's supported versions.
+    /// Returns the highest mutually-supported version, or the latest server version
+    /// as a fallback (MCP spec: server picks best match, not hard fail).
+    pub fn negotiate(&self, server_versions: &[String]) -> VersionNegotiation {
+        // Client preference order is its own list (newest first).
+        for client_ver in &self.protocol_version {
+            if server_versions.contains(client_ver) {
+                return VersionNegotiation {
+                    agreed_version: client_ver.clone(),
+                    needs_initialized_notification: true,
+                };
+            }
+        }
+        // Fallback: use server's latest version (spec-compliant fallback)
+        VersionNegotiation {
+            agreed_version: server_versions.first().cloned().unwrap_or_else(|| "2024-11-05".to_string()),
+            needs_initialized_notification: true,
+        }
+    }
+}
+
 impl ServerCapabilities {
     /// Create an empty capabilities set.
     pub fn new() -> Self {

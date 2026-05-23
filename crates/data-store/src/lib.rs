@@ -42,12 +42,13 @@ pub use cache_persist::{CacheEntry, CacheStrategy, SqliteCacheStrategy};
 pub use dlq::{DeadLetterEntry, DeadLetterQueue, DeadLetterReason, DlqStats};
 pub use migrations::MigrationRunner;
 pub use models::{
-    AgentRow, ComponentRow, ConfigRow, ExperienceReplayRow, PrefixCacheRow, SkillRow, TaskRow,
-    WorkflowRow,
+    AgentRow, ComponentRow, ConfigRow, ExperienceReplayRow, IdempotencyRow, PrefixCacheRow,
+    SkillRow, TaskRow, WorkflowRow,
 };
 pub use repository::{
     AgentRepository, ComponentRepository, ConfigRepository, DatabaseHealth,
-    ExperienceReplayRepository, PoolStats, PrefixCacheRepository, PrefixCacheStats, Repository,
-    SkillRepository, SqliteRepository, TaskRepository, WorkflowRepository,
+    ExperienceReplayRepository, IdempotencyRepository, IdempotencyStats, PoolStats,
+    PrefixCacheRepository, PrefixCacheStats, Repository, SkillRepository, SqliteRepository,
+    TaskRepository, WorkflowRepository,
 };
 pub use vector_persist::{PersistentVectorStore, VectorSearchResult};

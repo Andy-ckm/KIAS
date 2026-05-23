@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability};
+use crate::capabilities::{ClientCapabilities, PromptsCapability, ResourcesCapability, ToolsCapability, VersionNegotiation};
 use crate::error::McpError;
 use crate::prompt::Prompt;
 use crate::resource::Resource;
@@ -398,6 +398,8 @@ pub struct ServerInfo {
 pub struct McpServer {
     pub info: ServerInfo,
     pub capabilities: EnhancedServerCapabilities,
+    /// Protocol versions this server supports (newest first).
+    supported_versions: Vec<String>,
     tools: HashMap<String, ToolEntry>,
     resources: HashMap<String, Resource>,
     resource_handler: Option<Arc<dyn ResourceHandler>>,
@@ -418,12 +420,41 @@ impl McpServer {
                 version: version.into(),
             },
             capabilities,
+            supported_versions: vec!["2024-11-05".to_string()],
             tools: HashMap::new(),
             resources: HashMap::new(),
             resource_handler: None,
             prompts: HashMap::new(),
             prompt_handler: None,
         }
+    }
+
+    /// Create a new MCP server with custom supported protocol versions.
+    /// Versions should be ordered newest-first for proper negotiation.
+    pub fn new_with_versions(
+        name: impl Into<String>,
+        version: impl Into<String>,
+        capabilities: EnhancedServerCapabilities,
+        supported_versions: Vec<String>,
+    ) -> Self {
+        Self {
+            info: ServerInfo {
+                name: name.into(),
+                version: version.into(),
+            },
+            capabilities,
+            supported_versions,
+            tools: HashMap::new(),
+            resources: HashMap::new(),
+            resource_handler: None,
+            prompts: HashMap::new(),
+            prompt_handler: None,
+        }
+    }
+
+    /// Get the server's supported protocol versions.
+    pub fn supported_versions(&self) -> &[String] {
+        &self.supported_versions
     }
 
     /// Register a tool with an async handler.

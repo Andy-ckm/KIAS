@@ -34,6 +34,8 @@ validator.workspace = true
 async-trait.workspace = true
 jsonwebtoken.workspace = true
 dashmap.workspace = true
+bytes.workspace = true
+sha2.workspace = true
 
 # TLS
 rustls.workspace = true

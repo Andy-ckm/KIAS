@@ -994,6 +994,7 @@ pub struct MtlsProvider {
     /// CRL distribution point URLs for revocation checking.
     crl_urls: Vec<String>,
     /// In-memory cert→subject mapping (populated on successful verification).
+    #[allow(dead_code)]
     cert_subjects: HashMap<String, String>,
 }
 

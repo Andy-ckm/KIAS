@@ -605,7 +605,7 @@ error[E0382]: borrow of moved value
 
         // Both analyzers should run
         manager.analyze("error[E0308]: mismatched types");
-        assert!(manager.history().len() >= 1);
+        assert!(!manager.history().is_empty());
     }
 
     #[test]

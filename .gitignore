@@ -60,3 +60,11 @@ kias.db
 .matrix-qa-marker
 .research-queue.yaml
 target-worktree/
+.task-queue/
+kias/.task-queue/
+.trace/
+docs/papers/
+docs/reference/
+docs/audit-rectification-plan.md
+crates/data-governance/src/sast_pipeline.rs
+crates/data-governance/src/unified_audit_merkle.rs

@@ -154,7 +154,7 @@ impl<K: Eq + Hash + Clone, V: Clone> L1MemoryCache<K, V> {
             }
         }
 
-        let entry = LayeredCacheEntry::new(key.clone(), value, self.config.ttl);
+        let entry = LayeredCacheEntry::new(key.to_string(), value, self.config.ttl);
         self.entries.insert(key.clone(), entry);
         self.lru_order.push_back(key);
     }
@@ -243,7 +243,7 @@ impl<V: Clone> L2SemanticCache<V> {
             }
         }
 
-        best_idx.map(|i| self.entries[i].value.clone())
+        best_key.and_then(|k| self.entries.get(&k).map(|e| e.value.clone()))
     }
 
     pub fn insert(&mut self, key: String, embedding: Vec<f32>, value: V) {

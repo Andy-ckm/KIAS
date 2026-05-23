@@ -122,12 +122,12 @@ impl LlmProvider for OpenAiProvider {
     async fn chat(&self, mut request: ChatRequest) -> Result<ChatResponse, LlmError> {
         request.stream = Some(false);
         let url = format!("{}/chat/completions", self.base_url());
-        let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
+        let auth_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
         let resp = self
             .client
             .post(&url)
-            .bearer_auth(api_key)
+            .bearer_auth(auth_key)
             .json(&request)
             .send()
             .await?;
@@ -147,12 +147,12 @@ impl LlmProvider for OpenAiProvider {
     ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
         request.stream = Some(true);
         let url = format!("{}/chat/completions", self.base_url());
-        let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
+        let auth_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
         let resp = self
             .client
             .post(&url)
-            .bearer_auth(api_key)
+            .bearer_auth(auth_key)
             .json(&request)
             .send()
             .await?;
@@ -215,7 +215,7 @@ impl LlmProvider for AnthropicProvider {
 
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmError> {
         let url = "https://api.anthropic.com/v1/messages";
-        let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
+        let auth_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
         // 转换为 Anthropic 格式
         let system_msg = request
@@ -249,7 +249,7 @@ impl LlmProvider for AnthropicProvider {
         let resp = self
             .client
             .post(url)
-            .header("x-api-key", api_key)
+            .header("x-api-key", auth_key)
             .header("anthropic-version", "2023-06-01")
             .json(&body)
             .send()
@@ -294,7 +294,7 @@ impl LlmProvider for AnthropicProvider {
         request: ChatRequest,
     ) -> Result<Vec<crate::types::StreamChunk>, LlmError> {
         let url = "https://api.anthropic.com/v1/messages";
-        let api_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
+        let auth_key = self.config.api_key.as_ref().ok_or(LlmError::AuthError)?;
 
         // Convert to Anthropic format (same as chat(), but with stream: true)
         let system_msg = request
@@ -329,7 +329,7 @@ impl LlmProvider for AnthropicProvider {
         let resp = self
             .client
             .post(url)
-            .header("x-api-key", api_key)
+            .header("x-api-key", auth_key)
             .header("anthropic-version", "2023-06-01")
             .json(&body)
             .send()

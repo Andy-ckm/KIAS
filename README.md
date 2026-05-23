@@ -3,16 +3,16 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS/actions">
-    <img src="https://img.shields.io/badge/tests-2307%20passed-brightgreen.svg" alt="Tests">
+    <img src="https://img.shields.io/badge/tests-5241%2B%20passed-brightgreen.svg" alt="Tests">
   </a>
   <a href="https://www.rust-lang.org">
     <img src="https://img.shields.io/badge/Rust-1.95-orange.svg?logo=rust" alt="Rust">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/badge/crates-26-purple.svg" alt="Crates">
+    <img src="https://img.shields.io/badge/crates-36-purple.svg" alt="Crates">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
-    <img src="https://img.shields.io/badge/LOC-110K%2B-blue.svg" alt="Lines of Code">
+    <img src="https://img.shields.io/badge/LOC-143K%2B-blue.svg" alt="Lines of Code">
   </a>
   <a href="https://github.com/Andy-ckm/KIAS">
     <img src="https://img.shields.io/github/stars/Andy-ckm/AgentGuard?style=social" alt="Stars">

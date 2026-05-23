@@ -12,6 +12,7 @@
 mod error;
 mod registry;
 mod types;
+pub mod a2a_enhanced;
 
 pub use error::RegistryError;
 pub use registry::AgentRegistry;

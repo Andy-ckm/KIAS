@@ -168,12 +168,15 @@ impl SessionManager {
 
     /// Returns a clone of the session if it exists and is active.
     pub fn get_session(&self, id: SessionId) -> Result<Session, RegistryError> {
-        self.sessions.get(&id).cloned().ok_or(RegistryError::NotFound { agent_id: format!("{:?}", id) })
+        let sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        sessions.get(&id).cloned().ok_or(RegistryError::NotFound { agent_id: format!("{:?}", id) })
     }
 
     /// Get session by client or server ID.
     pub fn get_session_by_client_or_server(&self, id: &str) -> Result<Session, RegistryError> {
-        self.sessions.values()
+        let sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
+        sessions
+            .values()
             .find(|s| s.client_id == id || s.server_id == id)
             .cloned()
             .ok_or(RegistryError::NotFound { agent_id: id.to_string() })
@@ -413,3 +416,540 @@ impl EnhancedA2A {
     pub fn cleanup(&self) -> Result<usize, RegistryError> {
         self.session_manager.cleanup_expired()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== ProtocolVersion tests =====
+
+    #[test]
+    fn test_protocol_version_new() {
+        let v = ProtocolVersion::new(1, 2, 3);
+        assert_eq!(v.major, 1);
+        assert_eq!(v.minor, 2);
+        assert_eq!(v.patch, 3);
+    }
+
+    #[test]
+    fn test_protocol_version_is_compatible_same_major() {
+        let v1 = ProtocolVersion::new(1, 0, 0);
+        let v2 = ProtocolVersion::new(1, 5, 10);
+        assert!(v1.is_compatible(&v2));
+        assert!(v2.is_compatible(&v1));
+    }
+
+    #[test]
+    fn test_protocol_version_is_not_compatible_different_major() {
+        let v1 = ProtocolVersion::new(1, 0, 0);
+        let v2 = ProtocolVersion::new(2, 0, 0);
+        assert!(!v1.is_compatible(&v2));
+        assert!(!v2.is_compatible(&v1));
+    }
+
+    #[test]
+    fn test_protocol_version_ordering() {
+        let v1 = ProtocolVersion::new(1, 0, 0);
+        let v2 = ProtocolVersion::new(1, 1, 0);
+        let v3 = ProtocolVersion::new(2, 0, 0);
+        assert!(v1 < v2);
+        assert!(v2 < v3);
+        assert!(v1 < v3);
+    }
+
+    #[test]
+    fn test_protocol_version_partial_eq() {
+        let v1 = ProtocolVersion::new(1, 2, 3);
+        let v2 = ProtocolVersion::new(1, 2, 3);
+        let v3 = ProtocolVersion::new(1, 2, 4);
+        assert_eq!(v1, v2);
+        assert_ne!(v1, v3);
+    }
+
+    // ===== CapabilitySet tests =====
+
+    #[test]
+    fn test_capability_set_empty() {
+        let cs = CapabilitySet::default();
+        assert!(cs.capabilities.is_empty());
+    }
+
+    #[test]
+    fn test_capability_set_with_capabilities() {
+        let mut cs = CapabilitySet::default();
+        cs.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 0.5,
+        });
+        cs.capabilities.insert("streaming".to_string(), Capability {
+            name: "streaming".to_string(),
+            version: "1.0".to_string(),
+            weight: 0.5,
+        });
+        assert_eq!(cs.capabilities.len(), 2);
+        assert!(cs.capabilities.contains_key("tool_call"));
+        assert!(cs.capabilities.contains_key("streaming"));
+    }
+
+    // ===== CapabilityMatcher tests =====
+
+    #[test]
+    fn test_match_capabilities_perfect_match() {
+        let mut set_a = CapabilitySet::default();
+        set_a.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let mut set_b = CapabilitySet::default();
+        set_b.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let matcher = CapabilityMatcher;
+        let result = matcher.match_capabilities(&set_a, &set_b).unwrap();
+        assert_eq!(result.score, 1.0);
+        assert_eq!(result.matched, vec!["tool_call"]);
+        assert!(result.missing_in_a.is_empty());
+        assert!(result.missing_in_b.is_empty());
+    }
+
+    #[test]
+    fn test_match_capabilities_partial_match() {
+        let mut set_a = CapabilitySet::default();
+        set_a.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 0.5,
+        });
+        set_a.capabilities.insert("streaming".to_string(), Capability {
+            name: "streaming".to_string(),
+            version: "1.0".to_string(),
+            weight: 0.5,
+        });
+
+        let mut set_b = CapabilitySet::default();
+        set_b.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let matcher = CapabilityMatcher;
+        let result = matcher.match_capabilities(&set_a, &set_b).unwrap();
+        assert_eq!(result.score, 0.5);
+        assert_eq!(result.matched, vec!["tool_call"]);
+        assert!(result.missing_in_a.is_empty());
+        assert_eq!(result.missing_in_b, vec!["streaming"]);
+    }
+
+    #[test]
+    fn test_match_capabilities_version_mismatch() {
+        let mut set_a = CapabilitySet::default();
+        set_a.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let mut set_b = CapabilitySet::default();
+        set_b.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "2.0".to_string(),
+            weight: 1.0,
+        });
+
+        let matcher = CapabilityMatcher;
+        let result = matcher.match_capabilities(&set_a, &set_b).unwrap();
+        assert_eq!(result.score, 0.0);
+        assert!(result.matched.is_empty());
+        assert_eq!(result.missing_in_a, vec!["tool_call"]);
+    }
+
+    #[test]
+    fn test_match_capabilities_empty_sets() {
+        let set_a = CapabilitySet::default();
+        let set_b = CapabilitySet::default();
+
+        let matcher = CapabilityMatcher;
+        let result = matcher.match_capabilities(&set_a, &set_b).unwrap();
+        assert_eq!(result.score, 0.0);
+        assert!(result.matched.is_empty());
+    }
+
+    // ===== ProtocolNegotiator tests =====
+
+    #[test]
+    fn test_negotiate_basic() {
+        let client = vec![ProtocolVersion::new(1, 0, 0), ProtocolVersion::new(1, 1, 0)];
+        let server = vec![ProtocolVersion::new(1, 0, 0), ProtocolVersion::new(1, 1, 0)];
+        let result = ProtocolNegotiator::negotiate(&client, &server).unwrap();
+        assert_eq!(result, ProtocolVersion::new(1, 1, 0));
+    }
+
+    #[test]
+    fn test_negotiate_client_empty() {
+        let client: Vec<ProtocolVersion> = vec![];
+        let server = vec![ProtocolVersion::new(1, 0, 0)];
+        let result = ProtocolNegotiator::negotiate(&client, &server);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_negotiate_server_empty() {
+        let client = vec![ProtocolVersion::new(1, 0, 0)];
+        let server: Vec<ProtocolVersion> = vec![];
+        let result = ProtocolNegotiator::negotiate(&client, &server);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_negotiate_no_compatible_version() {
+        let client = vec![ProtocolVersion::new(1, 0, 0)];
+        let server = vec![ProtocolVersion::new(2, 0, 0)];
+        let result = ProtocolNegotiator::negotiate(&client, &server);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_negotiate_skips_incompatible() {
+        let client = vec![ProtocolVersion::new(1, 0, 0), ProtocolVersion::new(2, 0, 0)];
+        let server = vec![ProtocolVersion::new(3, 0, 0)];
+        let result = ProtocolNegotiator::negotiate(&client, &server);
+        assert!(result.is_err());
+    }
+
+    // ===== SessionManager tests =====
+
+    fn make_cap_set() -> CapabilitySet {
+        let mut cs = CapabilitySet::default();
+        cs.capabilities.insert("test".to_string(), Capability {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+        cs
+    }
+
+    #[test]
+    fn test_create_session() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        assert_eq!(id.0, 1);
+    }
+
+    #[test]
+    fn test_get_session() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        let session = mgr.get_session(id).unwrap();
+        assert_eq!(session.client_id, "client1");
+        assert_eq!(session.server_id, "server1");
+        assert!(session.active);
+    }
+
+    #[test]
+    fn test_get_session_not_found() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let result = mgr.get_session(SessionId(999));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_terminate_session() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        mgr.terminate_session(id).unwrap();
+        let session = mgr.get_session(id).unwrap();
+        assert!(!session.active);
+    }
+
+    #[test]
+    fn test_terminate_session_not_found() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let result = mgr.terminate_session(SessionId(999));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_session_by_client_or_server_by_client() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        let session = mgr.get_session_by_client_or_server("client1").unwrap();
+        assert_eq!(session.id, id);
+    }
+
+    #[test]
+    fn test_get_session_by_client_or_server_by_server() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        let session = mgr.get_session_by_client_or_server("server1").unwrap();
+        assert_eq!(session.id, id);
+    }
+
+    #[test]
+    fn test_get_session_by_client_or_server_not_found() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let result = mgr.get_session_by_client_or_server("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_touch_session() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        let before = mgr.get_session(id).unwrap().last_activity;
+        std::thread::sleep(Duration::from_millis(10));
+        mgr.touch_session(id).unwrap();
+        let after = mgr.get_session(id).unwrap().last_activity;
+        assert!(after > before);
+    }
+
+    #[test]
+    fn test_touch_session_not_found() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let result = mgr.touch_session(SessionId(999));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cleanup_expired() {
+        let mgr = SessionManager::new(Duration::from_millis(50));
+        let id1 = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        // Inactive session should be cleaned up
+        mgr.terminate_session(id1).unwrap();
+        std::thread::sleep(Duration::from_millis(60));
+        let cleaned = mgr.cleanup_expired().unwrap();
+        assert_eq!(cleaned, 1);
+    }
+
+    #[test]
+    fn test_cleanup_active_session_preserved() {
+        let mgr = SessionManager::new(Duration::from_millis(50));
+        let _id = mgr.create_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            make_cap_set(),
+            ProtocolVersion::new(1, 0, 0),
+        ).unwrap();
+        std::thread::sleep(Duration::from_millis(60));
+        let cleaned = mgr.cleanup_expired().unwrap();
+        assert_eq!(cleaned, 0); // active sessions preserved
+    }
+
+    // ===== Router tests =====
+
+    #[test]
+    fn test_router_no_session() {
+        let mgr = SessionManager::new(Duration::from_secs(300));
+        let router = Router;
+        let msg = Message {
+            id: 1,
+            from: "a".to_string(),
+            to: "unknown".to_string(),
+            payload: vec![],
+            message_type: "test".to_string(),
+        };
+        // get_session_by_client_or_server returns Err for unknown, route maps to RegistryError::NotFound
+        let result = router.route(&msg, &mgr);
+        assert!(result.is_err());
+    }
+
+    // ===== EnhancedA2A tests =====
+
+    #[test]
+    fn test_enhanced_a2a_new() {
+        let a2a = EnhancedA2A::new(Duration::from_secs(300));
+        // Just verify it doesn't panic
+    }
+
+    #[test]
+    fn test_establish_session() {
+        let a2a = EnhancedA2A::new(Duration::from_secs(300));
+
+        let mut client_caps = CapabilitySet::default();
+        client_caps.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let mut server_caps = CapabilitySet::default();
+        server_caps.capabilities.insert("tool_call".to_string(), Capability {
+            name: "tool_call".to_string(),
+            version: "1.0".to_string(),
+            weight: 1.0,
+        });
+
+        let session_id = a2a.establish_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            client_caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+            server_caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+        ).unwrap();
+
+        assert_eq!(session_id.0, 1);
+        let session = a2a.get_session(session_id).unwrap();
+        assert_eq!(session.client_id, "client1");
+        assert_eq!(session.server_id, "server1");
+    }
+
+    #[test]
+    fn test_establish_session_no_capability_match() {
+        let a2a = EnhancedA2A::new(Duration::from_secs(300));
+
+        let client_caps = CapabilitySet::default();
+        let server_caps = CapabilitySet::default();
+
+        // Empty caps = score 0.0 but still Ok
+        let session_id = a2a.establish_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            client_caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+            server_caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+        ).unwrap();
+        assert_eq!(session_id.0, 1);
+    }
+
+    #[test]
+    fn test_close_session() {
+        let a2a = EnhancedA2A::new(Duration::from_secs(300));
+
+        let caps = make_cap_set();
+        let sid = a2a.establish_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+            CapabilitySet::default(),
+            vec![ProtocolVersion::new(1, 0, 0)],
+        ).unwrap();
+
+        a2a.close_session(sid).unwrap();
+        let session = a2a.get_session(sid).unwrap();
+        assert!(!session.active);
+    }
+
+    #[test]
+    fn test_cleanup() {
+        let a2a = EnhancedA2A::new(Duration::from_millis(50));
+        let caps = make_cap_set();
+        let sid = a2a.establish_session(
+            "client1".to_string(),
+            "server1".to_string(),
+            caps,
+            vec![ProtocolVersion::new(1, 0, 0)],
+            CapabilitySet::default(),
+            vec![ProtocolVersion::new(1, 0, 0)],
+        ).unwrap();
+        a2a.close_session(sid).unwrap();
+        std::thread::sleep(Duration::from_millis(60));
+        let cleaned = a2a.cleanup().unwrap();
+        assert_eq!(cleaned, 1);
+    }
+
+    // ===== Message and RoutingResult tests =====
+
+    #[test]
+    fn test_message_debug() {
+        let msg = Message {
+            id: 42,
+            from: "alice".to_string(),
+            to: "bob".to_string(),
+            payload: vec![1, 2, 3],
+            message_type: "chat".to_string(),
+        };
+        let debug = format!("{:?}", msg);
+        assert!(debug.contains("42"));
+        assert!(debug.contains("alice"));
+        assert!(debug.contains("bob"));
+    }
+
+    #[test]
+    fn test_routing_result_success() {
+        let result = RoutingResult {
+            session: SessionId(1),
+            success: true,
+            error: None,
+        };
+        assert!(result.success);
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_routing_result_failure() {
+        let result = RoutingResult {
+            session: SessionId(0),
+            success: false,
+            error: Some("No active session".to_string()),
+        };
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    // ===== SessionId tests =====
+
+    #[test]
+    fn test_session_id_copy() {
+        let id = SessionId(42);
+        let id2 = id; // Copy
+        assert_eq!(id, id2);
+    }
+
+    #[test]
+    fn test_session_id_hash() {
+        use std::collections::HashSet;
+        let id1 = SessionId(1);
+        let id2 = SessionId(2);
+        let id3 = SessionId(1);
+        let mut set = HashSet::new();
+        set.insert(id1);
+        set.insert(id2);
+        assert!(set.contains(&id3));
+        assert_eq!(set.len(), 2);
+    }
+}

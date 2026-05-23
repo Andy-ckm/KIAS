@@ -112,7 +112,7 @@ pub struct L1MemoryCache<K, V> {
     entries: HashMap<K, LayeredCacheEntry<V>>,
 }
 
-impl<K: Eq + Hash + Clone, V: Clone> L1MemoryCache<K, V> {
+impl<K: Eq + Hash + Clone + std::fmt::Display, V: Clone> L1MemoryCache<K, V> {
     pub fn new(config: LayerConfig) -> Self {
         Self {
             config,

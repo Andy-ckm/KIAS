@@ -1,0 +1,41 @@
+{
+  "keys": [
+    {
+      "key": "tp-<PLACEHOLDER_01>",
+      "name": "primary-01"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_02>",
+      "name": "backup-02"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_03>",
+      "name": "backup-03"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_04>",
+      "name": "backup-04"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_05>",
+      "name": "guaranteed-05"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_06>",
+      "name": "backup-06"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_07>",
+      "name": "backup-07"
+    },
+    {
+      "key": "tp-<PLACEHOLDER_08>",
+      "name": "mimo-current"
+    },
+    {
+      "key": "sk-cp-<PLACEHOLDER_09>",
+      "name": "minimax-valid"
+    }
+  ],
+  "current_index": 8
+}

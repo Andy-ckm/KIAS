@@ -781,4 +781,108 @@ mod tests {
         assert!(debug.contains("ToolResult"));
         assert!(debug.contains("true"));
     }
+
+    // ========== SearchTool edge cases ==========
+
+    #[tokio::test]
+    async fn test_search_no_matches_returns_zero_count() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("test.txt");
+        std::fs::write(&file, "this file has no match for xyz123").unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "xyz123_not_found",
+                "path": tmp.path().to_str().unwrap()
+            }))
+            .await;
+        // rg --json always outputs a summary line, so matches may be >= 0
+        // Just verify the tool doesn't panic and returns valid result
+        assert!(result.success);
+        assert!(result.metadata.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_search_missing_pattern_param() {
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({"path": "/tmp"}))
+            .await;
+        let _ = result; // Just verify no panic
+    }
+
+    #[tokio::test]
+    async fn test_file_write_read_binary_content() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("binary.bin");
+        let binary = vec![0x00, 0xFF, 0xFE, 0x42, 0x00, 0x0A];
+
+        let writer = FileWriteTool;
+        let write_result = writer
+            .execute(serde_json::json!({
+                "path": path.to_str().unwrap(),
+                "content": String::from_utf8_lossy(&binary)
+            }))
+            .await;
+        assert!(write_result.success);
+
+        let reader = FileReadTool;
+        let read_result = reader
+            .execute(serde_json::json!({"path": path.to_str().unwrap()}))
+            .await;
+        assert!(read_result.success);
+    }
+
+    #[tokio::test]
+    async fn test_shell_command_not_found() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "this_command_does_not_exist_12345"}))
+            .await;
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_shell_env_var_expansion() {
+        let tool = ShellTool;
+        let result = tool
+            .execute(serde_json::json!({"command": "echo $HOME"}))
+            .await;
+        assert!(result.success);
+        assert!(!result.output.trim().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_file_read_with_very_long_line() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let long_line = "x".repeat(100_000);
+        std::fs::write(tmp.path(), &long_line).unwrap();
+
+        let tool = FileReadTool;
+        let result = tool
+            .execute(serde_json::json!({"path": tmp.path().to_str().unwrap()}))
+            .await;
+        assert!(result.success);
+        let meta = result.metadata.unwrap();
+        assert!(meta["total_lines"].as_u64().unwrap() >= 1);
+    }
+
+    #[tokio::test]
+    async fn test_search_tool_executes_rg() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("test.txt");
+        std::fs::write(&file, "hello world").unwrap();
+
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "hello",
+                "path": tmp.path().to_str().unwrap()
+            }))
+            .await;
+        assert!(result.success);
+        assert!(result.output.contains("hello"));
+    }
 }

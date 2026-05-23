@@ -16,7 +16,6 @@
 //! The cache key is the idempotency key itself; the operation hash (method+path+body)
 //! prevents false positives when the same key is reused for different operations.
 
-use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -39,8 +38,8 @@ pub const IDEMPOTENCY_KEY_HEADER: &str = "X-Idempotency-Key";
 /// Only applies to POST, PUT, PATCH methods that carry an `X-Idempotency-Key`.
 /// GET/DELETE requests pass through without idempotency checks.
 pub async fn idempotency_middleware(
-    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
-    mut request: Request,
+    axum::extract::State(state): axum::extract::State<AppState>,
+    request: Request,
     next: Next,
 ) -> Response {
     // Only apply to mutating methods with idempotency key
@@ -66,7 +65,7 @@ pub async fn idempotency_middleware(
 
     // Read and buffer the request body
     let (parts, body) = request.into_parts();
-    let body_bytes = hyper::body::to_bytes(body).await.unwrap_or_else(|_| Bytes::new()).to_vec();
+    let body_bytes = axum::body::to_bytes(body, 1024 * 1024).await.unwrap_or_else(|_| Bytes::new()).to_vec();
     let path = parts.uri.path().to_string();
     let body_hash = compute_operation_hash(&method, &path, &body_bytes);
 
@@ -77,7 +76,7 @@ pub async fn idempotency_middleware(
             let status = StatusCode::from_u16(entry.response_status as u16)
                 .unwrap_or(StatusCode::OK);
             let body = entry.response_body.unwrap_or_default();
-            let mut resp = Response::new(Body::from_bytes(bytes::Bytes::from(body)));
+            let mut resp = Response::new(Body::from(Bytes::copy_from_slice(body.as_slice())));
             *resp.status_mut() = status;
             resp.headers_mut().insert(
                 "X-Idempotency-Replayed",
@@ -110,7 +109,7 @@ pub async fn idempotency_middleware(
     }
 
     // Reconstruct request with buffered body and run handler
-    let request = Request::from_parts(parts, Body::from_bytes(Bytes::from(body_bytes)));
+    let request = Request::from_parts(parts, Body::from(Bytes::copy_from_slice(body_bytes.as_slice())));
     let response = next.run(request).await;
 
     // Cache the response (best-effort)

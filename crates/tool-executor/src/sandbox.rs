@@ -694,6 +694,31 @@ mod tests {
         assert_eq!(shell_escape("cmd;rm -rf /"), "'cmd;rm -rf /'");
     }
 
+    // ========== Shell_escape edge cases ==========
+
+    #[test]
+    fn test_shell_escape_with_equals() {
+        // `=` is not alphanumeric, not in allowed set
+        assert_eq!(shell_escape("foo=bar"), "'foo=bar'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_colon() {
+        // `:` is not in the allowed set
+        assert_eq!(shell_escape("/usr/local:bin"), "'/usr/local:bin'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_hash() {
+        // `#` triggers comment, needs escaping
+        assert_eq!(shell_escape("echo hello # comment"), "'echo hello # comment'");
+    }
+
+    #[test]
+    fn test_shell_escape_with_backticks() {
+        assert_eq!(shell_escape("echo `whoami`"), "'echo `whoami`'");
+    }
+
     // ========== SandboxResult 额外测试 ==========
 
     #[test]

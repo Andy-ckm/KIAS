@@ -1070,9 +1070,6 @@ pub struct PrefixCacheStats {
 
 // ── Idempotency Repository ──────────────────────────────────────────────────
 
-use kias_common::{KiasError, KiasResult};
-use sqlx::SqlitePool;
-
 use super::models::IdempotencyRow;
 
 /// Repository for idempotency key storage and lookup.

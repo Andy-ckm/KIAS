@@ -24,17 +24,17 @@
 
 pub mod audit_trail;
 pub mod electronic_signature;
+pub mod gamp_classification;
 pub mod risk_assessment;
 pub mod agent_validation;
 pub mod compliance_report;
-pub mod gamp_classification;
 
 pub use audit_trail::{AuditRecord, AuditTrail, ActionType, GxPDomain, RiskLevel};
 pub use electronic_signature::{
     ElectronicSignature, SignatureBundle, SignatureManager, OperationType, SignatureType,
 };
 pub use risk_assessment::{
-    AIAgentRiskLevel, RiskAssessment, HazardScenario, RiskScorer, GampCategory, GxPRegulatorContext,
+    AIAgentRiskLevel, GxPRegulatorContext, HazardScenario, RiskAssessment, RiskScorer,
 };
 pub use agent_validation::{
     ValidationProtocol, AcceptanceCriterion, TestRecord, ValidationEngine, ValidationStage,

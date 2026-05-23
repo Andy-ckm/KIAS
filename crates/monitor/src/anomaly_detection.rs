@@ -93,8 +93,6 @@ pub enum AnomalyType {
     UnknownOperation,
     /// High error rate
     ErrorRateSpike,
-    /// Unusual hour-of-day activity pattern
-    UnusualTimePattern,
     /// Operation count frequency spike
     OpCountSpike,
     /// Cost trend anomaly (sudden increase/decrease)
@@ -167,7 +165,7 @@ impl AgentStats {
         // Per-operation frequency: count events in each time window (bucket by minute)
         let minute_bucket = event.timestamp.timestamp() / 60;
         let freq = self.op_frequency.entry(event.operation.clone()).or_default();
-        if freq.is_empty() || *freq.last().map(|&b| b).unwrap_or(0) != minute_bucket as u32 {
+        if freq.is_empty() || *freq.last().unwrap_or(&0) != minute_bucket as u32 {
             freq.push(minute_bucket as u32);
             if freq.len() > 20 {
                 freq.remove(0);

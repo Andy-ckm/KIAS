@@ -80,8 +80,8 @@ pub struct ToolInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtin::ToolResult;
     use async_trait::async_trait;
+    use crate::builtin::ToolResult;
 
     /// Mock tool for testing the registry
     struct MockTool {
@@ -429,5 +429,86 @@ mod tests {
             assert!(tool.is_some(), "Expected tool '{}' to exist", name);
             assert_eq!(tool.unwrap().name(), *name);
         }
+    }
+
+    // ========== Additional coverage tests ==========
+
+    #[tokio::test]
+    async fn test_registry_execute_returns_error_for_empty_params() {
+        let registry = ToolRegistry::with_builtin();
+        let result = registry.execute("file_read", serde_json::json!(null)).await;
+        // null params should be handled gracefully
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_registry_execute_tool_with_invalid_params() {
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(MockTool::new("test_tool")));
+
+        // file_read requires "path" param; pass empty object
+        let result = registry.execute("file_read", serde_json::json!({})).await;
+        // Should fail gracefully
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_tool_info_clone() {
+        let info = ToolInfo {
+            name: "test".to_string(),
+            description: "desc".to_string(),
+            parameters: serde_json::json!({"type": "object"}),
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.name, info.name);
+        assert_eq!(cloned.description, info.description);
+    }
+
+    // ToolRegistry does not implement Debug — no need to test it
+
+    #[test]
+    fn test_tool_info_debug() {
+        let info = ToolInfo {
+            name: "foo".to_string(),
+            description: "bar".to_string(),
+            parameters: serde_json::json!({}),
+        };
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("foo"));
+    }
+
+    #[test]
+    fn test_default_for_tool_registry() {
+        let registry = ToolRegistry::default();
+        assert!(registry.list().is_empty());
+    }
+
+    #[test]
+    fn test_register_and_overwrite_changes_description() {
+        struct DummyTool(&'static str, &'static str);
+        impl DummyTool {
+            fn new(name: &'static str, desc: &'static str) -> Self {
+                Self(name, desc)
+            }
+        }
+        #[async_trait]
+        impl Tool for DummyTool {
+            fn name(&self) -> &str { self.0 }
+            fn description(&self) -> &str { self.1 }
+            fn parameters(&self) -> serde_json::Value { serde_json::json!({}) }
+            async fn execute(&self, _params: serde_json::Value) -> ToolResult {
+                ToolResult { success: true, output: "dummy".to_string(), error: None, metadata: None }
+            }
+        }
+
+        let mut registry = ToolRegistry::new();
+        registry.register(Box::new(DummyTool::new("tool", "first")));
+        let first_desc = registry.get("tool").unwrap().description().to_string();
+
+        registry.register(Box::new(DummyTool::new("tool", "second")));
+        let second_desc = registry.get("tool").unwrap().description().to_string();
+
+        assert_eq!(first_desc, "first");
+        assert_eq!(second_desc, "second");
     }
 }

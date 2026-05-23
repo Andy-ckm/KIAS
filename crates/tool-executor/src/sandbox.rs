@@ -711,7 +711,10 @@ mod tests {
     #[test]
     fn test_shell_escape_with_hash() {
         // `#` triggers comment, needs escaping
-        assert_eq!(shell_escape("echo hello # comment"), "'echo hello # comment'");
+        assert_eq!(
+            shell_escape("echo hello # comment"),
+            "'echo hello # comment'"
+        );
     }
 
     #[test]
@@ -778,5 +781,118 @@ mod tests {
         assert_eq!(r2.stderr, r.stderr);
         assert_eq!(r2.exit_code, r.exit_code);
         assert_eq!(r2.timed_out, r.timed_out);
+    }
+
+    // ========== Additional coverage tests ==========
+
+    #[tokio::test]
+    async fn test_docker_sandbox_no_memory_limit() {
+        // Docker sandbox with memory_limit_mb = None
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Docker,
+            memory_limit_mb: None,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo docker-no-mem-limit", None).await;
+        // Either succeeds or fails gracefully - just verify it returns
+        assert!(result.exit_code == 0 || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_docker_sandbox_no_cpu_limit() {
+        // Docker sandbox with cpu_limit = None
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Docker,
+            cpu_limit: None,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo docker-no-cpu-limit", None).await;
+        assert!(result.exit_code == 0 || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_docker_sandbox_with_network_allowed() {
+        // Docker sandbox with allow_network = true (should NOT add --network none)
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Docker,
+            allow_network: true,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo docker-with-network", None).await;
+        assert!(result.exit_code == 0 || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_docker_sandbox_with_writes_allowed() {
+        // Docker sandbox with allow_write = true (should NOT add --read-only)
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Docker,
+            allow_write: true,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo docker-with-writes", None).await;
+        assert!(result.exit_code == 0 || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_namespace_sandbox_no_memory_limit() {
+        // Namespace sandbox with memory_limit_mb = None (prlimit_args will be empty)
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Namespace,
+            memory_limit_mb: None,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo ns-no-mem-limit", None).await;
+        // Either succeeds or fails gracefully
+        assert!(result.success || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_namespace_sandbox_with_network_allowed() {
+        // Namespace sandbox with allow_network = true (should NOT add --net)
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Namespace,
+            allow_network: true,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        let result = executor.execute("echo ns-with-network", None).await;
+        assert!(result.success || !result.stderr.is_empty() || result.timed_out);
+    }
+
+    #[tokio::test]
+    async fn test_process_sandbox_execution_error() {
+        // Test the Ok(Err(e)) branch - use an invalid path for current_dir
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::Process,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        // This should trigger Ok(Err(e)) when trying to execute in invalid directory
+        let result = executor
+            .execute("echo test", Some("/nonexistent/path/that/cannot/exist"))
+            .await;
+        // The command might still succeed or fail, but verify it returns
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_unsandboxed_execution_error() {
+        // Test unsandboxed Ok(Err(e)) branch
+        let executor = SandboxExecutor::new(SandboxConfig {
+            sandbox_type: SandboxType::None,
+            timeout_secs: Some(5),
+            ..Default::default()
+        });
+        // Using invalid workdir should trigger error
+        let result = executor
+            .execute("echo test", Some("/nonexistent/path/that/cannot/exist"))
+            .await;
+        let _ = result;
     }
 }

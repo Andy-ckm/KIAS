@@ -70,7 +70,10 @@ pub struct ClientCapabilities {
 impl ClientCapabilities {
     /// Create with a list of supported protocol versions.
     pub fn with_versions(versions: Vec<String>) -> Self {
-        Self { protocol_version: versions, ..Default::default() }
+        Self {
+            protocol_version: versions,
+            ..Default::default()
+        }
     }
 
     /// Enable tools.
@@ -117,7 +120,10 @@ impl ClientCapabilities {
         }
         // Fallback: use server's latest version (spec-compliant fallback)
         VersionNegotiation {
-            agreed_version: server_versions.first().cloned().unwrap_or_else(|| "2024-11-05".to_string()),
+            agreed_version: server_versions
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "2024-11-05".to_string()),
             needs_initialized_notification: true,
         }
     }

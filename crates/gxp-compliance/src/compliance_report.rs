@@ -177,14 +177,16 @@ impl ComplianceReport {
 
     /// All findings sorted by severity.
     pub fn all_findings(&self) -> Vec<&Finding> {
-        let mut findings: Vec<_> = self.sections.iter().flat_map(|s| s.findings.iter()).collect();
-        findings.sort_by_key(|f| {
-            match f.severity {
-                Severity::Critical => 0,
-                Severity::Major => 1,
-                Severity::Minor => 2,
-                Severity::Observation => 3,
-            }
+        let mut findings: Vec<_> = self
+            .sections
+            .iter()
+            .flat_map(|s| s.findings.iter())
+            .collect();
+        findings.sort_by_key(|f| match f.severity {
+            Severity::Critical => 0,
+            Severity::Major => 1,
+            Severity::Minor => 2,
+            Severity::Observation => 3,
         });
         findings
     }
@@ -203,7 +205,11 @@ impl ComplianceReport {
         if major_count > 0 {
             return ComplianceStatus::InProgress;
         }
-        if self.sections.iter().any(|s| s.compliance_status == ComplianceStatus::InProgress) {
+        if self
+            .sections
+            .iter()
+            .any(|s| s.compliance_status == ComplianceStatus::InProgress)
+        {
             return ComplianceStatus::InProgress;
         }
         ComplianceStatus::Compliant
@@ -263,9 +269,7 @@ impl ComplianceSummary {
             ComplianceStatus::ConditionallyCompliant => {
                 "Address major findings within 30 days".to_string()
             }
-            ComplianceStatus::InProgress => {
-                "Complete CAPA within specified timeframes".to_string()
-            }
+            ComplianceStatus::InProgress => "Complete CAPA within specified timeframes".to_string(),
             ComplianceStatus::NonCompliant => {
                 "Suspend AI agent operation until critical findings resolved".to_string()
             }
@@ -316,7 +320,12 @@ impl ComplianceReporter {
         report.add_section(self.section_executive_summary(agent_id, risk_assessment, validation));
 
         // Section 2: Audit Trail Analysis
-        report.add_section(self.section_audit_trail(agent_id, period_start, period_end, audit_trail));
+        report.add_section(self.section_audit_trail(
+            agent_id,
+            period_start,
+            period_end,
+            audit_trail,
+        ));
 
         // Section 3: Risk Assessment Summary
         report.add_section(self.section_risk_assessment(risk_assessment));
@@ -420,11 +429,21 @@ impl ComplianceReporter {
         let findings = report.all_findings();
         ReportSection::new(
             "Findings and CAPA",
-            &format!("{} total findings: {} critical, {} major, {} minor.",
+            &format!(
+                "{} total findings: {} critical, {} major, {} minor.",
                 findings.len(),
-                findings.iter().filter(|f| f.severity == Severity::Critical).count(),
-                findings.iter().filter(|f| f.severity == Severity::Major).count(),
-                findings.iter().filter(|f| f.severity == Severity::Minor).count(),
+                findings
+                    .iter()
+                    .filter(|f| f.severity == Severity::Critical)
+                    .count(),
+                findings
+                    .iter()
+                    .filter(|f| f.severity == Severity::Major)
+                    .count(),
+                findings
+                    .iter()
+                    .filter(|f| f.severity == Severity::Minor)
+                    .count(),
             ),
             report.overall_status(),
         )
@@ -460,10 +479,19 @@ impl ComplianceReporter {
                 document_ids: vec![format!("agent-{}-fda-001", agent_id)],
                 regulatory_exemption_codes: vec![],
             },
-            agent_description: format!("AI Agent {} - GxP compliant diagnostic assistant", agent_id),
-            risk_summary: format!("Risk level: {:?}. GAMP: {:?}.", risk.risk_level, risk.gamp_category),
-            validation_summary: format!("Validation status: {:?}. {} criteria passed.",
-                validation.status, validation.passed_count()),
+            agent_description: format!(
+                "AI Agent {} - GxP compliant diagnostic assistant",
+                agent_id
+            ),
+            risk_summary: format!(
+                "Risk level: {:?}. GAMP: {:?}.",
+                risk.risk_level, risk.gamp_category
+            ),
+            validation_summary: format!(
+                "Validation status: {:?}. {} criteria passed.",
+                validation.status,
+                validation.passed_count()
+            ),
             audit_trail_export: audit_trail.export_for_inspection(agent_id),
             electronic_signature_bundle: None,
             attachments: vec![
@@ -509,13 +537,21 @@ mod tests {
     }
 
     fn dummy_validation() -> ValidationProtocol {
-        let mut p = ValidationProtocol::new(
-            ProtocolType::PQ,
-            "agent-1",
-            "PQ validation",
-        );
-        p.add_criterion(AcceptanceCriterion::new("C1", "Accuracy >= 95%", "Test", ">=95%", 95.0));
-        p.add_criterion(AcceptanceCriterion::new("C2", "Latency < 2s", "Test", "<2s", 90.0));
+        let mut p = ValidationProtocol::new(ProtocolType::PQ, "agent-1", "PQ validation");
+        p.add_criterion(AcceptanceCriterion::new(
+            "C1",
+            "Accuracy >= 95%",
+            "Test",
+            ">=95%",
+            95.0,
+        ));
+        p.add_criterion(AcceptanceCriterion::new(
+            "C2",
+            "Latency < 2s",
+            "Test",
+            "<2s",
+            90.0,
+        ));
         p.approve("qa").unwrap();
         if let Some(c) = p.criteria.get_mut(0) {
             c.record_result(97.0);
@@ -523,8 +559,18 @@ mod tests {
         if let Some(c) = p.criteria.get_mut(1) {
             c.record_result(92.0);
         }
-        p.test_records.push(TestRecord::new("C1", "t", serde_json::json!({"value": 97.0}), true));
-        p.test_records.push(TestRecord::new("C2", "t", serde_json::json!({"value": 92.0}), true));
+        p.test_records.push(TestRecord::new(
+            "C1",
+            "t",
+            serde_json::json!({"value": 97.0}),
+            true,
+        ));
+        p.test_records.push(TestRecord::new(
+            "C2",
+            "t",
+            serde_json::json!({"value": 92.0}),
+            true,
+        ));
         p.complete("reviewer").unwrap();
         p
     }
@@ -584,10 +630,13 @@ mod tests {
 
         let reporter = ComplianceReporter::new();
         let report = reporter.generate_report(
-            "agent-1", ReportType::FDA21CFR11,
+            "agent-1",
+            ReportType::FDA21CFR11,
             DateTime::from_timestamp(0, 0).unwrap(),
             DateTime::from_timestamp(9_000_000_000, 0).unwrap(),
-            &audit, &risk, &validation,
+            &audit,
+            &risk,
+            &validation,
         );
 
         let summary = ComplianceSummary::from_report(&report);
@@ -606,7 +655,9 @@ mod tests {
             "FDA 21 CFR Part 11",
         );
         let mut section = ReportSection::new("Test", "Test content", ComplianceStatus::Compliant);
-        section.findings.push(Finding::new(Severity::Critical, "Critical failure"));
+        section
+            .findings
+            .push(Finding::new(Severity::Critical, "Critical failure"));
         report.add_section(section);
 
         let summary = ComplianceSummary::from_report(&report);

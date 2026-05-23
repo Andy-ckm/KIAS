@@ -128,7 +128,9 @@ pub struct SignatureManager {
 
 impl SignatureManager {
     pub fn new() -> Self {
-        Self { bundles: Vec::new() }
+        Self {
+            bundles: Vec::new(),
+        }
     }
 
     /// Determine if an operation type requires counter-signature (two-person rule).
@@ -177,7 +179,11 @@ impl SignatureManager {
     }
 
     /// Verify a previously signed bundle against a known combined hash.
-    pub fn verify(&self, bundle: &SignatureBundle, combined_hash: &str) -> Result<bool, SignatureError> {
+    pub fn verify(
+        &self,
+        bundle: &SignatureBundle,
+        combined_hash: &str,
+    ) -> Result<bool, SignatureError> {
         if bundle.signatures.is_empty() {
             return Err(SignatureError::NoSignatures);
         }
@@ -234,7 +240,11 @@ mod tests {
     fn test_sign_single_signature() {
         let mut manager = SignatureManager::new();
         let mut bundle = SignatureBundle::new("op-1", OperationType::ApproveAgentDecision);
-        let sig = ElectronicSignature::new("dr-smith", SignatureType::Digital, "Approved based on review");
+        let sig = ElectronicSignature::new(
+            "dr-smith",
+            SignatureType::Digital,
+            "Approved based on review",
+        );
         bundle.add_signature(sig);
 
         let combined = manager.sign(bundle).unwrap();
@@ -245,7 +255,11 @@ mod tests {
     fn test_verify_bundle() {
         let mut manager = SignatureManager::new();
         let mut bundle = SignatureBundle::new("op-2", OperationType::RejectAgentOutput);
-        bundle.add_signature(ElectronicSignature::new("qa-lead", SignatureType::Certified, "Rejected due to error"));
+        bundle.add_signature(ElectronicSignature::new(
+            "qa-lead",
+            SignatureType::Certified,
+            "Rejected due to error",
+        ));
         let combined = manager.sign(bundle.clone()).unwrap();
 
         assert!(manager.verify(&bundle, &combined).unwrap());
@@ -255,7 +269,11 @@ mod tests {
     fn test_verify_fails_on_tampering() {
         let mut manager = SignatureManager::new();
         let mut bundle = SignatureBundle::new("op-3", OperationType::ApproveSOP);
-        bundle.add_signature(ElectronicSignature::new("manager", SignatureType::ManuScript, "Approved"));
+        bundle.add_signature(ElectronicSignature::new(
+            "manager",
+            SignatureType::ManuScript,
+            "Approved",
+        ));
         let combined = manager.sign(bundle.clone()).unwrap();
 
         // Tamper with rationale
@@ -294,8 +312,16 @@ mod tests {
     fn test_multiple_signers() {
         let mut manager = SignatureManager::new();
         let mut bundle = SignatureBundle::new("op-multi", OperationType::ApproveValidationReport);
-        bundle.add_signature(ElectronicSignature::new("signer-1", SignatureType::Digital, "First approval"));
-        bundle.add_signature(ElectronicSignature::new("signer-2", SignatureType::Digital, "Second approval"));
+        bundle.add_signature(ElectronicSignature::new(
+            "signer-1",
+            SignatureType::Digital,
+            "First approval",
+        ));
+        bundle.add_signature(ElectronicSignature::new(
+            "signer-2",
+            SignatureType::Digital,
+            "Second approval",
+        ));
 
         let combined = manager.sign(bundle.clone()).unwrap();
         assert!(manager.verify(&bundle, &combined).unwrap());

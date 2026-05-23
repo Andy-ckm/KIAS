@@ -159,6 +159,7 @@ mod tests {
             audit_log: Arc::new(kias_common::audit::MemoryAuditLog::new()),
             sqlite_audit_log: None,
             dead_letter_queue: None,
+            idempotency_store: None,
             event_bus: crate::websocket::EventBus::default(),
             a2a_tasks: crate::handlers::a2a::A2aTaskStore::new(),
             connection_registry: crate::websocket::ConnectionRegistry::default(),

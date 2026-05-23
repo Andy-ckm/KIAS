@@ -196,9 +196,10 @@ impl ValidationProtocol {
     /// Approve the protocol (requires approver ID).
     pub fn approve(&mut self, approver_id: &str) -> Result<(), ValidationError> {
         if self.status != ProtocolStatus::Draft && self.status != ProtocolStatus::InReview {
-            return Err(ValidationError::InvalidStateTransition(
-                format!("Cannot approve protocol in {:?} state", self.status),
-            ));
+            return Err(ValidationError::InvalidStateTransition(format!(
+                "Cannot approve protocol in {:?} state",
+                self.status
+            )));
         }
         if self.criteria.is_empty() {
             return Err(ValidationError::NoCriteria);
@@ -213,22 +214,29 @@ impl ValidationProtocol {
     /// Execute a test record against a criterion.
     pub fn execute_test(&mut self, record: TestRecord) -> Result<(), ValidationError> {
         if self.status != ProtocolStatus::Approved {
-            return Err(ValidationError::InvalidStateTransition(
-                format!("Cannot execute test on protocol in {:?} state", self.status),
-            ));
+            return Err(ValidationError::InvalidStateTransition(format!(
+                "Cannot execute test on protocol in {:?} state",
+                self.status
+            )));
         }
 
         // Verify criterion exists
         let criterion_exists = self.criteria.iter().any(|c| c.id == record.criterion_id);
         if !criterion_exists {
-            return Err(ValidationError::CriterionNotFound(record.criterion_id.clone()));
+            return Err(ValidationError::CriterionNotFound(
+                record.criterion_id.clone(),
+            ));
         }
 
         self.test_records.push(record);
 
         // Update criterion result
         if let Some(record) = self.test_records.last() {
-            if let Some(criterion) = self.criteria.iter_mut().find(|c| c.id == record.criterion_id) {
+            if let Some(criterion) = self
+                .criteria
+                .iter_mut()
+                .find(|c| c.id == record.criterion_id)
+            {
                 if let Some(result) = record.result_json.get("value").and_then(|v| v.as_f64()) {
                     criterion.record_result(result);
                 }
@@ -266,7 +274,10 @@ impl ValidationProtocol {
 
     /// Number of criteria passed.
     pub fn passed_count(&self) -> usize {
-        self.criteria.iter().filter(|c| c.passed == Some(true)).count()
+        self.criteria
+            .iter()
+            .filter(|c| c.passed == Some(true))
+            .count()
     }
 }
 
@@ -299,7 +310,11 @@ impl ValidationEngine {
         if protocol.criteria.is_empty() {
             return 0.0;
         }
-        let passed = protocol.criteria.iter().filter(|c| c.passed == Some(true)).count();
+        let passed = protocol
+            .criteria
+            .iter()
+            .filter(|c| c.passed == Some(true))
+            .count();
         (passed as f64) / (protocol.criteria.len() as f64) * 100.0
     }
 
@@ -310,8 +325,16 @@ impl ValidationEngine {
             status: protocol.status,
             total_criteria: protocol.criteria.len(),
             passed: protocol.passed_count(),
-            failed: protocol.criteria.iter().filter(|c| c.passed == Some(false)).count(),
-            pending: protocol.criteria.iter().filter(|c| c.passed.is_none()).count(),
+            failed: protocol
+                .criteria
+                .iter()
+                .filter(|c| c.passed == Some(false))
+                .count(),
+            pending: protocol
+                .criteria
+                .iter()
+                .filter(|c| c.passed.is_none())
+                .count(),
             pass_rate: self.calculate_pass_rate(protocol),
             is_validated: protocol.is_validated(),
         }
@@ -381,16 +404,17 @@ mod tests {
 
     #[test]
     fn test_approve_protocol() {
-        let mut protocol = ValidationProtocol::new(
-            ProtocolType::PQ,
-            "agent-1",
-            "Performance qualification",
-        );
+        let mut protocol =
+            ValidationProtocol::new(ProtocolType::PQ, "agent-1", "Performance qualification");
         protocol.add_criterion(AcceptanceCriterion::new(
             "C1", "Test", "Method", "Outcome", 90.0,
         ));
         protocol.add_criterion(AcceptanceCriterion::new(
-            "C2", "Test 2", "Method 2", "Outcome 2", 85.0,
+            "C2",
+            "Test 2",
+            "Method 2",
+            "Outcome 2",
+            85.0,
         ));
 
         protocol.approve("qa-manager").unwrap();
@@ -401,15 +425,12 @@ mod tests {
     #[test]
     fn test_execute_test() {
         let mut protocol = ValidationProtocol::new(ProtocolType::PQ, "agent-1", "PQ");
-        protocol.add_criterion(AcceptanceCriterion::new("C1", "Test", "Method", "Outcome", 90.0));
+        protocol.add_criterion(AcceptanceCriterion::new(
+            "C1", "Test", "Method", "Outcome", 90.0,
+        ));
         protocol.approve("qa").unwrap();
 
-        let record = TestRecord::new(
-            "C1",
-            "tester-1",
-            serde_json::json!({"value": 95.0}),
-            true,
-        );
+        let record = TestRecord::new("C1", "tester-1", serde_json::json!({"value": 95.0}), true);
         protocol.execute_test(record).unwrap();
         assert_eq!(protocol.test_records.len(), 1);
     }
@@ -438,7 +459,12 @@ mod tests {
 
         let mut c = protocol.criteria.get_mut(0).unwrap();
         c.record_result(100.0);
-        protocol.test_records.push(TestRecord::new("C1", "t", serde_json::json!({"value": 100.0}), true));
+        protocol.test_records.push(TestRecord::new(
+            "C1",
+            "t",
+            serde_json::json!({"value": 100.0}),
+            true,
+        ));
 
         protocol.complete("reviewer").unwrap();
         assert!(protocol.is_validated());

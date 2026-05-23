@@ -80,8 +80,8 @@ pub struct ToolInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use crate::builtin::ToolResult;
+    use async_trait::async_trait;
 
     /// Mock tool for testing the registry
     struct MockTool {
@@ -493,11 +493,22 @@ mod tests {
         }
         #[async_trait]
         impl Tool for DummyTool {
-            fn name(&self) -> &str { self.0 }
-            fn description(&self) -> &str { self.1 }
-            fn parameters(&self) -> serde_json::Value { serde_json::json!({}) }
+            fn name(&self) -> &str {
+                self.0
+            }
+            fn description(&self) -> &str {
+                self.1
+            }
+            fn parameters(&self) -> serde_json::Value {
+                serde_json::json!({})
+            }
             async fn execute(&self, _params: serde_json::Value) -> ToolResult {
-                ToolResult { success: true, output: "dummy".to_string(), error: None, metadata: None }
+                ToolResult {
+                    success: true,
+                    output: "dummy".to_string(),
+                    error: None,
+                    metadata: None,
+                }
             }
         }
 

@@ -164,7 +164,10 @@ impl AgentStats {
 
         // Per-operation frequency: count events in each time window (bucket by minute)
         let minute_bucket = event.timestamp.timestamp() / 60;
-        let freq = self.op_frequency.entry(event.operation.clone()).or_default();
+        let freq = self
+            .op_frequency
+            .entry(event.operation.clone())
+            .or_default();
         if freq.is_empty() || *freq.last().unwrap_or(&0) != minute_bucket as u32 {
             freq.push(minute_bucket as u32);
             if freq.len() > 20 {
@@ -350,7 +353,11 @@ impl AnomalyDetector {
             return None;
         }
 
-        let prev_avg: f64 = freq.iter().take(freq.len() - 1).map(|&v| v as f64).sum::<f64>()
+        let prev_avg: f64 = freq
+            .iter()
+            .take(freq.len() - 1)
+            .map(|&v| v as f64)
+            .sum::<f64>()
             / (freq.len() - 1) as f64;
 
         if prev_avg <= 0.0 {
@@ -420,7 +427,11 @@ impl AnomalyDetector {
         let change_ratio = projected_change.abs() / avg_cost;
 
         if change_ratio > 0.5 && slope.abs() > 0.001 {
-            let direction = if slope > 0.0 { "increasing" } else { "decreasing" };
+            let direction = if slope > 0.0 {
+                "increasing"
+            } else {
+                "decreasing"
+            };
             return Some(Anomaly {
                 agent_id: event.agent_id.clone(),
                 anomaly_type: AnomalyType::CostTrendAnomaly,

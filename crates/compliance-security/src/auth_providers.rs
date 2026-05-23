@@ -712,7 +712,11 @@ impl LdapProvider {
     }
 
     /// Add a role mapping: LDAP group DN → application role.
-    pub fn add_role_mapping(mut self, group_dn: impl Into<String>, role: impl Into<String>) -> Self {
+    pub fn add_role_mapping(
+        mut self,
+        group_dn: impl Into<String>,
+        role: impl Into<String>,
+    ) -> Self {
         self.role_map.insert(group_dn.into(), role.into());
         self
     }
@@ -762,11 +766,7 @@ impl LdapProvider {
 
         // Map groups to roles based on role_map.
         // In production: query groupMembership attribute on user entry.
-        let roles: Vec<String> = self
-            .role_map
-            .values()
-            .cloned()
-            .collect();
+        let roles: Vec<String> = self.role_map.values().cloned().collect();
 
         Ok(LdapBindResult {
             bind_dn,
@@ -800,10 +800,7 @@ impl AuthProvider for LdapProvider {
         credential: &AuthCredential,
     ) -> Result<AuthResult, AuthProviderError> {
         let (bind_dn, password) = match credential {
-            AuthCredential::LdapBind {
-                bind_dn,
-                password,
-            } => (bind_dn.as_str(), password.as_str()),
+            AuthCredential::LdapBind { bind_dn, password } => (bind_dn.as_str(), password.as_str()),
             _ => return Err(AuthProviderError::InvalidCredentials),
         };
 
@@ -875,16 +872,13 @@ impl KerberosProvider {
         principal: impl Into<String>,
         key: impl Into<String>,
     ) -> Self {
-        self.keytab.insert(principal.into(), key.into().into_bytes());
+        self.keytab
+            .insert(principal.into(), key.into().into_bytes());
         self
     }
 
     /// Add a role mapping for a realm.
-    pub fn add_role_mapping(
-        mut self,
-        realm: impl Into<String>,
-        roles: Vec<String>,
-    ) -> Self {
+    pub fn add_role_mapping(mut self, realm: impl Into<String>, roles: Vec<String>) -> Self {
         self.role_map.insert(realm.into(), roles);
         self
     }
@@ -894,10 +888,7 @@ impl KerberosProvider {
     /// In production this decodes the AP-REQ ticket, validates the
     /// authenticator using the keytab, and checks ticket expiry.
     /// In this implementation we simulate the GSS-API unwrap flow.
-    async fn verify_ticket(
-        &self,
-        ticket: &str,
-    ) -> Result<KerberosAuthResult, AuthProviderError> {
+    async fn verify_ticket(&self, ticket: &str) -> Result<KerberosAuthResult, AuthProviderError> {
         if ticket.is_empty() {
             return Err(AuthProviderError::InvalidCredentials);
         }
@@ -907,7 +898,10 @@ impl KerberosProvider {
         let (subject, ticket_realm) = if ticket.contains('@') {
             let parts: Vec<&str> = ticket.split('@').collect();
             let principal = parts[0];
-            let realm = parts.get(1).map(|s| s.to_string()).unwrap_or_else(|| self.realm.clone());
+            let realm = parts
+                .get(1)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| self.realm.clone());
             (principal.to_string(), realm)
         } else {
             let end = 8.min(ticket.len());
@@ -1040,10 +1034,7 @@ impl MtlsProvider {
     /// chain against the trusted CA, checks expiry, and verifies
     /// revocation via CRL/OCSP.
     /// In this implementation we simulate the TLS handshake verification.
-    async fn verify_cert(
-        &self,
-        cert_pem: &str,
-    ) -> Result<MtlsVerifyResult, AuthProviderError> {
+    async fn verify_cert(&self, cert_pem: &str) -> Result<MtlsVerifyResult, AuthProviderError> {
         // Basic PEM format validation
         if !cert_pem.contains("-----BEGIN CERTIFICATE-----") {
             return Err(AuthProviderError::CertificateInvalid(
@@ -1108,10 +1099,9 @@ impl AuthProvider for MtlsProvider {
         credential: &AuthCredential,
     ) -> Result<AuthResult, AuthProviderError> {
         let (cert_pem, _key_pem) = match credential {
-            AuthCredential::Certificate {
-                cert_pem,
-                key_pem,
-            } => (cert_pem.as_str(), key_pem.as_ref()),
+            AuthCredential::Certificate { cert_pem, key_pem } => {
+                (cert_pem.as_str(), key_pem.as_ref())
+            }
             _ => return Err(AuthProviderError::InvalidCredentials),
         };
 
@@ -1128,7 +1118,10 @@ impl AuthProvider for MtlsProvider {
             ttl_seconds: Some(result.expiration_secs),
             claims: HashMap::from([
                 ("cert_hash".to_string(), result.cert_hash),
-                ("trusted_ca_count".to_string(), self.trusted_ca_pem.len().to_string()),
+                (
+                    "trusted_ca_count".to_string(),
+                    self.trusted_ca_pem.len().to_string(),
+                ),
             ]),
             issued_at: Utc::now(),
         })
@@ -1538,9 +1531,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_ldap_provider_success() {
-        let provider = LdapProvider::new("ldap://ldap.example.com:389", "ou=users,dc=example,dc=com")
-            .with_bind_dn_pattern("uid={username},ou=users,dc=example,dc=com")
-            .with_search_filter("(uid={username})");
+        let provider =
+            LdapProvider::new("ldap://ldap.example.com:389", "ou=users,dc=example,dc=com")
+                .with_bind_dn_pattern("uid={username},ou=users,dc=example,dc=com")
+                .with_search_filter("(uid={username})");
 
         let cred = AuthCredential::LdapBind {
             bind_dn: "uid=alice,ou=users,dc=example,dc=com".to_string(),
@@ -1593,8 +1587,14 @@ mod tests {
     #[tokio::test]
     async fn test_ldap_provider_supports_credential() {
         let provider = LdapProvider::new("ldap://ldap.example.com", "dc=example");
-        let ldap_cred = AuthCredential::LdapBind { bind_dn: "u".to_string(), password: "p".to_string() };
-        let other_cred = AuthCredential::Password { username: "u".to_string(), password: "p".to_string() };
+        let ldap_cred = AuthCredential::LdapBind {
+            bind_dn: "u".to_string(),
+            password: "p".to_string(),
+        };
+        let other_cred = AuthCredential::Password {
+            username: "u".to_string(),
+            password: "p".to_string(),
+        };
         assert!(provider.supports_credential(&ldap_cred));
         assert!(!provider.supports_credential(&other_cred));
     }
@@ -1611,7 +1611,10 @@ mod tests {
     async fn test_kerberos_provider_success() {
         let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com")
             .add_keytab_entry("ldap/example.com@EXAMPLE.COM", "keytab-secret")
-            .add_role_mapping("EXAMPLE.COM", vec!["User".to_string(), "KerberosAuth".to_string()]);
+            .add_role_mapping(
+                "EXAMPLE.COM",
+                vec!["User".to_string(), "KerberosAuth".to_string()],
+            );
 
         let cred = AuthCredential::KerberosTicket {
             ticket: "alice@EXAMPLE.COM".to_string(),
@@ -1621,13 +1624,18 @@ mod tests {
         assert_eq!(result.subject, "alice");
         assert_eq!(result.roles, vec!["User", "KerberosAuth"]);
         assert!(result.ttl_seconds.is_some());
-        assert_eq!(result.claims.get("kerberos_realm").map(|s| s.as_str()), Some("EXAMPLE.COM"));
+        assert_eq!(
+            result.claims.get("kerberos_realm").map(|s| s.as_str()),
+            Some("EXAMPLE.COM")
+        );
     }
 
     #[tokio::test]
     async fn test_kerberos_provider_empty_ticket() {
         let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com");
-        let cred = AuthCredential::KerberosTicket { ticket: "".to_string() };
+        let cred = AuthCredential::KerberosTicket {
+            ticket: "".to_string(),
+        };
         let err = provider.authenticate(&cred).await.unwrap_err();
         assert!(matches!(err, AuthProviderError::InvalidCredentials));
     }
@@ -1641,15 +1649,22 @@ mod tests {
             ticket: "aGVsbG8gd29ybGQ=".to_string(), // "hello world" base64
         };
         let result = provider.authenticate(&cred).await.unwrap();
-        assert_eq!(result.claims.get("kerberos_realm").map(|s| s.as_str()), Some("REALM.ORG"));
+        assert_eq!(
+            result.claims.get("kerberos_realm").map(|s| s.as_str()),
+            Some("REALM.ORG")
+        );
         assert!(result.roles.contains(&"Admin".to_string()));
     }
 
     #[tokio::test]
     async fn test_kerberos_provider_supports_credential() {
         let provider = KerberosProvider::new("EXAMPLE.COM", "kdc.example.com");
-        let krb_cred = AuthCredential::KerberosTicket { ticket: "tkt".to_string() };
-        let other_cred = AuthCredential::JwtToken { token: "tok".to_string() };
+        let krb_cred = AuthCredential::KerberosTicket {
+            ticket: "tkt".to_string(),
+        };
+        let other_cred = AuthCredential::JwtToken {
+            token: "tok".to_string(),
+        };
         assert!(provider.supports_credential(&krb_cred));
         assert!(!provider.supports_credential(&other_cred));
     }
@@ -1667,7 +1682,8 @@ mod tests {
         let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHBfpegPjMCMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl\n-----END CERTIFICATE-----");
 
         let cred = AuthCredential::Certificate {
-            cert_pem: "-----BEGIN CERTIFICATE-----\ncert-content\n-----END CERTIFICATE-----".to_string(),
+            cert_pem: "-----BEGIN CERTIFICATE-----\ncert-content\n-----END CERTIFICATE-----"
+                .to_string(),
             key_pem: None,
         };
         let result = provider.authenticate(&cred).await.unwrap();
@@ -1679,7 +1695,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_mtls_provider_invalid_pem() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----");
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----");
         let cred = AuthCredential::Certificate {
             cert_pem: "not-a-cert".to_string(),
             key_pem: None,
@@ -1701,11 +1718,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_mtls_provider_expected_identity() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
-            .with_expected_identity("trusted-client");
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
+                .with_expected_identity("trusted-client");
 
         let cred = AuthCredential::Certificate {
-            cert_pem: "-----BEGIN CERTIFICATE-----\ntrusted-client-cert\n-----END CERTIFICATE-----".to_string(),
+            cert_pem: "-----BEGIN CERTIFICATE-----\ntrusted-client-cert\n-----END CERTIFICATE-----"
+                .to_string(),
             key_pem: None,
         };
         let result = provider.authenticate(&cred).await.unwrap();
@@ -1714,11 +1733,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_mtls_provider_identity_mismatch() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
-            .with_expected_identity("trusted-client");
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----")
+                .with_expected_identity("trusted-client");
 
         let cred = AuthCredential::Certificate {
-            cert_pem: "-----BEGIN CERTIFICATE-----\nother-client-cert\n-----END CERTIFICATE-----".to_string(),
+            cert_pem: "-----BEGIN CERTIFICATE-----\nother-client-cert\n-----END CERTIFICATE-----"
+                .to_string(),
             key_pem: None,
         };
         let err = provider.authenticate(&cred).await.unwrap_err();
@@ -1727,30 +1748,42 @@ mod tests {
 
     #[tokio::test]
     async fn test_mtls_provider_multiple_ca() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA1\n-----END CERTIFICATE-----")
-            .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA2\n-----END CERTIFICATE-----")
-            .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA3\n-----END CERTIFICATE-----");
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA1\n-----END CERTIFICATE-----")
+                .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA2\n-----END CERTIFICATE-----")
+                .add_trusted_ca("-----BEGIN CERTIFICATE-----\nCA3\n-----END CERTIFICATE-----");
 
         let cred = AuthCredential::Certificate {
-            cert_pem: "-----BEGIN CERTIFICATE-----\nvalid-client\n-----END CERTIFICATE-----".to_string(),
+            cert_pem: "-----BEGIN CERTIFICATE-----\nvalid-client\n-----END CERTIFICATE-----"
+                .to_string(),
             key_pem: None,
         };
         let result = provider.authenticate(&cred).await.unwrap();
-        assert_eq!(result.claims.get("trusted_ca_count").map(|s| s.as_str()), Some("3"));
+        assert_eq!(
+            result.claims.get("trusted_ca_count").map(|s| s.as_str()),
+            Some("3")
+        );
     }
 
     #[tokio::test]
     async fn test_mtls_provider_supports_credential() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
-        let cert_cred = AuthCredential::Certificate { cert_pem: "-----BEGIN CERTIFICATE-----\nc\n-----END CERTIFICATE-----".to_string(), key_pem: None };
-        let other_cred = AuthCredential::ApiKey { key: "k".to_string() };
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
+        let cert_cred = AuthCredential::Certificate {
+            cert_pem: "-----BEGIN CERTIFICATE-----\nc\n-----END CERTIFICATE-----".to_string(),
+            key_pem: None,
+        };
+        let other_cred = AuthCredential::ApiKey {
+            key: "k".to_string(),
+        };
         assert!(provider.supports_credential(&cert_cred));
         assert!(!provider.supports_credential(&other_cred));
     }
 
     #[tokio::test]
     async fn test_mtls_provider_health_check() {
-        let provider = MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
+        let provider =
+            MtlsProvider::new("-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----");
         assert!(provider.health_check().await);
 
         let empty_provider = MtlsProvider::new("");

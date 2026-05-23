@@ -1160,24 +1160,21 @@ impl IdempotencyRepository {
 
     /// Increment hit count for an existing key.
     pub async fn increment_hit(&self, key: &str) -> KiasResult<()> {
-        sqlx::query(
-            r#"UPDATE idempotency_keys SET hit_count = hit_count + 1 WHERE key = ?"#,
-        )
-        .bind(key)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| KiasError::Storage(format!("idempotency increment_hit: {e}")))?;
+        sqlx::query(r#"UPDATE idempotency_keys SET hit_count = hit_count + 1 WHERE key = ?"#)
+            .bind(key)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| KiasError::Storage(format!("idempotency increment_hit: {e}")))?;
         Ok(())
     }
 
     /// Delete expired idempotency keys. Returns number of deleted rows.
     pub async fn cleanup_expired(&self) -> KiasResult<u64> {
-        let result = sqlx::query(
-            r#"DELETE FROM idempotency_keys WHERE expires_at <= datetime('now')"#,
-        )
-        .execute(&self.pool)
-        .await
-        .map_err(|e| KiasError::Storage(format!("idempotency cleanup_expired: {e}")))?;
+        let result =
+            sqlx::query(r#"DELETE FROM idempotency_keys WHERE expires_at <= datetime('now')"#)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| KiasError::Storage(format!("idempotency cleanup_expired: {e}")))?;
         Ok(result.rows_affected())
     }
 
@@ -1192,11 +1189,12 @@ impl IdempotencyRepository {
                 .fetch_one(&self.pool)
                 .await
                 .map_err(|e| KiasError::Storage(format!("idempotency stats completed: {e}")))?;
-        let expired: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM idempotency_keys WHERE expires_at <= datetime('now')")
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| KiasError::Storage(format!("idempotency stats expired: {e}")))?;
+        let expired: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM idempotency_keys WHERE expires_at <= datetime('now')",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| KiasError::Storage(format!("idempotency stats expired: {e}")))?;
         Ok(IdempotencyStats {
             total: total.0,
             completed: completed.0,
@@ -1214,7 +1212,6 @@ pub struct IdempotencyStats {
     pub pending: i64,
     pub expired: i64,
 }
-
 
 /// Unified data store that holds all repositories.
 ///
@@ -1809,7 +1806,7 @@ mod tests {
 
         let health = repo.health_check().await;
         assert!(health.connected);
-        assert_eq!(health.schema_version, 7);
+        assert_eq!(health.schema_version, 8);
     }
 
     #[tokio::test]

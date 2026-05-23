@@ -200,14 +200,14 @@ mod tests {
         let runner = MigrationRunner::new(pool.clone());
         let applied = runner.run_all().await.expect("Failed to run migrations");
 
-        assert_eq!(applied.len(), 7, "Should apply 7 migrations");
-        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(applied.len(), 8, "Should apply 8 migrations");
+        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7, 8]);
 
         let version = runner
             .current_version()
             .await
             .expect("Failed to get version");
-        assert_eq!(version, 7, "Should be at version 7");
+        assert_eq!(version, 8, "Should be at version 8");
 
         // Running again should be a no-op
         let applied_again = runner

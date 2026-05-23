@@ -100,7 +100,8 @@ impl AuditRecord {
         let input_data_hash = Self::sha256(input_data);
         let output_data_hash = Self::sha256(output_data);
         // Genesis record has previous_hash = all-zeros
-        let previous_hash = String::from("0000000000000000000000000000000000000000000000000000000000000000");
+        let previous_hash =
+            String::from("0000000000000000000000000000000000000000000000000000000000000000");
 
         Self {
             id,
@@ -188,7 +189,9 @@ impl AuditTrail {
     pub fn new() -> Self {
         Self {
             records: Vec::new(),
-            chain_hash: String::from("0000000000000000000000000000000000000000000000000000000000000000"),
+            chain_hash: String::from(
+                "0000000000000000000000000000000000000000000000000000000000000000",
+            ),
         }
     }
 
@@ -211,7 +214,8 @@ impl AuditTrail {
             return Ok(true);
         }
 
-        let mut expected_prev = String::from("0000000000000000000000000000000000000000000000000000000000000000");
+        let mut expected_prev =
+            String::from("0000000000000000000000000000000000000000000000000000000000000000");
 
         for record in &self.records {
             if record.previous_hash != expected_prev {
@@ -242,11 +246,7 @@ impl AuditTrail {
     ) -> Vec<&AuditRecord> {
         self.records
             .iter()
-            .filter(|r| {
-                r.agent_id == agent_id
-                    && r.timestamp >= from
-                    && r.timestamp <= to
-            })
+            .filter(|r| r.agent_id == agent_id && r.timestamp >= from && r.timestamp <= to)
             .collect()
     }
 
@@ -303,7 +303,11 @@ pub enum AuditTrailError {
     ChainBroken { expected: String, found: String },
 
     #[error("record {record_id} has been tampered: expected {expected}, found {found}")]
-    RecordTampered { record_id: String, expected: String, found: String },
+    RecordTampered {
+        record_id: String,
+        expected: String,
+        found: String,
+    },
 }
 
 #[cfg(test)]
@@ -342,9 +346,13 @@ mod tests {
         let mut trail = AuditTrail::new();
         let r1 = make_record("agent-1", "step_1");
         let r2 = AuditRecord::new(
-            "agent-1", "step_2", ActionType::Decision,
-            "user-1", "second step",
-            r#"{"input":"data"}"#, r#"{"output":"done"}"#,
+            "agent-1",
+            "step_2",
+            ActionType::Decision,
+            "user-1",
+            "second step",
+            r#"{"input":"data"}"#,
+            r#"{"output":"done"}"#,
         );
         trail.seal(r1).unwrap();
         trail.seal(r2).unwrap();
@@ -422,19 +430,30 @@ mod tests {
         assert_eq!(record.operator_id, Some("dr-smith".to_string()));
         assert_eq!(record.risk_level, RiskLevel::Critical);
         assert!(record.gxp_domains.contains(&GxPDomain::FDA21CFR11));
-        assert!(record.compliance_flags.contains(&"HUMAN_REVIEW_REQUIRED".to_string()));
+        assert!(record
+            .compliance_flags
+            .contains(&"HUMAN_REVIEW_REQUIRED".to_string()));
     }
 
     #[test]
     fn test_chain_hash_updates() {
         let mut trail = AuditTrail::new();
-        assert_eq!(trail.chain_tip(), "0000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(
+            trail.chain_tip(),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
         trail.seal(make_record("a", "1")).unwrap();
         let tip1 = trail.chain_tip().to_string();
-        assert_ne!(tip1, "0000000000000000000000000000000000000000000000000000000000000000");
+        assert_ne!(
+            tip1,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
         trail.seal(make_record("a", "2")).unwrap();
         let tip2 = trail.chain_tip();
-        assert_ne!(tip2, "0000000000000000000000000000000000000000000000000000000000000000");
+        assert_ne!(
+            tip2,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
         assert_ne!(tip2, tip1);
     }
 

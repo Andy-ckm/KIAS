@@ -15,7 +15,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::capabilities::{ClientCapabilities, PromptsCapability, ResourcesCapability, ToolsCapability, VersionNegotiation};
+use crate::capabilities::{
+    ClientCapabilities, PromptsCapability, ResourcesCapability, ToolsCapability, VersionNegotiation,
+};
 use crate::error::McpError;
 use crate::prompt::Prompt;
 use crate::resource::Resource;

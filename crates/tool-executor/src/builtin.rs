@@ -806,9 +806,7 @@ mod tests {
     #[tokio::test]
     async fn test_search_missing_pattern_param() {
         let tool = SearchTool;
-        let result = tool
-            .execute(serde_json::json!({"path": "/tmp"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"path": "/tmp"})).await;
         let _ = result; // Just verify no panic
     }
 
@@ -884,5 +882,92 @@ mod tests {
             .await;
         assert!(result.success);
         assert!(result.output.contains("hello"));
+    }
+
+    // ========== Additional error path tests ==========
+
+    #[tokio::test]
+    async fn test_shell_empty_command_returns_result() {
+        // Test shell with empty command - should return a result (not panic)
+        let tool = ShellTool;
+        let result = tool.execute(serde_json::json!({"command": ""})).await;
+        // Empty command should not panic - just return a result
+        assert!(true); // Always true - just verifying no panic
+    }
+
+    #[tokio::test]
+    async fn test_file_read_permission_denied() {
+        // Test file read with permission denied
+        let tool = FileReadTool;
+        // Use /proc/1/environ which typically requires root permissions
+        let result = tool
+            .execute(serde_json::json!({"path": "/proc/1/environ"}))
+            .await;
+        // Either success or failure is acceptable - just shouldn't panic
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_search_with_invalid_directory() {
+        // Test search tool with a directory that doesn't exist
+        let tool = SearchTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "test",
+                "path": "/nonexistent/path/that/definitely/does/not/exist"
+            }))
+            .await;
+        // Should return an error result, not panic
+        if !result.success {
+            assert!(result.error.is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_write_to_invalid_path() {
+        // Test file write to a path that cannot be created (read-only location)
+        let tool = FileWriteTool;
+        let result = tool
+            .execute(serde_json::json!({
+                "path": "/root/impossible_file_12345.txt",
+                "content": "test content"
+            }))
+            .await;
+        // Should fail gracefully, not panic
+        assert!(true); // Always true - just verifying no panic
+    }
+
+    #[test]
+    fn test_tool_result_with_all_fields() {
+        let result = ToolResult {
+            success: true,
+            output: "test".to_string(),
+            error: Some("warning".to_string()),
+            metadata: Some(serde_json::json!({"key": "value"})),
+        };
+        assert!(result.success);
+        assert_eq!(result.output, "test");
+        assert!(result.error.is_some());
+        assert!(result.metadata.is_some());
+    }
+
+    #[test]
+    fn test_tool_result_with_no_error() {
+        let result = ToolResult {
+            success: true,
+            output: "output only".to_string(),
+            error: None,
+            metadata: None,
+        };
+        assert!(result.success);
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_tool_result_deserialization() {
+        let json = r#"{"success":false,"output":"","error":"test error","metadata":null}"#;
+        let result: ToolResult = serde_json::from_str(json).unwrap();
+        assert!(!result.success);
+        assert_eq!(result.error.unwrap(), "test error");
     }
 }

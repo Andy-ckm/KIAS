@@ -1080,4 +1080,257 @@ mod tests {
         let result = validator.validate(r#"{"name": "Alice", "extra": 42}"#);
         assert!(result.is_valid); // extra properties should be allowed
     }
+
+    // ── Helper function tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_json_type_name_all_variants() {
+        use super::json_type_name;
+        // Test all serde_json::Value variants
+        assert_eq!(json_type_name(&serde_json::Value::Null), "null");
+        assert_eq!(json_type_name(&serde_json::Value::Bool(true)), "boolean");
+        assert_eq!(
+            json_type_name(&serde_json::Value::Number(42.into())),
+            "number"
+        );
+        assert_eq!(
+            json_type_name(&serde_json::Value::String("test".into())),
+            "string"
+        );
+        assert_eq!(json_type_name(&serde_json::Value::Array(vec![])), "array");
+        assert_eq!(
+            json_type_name(&serde_json::Value::Object(serde_json::Map::new())),
+            "object"
+        );
+    }
+
+    #[test]
+    fn test_format_error_code_all_variants() {
+        use super::format_error_code;
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::ParseError),
+            "parse_error"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::TypeMismatch),
+            "type_mismatch"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::MissingRequired),
+            "missing_required"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::NotInEnum),
+            "not_in_enum"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::PatternMismatch),
+            "pattern_mismatch"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::BelowMinimum),
+            "below_minimum"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::AboveMaximum),
+            "above_maximum"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::TooShort),
+            "too_short"
+        );
+        assert_eq!(format_error_code(&ValidationErrorCode::TooLong), "too_long");
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::TooFewItems),
+            "too_few_items"
+        );
+        assert_eq!(
+            format_error_code(&ValidationErrorCode::TooManyItems),
+            "too_many_items"
+        );
+    }
+
+    // ── Schema type mismatch error messages ──────────────────────────────
+
+    #[test]
+    fn test_type_mismatch_error_message_shows_expected_and_actual() {
+        let schema = JsonSchema::object().property("name", JsonSchema::string());
+        let validator = OutputValidator::new(schema);
+        // Pass a number where string is expected
+        let result = validator.validate(r#"{"name": 123}"#);
+        assert!(!result.is_valid);
+        // Error message should indicate type mismatch
+        // Message is like "Expected type String, got number"
+        assert!(result.errors[0].message.contains("String"));
+        assert!(result.errors[0].message.contains("number"));
+    }
+
+    #[test]
+    fn test_validation_error_with_complex_nested_path() {
+        let schema = JsonSchema::object()
+            .property(
+                "user",
+                JsonSchema::object()
+                    .property(
+                        "profile",
+                        JsonSchema::object()
+                            .property("name", JsonSchema::string().min_length(1))
+                            .required("name"),
+                    )
+                    .required("profile"),
+            )
+            .required("user");
+        let validator = OutputValidator::new(schema);
+        // Missing nested required field
+        let result = validator.validate(r#"{"user": {"profile": {}}}"#);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.path.contains("user.profile.name")));
+    }
+
+    // ── Enum at root level ───────────────────────────────────────────────
+
+    #[test]
+    fn test_enum_at_root_level() {
+        let schema = JsonSchema::string().enum_values(vec![
+            serde_json::json!("active"),
+            serde_json::json!("pending"),
+        ]);
+        let validator = OutputValidator::new(schema);
+        assert!(validator.validate(r#""active""#).is_valid);
+        assert!(validator.validate(r#""pending""#).is_valid);
+        assert!(!validator.validate(r#""deleted""#).is_valid);
+    }
+
+    // ── Array with items schema at root ────────────────────────────────
+
+    #[test]
+    fn test_array_at_root_level() {
+        let schema = JsonSchema::array(JsonSchema::integer().minimum(0.0).maximum(10.0));
+        let validator = OutputValidator::new(schema);
+        assert!(validator.validate(r#"[1, 2, 3]"#).is_valid);
+        let result = validator.validate(r#"[-1, 2, 3]"#);
+        assert!(!result.is_valid);
+        assert_eq!(result.errors[0].code, ValidationErrorCode::BelowMinimum);
+    }
+
+    // ── Number type vs Integer type distinction ─────────────────────────
+
+    #[test]
+    fn test_number_type_accepts_floats() {
+        let schema = JsonSchema::object().property("price", JsonSchema::number());
+        let validator = OutputValidator::new(schema);
+        assert!(validator.validate(r#"{"price": 19.99}"#).is_valid);
+        assert!(validator.validate(r#"{"price": 20}"#).is_valid);
+    }
+
+    // ── ValidationResult serde ──────────────────────────────────────────
+
+    #[test]
+    fn test_validation_result_serde() {
+        let schema = JsonSchema::object().property("x", JsonSchema::integer());
+        let validator = OutputValidator::new(schema);
+        let result = validator.validate(r#"{"x": 42}"#);
+        let json = serde_json::to_string(&result).unwrap();
+        let decoded: ValidationResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.is_valid, true);
+        assert!(decoded.errors.is_empty());
+    }
+
+    // ── ValidationError serde ───────────────────────────────────────────
+
+    #[test]
+    fn test_validation_error_serde() {
+        let error = ValidationError {
+            path: "$.name".to_string(),
+            message: "Too short".to_string(),
+            code: ValidationErrorCode::TooShort,
+        };
+        let json = serde_json::to_string(&error).unwrap();
+        let decoded: ValidationError = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.path, "$.name");
+        assert_eq!(decoded.code, ValidationErrorCode::TooShort);
+    }
+
+    // ── Invalid regex pattern in schema (should not panic) ─────────────
+
+    #[test]
+    fn test_invalid_regex_pattern_does_not_panic() {
+        // An invalid regex should be silently ignored (validation passes)
+        let schema =
+            JsonSchema::object().property("code", JsonSchema::string().pattern(r"[invalid"));
+        let validator = OutputValidator::new(schema);
+        // Should not panic, validation should pass since regex can't compile
+        let result = validator.validate(r#"{"code": "anything"}"#);
+        // The invalid pattern means no validation is performed
+        assert!(result.is_valid);
+    }
+
+    // ── Multiple validation errors collected ────────────────────────────
+
+    #[test]
+    fn test_multiple_validation_errors_all_collected() {
+        let schema = JsonSchema::object()
+            .property("name", JsonSchema::string().min_length(3))
+            .property("age", JsonSchema::integer().minimum(0.0))
+            .property(
+                "email",
+                JsonSchema::string().pattern(r"^[\w]+@[\w]+\.[\w]+$"),
+            )
+            .required("name")
+            .required("age")
+            .required("email");
+        let validator = OutputValidator::new(schema);
+        // All errors should be collected
+        let result = validator.validate(r#"{"name": "ab", "age": -5, "email": "invalid"}"#);
+        assert!(!result.is_valid);
+        // Should have errors for: name too short, age below minimum, email pattern mismatch
+        assert!(result.errors.len() >= 3);
+        let codes: Vec<_> = result.errors.iter().map(|e| &e.code).collect();
+        assert!(codes.contains(&&ValidationErrorCode::TooShort));
+        assert!(codes.contains(&&ValidationErrorCode::BelowMinimum));
+        assert!(codes.contains(&&ValidationErrorCode::PatternMismatch));
+    }
+
+    // ── Null value validation ──────────────────────────────────────────
+
+    #[test]
+    fn test_null_value_type_mismatch_for_object_schema() {
+        let schema = JsonSchema::object();
+        let validator = OutputValidator::new(schema);
+        // null is NOT valid for an object schema - it fails type check
+        let result = validator.validate("null");
+        assert!(!result.is_valid);
+        assert_eq!(result.errors[0].code, ValidationErrorCode::TypeMismatch);
+    }
+
+    // ── Too many items validation ───────────────────────────────────────
+
+    #[test]
+    fn test_too_many_items_exact_boundary() {
+        let schema = JsonSchema::array(JsonSchema::string()).max_items(3);
+        let validator = OutputValidator::new(schema);
+        // Exactly at boundary should pass
+        assert!(validator.validate(r#"["a", "b", "c"]"#).is_valid);
+        // One over should fail
+        let result = validator.validate(r#"["a", "b", "c", "d"]"#);
+        assert!(!result.is_valid);
+        assert_eq!(result.errors[0].code, ValidationErrorCode::TooManyItems);
+    }
+
+    // ── Too few items validation exact boundary ─────────────────────────
+
+    #[test]
+    fn test_too_few_items_exact_boundary() {
+        let schema = JsonSchema::array(JsonSchema::string()).min_items(2);
+        let validator = OutputValidator::new(schema);
+        // Exactly at boundary should pass
+        assert!(validator.validate(r#"["a", "b"]"#).is_valid);
+        // One under should fail
+        let result = validator.validate(r#"["a"]"#);
+        assert!(!result.is_valid);
+        assert_eq!(result.errors[0].code, ValidationErrorCode::TooFewItems);
+    }
 }

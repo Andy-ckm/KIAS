@@ -57,7 +57,14 @@ pub struct HazardScenario {
 
 impl HazardScenario {
     /// Create a new hazard scenario and compute RPN.
-    pub fn new(id: &str, description: &str, severity: u8, probability: u8, detectability: u8, mitigation: &str) -> Self {
+    pub fn new(
+        id: &str,
+        description: &str,
+        severity: u8,
+        probability: u8,
+        detectability: u8,
+        mitigation: &str,
+    ) -> Self {
         let rpn = (severity as u32) * (probability as u32) * (detectability as u32);
         Self {
             id: id.to_string(),
@@ -170,7 +177,9 @@ pub struct RiskScorer {
 
 impl RiskScorer {
     pub fn new() -> Self {
-        Self { historical: HashMap::new() }
+        Self {
+            historical: HashMap::new(),
+        }
     }
 
     /// Compute risk level from a single RPN value.
@@ -204,7 +213,11 @@ impl RiskScorer {
         assessment.risk_level = assessment.compute_risk_level();
 
         // Compute residual risk (assume mitigations reduce RPN by ~50% on average)
-        let total_original: f64 = assessment.hazard_analysis.iter().map(|h| h.rpn as f64).sum();
+        let total_original: f64 = assessment
+            .hazard_analysis
+            .iter()
+            .map(|h| h.rpn as f64)
+            .sum();
         let mitigation_factor = match assessment.risk_level {
             AIAgentRiskLevel::ClassIV => 0.3,
             AIAgentRiskLevel::ClassIII => 0.4,
@@ -216,19 +229,33 @@ impl RiskScorer {
         // Apply mitigations based on risk level
         match assessment.risk_level {
             AIAgentRiskLevel::ClassIV => {
-                assessment.mitigation_applied.push("Continuous human oversight".to_string());
-                assessment.mitigation_applied.push("Real-time monitoring".to_string());
-                assessment.mitigation_applied.push("Fail-safe fallback".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Continuous human oversight".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Real-time monitoring".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Fail-safe fallback".to_string());
             }
             AIAgentRiskLevel::ClassIII => {
-                assessment.mitigation_applied.push("Human-in-the-loop review".to_string());
-                assessment.mitigation_applied.push("Periodic validation".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Human-in-the-loop review".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Periodic validation".to_string());
             }
             AIAgentRiskLevel::ClassII => {
-                assessment.mitigation_applied.push("Automated alerting".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Automated alerting".to_string());
             }
             AIAgentRiskLevel::ClassI => {
-                assessment.mitigation_applied.push("Standard monitoring".to_string());
+                assessment
+                    .mitigation_applied
+                    .push("Standard monitoring".to_string());
             }
         }
 
@@ -244,9 +271,12 @@ impl RiskScorer {
 
     /// Validate hazard inputs.
     pub fn validate_hazard(&self, severity: u8, probability: u8, detectability: u8) -> bool {
-        severity >= 1 && severity <= 5
-            && probability >= 1 && probability <= 5
-            && detectability >= 1 && detectability <= 5
+        severity >= 1
+            && severity <= 5
+            && probability >= 1
+            && probability <= 5
+            && detectability >= 1
+            && detectability <= 5
     }
 }
 
@@ -262,16 +292,35 @@ mod tests {
 
     #[test]
     fn test_rpn_calculation() {
-        let h = HazardScenario::new("H1", "AI misdiagnoses patient", 5, 3, 2, "Require human review");
+        let h = HazardScenario::new(
+            "H1",
+            "AI misdiagnoses patient",
+            5,
+            3,
+            2,
+            "Require human review",
+        );
         assert_eq!(h.rpn, 30);
     }
 
     #[test]
     fn test_risk_level_from_score() {
-        assert_eq!(RiskScorer::risk_level_from_score(10), AIAgentRiskLevel::ClassI);
-        assert_eq!(RiskScorer::risk_level_from_score(25), AIAgentRiskLevel::ClassII);
-        assert_eq!(RiskScorer::risk_level_from_score(75), AIAgentRiskLevel::ClassIII);
-        assert_eq!(RiskScorer::risk_level_from_score(150), AIAgentRiskLevel::ClassIV);
+        assert_eq!(
+            RiskScorer::risk_level_from_score(10),
+            AIAgentRiskLevel::ClassI
+        );
+        assert_eq!(
+            RiskScorer::risk_level_from_score(25),
+            AIAgentRiskLevel::ClassII
+        );
+        assert_eq!(
+            RiskScorer::risk_level_from_score(75),
+            AIAgentRiskLevel::ClassIII
+        );
+        assert_eq!(
+            RiskScorer::risk_level_from_score(150),
+            AIAgentRiskLevel::ClassIV
+        );
     }
 
     #[test]
@@ -339,7 +388,8 @@ mod tests {
             GxPRegulatorContext::HealthCanada,
         ];
         for reg in regulators {
-            let assessment = RiskAssessment::new("agent-1", GampCategory::CustomSoftware, "assessor", reg);
+            let assessment =
+                RiskAssessment::new("agent-1", GampCategory::CustomSoftware, "assessor", reg);
             assert_eq!(assessment.regulator, reg);
         }
     }

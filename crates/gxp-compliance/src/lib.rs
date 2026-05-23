@@ -22,29 +22,29 @@
 //! - [`compliance_report`] — Automated regulatory compliance reports
 //! - [`gamp_classification`] — GAMP 5 category classification for AI systems
 
+pub mod agent_validation;
 pub mod audit_trail;
+pub mod compliance_report;
 pub mod electronic_signature;
 pub mod gamp_classification;
 pub mod risk_assessment;
-pub mod agent_validation;
-pub mod compliance_report;
 
-pub use audit_trail::{AuditRecord, AuditTrail, ActionType, GxPDomain, RiskLevel};
+pub use agent_validation::{
+    AcceptanceCriterion, ProtocolType, TestRecord, ValidationEngine, ValidationProtocol,
+    ValidationStage,
+};
+pub use audit_trail::{ActionType, AuditRecord, AuditTrail, GxPDomain, RiskLevel};
+pub use compliance_report::{
+    ComplianceReport, ComplianceReporter, ComplianceStatus, ComplianceSummary,
+    FDASubmissionPackage, Finding, ReportSection, ReportType, Severity,
+};
 pub use electronic_signature::{
-    ElectronicSignature, SignatureBundle, SignatureManager, OperationType, SignatureType,
+    ElectronicSignature, OperationType, SignatureBundle, SignatureManager, SignatureType,
+};
+pub use gamp_classification::{
+    AIType, DataDependency, GampAIProfile, GampCategory, GampClassifier, HumanOversightLevel,
+    RegulatoryRelevance, SOPRequirement, ValidationStage as GampValidationStage,
 };
 pub use risk_assessment::{
     AIAgentRiskLevel, GxPRegulatorContext, HazardScenario, RiskAssessment, RiskScorer,
-};
-pub use agent_validation::{
-    ValidationProtocol, AcceptanceCriterion, TestRecord, ValidationEngine, ValidationStage,
-    ProtocolType,
-};
-pub use compliance_report::{
-    ComplianceReport, ComplianceReporter, ComplianceSummary, ReportSection, Finding,
-    ReportType, ComplianceStatus, Severity, FDASubmissionPackage,
-};
-pub use gamp_classification::{
-    GampAIProfile, GampClassifier, GampCategory, AIType, DataDependency,
-    HumanOversightLevel, RegulatoryRelevance, SOPRequirement, ValidationStage as GampValidationStage,
 };

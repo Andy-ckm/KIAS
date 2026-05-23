@@ -218,7 +218,10 @@ impl GampClassifier {
 
     /// Whether continuous monitoring is required.
     pub fn requires_continuous_monitoring(category: &GampCategory) -> bool {
-        matches!(category, GampCategory::AIModel | GampCategory::CustomSoftware)
+        matches!(
+            category,
+            GampCategory::AIModel | GampCategory::CustomSoftware
+        )
     }
 
     /// SOP requirements for AI agents in GxP.
@@ -330,14 +333,20 @@ mod tests {
     #[test]
     fn test_classify_rule_based() {
         let profile = GampAIProfile::new(AIType::RuleBased);
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::StandardSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::StandardSoftware
+        );
     }
 
     #[test]
     fn test_classify_generative_ai() {
         let profile = GampAIProfile::new(AIType::Generative);
         // Generative is always Custom
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::CustomSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::CustomSoftware
+        );
     }
 
     #[test]
@@ -345,26 +354,38 @@ mod tests {
         let profile = GampAIProfile::new(AIType::MLSupervised)
             .with_regulatory_relevance(RegulatoryRelevance::Direct)
             .patient_critical();
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::CustomSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::CustomSoftware
+        );
     }
 
     #[test]
     fn test_classify_ml_supervised_indirect() {
         let profile = GampAIProfile::new(AIType::MLSupervised)
             .with_regulatory_relevance(RegulatoryRelevance::Indirect);
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::ConfigurableSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::ConfigurableSoftware
+        );
     }
 
     #[test]
     fn test_classify_hybrid() {
         let profile = GampAIProfile::new(AIType::Hybrid);
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::CustomSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::CustomSoftware
+        );
     }
 
     #[test]
     fn test_classify_rl_always_custom() {
         let profile = GampAIProfile::new(AIType::RL);
-        assert_eq!(GampClassifier::classify(&profile), GampCategory::CustomSoftware);
+        assert_eq!(
+            GampClassifier::classify(&profile),
+            GampCategory::CustomSoftware
+        );
     }
 
     #[test]
@@ -376,7 +397,8 @@ mod tests {
 
     #[test]
     fn test_validation_approach_configurable() {
-        let stages = GampClassifier::required_validation_approach(&GampCategory::ConfigurableSoftware);
+        let stages =
+            GampClassifier::required_validation_approach(&GampCategory::ConfigurableSoftware);
         assert_eq!(stages.len(), 2);
     }
 
@@ -403,9 +425,15 @@ mod tests {
 
     #[test]
     fn test_continuous_monitoring() {
-        assert!(!GampClassifier::requires_continuous_monitoring(&GampCategory::StandardSoftware));
-        assert!(GampClassifier::requires_continuous_monitoring(&GampCategory::AIModel));
-        assert!(GampClassifier::requires_continuous_monitoring(&GampCategory::CustomSoftware));
+        assert!(!GampClassifier::requires_continuous_monitoring(
+            &GampCategory::StandardSoftware
+        ));
+        assert!(GampClassifier::requires_continuous_monitoring(
+            &GampCategory::AIModel
+        ));
+        assert!(GampClassifier::requires_continuous_monitoring(
+            &GampCategory::CustomSoftware
+        ));
     }
 
     #[test]

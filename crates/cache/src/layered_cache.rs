@@ -702,8 +702,16 @@ mod tests {
         let config = LayerConfig::new("L4", 60, 5);
         let mut cache = L4ToolCache::new(config);
 
-        cache.insert("web_search".to_string(), "hash1".to_string(), b"result1".to_vec());
-        cache.insert("calculator".to_string(), "hash2".to_string(), b"result2".to_vec());
+        cache.insert(
+            "web_search".to_string(),
+            "hash1".to_string(),
+            b"result1".to_vec(),
+        );
+        cache.insert(
+            "calculator".to_string(),
+            "hash2".to_string(),
+            b"result2".to_vec(),
+        );
 
         assert_eq!(cache.get("web_search", "hash1"), Some(b"result1".to_vec()));
         assert_eq!(cache.get("calculator", "hash2"), Some(b"result2".to_vec()));
@@ -738,8 +746,17 @@ mod tests {
         cache.get("nonexistent").await;
 
         let stats = cache.stats().await;
-        assert_eq!(*stats.layer_inserts.get(&CacheLayer::L1Memory).unwrap_or(&0), 2);
-        assert_eq!(*stats.layer_hits.get(&CacheLayer::L1Memory).unwrap_or(&0), 1);
-        assert_eq!(*stats.layer_misses.get(&CacheLayer::L1Memory).unwrap_or(&0), 1);
+        assert_eq!(
+            *stats.layer_inserts.get(&CacheLayer::L1Memory).unwrap_or(&0),
+            2
+        );
+        assert_eq!(
+            *stats.layer_hits.get(&CacheLayer::L1Memory).unwrap_or(&0),
+            1
+        );
+        assert_eq!(
+            *stats.layer_misses.get(&CacheLayer::L1Memory).unwrap_or(&0),
+            1
+        );
     }
 }

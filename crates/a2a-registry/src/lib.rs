@@ -9,10 +9,10 @@
 //! - Online/offline/lwt status tracking
 //! - Governance: every registration/discovery is audited
 
+pub mod a2a_enhanced;
 mod error;
 mod registry;
 mod types;
-pub mod a2a_enhanced;
 
 pub use error::RegistryError;
 pub use registry::AgentRegistry;

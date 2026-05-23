@@ -668,6 +668,7 @@ pub struct LdapProvider {
     /// Role mapping: LDAP group DN → role name.
     role_map: HashMap<String, String>,
     /// In-memory user cache for roles (populated after successful bind).
+    #[allow(dead_code)]
     user_roles: HashMap<String, Vec<String>>,
 }
 

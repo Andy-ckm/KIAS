@@ -16,7 +16,6 @@
 //! The cache key is the idempotency key itself; the operation hash (method+path+body)
 //! prevents false positives when the same key is reused for different operations.
 
-
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
@@ -65,7 +64,10 @@ pub async fn idempotency_middleware(
 
     // Read and buffer the request body
     let (parts, body) = request.into_parts();
-    let body_bytes = axum::body::to_bytes(body, 1024 * 1024).await.unwrap_or_else(|_| Bytes::new()).to_vec();
+    let body_bytes = axum::body::to_bytes(body, 1024 * 1024)
+        .await
+        .unwrap_or_else(|_| Bytes::new())
+        .to_vec();
     let path = parts.uri.path().to_string();
     let body_hash = compute_operation_hash(&method, &path, &body_bytes);
 
@@ -73,8 +75,8 @@ pub async fn idempotency_middleware(
     match store.get_by_key(&idempotency_key).await {
         Ok(Some(entry)) if entry.operation_hash == body_hash && entry.is_completed() => {
             tracing::debug!(key = %idempotency_key, "idempotency: cache hit");
-            let status = StatusCode::from_u16(entry.response_status as u16)
-                .unwrap_or(StatusCode::OK);
+            let status =
+                StatusCode::from_u16(entry.response_status as u16).unwrap_or(StatusCode::OK);
             let body = entry.response_body.unwrap_or_default();
             let mut resp = Response::new(Body::from(Bytes::copy_from_slice(body.as_slice())));
             *resp.status_mut() = status;
@@ -109,12 +111,18 @@ pub async fn idempotency_middleware(
     }
 
     // Reconstruct request with buffered body and run handler
-    let request = Request::from_parts(parts, Body::from(Bytes::copy_from_slice(body_bytes.as_slice())));
+    let request = Request::from_parts(
+        parts,
+        Body::from(Bytes::copy_from_slice(body_bytes.as_slice())),
+    );
     let response = next.run(request).await;
 
     // Cache the response (best-effort)
     let status = response.status().as_u16() as i32;
-    if let Err(e) = store.complete(&idempotency_key, status, Vec::new(), "{}").await {
+    if let Err(e) = store
+        .complete(&idempotency_key, status, Vec::new(), "{}")
+        .await
+    {
         tracing::warn!(error = %e, "idempotency: failed to cache response");
     }
 
@@ -125,9 +133,4 @@ pub async fn idempotency_middleware(
 fn compute_operation_hash(method: &Method, path: &str, body: &[u8]) -> String {
     let body_hash = format!("{:x}", Sha256::digest(body));
     format!("{}:{}:{}", method, path, body_hash)
-}
-
-/// Compute a SHA256 hash as a hex string.
-fn compute_hash(data: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(data))
 }

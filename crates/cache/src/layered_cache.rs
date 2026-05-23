@@ -71,7 +71,7 @@ pub enum EvictionPolicy {
 }
 
 /// A cached entry with metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct LayeredCacheEntry<V> {
     pub key: String,
     pub value: V,
@@ -494,7 +494,7 @@ impl LayeredCache {
         // L1: Memory LRU
         {
             let mut l1 = self.l1.write().await;
-            if let Some(v) = l1.get(key) {
+            if let Some(v) = l1.get(&key.to_string()) {
                 let mut stats = self.stats.write().await;
                 stats.record_hit(CacheLayer::L1Memory);
                 return Some(v);

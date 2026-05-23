@@ -724,28 +724,41 @@ impl LdapProvider {
     /// In this implementation we simulate the LDAP protocol flow.
     async fn ldap_bind(
         &self,
-        username: &str,
+        username_or_bind_dn: &str,
         password: &str,
     ) -> Result<LdapBindResult, AuthProviderError> {
         // Simulate LDAP bind result:
         // - Non-empty username + password triggers successful bind
         // - Empty password triggers invalid credentials
         // - "ldap-error" username simulates a connection failure
-        if username.is_empty() || password.is_empty() {
+        if username_or_bind_dn.is_empty() || password.is_empty() {
             return Err(AuthProviderError::InvalidCredentials);
         }
-        if username == "ldap-error" {
+        if username_or_bind_dn == "ldap-error" {
             return Err(AuthProviderError::ConfigurationError(
                 "LDAP server unreachable".to_string(),
             ));
         }
 
+        // Extract the username (UID) from bind_dn if it's a full DN.
+        // Pattern: "uid=<user>,ou=...,dc=..." or "cn=<user>,ou=...,dc=..."
+        let subject = if username_or_bind_dn.contains('=') {
+            // It's a full DN — extract the first RDN value.
+            // e.g. "uid=alice,ou=users,dc=example,dc=com" -> "alice"
+            username_or_bind_dn
+                .split(',')
+                .next()
+                .and_then(|rdn| rdn.split('=').nth(1))
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| username_or_bind_dn.to_string())
+        } else {
+            username_or_bind_dn.to_string()
+        };
+
         let bind_dn = self
             .bind_dn_pattern
-            .replace("{username}", username)
+            .replace("{username}", &subject)
             .replace("{search_base}", &self.search_base);
-
-        let subject = username.to_string();
 
         // Map groups to roles based on role_map.
         // In production: query groupMembership attribute on user entry.
@@ -768,6 +781,7 @@ struct LdapBindResult {
     bind_dn: String,
     subject: String,
     roles: Vec<String>,
+    #[allow(dead_code)]
     attributes: HashMap<String, String>,
 }
 
@@ -830,6 +844,7 @@ pub struct KerberosProvider {
     /// Trusted keytab entries: service principal → key.
     keytab: HashMap<String, Vec<u8>>,
     /// Validated subject cache (realm → subject).
+    #[allow(dead_code)]
     validated_subjects: HashMap<String, String>,
     /// Role mapping: realm → roles.
     role_map: HashMap<String, Vec<String>>,
@@ -1119,9 +1134,9 @@ impl AuthProvider for MtlsProvider {
     }
 
     async fn health_check(&self) -> bool {
-        // In production: check CRL endpoint reachability.
-        // Here we always pass if the provider is configured.
-        !self.trusted_ca_pem.is_empty()
+        // In production: check CRL endpoint reachability and validate that
+        // at least one trusted CA has been configured with valid PEM content.
+        !self.trusted_ca_pem.is_empty() && !self.trusted_ca_pem.iter().all(|p| p.trim().is_empty())
     }
 }
 
@@ -1625,7 +1640,7 @@ mod tests {
             ticket: "aGVsbG8gd29ybGQ=".to_string(), // "hello world" base64
         };
         let result = provider.authenticate(&cred).await.unwrap();
-        assert_eq!(result.realm, "REALM.ORG");
+        assert_eq!(result.claims.get("kerberos_realm").map(|s| s.as_str()), Some("REALM.ORG"));
         assert!(result.roles.contains(&"Admin".to_string()));
     }
 

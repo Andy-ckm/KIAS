@@ -141,7 +141,6 @@ impl ContractValidator {
     }
 
     /// Load and parse an OpenAPI spec from a YAML string.
-    #[cfg(feature = "contract-yaml")]
     pub fn from_yaml(yaml: &str) -> Result<Self, ContractError> {
         let spec: OpenApiSpec =
             serde_yaml::from_str(yaml).map_err(|e| ContractError::SpecParseError(e.to_string()))?;

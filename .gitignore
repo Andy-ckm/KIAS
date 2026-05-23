@@ -68,3 +68,7 @@ docs/reference/
 docs/audit-rectification-plan.md
 crates/data-governance/src/sast_pipeline.rs
 crates/data-governance/src/unified_audit_merkle.rs
+.cargo_registry_cache/
+target/
+.worktrees/
+target/

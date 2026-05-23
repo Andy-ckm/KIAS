@@ -207,7 +207,8 @@ impl AutoScaler {
         } else {
             // No scale change detected from metrics
             // Check if under-utilized and should scale down anyway
-            let under_utilized = metrics.avg_cpu_utilization < state.config.target_cpu_utilization * 0.5
+            let under_utilized = metrics.avg_cpu_utilization
+                < state.config.target_cpu_utilization * 0.5
                 && metrics.avg_memory_utilization < state.config.target_memory_utilization * 0.5;
             if under_utilized && metrics.current_replicas > state.config.min_replicas {
                 let excess = metrics.current_replicas - state.config.min_replicas;

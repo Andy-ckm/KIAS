@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 /// - CoAP (new - IoT)
 /// - NATS (new - microservices)
 /// - STOMP (new - messaging)
-
+///
 /// Gateway descriptor — defines a protocol gateway
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayDescriptor {

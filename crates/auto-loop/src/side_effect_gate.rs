@@ -763,12 +763,14 @@ mod tests {
 
     #[test]
     fn test_action_type_variants() {
-        let types = [ActionType::FileWrite,
+        let types = [
+            ActionType::FileWrite,
             ActionType::FileDelete,
             ActionType::GitPush,
             ActionType::DataMutation,
             ActionType::NetworkRequest,
-            ActionType::CommandExec];
+            ActionType::CommandExec,
+        ];
         // All variants should be distinct
         let unique: std::collections::HashSet<_> = types.iter().collect();
         assert_eq!(unique.len(), 6);
@@ -776,9 +778,11 @@ mod tests {
 
     #[test]
     fn test_gate_policy_variants() {
-        let policies = [GatePolicy::AutoLow,
+        let policies = [
+            GatePolicy::AutoLow,
             GatePolicy::AutoMedium,
-            GatePolicy::Always];
+            GatePolicy::Always,
+        ];
         assert_eq!(policies.len(), 3);
     }
 

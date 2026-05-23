@@ -80,22 +80,17 @@ pub struct ComplianceReportGenerator;
 impl ComplianceReportGenerator {
     /// Generate a 21 CFR Part 11 compliance report.
     pub fn generate_cfr21_part11(audit_entries: &[AuditEntry]) -> ComplianceReport {
-        let mut checks = Vec::new();
-
-        // §11.10 Controls for closed systems
-        checks.push(Self::check_audit_trail(audit_entries));
-        checks.push(Self::check_electronic_signatures(audit_entries));
-        checks.push(Self::check_access_controls());
-        checks.push(Self::check_data_integrity(audit_entries));
-        checks.push(Self::check_system_validation());
-        checks.push(Self::check_record_protection());
-        checks.push(Self::check_authority_checks());
-
-        // §11.50 Signature manifestations
-        checks.push(Self::check_signature_manifestations());
-
-        // §11.70 Signature/record linking
-        checks.push(Self::check_signature_record_linking());
+        let checks = vec![
+            Self::check_audit_trail(audit_entries),
+            Self::check_electronic_signatures(audit_entries),
+            Self::check_access_controls(),
+            Self::check_data_integrity(audit_entries),
+            Self::check_system_validation(),
+            Self::check_record_protection(),
+            Self::check_authority_checks(),
+            Self::check_signature_manifestations(),
+            Self::check_signature_record_linking(),
+        ];
 
         let total = checks.len();
         let compliant = checks

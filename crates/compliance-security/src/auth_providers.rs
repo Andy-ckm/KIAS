@@ -396,9 +396,12 @@ impl AuthProvider for JwtProvider {
 /// Validates access tokens by calling the token introspection endpoint.
 pub struct OAuth2Provider {
     /// Token introspection endpoint URL.
+    #[allow(dead_code)]
     introspection_url: String,
     /// Client credentials for introspection.
+    #[allow(dead_code)]
     client_id: String,
+    #[allow(dead_code)]
     client_secret: String,
 }
 
@@ -460,8 +463,11 @@ pub struct ScramProvider {
 #[derive(Debug, Clone)]
 struct ScramUser {
     subject: String,
+    #[allow(dead_code)]
     stored_key: Vec<u8>,
+    #[allow(dead_code)]
     server_key: Vec<u8>,
+    #[allow(dead_code)]
     salt: Vec<u8>,
     iterations: u32,
     roles: Vec<String>,
@@ -559,6 +565,7 @@ pub struct ApiKeyProvider {
 #[derive(Debug, Clone)]
 struct ApiKeyEntry {
     subject: String,
+    #[allow(dead_code)]
     key_hash: String,
     roles: Vec<String>,
     expires_at: Option<DateTime<Utc>>,

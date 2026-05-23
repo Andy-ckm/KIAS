@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+use kias_common::KiasError;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanStep {
     /// Unique step identifier
@@ -246,30 +248,35 @@ impl TaskPlanner {
     }
 
     /// Compute execution order using topological sort
-    pub fn compute_execution_order(steps: &[PlanStep]) -> Result<Vec<String>, String> {
+    pub fn compute_execution_order(steps: &[PlanStep]) -> Result<Vec<String>, KiasError> {
         let mut in_degree: HashMap<String, usize> = HashMap::new();
         let mut graph: HashMap<String, Vec<String>> = HashMap::new();
-        
+
         // Initialize
         for step in steps {
             in_degree.insert(step.id.clone(), 0);
             graph.insert(step.id.clone(), Vec::new());
         }
-        
+
         // Build graph and compute in-degrees
         for step in steps {
             for dep in &step.dependencies {
                 if !in_degree.contains_key(dep) {
-                    return Err(format!("Unknown dependency: {}", dep));
+                    return Err(KiasError::Validation(format!(
+                        "Unknown dependency: {} in step {}",
+                        dep, step.id
+                    )));
                 }
-                graph.get_mut(dep)
-                    .expect("dependency graph invariant violated: dep not found in adjacency")
+                graph
+                    .get_mut(dep)
+                    .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("dependency graph invariant violated: dep not found in adjacency")))?
                     .push(step.id.clone());
-                *in_degree.get_mut(&step.id)
-                    .expect("dependency graph invariant violated: step not found in in_degree") += 1;
+                *in_degree
+                    .get_mut(&step.id)
+                    .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("dependency graph invariant violated: step not found in in_degree"))) += 1;
             }
         }
-        
+
         // Kahn's algorithm
         let mut queue: Vec<String> = in_degree
             .iter()
@@ -277,25 +284,30 @@ impl TaskPlanner {
             .map(|(k, _)| k.clone())
             .collect();
         queue.sort(); // Deterministic ordering
-        
+
         let mut result = Vec::new();
         while !queue.is_empty() {
             let node = queue.remove(0);
             result.push(node.clone());
-            
-            for neighbor in graph.get(&node).expect("topological sort invariant violated: current node not in graph") {
-                *in_degree.get_mut(neighbor).expect("topological sort invariant violated: neighbor not in in_degree") -= 1;
+
+            for neighbor in graph
+                .get(&node)
+                .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("topological sort invariant violated: current node not in graph")))?
+            {
+                *in_degree
+                    .get_mut(neighbor)
+                    .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("topological sort invariant violated: neighbor not in in_degree"))) -= 1;
                 if in_degree[neighbor] == 0 {
                     queue.push(neighbor.clone());
                     queue.sort();
                 }
             }
         }
-        
+
         if result.len() != steps.len() {
-            return Err("Circular dependency detected".to_string());
+            return Err(KiasError::Validation("Circular dependency detected".to_string()));
         }
-        
+
         Ok(result)
     }
 
@@ -308,17 +320,14 @@ impl TaskPlanner {
     }
 
     /// Identify critical path (longest path through the plan)
-    pub fn find_critical_path(steps: &[PlanStep]) -> Vec<String> {
-        let order = match Self::compute_execution_order(steps) {
-            Ok(o) => o,
-            Err(_) => return Vec::new(),
-        };
-        
+    pub fn find_critical_path(steps: &[PlanStep]) -> Result<Vec<String>, KiasError> {
+        let order = Self::compute_execution_order(steps)?;
+
         let mut dist: HashMap<String, (i64, Option<String>)> = HashMap::new();
         for step in steps {
             dist.insert(step.id.clone(), (step.estimated_cost_ms as i64, None));
         }
-        
+
         for step_id in &order {
             let current_dist = dist.get(step_id).map(|(d, _)| *d).unwrap_or(0);
             for other in steps.iter().filter(|s| s.dependencies.contains(step_id)) {
@@ -329,7 +338,7 @@ impl TaskPlanner {
                 }
             }
         }
-        
+
         // Find max
         let max_entry = dist.iter().max_by_key(|(_, (d, _))| *d);
         if let Some((end, _)) = max_entry {
@@ -337,13 +346,17 @@ impl TaskPlanner {
             let mut current = Some(end.clone());
             while let Some(id) = current {
                 path.push(id.clone());
-                current = dist.get(&id).expect("valid path node").1.clone();
+                current = dist
+                    .get(&id)
+                    .ok_or_else(|| KiasError::Internal(anyhow::anyhow!("valid path node")))?
+                    .1
+                    .clone();
             }
             path.reverse();
-            return path;
+            return Ok(path);
         }
-        
-        Vec::new()
+
+        Ok(Vec::new())
     }
 
     /// Record execution result for learning
@@ -577,7 +590,7 @@ mod tests {
             },
         ];
         
-        let path = TaskPlanner::find_critical_path(&steps);
+        let path = TaskPlanner::find_critical_path(&steps).unwrap();
         assert_eq!(path.first(), Some(&"a".to_string()));
         assert_eq!(path.last(), Some(&"b".to_string()));
     }

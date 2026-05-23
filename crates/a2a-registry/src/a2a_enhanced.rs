@@ -171,21 +171,12 @@ impl SessionManager {
         self.sessions.get(&id).cloned().ok_or(RegistryError::NotFound { agent_id: format!("{:?}", id) })
     }
 
-    /// Get session by client or server ID
+    /// Get session by client or server ID.
     pub fn get_session_by_client_or_server(&self, id: &str) -> Result<Session, RegistryError> {
         self.sessions.values()
             .find(|s| s.client_id == id || s.server_id == id)
             .cloned()
             .ok_or(RegistryError::NotFound { agent_id: id.to_string() })
-    }
-
-    /// Get session (original implementation below)
-        let sessions = self.sessions.lock().map_err(|_| RegistryError::NotFound { agent_id: "lock error".to_string() })?;
-        sessions
-            .get(&id)
-            .cloned()
-            .filter(|s| s.active)
-            .ok_or_else(|| RegistryError::NotFound { agent_id: "session not found or inactive".to_string() })
     }
 
     /// Refreshes the last activity timestamp of a session.

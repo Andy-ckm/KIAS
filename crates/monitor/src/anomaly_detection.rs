@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 /// - New/unknown operation types
 ///
 /// EMQ has NO behavior anomaly detection — this is a key differentiator.
-
+///
 /// Anomaly detection configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnomalyConfig {

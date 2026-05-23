@@ -342,6 +342,7 @@ impl SlowTraceCollector {
         let mut by_severity: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         let mut durations: Vec<u64> = Vec::new();
+        #[allow(clippy::type_complexity)]
         let mut agent_map: std::collections::HashMap<
             String,
             (String, Vec<u64>, std::collections::HashMap<String, usize>),
@@ -395,7 +396,7 @@ impl SlowTraceCollector {
                 }
             })
             .collect();
-        top_slow_agents.sort_by(|a, b| b.slow_count.cmp(&a.slow_count));
+        top_slow_agents.sort_by_key(|b| std::cmp::Reverse(b.slow_count));
         top_slow_agents.truncate(5);
 
         SlowTraceSummary {

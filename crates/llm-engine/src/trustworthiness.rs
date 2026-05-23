@@ -201,6 +201,8 @@ impl FactCheck {
     pub fn extract_claims(&self, text: &str) -> Vec<Claim> {
         let mut claims = Vec::new();
         let mut claim_counter = 0u64;
+        let re_bracket = regex::Regex::new(r"\[([^\]]+)\]").ok();
+        let re_source = regex::Regex::new(r"(?i)source[-_]?(\w+)").ok();
 
         for sentence in text.split(['.', '!', '?']) {
             let sentence = sentence.trim();
@@ -211,22 +213,24 @@ impl FactCheck {
             let has_citation = sentence.contains('[') || sentence.to_lowercase().contains("source");
             let citation_keys: Vec<String> = if sentence.contains('[') {
                 // Extract content between brackets
-                let re = regex::Regex::new(r"\[([^\]]+)\]").ok();
-                re.map(|r| {
-                    r.captures_iter(sentence)
-                        .filter_map(|c| c.get(1).map(|m| m.as_str().to_string()))
-                        .collect()
-                })
-                .unwrap_or_default()
+                re_bracket
+                    .as_ref()
+                    .map(|r| {
+                        r.captures_iter(sentence)
+                            .filter_map(|c| c.get(1).map(|m| m.as_str().to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default()
             } else {
                 // Look for "source-N" patterns
-                let re = regex::Regex::new(r"(?i)source[-_]?(\w+)").ok();
-                re.map(|r| {
-                    r.captures_iter(sentence)
-                        .filter_map(|c| c.get(1).map(|m| format!("source-{}", m.as_str())))
-                        .collect()
-                })
-                .unwrap_or_default()
+                re_source
+                    .as_ref()
+                    .map(|r| {
+                        r.captures_iter(sentence)
+                            .filter_map(|c| c.get(1).map(|m| format!("source-{}", m.as_str())))
+                            .collect()
+                    })
+                    .unwrap_or_default()
             };
 
             claim_counter += 1;
@@ -365,6 +369,7 @@ impl CitationCheck {
 /// Detects internal contradictions in a set of claims.
 pub struct ConflictDetection {
     /// Numeric claim patterns for comparison (e.g., "X is 50", "X was 40")
+    #[allow(dead_code)]
     numeric_claims: HashMap<String, f64>,
 }
 

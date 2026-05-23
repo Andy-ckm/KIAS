@@ -9,14 +9,14 @@ use serde::{Deserialize, Serialize};
 /// - Contemporaneous: Recorded at time of action
 /// - Original: First-capture data
 /// - Accurate: Free from errors
-/// + Complete, Consistent, Enduring, Available
+/// - Complete, Consistent, Enduring, Available
 ///
 /// Target standards:
 /// - 21 CFR Part 11 (FDA Electronic Records)
 /// - EU GMP Annex 11
 /// - ICH E6(R2) GCP
 /// - ISO 42001 (AI Management System)
-
+///
 /// An ALCOA+ compliant audit entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GxpAuditEntry {
@@ -193,6 +193,7 @@ impl GxpAuditTrail {
     }
 
     /// Record with before/after values (for change tracking)
+    #[allow(clippy::too_many_arguments)]
     pub fn record_change(
         &mut self,
         actor_id: &str,

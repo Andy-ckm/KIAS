@@ -78,7 +78,13 @@ pub async fn auth_middleware(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    if state.config.api_server.auth_tokens.iter().any(|k| k == token) {
+    if state
+        .config
+        .api_server
+        .auth_tokens
+        .iter()
+        .any(|k| k == token)
+    {
         tracing::debug!("API-key auth succeeded");
         // Attach a synthetic Admin claim so downstream handlers can use RBAC
         // even when authenticating via static API key.

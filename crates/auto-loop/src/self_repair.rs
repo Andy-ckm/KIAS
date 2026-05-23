@@ -738,7 +738,9 @@ mod tests {
         // "a b c d e a b c d e": first=["a","b"], last=["a","b","c","d","e"] => 2 matches
         let repeated = "a b c d e a b c d e";
         assert!(has_repetition(repeated));
-        assert!(!has_repetition("The quick brown fox jumps over the lazy dog and runs far"));
+        assert!(!has_repetition(
+            "The quick brown fox jumps over the lazy dog and runs far"
+        ));
     }
 
     #[test]

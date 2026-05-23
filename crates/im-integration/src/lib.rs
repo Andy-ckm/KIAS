@@ -155,7 +155,9 @@ pub trait PlatformAdapter: Send + Sync {
 
 /// 微信适配器
 pub struct WechatAdapter {
+    #[allow(dead_code)]
     token: String,
+    #[allow(dead_code)]
     encoding_aes_key: Option<String>,
 }
 
@@ -236,6 +238,7 @@ impl PlatformAdapter for WechatAdapter {
 
 /// Telegram适配器
 pub struct TelegramAdapter {
+    #[allow(dead_code)]
     bot_token: String,
 }
 
@@ -326,7 +329,9 @@ impl PlatformAdapter for TelegramAdapter {
 
 /// Slack适配器
 pub struct SlackAdapter {
+    #[allow(dead_code)]
     verification_token: String,
+    #[allow(dead_code)]
     signing_secret: Option<String>,
 }
 
@@ -419,7 +424,9 @@ impl PlatformAdapter for SlackAdapter {
 
 /// 飞书适配器
 pub struct FeishuAdapter {
+    #[allow(dead_code)]
     verification_token: String,
+    #[allow(dead_code)]
     encrypt_key: Option<String>,
 }
 
@@ -3695,10 +3702,22 @@ mod tests {
     #[test]
     fn test_manager_four_platforms_simultaneous() {
         let mut manager = ImIntegrationManager::new();
-        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
-        manager.register_adapter(ImPlatform::Telegram, Box::new(TelegramAdapter::new("t".to_string())));
-        manager.register_adapter(ImPlatform::Slack, Box::new(SlackAdapter::new("t".to_string(), None)));
-        manager.register_adapter(ImPlatform::Feishu, Box::new(FeishuAdapter::new("t".to_string(), None)));
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Telegram,
+            Box::new(TelegramAdapter::new("t".to_string())),
+        );
+        manager.register_adapter(
+            ImPlatform::Slack,
+            Box::new(SlackAdapter::new("t".to_string(), None)),
+        );
+        manager.register_adapter(
+            ImPlatform::Feishu,
+            Box::new(FeishuAdapter::new("t".to_string(), None)),
+        );
 
         // Wechat
         let r1 = manager.handle_webhook(&wechat_text_request()).unwrap();
@@ -3718,7 +3737,10 @@ mod tests {
     #[test]
     fn test_manager_wechat_location_message() {
         let mut manager = ImIntegrationManager::new();
-        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
         let request = WebhookRequest {
             platform: ImPlatform::Wechat,
             headers: HashMap::new(),
@@ -3797,7 +3819,10 @@ mod tests {
     // --- WechatAdapter token and encoding_aes_key access through behavior ---
     #[test]
     fn test_wechat_adapter_with_both_keys() {
-        let adapter = WechatAdapter::new("my_token".to_string(), Some("my_aes_key_43chars_base64_encoded".to_string()));
+        let adapter = WechatAdapter::new(
+            "my_token".to_string(),
+            Some("my_aes_key_43chars_base64_encoded".to_string()),
+        );
         assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
         let msg = adapter.parse_webhook(&wechat_text_request()).unwrap();
         assert_eq!(msg.platform, ImPlatform::Wechat);
@@ -3813,7 +3838,8 @@ mod tests {
     // --- SlackAdapter with both verification and signing secret ---
     #[test]
     fn test_slack_adapter_both_secrets() {
-        let adapter = SlackAdapter::new("vtoken".to_string(), Some("signing_secret_xyz".to_string()));
+        let adapter =
+            SlackAdapter::new("vtoken".to_string(), Some("signing_secret_xyz".to_string()));
         assert_eq!(adapter.platform_type(), ImPlatform::Slack);
     }
 
@@ -3844,7 +3870,10 @@ mod tests {
     #[test]
     fn test_manager_register_returns_unit() {
         let mut manager = ImIntegrationManager::new();
-        let result = manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
+        let result = manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new("t".to_string(), None)),
+        );
         assert_eq!(result, ());
         assert!(manager.adapters.contains_key(&ImPlatform::Wechat));
     }
@@ -3942,7 +3971,11 @@ mod tests {
         };
         let msg = adapter.parse_webhook(&request).unwrap();
         match &msg.content {
-            MessageContent::File { url, filename, mime_type } => {
+            MessageContent::File {
+                url,
+                filename,
+                mime_type,
+            } => {
                 assert_eq!(url, "https://slack.com/f/no-name");
                 assert_eq!(filename, "");
                 assert_eq!(mime_type.as_deref(), Some("image/png"));
@@ -3975,7 +4008,13 @@ mod tests {
     #[test]
     fn test_manager_feishu_with_encrypt_key() {
         let mut manager = ImIntegrationManager::new();
-        manager.register_adapter(ImPlatform::Feishu, Box::new(FeishuAdapter::new("vt".to_string(), Some("ek_123".to_string()))));
+        manager.register_adapter(
+            ImPlatform::Feishu,
+            Box::new(FeishuAdapter::new(
+                "vt".to_string(),
+                Some("ek_123".to_string()),
+            )),
+        );
         let resp = manager.handle_webhook(&feishu_text_request()).unwrap();
         assert_eq!(resp.status_code, 200);
         assert!(resp.should_reply);
@@ -3985,7 +4024,13 @@ mod tests {
     #[test]
     fn test_manager_slack_with_signing_secret() {
         let mut manager = ImIntegrationManager::new();
-        manager.register_adapter(ImPlatform::Slack, Box::new(SlackAdapter::new("vtt".to_string(), Some("ss_456".to_string()))));
+        manager.register_adapter(
+            ImPlatform::Slack,
+            Box::new(SlackAdapter::new(
+                "vtt".to_string(),
+                Some("ss_456".to_string()),
+            )),
+        );
         let resp = manager.handle_webhook(&slack_text_request()).unwrap();
         assert_eq!(resp.status_code, 200);
     }
@@ -3994,7 +4039,13 @@ mod tests {
     #[test]
     fn test_manager_wechat_with_encoding_aes_key() {
         let mut manager = ImIntegrationManager::new();
-        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("wt".to_string(), Some("aes_789".to_string()))));
+        manager.register_adapter(
+            ImPlatform::Wechat,
+            Box::new(WechatAdapter::new(
+                "wt".to_string(),
+                Some("aes_789".to_string()),
+            )),
+        );
         let resp = manager.handle_webhook(&wechat_text_request()).unwrap();
         assert_eq!(resp.status_code, 200);
     }

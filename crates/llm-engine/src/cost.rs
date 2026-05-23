@@ -914,20 +914,26 @@ mod tests {
     #[test]
     fn test_agent_cost_summary_by_date_serde() {
         let mut by_date = std::collections::HashMap::new();
-        by_date.insert("2025-01-01".to_string(), DailyCost {
-            date: "2025-01-01".to_string(),
-            total_tokens: 1000,
-            total_cost: 0.05,
-            requests: 5,
-            by_model: std::collections::HashMap::new(),
-        });
-        by_date.insert("2025-01-02".to_string(), DailyCost {
-            date: "2025-01-02".to_string(),
-            total_tokens: 2000,
-            total_cost: 0.10,
-            requests: 10,
-            by_model: std::collections::HashMap::new(),
-        });
+        by_date.insert(
+            "2025-01-01".to_string(),
+            DailyCost {
+                date: "2025-01-01".to_string(),
+                total_tokens: 1000,
+                total_cost: 0.05,
+                requests: 5,
+                by_model: std::collections::HashMap::new(),
+            },
+        );
+        by_date.insert(
+            "2025-01-02".to_string(),
+            DailyCost {
+                date: "2025-01-02".to_string(),
+                total_tokens: 2000,
+                total_cost: 0.10,
+                requests: 10,
+                by_model: std::collections::HashMap::new(),
+            },
+        );
 
         let summary = AgentCostSummary {
             agent_id: "agent-test".to_string(),
@@ -957,8 +963,10 @@ mod tests {
         };
         // Two different models
         let cost1 = tracker.record_usage("gpt-4o", &usage).await;
-        let cost2 = tracker.record_usage("claude-sonnet-4-20250514", &usage).await;
-        
+        let cost2 = tracker
+            .record_usage("claude-sonnet-4-20250514", &usage)
+            .await;
+
         let total = tracker.get_total_cost().await;
         assert!((total - (cost1 + cost2)).abs() < 0.0001);
     }
@@ -992,14 +1000,25 @@ mod tests {
     #[tokio::test]
     async fn test_record_usage_same_model_accumulates() {
         let tracker = CostTracker::new();
-        let usage1 = TokenUsage { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 };
-        let usage2 = TokenUsage { prompt_tokens: 2000, completion_tokens: 1000, total_tokens: 3000 };
+        let usage1 = TokenUsage {
+            prompt_tokens: 1000,
+            completion_tokens: 500,
+            total_tokens: 1500,
+        };
+        let usage2 = TokenUsage {
+            prompt_tokens: 2000,
+            completion_tokens: 1000,
+            total_tokens: 3000,
+        };
 
         tracker.record_usage("gpt-4o", &usage1).await;
         tracker.record_usage("gpt-4o", &usage2).await;
 
         let total = tracker.get_total_cost().await;
-        let daily = tracker.get_daily_cost(&chrono::Utc::now().format("%Y-%m-%d").to_string()).await.unwrap();
+        let daily = tracker
+            .get_daily_cost(&chrono::Utc::now().format("%Y-%m-%d").to_string())
+            .await
+            .unwrap();
         assert_eq!(daily.requests, 2);
         assert_eq!(daily.total_tokens, 4500);
     }

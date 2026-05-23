@@ -1342,7 +1342,7 @@ mod tests {
             .min_length(1)
             .max_length(100)
             .description("A user name field");
-        
+
         assert_eq!(schema.description, Some("A user name field".to_string()));
         let json = serde_json::to_string(&schema).unwrap();
         assert!(json.contains("A user name field"));
@@ -1352,13 +1352,11 @@ mod tests {
     fn test_validation_result_serde_roundtrip() {
         let result = ValidationResult {
             is_valid: false,
-            errors: vec![
-                ValidationError {
-                    path: "$.name".to_string(),
-                    message: "required field missing".to_string(),
-                    code: ValidationErrorCode::MissingRequired,
-                },
-            ],
+            errors: vec![ValidationError {
+                path: "$.name".to_string(),
+                message: "required field missing".to_string(),
+                code: ValidationErrorCode::MissingRequired,
+            }],
             parsed: Some(serde_json::json!({"name": "test"})),
         };
         let json = serde_json::to_string(&result).unwrap();
@@ -1408,10 +1406,24 @@ mod tests {
     #[test]
     fn test_builder_chaining_all_methods() {
         let schema = JsonSchema::object()
-            .property("name", JsonSchema::string().min_length(1).max_length(50).description("User name"))
+            .property(
+                "name",
+                JsonSchema::string()
+                    .min_length(1)
+                    .max_length(50)
+                    .description("User name"),
+            )
             .property("age", JsonSchema::integer().minimum(0.0).maximum(150.0))
-            .property("email", JsonSchema::string().pattern(r"^[\w]+@[\w]+\.[\w]+$"))
-            .property("tags", JsonSchema::array(JsonSchema::string()).min_items(0).max_items(10))
+            .property(
+                "email",
+                JsonSchema::string().pattern(r"^[\w]+@[\w]+\.[\w]+$"),
+            )
+            .property(
+                "tags",
+                JsonSchema::array(JsonSchema::string())
+                    .min_items(0)
+                    .max_items(10),
+            )
             .required("name")
             .required("email");
 
@@ -1424,12 +1436,18 @@ mod tests {
         // Missing required
         let result2 = validator.validate(r#"{"age":30}"#);
         assert!(!result2.is_valid);
-        assert!(result2.errors.iter().any(|e| e.code == ValidationErrorCode::MissingRequired));
+        assert!(result2
+            .errors
+            .iter()
+            .any(|e| e.code == ValidationErrorCode::MissingRequired));
 
         // Invalid pattern
         let result3 = validator.validate(r#"{"name":"Alice","email":"invalid"}"#);
         assert!(!result3.is_valid);
-        assert!(result3.errors.iter().any(|e| e.code == ValidationErrorCode::PatternMismatch));
+        assert!(result3
+            .errors
+            .iter()
+            .any(|e| e.code == ValidationErrorCode::PatternMismatch));
     }
 
     #[test]

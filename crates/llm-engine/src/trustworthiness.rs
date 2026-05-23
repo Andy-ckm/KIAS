@@ -1358,10 +1358,8 @@ mod tests {
         let cd = ConflictDetection::new();
         // "unable to" is negation, "unable to comply" vs "will comply"
         // "unable" (7) "comply" (7) shared (both > 5 chars)
-        let result = cd.textual_contradiction(
-            "The system is unable to comply",
-            "The system will comply",
-        );
+        let result =
+            cd.textual_contradiction("The system is unable to comply", "The system will comply");
         assert!(result); // both negated vs not, "unable" and "comply" shared (>5 chars each)
     }
 
@@ -1369,10 +1367,7 @@ mod tests {
     fn test_textual_contradiction_no_shared_words() {
         let cd = ConflictDetection::new();
         // No shared significant words (len > 5)
-        let result = cd.textual_contradiction(
-            "The sky is blue",
-            "The dog runs fast",
-        );
+        let result = cd.textual_contradiction("The sky is blue", "The dog runs fast");
         assert!(!result); // "blue" (4) and "sky"(3), "dog"(3) all < 5 chars
     }
 
@@ -1380,10 +1375,7 @@ mod tests {
     fn test_textual_contradiction_both_negated() {
         let cd = ConflictDetection::new();
         // Both negated → no contradiction
-        let result = cd.textual_contradiction(
-            "The sky is not blue",
-            "The sky is not red",
-        );
+        let result = cd.textual_contradiction("The sky is not blue", "The sky is not red");
         assert!(!result); // Both have negation
     }
 
@@ -1432,9 +1424,8 @@ mod tests {
         let sources = make_sources();
         let evaluator = TrustworthinessEvaluator::new(sources);
         // One supported claim, one hallucination
-        let report = evaluator.evaluate(
-            "The capital of France is Paris [source-1]. The sky is green.",
-        );
+        let report =
+            evaluator.evaluate("The capital of France is Paris [source-1]. The sky is green.");
         assert_eq!(report.claims.len(), 2);
         // At least one claim should be flagged
         assert!(report.overall_score < 1.0 || !report.warnings.is_empty());
@@ -1445,9 +1436,8 @@ mod tests {
         let sources = make_sources();
         let evaluator = TrustworthinessEvaluator::new(sources);
         // One supported, one not
-        let report = evaluator.evaluate(
-            "The capital of France is Paris [source-1]. The sky is green.",
-        );
+        let report =
+            evaluator.evaluate("The capital of France is Paris [source-1]. The sky is green.");
         // Should have hallucination warning for "The sky is green"
         assert!(!report.warnings.is_empty() || report.overall_score < 1.0);
     }

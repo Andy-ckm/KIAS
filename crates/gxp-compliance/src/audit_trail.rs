@@ -160,6 +160,21 @@ impl AuditRecord {
         format!("{:x}", hasher.finalize())
     }
 
+    /// Returns true if this record requires an electronic signature per 21 CFR Part 11.
+    pub fn requires_signature(&self) -> bool {
+        self.compliance_flags
+            .iter()
+            .any(|f| f == "ELECTRONIC_SIGNATURE_REQUIRED" || f == "HUMAN_REVIEW_REQUIRED")
+    }
+
+    /// Add a cross-crate correlation ID for distributed trace correlation.
+    pub fn with_correlation_id(mut self, correlation_id: &str) -> Self {
+        if let serde_json::Value::Object(ref mut m) = self.metadata {
+            m.insert("correlation_id".to_string(), serde_json::Value::String(correlation_id.to_string()));
+        }
+        self
+    }
+
     /// Compute this record's self-hash: chain of previous + all record fields
     pub fn compute_self_hash(&self) -> String {
         let payload = format!(

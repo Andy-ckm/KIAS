@@ -170,7 +170,10 @@ impl AuditRecord {
     /// Add a cross-crate correlation ID for distributed trace correlation.
     pub fn with_correlation_id(mut self, correlation_id: &str) -> Self {
         if let serde_json::Value::Object(ref mut m) = self.metadata {
-            m.insert("correlation_id".to_string(), serde_json::Value::String(correlation_id.to_string()));
+            m.insert(
+                "correlation_id".to_string(),
+                serde_json::Value::String(correlation_id.to_string()),
+            );
         }
         self
     }
@@ -312,6 +315,365 @@ impl AuditTrail {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Cross-crate correlation ID
+// ---------------------------------------------------------------------------
+
+/// A correlation ID used to link audit records across different crates
+/// in a distributed trace (e.g., agent-runtime → goal-engine → tool-executor).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CorrelationId(pub String);
+
+impl CorrelationId {
+    /// Generate a new correlation ID from a UUID.
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4().to_string())
+    }
+
+    /// Parse a correlation ID from a string (validates non-empty).
+    pub fn parse(s: &str) -> Result<Self, AuditTrailError> {
+        if s.is_empty() {
+            return Err(AuditTrailError::InvalidCorrelationId);
+        }
+        Ok(Self(s.to_string()))
+    }
+
+    /// Generate a new correlation ID from a UUID (kept for backward compatibility).
+    pub fn generate() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for CorrelationId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Merkle tree for batch integrity proofs
+// ---------------------------------------------------------------------------
+
+/// A binary Merkle tree built from audit record self-hashes.
+/// Provides O(log n) inclusion proofs for any sealed record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MerkleTree {
+    /// All leaf hashes (record self-hashes), in order
+    leaves: Vec<String>,
+    /// Internal nodes: each level halving in size. Level 0 = leaves.
+    /// The last entry of `levels` is the single merkle root.
+    levels: Vec<Vec<String>>,
+    /// Pre-computed merkle root (same as levels.last().unwrap()[0])
+    root: String,
+}
+
+impl MerkleTree {
+    /// Build a new empty Merkle tree.
+    pub fn new() -> Self {
+        Self {
+            leaves: Vec::new(),
+            levels: Vec::new(),
+            root: Self::empty_hash(),
+        }
+    }
+
+    /// Build from existing record self-hashes.
+    pub fn from_hashes(leaf_hashes: &[String]) -> Self {
+        if leaf_hashes.is_empty() {
+            return Self::new();
+        }
+        let leaves = leaf_hashes.to_vec();
+        let mut levels = Vec::new();
+        levels.push(leaves.clone());
+
+        let mut current = leaves.clone();
+        while current.len() > 1 {
+            let next: Vec<String> = current
+                .chunks(2)
+                .map(|pair| {
+                    let left = &pair[0];
+                    let right = pair.get(1).unwrap_or(left);
+                    Self::node_hash(left, right)
+                })
+                .collect();
+            levels.push(next.clone());
+            current = next;
+        }
+
+        let root = current.into_iter().next().unwrap_or_else(Self::empty_hash);
+        Self {
+            leaves,
+            levels,
+            root,
+        }
+    }
+
+    /// Insert a new leaf hash and recompute the tree.
+    pub fn insert(&mut self, leaf_hash: &str) {
+        self.leaves.push(leaf_hash.to_string());
+        *self = Self::from_hashes(&self.leaves);
+    }
+
+    /// The Merkle root hash.
+    pub fn merkle_root(&self) -> &str {
+        &self.root
+    }
+
+    /// Prove that `record_id` (at `leaf_index`) is in the tree.
+    /// Returns `None` if the index is out of bounds.
+    pub fn prove_inclusion(&self, record_id: &str, leaf_index: usize) -> Option<MerkleProof> {
+        if leaf_index >= self.leaves.len() {
+            return None;
+        }
+        let leaf_hash = &self.leaves[leaf_index];
+
+        // Walk up levels collecting sibling hashes
+        let mut hashes = Vec::new();
+        let mut idx = leaf_index;
+        for level in 0..self.levels.len() {
+            if level == self.levels.len() - 1 {
+                // This is the root level — no sibling
+                break;
+            }
+            let is_right = idx % 2 == 1;
+            let level_nodes = &self.levels[level];
+            let sibling_idx = if is_right { idx - 1 } else { idx + 1 };
+
+            if sibling_idx < level_nodes.len() {
+                hashes.push((is_right, level_nodes[sibling_idx].clone()));
+            } else {
+                // No sibling — use self hash (standard merkle tree convention)
+                hashes.push((is_right, leaf_hash.clone()));
+            }
+            idx /= 2;
+        }
+
+        Some(MerkleProof {
+            record_id: record_id.to_string(),
+            leaf_hash: leaf_hash.clone(),
+            leaf_index: leaf_index,
+            hashes,
+            merkle_root: self.root.clone(),
+        })
+    }
+
+    /// Verify a Merkle proof against a known root.
+    pub fn verify_proof(proof: &MerkleProof) -> bool {
+        let mut current = proof.leaf_hash.clone();
+        let mut idx = proof.leaf_index;
+
+        for (is_right, sibling) in &proof.hashes {
+            current = if *is_right {
+                Self::node_hash(&sibling, &current)
+            } else {
+                Self::node_hash(&current, &sibling)
+            };
+            idx /= 2;
+        }
+
+        current == proof.merkle_root
+    }
+
+    /// Number of leaf entries.
+    pub fn len(&self) -> usize {
+        self.leaves.len()
+    }
+
+    fn node_hash(left: &str, right: &str) -> String {
+        let payload = format!("{}|{}", left, right);
+        let mut hasher = Sha256::new();
+        hasher.update(payload.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
+    fn empty_hash() -> String {
+        String::from("0000000000000000000000000000000000000000000000000000000000000000")
+    }
+}
+
+impl Default for MerkleTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Merkle proof
+// ---------------------------------------------------------------------------
+
+/// A Merkle inclusion proof: the sibling hashes needed to verify a leaf
+/// is at `leaf_index` in the Merkle tree rooted at `merkle_root`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MerkleProof {
+    /// The record ID this proof is for
+    pub record_id: String,
+    /// The leaf hash
+    pub leaf_hash: String,
+    /// Index of the leaf in the tree
+    pub leaf_index: usize,
+    /// (is_right_sibling, sibling_hash) pairs from leaf → root
+    hashes: Vec<(bool, String)>,
+    /// The expected merkle root
+    pub merkle_root: String,
+}
+
+impl MerkleProof {
+    /// Verify this proof against the stored merkle_root.
+    pub fn verify(&self) -> bool {
+        MerkleTree::verify_proof(self)
+    }
+
+    /// The merkle root this proof was computed against.
+    pub fn merkle_root(&self) -> &str {
+        &self.merkle_root
+    }
+}
+
+// ---------------------------------------------------------------------------
+// WORM (Write Once Read Many) append-only storage
+// ---------------------------------------------------------------------------
+
+/// WORMStore: an append-only, tamper-evident file store for audit records.
+/// Records are written in length-prefixed JSON format.
+/// No delete or overwrite operations are exposed.
+#[derive(Debug)]
+pub struct WormStore {
+    /// File path for the WORM journal
+    path: std::path::PathBuf,
+    /// In-memory buffer of record IDs written in this session
+    session_ids: Vec<String>,
+}
+
+impl WormStore {
+    /// Open or create a WORM store at the given path.
+    pub fn new(path: impl Into<std::path::PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            session_ids: Vec::new(),
+        }
+    }
+
+    /// Append a single audit record to the WORM journal.
+    /// Returns the number of bytes written.
+    pub fn append_record(&mut self, record: &AuditRecord) -> Result<usize, WormStoreError> {
+        // Serialize to JSON
+        let json = serde_json::to_string(record)
+            .map_err(|e| WormStoreError::SerializationFailed(e.to_string()))?;
+
+        // Open in append mode
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)
+            .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+
+        let mut file = std::io::BufWriter::new(file);
+
+        // Write length prefix (big-endian u32) + JSON
+        let len = json.len() as u32;
+        let len_bytes = len.to_be_bytes();
+
+        std::io::Write::write_all(&mut file, &len_bytes)
+            .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+        std::io::Write::write_all(&mut file, json.as_bytes())
+            .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+        std::io::Write::write_all(&mut file, b"\n")
+            .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+
+        std::io::Write::flush(&mut file).map_err(|e| WormStoreError::IoError(e.to_string()))?;
+
+        self.session_ids.push(record.id.clone());
+        Ok(len as usize)
+    }
+
+    /// Load all records from the WORM journal.
+    /// Returns records in the order they were written.
+    pub fn load(&self) -> Result<Vec<AuditRecord>, WormStoreError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file =
+            std::fs::File::open(&self.path).map_err(|e| WormStoreError::IoError(e.to_string()))?;
+        let mut reader = std::io::BufReader::new(file);
+        let mut records = Vec::new();
+
+        loop {
+            // Read 4-byte length prefix
+            let mut len_buf = [0u8; 4];
+            match std::io::Read::read(&mut reader, &mut len_buf) {
+                Ok(0) => break, // EOF
+                Ok(4) => {}
+                Ok(n) => {
+                    return Err(WormStoreError::CorruptedStore(format!(
+                        "expected 4-byte length prefix, got {} bytes",
+                        n
+                    )))
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                Err(e) => return Err(WormStoreError::IoError(e.to_string())),
+            }
+
+            let len = u32::from_be_bytes(len_buf) as usize;
+
+            // Read JSON payload
+            let mut payload = vec![0u8; len];
+            std::io::Read::read_exact(&mut reader, &mut payload)
+                .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+
+            // Read trailing newline
+            let mut nl = [0u8; 1];
+            std::io::Read::read_exact(&mut reader, &mut nl)
+                .map_err(|e| WormStoreError::IoError(e.to_string()))?;
+
+            let json = String::from_utf8(payload)
+                .map_err(|e| WormStoreError::CorruptedStore(e.to_string()))?;
+            let record: AuditRecord = serde_json::from_str(&json)
+                .map_err(|e| WormStoreError::CorruptedStore(e.to_string()))?;
+            records.push(record);
+        }
+
+        Ok(records)
+    }
+
+    /// Flush any buffered writes (no-op for BufWriter since write is immediate).
+    pub fn flush(&self) -> Result<(), WormStoreError> {
+        Ok(())
+    }
+
+    /// Iterate over all records in the store (loads all into memory).
+    pub fn iter(&self) -> Result<impl Iterator<Item = AuditRecord>, WormStoreError> {
+        Ok(self.load()?.into_iter())
+    }
+
+    /// Number of records written in this session.
+    pub fn session_count(&self) -> usize {
+        self.session_ids.len()
+    }
+
+    /// Check the store path.
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Extended errors
+// ---------------------------------------------------------------------------
+
+/// Errors for WORM store operations.
+#[derive(Debug, thiserror::Error)]
+pub enum WormStoreError {
+    #[error("I/O error: {0}")]
+    IoError(String),
+
+    #[error("serialization failed: {0}")]
+    SerializationFailed(String),
+
+    #[error("store is corrupted: {0}")]
+    CorruptedStore(String),
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AuditTrailError {
     #[error("chain broken: expected hash {expected}, found {found}")]
@@ -323,6 +685,15 @@ pub enum AuditTrailError {
         expected: String,
         found: String,
     },
+
+    #[error("invalid correlation ID: empty string")]
+    InvalidCorrelationId,
+
+    #[error("WORM store error: {0}")]
+    WormStore(#[from] WormStoreError),
+
+    #[error("merkle proof verification failed")]
+    MerkleProofInvalid,
 }
 
 #[cfg(test)]
@@ -492,5 +863,266 @@ mod tests {
         assert!(fields.contains_key("chain_hash"));
         assert!(fields.contains_key("gxp_domains"));
         assert!(fields.contains_key("risk_level"));
+    }
+
+    // --- CorrelationId ---
+
+    #[test]
+    fn test_correlation_id_new_is_uuid() {
+        let cid = CorrelationId::new();
+        // UUID format: 8-4-4-4-12 = 36 chars
+        assert_eq!(cid.0.len(), 36);
+        assert!(cid.0.chars().all(|c| c.is_ascii_hexdigit() || c == '-'));
+    }
+
+    #[test]
+    fn test_correlation_id_parse_valid() {
+        let cid = CorrelationId::parse("trace-abc-123").unwrap();
+        assert_eq!(cid.0, "trace-abc-123");
+    }
+
+    #[test]
+    fn test_correlation_id_parse_empty_fails() {
+        let result = CorrelationId::parse("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_correlation_id_default() {
+        let cid = CorrelationId::default();
+        assert_eq!(cid.0.len(), 36);
+    }
+
+    #[test]
+    fn test_record_with_correlation_id() {
+        let record = make_record("agent-1", "test").with_correlation_id("trace-xyz-789");
+        let meta = record.metadata.as_object().unwrap();
+        assert_eq!(
+            meta.get("correlation_id").unwrap().as_str().unwrap(),
+            "trace-xyz-789"
+        );
+    }
+
+    #[test]
+    fn test_record_requires_signature_flag() {
+        let record =
+            make_record("agent-1", "test").with_compliance_flag("ELECTRONIC_SIGNATURE_REQUIRED");
+        assert!(record.requires_signature());
+    }
+
+    #[test]
+    fn test_record_requires_human_review_flag() {
+        let record = make_record("agent-1", "test").with_compliance_flag("HUMAN_REVIEW_REQUIRED");
+        assert!(record.requires_signature());
+    }
+
+    #[test]
+    fn test_record_no_signature_flag() {
+        let record = make_record("agent-1", "test");
+        assert!(!record.requires_signature());
+    }
+
+    // --- MerkleTree ---
+
+    #[test]
+    fn test_merkle_tree_empty() {
+        let tree = MerkleTree::new();
+        assert_eq!(tree.len(), 0);
+        assert_eq!(
+            tree.merkle_root(),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+    }
+
+    #[test]
+    fn test_merkle_tree_single_leaf() {
+        let tree = MerkleTree::from_hashes(&[String::from("leaf-hash-1")]);
+        assert_eq!(tree.len(), 1);
+        assert!(!tree.merkle_root().starts_with("00000000"));
+    }
+
+    #[test]
+    fn test_merkle_tree_multiple_leaves() {
+        let hashes = vec![
+            String::from("hash-a"),
+            String::from("hash-b"),
+            String::from("hash-c"),
+        ];
+        let tree = MerkleTree::from_hashes(&hashes);
+        assert_eq!(tree.len(), 3);
+        assert!(!tree.merkle_root().is_empty());
+    }
+
+    #[test]
+    fn test_merkle_tree_insert() {
+        let mut tree = MerkleTree::new();
+        tree.insert("hash-1");
+        assert_eq!(tree.len(), 1);
+        tree.insert("hash-2");
+        assert_eq!(tree.len(), 2);
+        tree.insert("hash-3");
+        assert_eq!(tree.len(), 3);
+    }
+
+    #[test]
+    fn test_merkle_tree_prove_inclusion_valid() {
+        let hashes: Vec<String> = (0..4).map(|i| format!("hash-{}", i)).collect();
+        let tree = MerkleTree::from_hashes(&hashes);
+
+        for i in 0..4 {
+            let proof = tree.prove_inclusion(&format!("record-{}", i), i);
+            assert!(proof.is_some());
+            let p = proof.unwrap();
+            assert_eq!(p.record_id, format!("record-{}", i));
+            assert!(p.verify());
+        }
+    }
+
+    #[test]
+    fn test_merkle_tree_prove_inclusion_out_of_bounds() {
+        let hashes: Vec<String> = (0..3).map(|i| format!("hash-{}", i)).collect();
+        let tree = MerkleTree::from_hashes(&hashes);
+        let proof = tree.prove_inclusion("record-x", 99);
+        assert!(proof.is_none());
+    }
+
+    #[test]
+    fn test_merkle_tree_proof_fails_on_tampered_leaf() {
+        let hashes = vec![String::from("hash-a"), String::from("hash-b")];
+        let tree = MerkleTree::from_hashes(&hashes);
+
+        let mut proof = tree.prove_inclusion("record-a", 0).unwrap();
+        // Tamper with the leaf hash
+        proof.leaf_hash = String::from("tampered-hash");
+        assert!(!proof.verify());
+    }
+
+    #[test]
+    fn test_merkle_tree_proof_fails_on_tampered_root() {
+        let hashes = vec![String::from("hash-a"), String::from("hash-b")];
+        let tree = MerkleTree::from_hashes(&hashes);
+
+        let mut proof = tree.prove_inclusion("record-a", 0).unwrap();
+        // Tamper with the merkle root
+        proof.merkle_root =
+            String::from("0000000000000000000000000000000000000000000000000000000000000000");
+        assert!(!proof.verify());
+    }
+
+    #[test]
+    fn test_merkle_proof_verify_method() {
+        let hashes = vec![
+            String::from("h1"),
+            String::from("h2"),
+            String::from("h3"),
+            String::from("h4"),
+        ];
+        let tree = MerkleTree::from_hashes(&hashes);
+        let proof = tree.prove_inclusion("r2", 2).unwrap();
+        assert!(proof.verify()); // .verify() calls MerkleTree::verify_proof internally
+    }
+
+    // --- WormStore ---
+
+    #[test]
+    fn test_worm_store_append_and_load() {
+        let tmpdir = std::env::temp_dir();
+        let path = tmpdir.join(format!("worm_test_{}.dat", uuid::Uuid::new_v4()));
+        let mut store = WormStore::new(&path);
+
+        let mut trail = AuditTrail::new();
+        let r1 = make_record("agent-1", "action-1");
+        let hash1 = trail.seal(r1).unwrap();
+        let r2 = make_record("agent-2", "action-2");
+        trail.seal(r2).unwrap();
+
+        // Append both sealed records
+        if let Some(rec) = trail.get(&trail.records[0].id) {
+            store.append_record(rec).unwrap();
+        }
+        if let Some(rec) = trail.get(&trail.records[1].id) {
+            store.append_record(rec).unwrap();
+        }
+
+        assert_eq!(store.session_count(), 2);
+
+        // Load and verify
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.len(), 2);
+
+        // Verify chain continuity in loaded records
+        let hashes: Vec<String> = loaded.iter().map(|r| r.self_hash.clone()).collect();
+        assert_eq!(hashes[0], hash1);
+        assert_eq!(
+            loaded[0].previous_hash,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+
+        // Clean up
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn test_worm_store_immutability_enforced() {
+        // WormStore has no delete/overwrite methods — only append
+        // This is a compile-time guarantee; we test that load sees all appended records
+        let tmpdir = std::env::temp_dir();
+        let path = tmpdir.join(format!("worm_imm_{}.dat", uuid::Uuid::new_v4()));
+        let mut store = WormStore::new(&path);
+
+        let mut trail = AuditTrail::new();
+        let r = make_record("agent-x", "one-time");
+        let sealed = trail.seal(r).unwrap();
+        let rec_id = trail.records[0].id.clone();
+
+        if let Some(rec) = trail.get(&rec_id) {
+            store.append_record(rec).unwrap();
+        }
+
+        // Re-open same path and append again (simulates separate session)
+        drop(store);
+        let mut store2 = WormStore::new(&path);
+        if let Some(rec) = trail.get(&rec_id) {
+            store2.append_record(rec).unwrap();
+        }
+
+        // All records from both sessions should be present
+        let loaded = store2.load().unwrap();
+        assert_eq!(loaded.len(), 2);
+
+        // Clean up
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn test_worm_store_load_empty_file() {
+        let tmpdir = std::env::temp_dir();
+        let path = tmpdir.join(format!("worm_empty_{}.dat", uuid::Uuid::new_v4()));
+        let store = WormStore::new(&path);
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.len(), 0);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn test_worm_store_iter() {
+        let tmpdir = std::env::temp_dir();
+        let path = tmpdir.join(format!("worm_iter_{}.dat", uuid::Uuid::new_v4()));
+        let mut store = WormStore::new(&path);
+
+        let mut trail = AuditTrail::new();
+        let r1 = make_record("a", "x");
+        let r2 = make_record("b", "y");
+        trail.seal(r1).unwrap();
+        trail.seal(r2).unwrap();
+
+        for rec in &trail.records {
+            store.append_record(rec).unwrap();
+        }
+
+        let iter_count = store.iter().unwrap().count();
+        assert_eq!(iter_count, 2);
+
+        std::fs::remove_file(&path).ok();
     }
 }

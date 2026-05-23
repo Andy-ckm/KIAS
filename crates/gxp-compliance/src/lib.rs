@@ -33,7 +33,10 @@ pub use agent_validation::{
     AcceptanceCriterion, ProtocolType, TestRecord, ValidationEngine, ValidationProtocol,
     ValidationStage,
 };
-pub use audit_trail::{ActionType, AuditRecord, AuditTrail, GxPDomain, RiskLevel};
+pub use audit_trail::{
+    ActionType, AuditRecord, AuditTrail, CorrelationId, GxPDomain, MerkleProof, MerkleTree,
+    RiskLevel, WormStore, WormStoreError,
+};
 pub use compliance_report::{
     ComplianceReport, ComplianceReporter, ComplianceStatus, ComplianceSummary,
     FDASubmissionPackage, Finding, ReportSection, ReportType, Severity,

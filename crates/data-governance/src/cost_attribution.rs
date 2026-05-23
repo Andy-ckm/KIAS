@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 ///
 /// Key capability that EMQ completely lacks: "Which Agent spent how much on what?"
 /// This is the feature CFOs love.
-
+///
 /// Cost entry for a single LLM call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostEntry {

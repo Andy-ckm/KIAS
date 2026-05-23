@@ -73,6 +73,7 @@ pub struct DataBridge {
     buffer: Vec<BridgeRecord>,
     total_sent: u64,
     total_failed: u64,
+    #[allow(dead_code)]
     transforms: Vec<String>, // Transform names (actual functions registered separately)
 }
 

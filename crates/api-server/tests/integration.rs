@@ -21,10 +21,10 @@ async fn default_state() -> AppState {
 }
 
 /// Build an AppState with auth enabled and a specific set of API keys.
-async fn state_with_auth(api_keys: Vec<&str>) -> AppState {
+async fn state_with_auth(auth_tokens: Vec<&str>) -> AppState {
     let mut config = KiasConfig::default();
     config.api_server.auth_enabled = true;
-    config.api_server.api_keys = api_keys.into_iter().map(String::from).collect();
+    config.api_server.auth_tokens = auth_tokens.into_iter().map(String::from).collect();
     AppState::new_async(config).await
 }
 
@@ -363,7 +363,7 @@ async fn test_auth_disabled_allows_all_requests() {
 async fn test_auth_no_keys_configured_denies_all() {
     let mut config = KiasConfig::default();
     config.api_server.auth_enabled = true;
-    config.api_server.api_keys = vec![];
+    config.api_server.auth_tokens = vec![];
     let app = create_router(AppState::new_async(config).await);
     let req = Request::builder()
         .uri("/api/v1/agents")
@@ -705,8 +705,8 @@ async fn test_get_config_returns_sanitized_data() {
     assert_eq!(status, StatusCode::OK);
     // Verify no secrets are leaked
     assert!(
-        body["api_server"]["api_keys"].is_null(),
-        "raw api_keys should not be present"
+        body["api_server"]["auth_tokens"].is_null(),
+        "raw auth_tokens should not be present"
     );
     assert!(
         body["api_server"]["jwt_secret"].is_null(),

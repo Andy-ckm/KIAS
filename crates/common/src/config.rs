@@ -66,7 +66,7 @@ pub struct ApiServerConfig {
     /// Whether to enable API key authentication.
     pub auth_enabled: bool,
     /// List of valid API keys.
-    pub api_keys: Vec<String>,
+    pub auth_tokens: Vec<String>,
     /// JWT secret for token-based authentication (optional).
     pub jwt_secret: Option<String>,
     /// JWT issuer claim (optional).
@@ -165,7 +165,7 @@ impl Default for ApiServerConfig {
             tls_client_ca_path: None,
             tls_min_version: "1.3".into(),
             auth_enabled: false,
-            api_keys: vec![],
+            auth_tokens: vec![],
             jwt_secret: None,
             jwt_issuer: None,
             jwt_expiration_hours: 24,

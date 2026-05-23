@@ -391,7 +391,7 @@ mod tests {
         let mut config = kias_common::config::KiasConfig::default();
         config.api_server.auth_enabled = true;
         config.api_server.jwt_secret = Some("test-secret".to_string());
-        config.api_server.api_keys = vec!["test-api-key".to_string()];
+        config.api_server.auth_tokens = vec!["test-api-key".to_string()];
         AppState::new_async(config).await
     }
 

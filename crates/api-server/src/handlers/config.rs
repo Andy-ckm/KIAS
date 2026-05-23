@@ -116,7 +116,7 @@ pub async fn get_config(State(state): State<AppState>) -> Json<SanitizedConfig> 
             port: cfg.api_server.port,
             tls: cfg.api_server.tls,
             auth_enabled: cfg.api_server.auth_enabled,
-            api_key_count: cfg.api_server.api_keys.len(),
+            api_key_count: cfg.api_server.auth_tokens.len(),
             jwt_configured: cfg.api_server.jwt_secret.is_some(),
             jwt_expiration_hours: cfg.api_server.jwt_expiration_hours,
         },
@@ -503,9 +503,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_config_with_api_keys() {
+    async fn test_get_config_with_auth_tokens() {
         let mut config = kias_common::config::KiasConfig::default();
-        config.api_server.api_keys = vec!["key1".to_string(), "key2".to_string()];
+        config.api_server.auth_tokens = vec!["key1".to_string(), "key2".to_string()];
         config.api_server.jwt_secret = Some("secret".to_string());
 
         let graph = kias_knowledge::graph::KnowledgeGraph::new();

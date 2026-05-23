@@ -64,7 +64,7 @@ pub async fn auth_middleware(
     }
 
     // ── Fall back to API key ─────────────────────────────────────────
-    if state.config.api_server.api_keys.is_empty() {
+    if state.config.api_server.auth_tokens.is_empty() {
         tracing::warn!("Auth enabled but no API keys configured — denying all");
         let audit_event = AuditEvent::new(
             "unknown",
@@ -78,7 +78,7 @@ pub async fn auth_middleware(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    if state.config.api_server.api_keys.iter().any(|k| k == token) {
+    if state.config.api_server.auth_tokens.iter().any(|k| k == token) {
         tracing::debug!("API-key auth succeeded");
         // Attach a synthetic Admin claim so downstream handlers can use RBAC
         // even when authenticating via static API key.
@@ -162,7 +162,7 @@ mod tests {
         let mut config = kias_common::config::KiasConfig::default();
         config.api_server.auth_enabled = true;
         config.api_server.jwt_secret = Some("test-jwt-secret".to_string());
-        config.api_server.api_keys = vec!["test-api-key-123".to_string()];
+        config.api_server.auth_tokens = vec!["test-api-key-123".to_string()];
         AppState::new_async(config).await
     }
 
@@ -170,7 +170,7 @@ mod tests {
         let mut config = kias_common::config::KiasConfig::default();
         config.api_server.auth_enabled = true;
         config.api_server.jwt_secret = Some("test-jwt-secret".to_string());
-        config.api_server.api_keys = vec![];
+        config.api_server.auth_tokens = vec![];
         AppState::new_async(config).await
     }
 

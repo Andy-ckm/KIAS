@@ -113,7 +113,8 @@ async fn smoke_list_agents() {
 
     let bytes = list_resp.into_body().collect().await.unwrap().to_bytes();
     let json: Value = serde_json::from_slice(&bytes).unwrap();
-    assert!(json["agents"].is_array(), "应返回agents数组");
+    assert!(json["items"].is_array(), "应返回items数组");
+    assert!(json["total"].is_u64(), "应返回total字段");
 }
 
 /// Smoke Test 5: 错误处理 - 无效JSON
@@ -149,7 +150,7 @@ async fn smoke_unknown_endpoint_returns_404() {
 async fn smoke_auth_required_for_config() {
     let mut config = KiasConfig::default();
     config.api_server.auth_enabled = true;
-    config.api_server.api_keys = vec!["valid-key".to_string()];
+    config.api_server.auth_tokens = vec!["valid-k".to_string()];
 
     let app = create_router(AppState::new_async(config).await);
 

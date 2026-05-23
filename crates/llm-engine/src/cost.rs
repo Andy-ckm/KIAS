@@ -498,7 +498,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_cost_zero_tokens_edge_case() {
+    fn test_calculate_cost_zero_tokens_all_zero() {
         let tracker = CostTracker::new();
         let usage = TokenUsage {
             prompt_tokens: 0,
@@ -984,8 +984,9 @@ mod tests {
             total_tokens: 2_000_000_000,
         };
         let cost = tracker.calculate_cost("gpt-4o", &usage);
-        // Should not panic and should be huge
-        assert!(cost > 1_000_000.0);
+        // Input: 1B * $2.50/1M = $2500, Output: 1B * $10/1M = $10000, Total = $12500
+        // Should not panic and should be > $10000
+        assert!(cost > 10_000.0);
     }
 
     #[tokio::test]

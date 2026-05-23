@@ -17,8 +17,11 @@ use tokio::sync::RwLock;
 /// Anomaly detection configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnomalyConfig {
-    /// Z-score threshold for frequency anomaly (default: 2.0)
+    /// Z-score threshold for frequency/cost anomaly (default: 2.0)
     pub z_threshold: f64,
+
+    /// IQR multiplier for outlier detection (default: 1.5)
+    pub iqr_multiplier: f64,
 
     /// Minimum samples before detection activates
     pub min_samples: usize,
@@ -28,15 +31,28 @@ pub struct AnomalyConfig {
 
     /// Time window in minutes for frequency analysis
     pub window_minutes: u64,
+
+    /// Rolling window size for time-series analysis (number of events)
+    pub rolling_window_size: usize,
+
+    /// Minimum hour samples before time-pattern anomaly activates
+    pub min_hour_samples: u64,
+
+    /// Trend sensitivity: fraction of window that must trend same direction (0.0-1.0)
+    pub trend_sensitivity: f64,
 }
 
 impl Default for AnomalyConfig {
     fn default() -> Self {
         Self {
             z_threshold: 2.0,
+            iqr_multiplier: 1.5,
             min_samples: 10,
             cost_spike_multiplier: 3.0,
             window_minutes: 60,
+            rolling_window_size: 50,
+            min_hour_samples: 100,
+            trend_sensitivity: 0.6,
         }
     }
 }
@@ -77,6 +93,14 @@ pub enum AnomalyType {
     UnknownOperation,
     /// High error rate
     ErrorRateSpike,
+    /// Unusual hour-of-day activity pattern
+    UnusualTimePattern,
+    /// Operation count frequency spike
+    OpCountSpike,
+    /// Cost trend anomaly (sudden increase/decrease)
+    CostTrendAnomaly,
+    /// IQR-based cost outlier
+    CostIqrOutlier,
 }
 
 /// Anomaly severity
@@ -95,11 +119,23 @@ struct AgentStats {
     /// Operation counts by type
     op_counts: HashMap<String, Vec<f64>>,
 
-    /// Cost history
+    /// Rolling window of recent costs (time-series)
+    rolling_costs: Vec<f64>,
+
+    /// Rolling window of timestamps (aligned with rolling_costs)
+    rolling_timestamps: Vec<chrono::DateTime<chrono::Utc>>,
+
+    /// Per-operation rolling frequency: operation name -> counts per time window
+    op_frequency: HashMap<String, Vec<u32>>,
+
+    /// Cost history (unbounded, for Z-score/IQR baseline)
     costs: Vec<f64>,
 
     /// Hour-of-day distribution (0-23)
     hour_distribution: Vec<u64>,
+
+    /// Total hour samples
+    total_hour_samples: u64,
 
     /// Error count
     errors: u64,
@@ -112,12 +148,31 @@ struct AgentStats {
 }
 
 impl AgentStats {
-    fn record(&mut self, event: &OperationEvent) {
+    fn record(&mut self, event: &OperationEvent, window_size: usize) {
         let hour = event.timestamp.hour() as usize;
         if self.hour_distribution.len() <= hour {
             self.hour_distribution.resize(hour + 1, 0);
         }
         self.hour_distribution[hour] += 1;
+        self.total_hour_samples += 1;
+
+        // Rolling window for time-series analysis
+        self.rolling_costs.push(event.cost_usd);
+        self.rolling_timestamps.push(event.timestamp);
+        if self.rolling_costs.len() > window_size {
+            self.rolling_costs.remove(0);
+            self.rolling_timestamps.remove(0);
+        }
+
+        // Per-operation frequency: count events in each time window (bucket by minute)
+        let minute_bucket = event.timestamp.timestamp() / 60;
+        let freq = self.op_frequency.entry(event.operation.clone()).or_default();
+        if freq.is_empty() || *freq.last().map(|&b| b).unwrap_or(0) != minute_bucket as u32 {
+            freq.push(minute_bucket as u32);
+            if freq.len() > 20 {
+                freq.remove(0);
+            }
+        }
 
         self.op_counts
             .entry(event.operation.clone())
@@ -158,7 +213,7 @@ impl AnomalyDetector {
         {
             let mut stats = self.stats.write().await;
             let agent_stats = stats.entry(event.agent_id.clone()).or_default();
-            agent_stats.record(&event);
+            agent_stats.record(&event, self.config.rolling_window_size);
         }
 
         {
@@ -173,8 +228,13 @@ impl AnomalyDetector {
             _ => return anomalies,
         };
 
-        // Check cost spike
+        // Check cost spike (mean × multiplier)
         if let Some(anomaly) = self.check_cost_spike(&event, agent_stats) {
+            anomalies.push(anomaly);
+        }
+
+        // Check IQR-based outlier
+        if let Some(anomaly) = self.check_cost_iqr(&event, agent_stats) {
             anomalies.push(anomaly);
         }
 
@@ -183,12 +243,204 @@ impl AnomalyDetector {
             anomalies.push(anomaly);
         }
 
-        // Check frequency anomaly
-        if let Some(anomaly) = self.check_frequency(&event, agent_stats) {
+        // Check operation frequency spike (real count-based, not cost-based)
+        if let Some(anomaly) = self.check_op_count_spike(&event, agent_stats) {
+            anomalies.push(anomaly);
+        }
+
+        // Check cost trend anomaly (rolling window)
+        if let Some(anomaly) = self.check_cost_trend(&event, agent_stats) {
+            anomalies.push(anomaly);
+        }
+
+        // Check unusual time-of-day pattern
+        if let Some(anomaly) = self.check_time_pattern(&event, agent_stats) {
             anomalies.push(anomaly);
         }
 
         anomalies
+    }
+
+    /// Detect IQR-based cost outlier.
+    /// IQR = Q3 - Q1. Outlier if value > Q3 + k*IQR or < Q1 - k*IQR.
+    fn check_cost_iqr(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
+        let costs = &stats.costs;
+        if costs.len() < 4 {
+            return None;
+        }
+
+        let mut sorted = costs.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let q1_idx = costs.len() / 4;
+        let q3_idx = (costs.len() * 3) / 4;
+        let q1 = sorted[q1_idx];
+        let q3 = sorted[q3_idx];
+        let iqr = q3 - q1;
+
+        if iqr <= 0.0 {
+            return None;
+        }
+
+        let upper = q3 + self.config.iqr_multiplier * iqr;
+        if event.cost_usd > upper {
+            let severity = if event.cost_usd > upper * 2.0 {
+                AnomalySeverity::Critical
+            } else {
+                AnomalySeverity::Medium
+            };
+            return Some(Anomaly {
+                agent_id: event.agent_id.clone(),
+                anomaly_type: AnomalyType::CostIqrOutlier,
+                severity,
+                description: format!(
+                    "IQR outlier: cost ${:.4} above upper fence ${:.4} (Q1={:.4}, Q3={:.4}, IQR={:.4})",
+                    event.cost_usd, upper, q1, q3, iqr
+                ),
+                detected_at: chrono::Utc::now(),
+                metric_value: event.cost_usd,
+                threshold: upper,
+            });
+        }
+        None
+    }
+
+    /// Detect unusual time-of-day patterns using hour distribution entropy.
+    fn check_time_pattern(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
+        if stats.total_hour_samples < self.config.min_hour_samples {
+            return None;
+        }
+
+        // Compute expected probability from historical distribution
+        let hour = event.timestamp.hour() as usize;
+        let hour_count = stats.hour_distribution.get(hour).copied().unwrap_or(0);
+        let expected_prob = hour_count as f64 / stats.total_hour_samples as f64;
+
+        // If this hour has been seen < 1% historically, flag as unusual
+        if expected_prob < 0.01 && hour_count == 0 {
+            // Check if agent has been active at all during this hour historically
+            let active_hours = stats.hour_distribution.iter().filter(|&&c| c > 0).count();
+            if active_hours > 6 {
+                // Agent has clear hour patterns — this hour is anomalous
+                return Some(Anomaly {
+                    agent_id: event.agent_id.clone(),
+                    anomaly_type: AnomalyType::UnusualTimePattern,
+                    severity: AnomalySeverity::Medium,
+                    description: format!(
+                        "Activity at hour {} ({:02}:00) is outside established pattern (agent active in {} of 24 hours)",
+                        hour, hour, active_hours
+                    ),
+                    detected_at: chrono::Utc::now(),
+                    metric_value: 0.0,
+                    threshold: 0.01,
+                });
+            }
+        }
+        None
+    }
+
+    /// Detect operation count frequency spike using rolling frequency windows.
+    fn check_op_count_spike(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
+        let freq = match stats.op_frequency.get(&event.operation) {
+            Some(f) if f.len() >= 5 => f,
+            _ => return None,
+        };
+
+        // Rolling frequency: count events in recent windows
+        // Each bucket = 1 minute. Compare current minute count vs historical average
+        let current_count = freq.last().copied().unwrap_or(0) as f64;
+        if freq.len() < 2 {
+            return None;
+        }
+
+        let prev_avg: f64 = freq.iter().take(freq.len() - 1).map(|&v| v as f64).sum::<f64>()
+            / (freq.len() - 1) as f64;
+
+        if prev_avg <= 0.0 {
+            return None;
+        }
+
+        let ratio = current_count / prev_avg;
+        // If current is 5x the historical average (spamming the same operation)
+        if ratio > 5.0 {
+            return Some(Anomaly {
+                agent_id: event.agent_id.clone(),
+                anomaly_type: AnomalyType::OpCountSpike,
+                severity: if ratio > 10.0 {
+                    AnomalySeverity::Critical
+                } else {
+                    AnomalySeverity::High
+                },
+                description: format!(
+                    "Operation '{}' frequency spike: {} events/min vs avg {:.1} ({:.1}x)",
+                    event.operation, current_count, prev_avg, ratio
+                ),
+                detected_at: chrono::Utc::now(),
+                metric_value: ratio,
+                threshold: 5.0,
+            });
+        }
+        None
+    }
+
+    /// Detect cost trend anomaly: linear regression slope on rolling window.
+    /// If recent costs trend sharply upward/downward, flag it.
+    fn check_cost_trend(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
+        let window = &stats.rolling_costs;
+        if window.len() < 10 {
+            return None;
+        }
+
+        // Simple linear regression: slope = cov(x,y) / var(x)
+        let n = window.len() as f64;
+        let i_vals: Vec<f64> = (0..window.len()).map(|i| i as f64).collect();
+        let mean_i = i_vals.iter().sum::<f64>() / n;
+        let mean_y = window.iter().sum::<f64>() / n;
+
+        let cov: f64 = i_vals
+            .iter()
+            .zip(window.iter())
+            .map(|(i, y)| (i - mean_i) * (y - mean_y))
+            .sum::<f64>()
+            / n;
+
+        let var_i: f64 = i_vals.iter().map(|i| (i - mean_i).powi(2)).sum::<f64>() / n;
+
+        if var_i <= 0.0 {
+            return None;
+        }
+
+        let slope = cov / var_i; // cost change per event
+        let avg_cost = mean_y;
+
+        if avg_cost <= 0.0 {
+            return None;
+        }
+
+        // Normalize slope: if slope × window_size > 50% of avg cost, it's a trend anomaly
+        let window_size = window.len() as f64;
+        let projected_change = slope * window_size;
+        let change_ratio = projected_change.abs() / avg_cost;
+
+        if change_ratio > 0.5 && slope.abs() > 0.001 {
+            let direction = if slope > 0.0 { "increasing" } else { "decreasing" };
+            return Some(Anomaly {
+                agent_id: event.agent_id.clone(),
+                anomaly_type: AnomalyType::CostTrendAnomaly,
+                severity: if change_ratio > 1.0 {
+                    AnomalySeverity::Critical
+                } else {
+                    AnomalySeverity::High
+                },
+                description: format!(
+                    "Cost trend anomaly: costs {} at {:.4}/event projected change {:.1}% over {} events",
+                    direction, slope, change_ratio * 100.0, window_size
+                ),
+                detected_at: chrono::Utc::now(),
+                metric_value: slope,
+                threshold: 0.001,
+            });
+        }
+        None
     }
 
     fn check_cost_spike(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
@@ -249,44 +501,6 @@ impl AnomalyDetector {
                 detected_at: chrono::Utc::now(),
                 metric_value: error_rate,
                 threshold: 0.5,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn check_frequency(&self, event: &OperationEvent, stats: &AgentStats) -> Option<Anomaly> {
-        let op_counts = match stats.op_counts.get(&event.operation) {
-            Some(counts) if counts.len() >= self.config.min_samples => counts,
-            _ => return None,
-        };
-
-        let mean: f64 = op_counts.iter().sum::<f64>() / op_counts.len() as f64;
-        let variance: f64 =
-            op_counts.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / op_counts.len() as f64;
-        let std_dev = variance.sqrt();
-
-        if std_dev <= 0.0 {
-            return None;
-        }
-
-        let z_score = (event.cost_usd - mean) / std_dev;
-        if z_score.abs() > self.config.z_threshold {
-            Some(Anomaly {
-                agent_id: event.agent_id.clone(),
-                anomaly_type: AnomalyType::FrequencySpike,
-                severity: if z_score.abs() > 4.0 {
-                    AnomalySeverity::Critical
-                } else {
-                    AnomalySeverity::Medium
-                },
-                description: format!(
-                    "Statistical anomaly on '{}': z-score {:.2} (threshold {:.1})",
-                    event.operation, z_score, self.config.z_threshold
-                ),
-                detected_at: chrono::Utc::now(),
-                metric_value: z_score,
-                threshold: self.config.z_threshold,
             })
         } else {
             None

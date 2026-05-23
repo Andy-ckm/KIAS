@@ -1,0 +1,18 @@
+[package]
+name = "kias-gxp-compliance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GxP-compliant AI Agent governance: FDA 21 CFR Part 11, EU Annex 11, GAMP 5, EU AI Act, ISO 14971"
+
+[dependencies]
+kias-common = { path = "../common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+async-trait = "0.1"
+thiserror = { workspace = true }

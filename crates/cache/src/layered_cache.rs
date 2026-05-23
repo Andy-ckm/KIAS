@@ -227,15 +227,14 @@ impl<V: Clone> L2SemanticCache<V> {
     }
 
     pub fn get(&mut self, embedding: &[f32]) -> Option<V> {
+        // Evict expired entries first
+        self.entries.retain(|e| !e.is_expired());
+
         // Find best matching entry
         let mut best_idx = None;
         let mut best_score = self.similarity_threshold;
 
-        for (i, entry) in self.entries.iter_mut().enumerate() {
-            if entry.is_expired() {
-                self.entries.remove(i);
-                continue;
-            }
+        for (i, entry) in self.entries.iter().enumerate() {
             let score = Self::cosine_similarity(embedding, &entry.embedding);
             if score > best_score {
                 best_score = score;
@@ -243,7 +242,7 @@ impl<V: Clone> L2SemanticCache<V> {
             }
         }
 
-        best_key.and_then(|k| self.entries.get(&k).map(|e| e.value.clone()))
+        best_idx.and_then(|i| self.entries.get(i).map(|e| e.value.clone()))
     }
 
     pub fn insert(&mut self, key: String, embedding: Vec<f32>, value: V) {

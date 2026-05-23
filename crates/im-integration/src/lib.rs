@@ -3427,4 +3427,575 @@ mod tests {
         // build_reply always sets should_reply = true
         assert!(resp.should_reply);
     }
+
+    // ===== NEW GAP TESTS =====
+
+    // --- Slack app_mention event type (falls through to Text with "") ---
+    #[test]
+    fn test_slack_parse_app_mention() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "app_mention",
+                    "text": "<@U123> hello",
+                    "user": "U456",
+                    "channel": "C789",
+                    "ts": "1700000700.000001",
+                    "channel_type": "channel"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        // app_mention is not "message" or "file_shared", falls through to Text(event["text"])
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "<@U123> hello"),
+            _ => panic!("Expected Text fallback for app_mention"),
+        }
+        assert_eq!(msg.sender_id, "U456");
+        assert_eq!(msg.receiver_id, Some("C789".to_string()));
+        assert_eq!(msg.message_type, MessageType::Private); // channel_type is not "group"
+    }
+
+    // --- Slack channel_type = "channel" yields Private (not Group) ---
+    #[test]
+    fn test_slack_parse_channel_type_channel() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "message",
+                    "text": "broadcast",
+                    "user": "U111",
+                    "channel": "C222",
+                    "ts": "1700000800.000001",
+                    "channel_type": "channel"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        // channel_type "channel" is not "group", so yields Private
+        assert_eq!(msg.message_type, MessageType::Private);
+    }
+
+    // --- Wechat location message type falls through to Text(Content) ---
+    #[test]
+    fn test_wechat_parse_location_message() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "MsgId": "loc001",
+                "MsgType": "location",
+                "Content": "Beijing location description",
+                "LocationX": "39.9042",
+                "LocationY": "116.4074",
+                "Scale": "15",
+                "Label": "should be ignored",
+                "FromUserName": "user_loc",
+                "ToUserName": "kias_bot",
+                "CreateTime": 1700000900
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        // location is unknown MsgType, falls through to _ => Text(Content)
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Beijing location description"),
+            _ => panic!("Expected Text fallback for location"),
+        }
+    }
+
+    // --- Feishu with missing chat_type falls through to Private ---
+    #[test]
+    fn test_feishu_parse_missing_chat_type() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_no_type",
+                        "message_type": "text",
+                        "content": "{\"text\":\"no chat_type\"}",
+                        "create_time": "1700001000"
+                    },
+                    "sender": {
+                        "sender_id": {"open_id": "ou_no_type"}
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        // chat_type missing -> else branch -> Private
+        assert_eq!(msg.message_type, MessageType::Private);
+    }
+
+    // --- Telegram location message falls through to "Unsupported message type" ---
+    #[test]
+    fn test_telegram_parse_location_message() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 888,
+                    "location": {"latitude": 39.9, "longitude": 116.4},
+                    "from": {"id": 99, "first_name": "LocUser"},
+                    "chat": {"id": 99, "type": "private"},
+                    "date": 1700001100
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Unsupported message type"),
+            _ => panic!("Expected unsupported message type fallback"),
+        }
+    }
+
+    // --- Telegram with sticker message falls through to "Unsupported message type" ---
+    #[test]
+    fn test_telegram_parse_sticker_message_2() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 999,
+                    "sticker": {"file_id": "sticker123"},
+                    "from": {"id": 100, "first_name": "StickerUser"},
+                    "chat": {"id": 100, "type": "private"},
+                    "date": 1700001200
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Unsupported message type"),
+            _ => panic!("Expected unsupported message type fallback for sticker"),
+        }
+    }
+
+    // --- Wechat build_reply with receiver_id Some (normal case) ---
+    #[test]
+    fn test_wechat_build_reply_normal() {
+        let adapter = WechatAdapter::new("token".to_string(), None);
+        let msg = UnifiedMessage {
+            id: "r1".to_string(),
+            platform: ImPlatform::Wechat,
+            sender_id: "sender".to_string(),
+            sender_name: None,
+            receiver_id: Some("receiver".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("reply".to_string()),
+            reply_to: None,
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.body["ToUserName"], "sender");
+        assert_eq!(resp.body["FromUserName"], "receiver");
+    }
+
+    // --- Slack build_reply with both receiver and sender ---
+    #[test]
+    fn test_slack_build_reply_normal() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let msg = UnifiedMessage {
+            id: "r2".to_string(),
+            platform: ImPlatform::Slack,
+            sender_id: "U_abc".to_string(),
+            sender_name: None,
+            receiver_id: Some("C_def".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Group,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("slack reply".to_string()),
+            reply_to: Some("thread_xyz".to_string()),
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.body["channel"], "C_def");
+        assert_eq!(resp.body["thread_ts"], "thread_xyz");
+    }
+
+    // --- Telegram build_reply normal ---
+    #[test]
+    fn test_telegram_build_reply_normal() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let msg = UnifiedMessage {
+            id: "r3".to_string(),
+            platform: ImPlatform::Telegram,
+            sender_id: "555".to_string(),
+            sender_name: None,
+            receiver_id: Some("555".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Private,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("tg reply".to_string()),
+            reply_to: Some("msg_555".to_string()),
+            silent: false,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.body["chat_id"], "555");
+        assert_eq!(resp.body["reply_to_message_id"], "msg_555");
+    }
+
+    // --- Feishu build_reply normal ---
+    #[test]
+    fn test_feishu_build_reply_normal() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let msg = UnifiedMessage {
+            id: "r4".to_string(),
+            platform: ImPlatform::Feishu,
+            sender_id: "ou_f".to_string(),
+            sender_name: Some("FeishuUser".to_string()),
+            receiver_id: Some("oc_f".to_string()),
+            content: MessageContent::Text("hi".to_string()),
+            message_type: MessageType::Group,
+            timestamp: 100,
+            raw_data: None,
+        };
+        let reply = ReplyMessage {
+            content: MessageContent::Text("feishu reply".to_string()),
+            reply_to: Some("orig_f".to_string()),
+            silent: true,
+        };
+        let resp = adapter.build_reply(&msg, &reply).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert_eq!(resp.body["msg_type"], "text");
+        assert_eq!(resp.body["content"]["text"], "feishu reply");
+    }
+
+    // --- Manager: all 4 platforms handle_webhook simultaneously ---
+    #[test]
+    fn test_manager_four_platforms_simultaneous() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
+        manager.register_adapter(ImPlatform::Telegram, Box::new(TelegramAdapter::new("t".to_string())));
+        manager.register_adapter(ImPlatform::Slack, Box::new(SlackAdapter::new("t".to_string(), None)));
+        manager.register_adapter(ImPlatform::Feishu, Box::new(FeishuAdapter::new("t".to_string(), None)));
+
+        // Wechat
+        let r1 = manager.handle_webhook(&wechat_text_request()).unwrap();
+        assert_eq!(r1.status_code, 200);
+        // Telegram
+        let r2 = manager.handle_webhook(&telegram_text_request()).unwrap();
+        assert_eq!(r2.status_code, 200);
+        // Slack
+        let r3 = manager.handle_webhook(&slack_text_request()).unwrap();
+        assert_eq!(r3.status_code, 200);
+        // Feishu
+        let r4 = manager.handle_webhook(&feishu_text_request()).unwrap();
+        assert_eq!(r4.status_code, 200);
+    }
+
+    // --- UnifiedMessage with Location content through manager ---
+    #[test]
+    fn test_manager_wechat_location_message() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
+        let request = WebhookRequest {
+            platform: ImPlatform::Wechat,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "MsgId": "loc002",
+                "MsgType": "location",
+                "Content": " Somewhere",
+                "LocationX": "40.0",
+                "LocationY": "116.5",
+                "Scale": "10",
+                "Label": "Beijing",
+                "FromUserName": "user_loc2",
+                "ToUserName": "kias_bot",
+                "CreateTime": 1700001300
+            }),
+            query_params: HashMap::new(),
+        };
+        let resp = manager.handle_webhook(&request).unwrap();
+        assert_eq!(resp.status_code, 200);
+        // Falls through to _ => Text(Content), Display = " Somewhere"
+        assert!(resp.body["Content"].as_str().unwrap().contains("Somewhere"));
+    }
+
+    // --- AdapterFactory: each platform produces the right adapter type ---
+    #[test]
+    fn test_factory_exact_platform_types() {
+        let cfg = HashMap::new();
+        // Wechat
+        let a = AdapterFactory::create(&ImPlatform::Wechat, &cfg);
+        assert_eq!(a.platform_type(), ImPlatform::Wechat);
+        // Telegram
+        let a = AdapterFactory::create(&ImPlatform::Telegram, &cfg);
+        assert_eq!(a.platform_type(), ImPlatform::Telegram);
+        // Slack
+        let a = AdapterFactory::create(&ImPlatform::Slack, &cfg);
+        assert_eq!(a.platform_type(), ImPlatform::Slack);
+        // Feishu
+        let a = AdapterFactory::create(&ImPlatform::Feishu, &cfg);
+        assert_eq!(a.platform_type(), ImPlatform::Feishu);
+        // Custom falls back to Wechat
+        let a = AdapterFactory::create(&ImPlatform::Custom, &cfg);
+        assert_eq!(a.platform_type(), ImPlatform::Wechat);
+    }
+
+    // --- UnifiedMessage serde: roundtrip preserves all fields including raw_data ---
+    #[test]
+    fn test_unified_message_full_roundtrip() {
+        let raw = serde_json::json!({"platform_data": "extra", "nested": {"key": 42}});
+        let msg = UnifiedMessage {
+            id: "full_round".to_string(),
+            platform: ImPlatform::Feishu,
+            sender_id: "ou_full".to_string(),
+            sender_name: Some("FullUser".to_string()),
+            receiver_id: Some("oc_full".to_string()),
+            content: MessageContent::Location {
+                latitude: 31.2,
+                longitude: 121.4,
+                address: Some("Shanghai".to_string()),
+            },
+            message_type: MessageType::Group,
+            timestamp: 99999,
+            raw_data: Some(raw.clone()),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: UnifiedMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "full_round");
+        assert_eq!(back.platform, ImPlatform::Feishu);
+        assert_eq!(back.sender_id, "ou_full");
+        assert_eq!(back.sender_name, Some("FullUser".to_string()));
+        assert_eq!(back.receiver_id, Some("oc_full".to_string()));
+        assert_eq!(back.timestamp, 99999);
+        let back_raw = back.raw_data.unwrap();
+        assert_eq!(back_raw["nested"]["key"], 42);
+    }
+
+    // --- WechatAdapter token and encoding_aes_key access through behavior ---
+    #[test]
+    fn test_wechat_adapter_with_both_keys() {
+        let adapter = WechatAdapter::new("my_token".to_string(), Some("my_aes_key_43chars_base64_encoded".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Wechat);
+        let msg = adapter.parse_webhook(&wechat_text_request()).unwrap();
+        assert_eq!(msg.platform, ImPlatform::Wechat);
+    }
+
+    // --- TelegramAdapter bot_token behavior ---
+    #[test]
+    fn test_telegram_adapter_token_behavior() {
+        let adapter = TelegramAdapter::new("123456:ABC-DEF".to_string());
+        assert_eq!(adapter.platform_type(), ImPlatform::Telegram);
+    }
+
+    // --- SlackAdapter with both verification and signing secret ---
+    #[test]
+    fn test_slack_adapter_both_secrets() {
+        let adapter = SlackAdapter::new("vtoken".to_string(), Some("signing_secret_xyz".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Slack);
+    }
+
+    // --- FeishuAdapter with both verification and encrypt key ---
+    #[test]
+    fn test_feishu_adapter_both_keys() {
+        let adapter = FeishuAdapter::new("vtoken".to_string(), Some("encrypt_abc".to_string()));
+        assert_eq!(adapter.platform_type(), ImPlatform::Feishu);
+    }
+
+    // --- WebhookResponse: should_reply=false serde ---
+    #[test]
+    fn test_webhook_response_should_reply_false() {
+        let resp = WebhookResponse {
+            status_code: 204,
+            body: serde_json::json!({"ok": true}),
+            should_reply: false,
+            reply: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: WebhookResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.status_code, 204);
+        assert!(!back.should_reply);
+        assert!(back.reply.is_none());
+    }
+
+    // --- Manager register_adapter returns () not self ---
+    #[test]
+    fn test_manager_register_returns_unit() {
+        let mut manager = ImIntegrationManager::new();
+        let result = manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("t".to_string(), None)));
+        assert_eq!(result, ());
+        assert!(manager.adapters.contains_key(&ImPlatform::Wechat));
+    }
+
+    // --- ImIntegrationManager new is empty ---
+    #[test]
+    fn test_manager_new_is_empty() {
+        let manager = ImIntegrationManager::new();
+        assert!(manager.adapters.is_empty());
+    }
+
+    // --- AdapterFactory::create with extra unused config keys ---
+    #[test]
+    fn test_factory_ignores_extra_config_keys() {
+        let mut config = HashMap::new();
+        config.insert("unused_key".to_string(), "unused_value".to_string());
+        config.insert("bot_token".to_string(), "real_token".to_string());
+        let adapter = AdapterFactory::create(&ImPlatform::Telegram, &config);
+        // Should not panic, just ignore the extra key
+        assert_eq!(adapter.platform_type(), ImPlatform::Telegram);
+    }
+
+    // --- Telegram: chat id as negative number (supergroup) ---
+    #[test]
+    fn test_telegram_chat_id_negative() {
+        let adapter = TelegramAdapter::new("token".to_string());
+        let request = WebhookRequest {
+            platform: ImPlatform::Telegram,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "message": {
+                    "message_id": 777,
+                    "text": "supergroup msg",
+                    "from": {"id": 11, "first_name": "NegId"},
+                    "chat": {"id": -2147483648, "type": "supergroup"},
+                    "date": 1700002000
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.message_type, MessageType::Group);
+        assert_eq!(msg.receiver_id, Some("-2147483648".to_string()));
+    }
+
+    // --- Feishu: sender without name field ---
+    #[test]
+    fn test_feishu_parse_sender_without_name() {
+        let adapter = FeishuAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Feishu,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "message": {
+                        "message_id": "msg_noname",
+                        "message_type": "text",
+                        "content": "{\"text\":\"no name\"}",
+                        "chat_id": "oc_noname",
+                        "chat_type": "p2p",
+                        "create_time": "1700002100"
+                    },
+                    "sender": {
+                        "sender_id": {"open_id": "ou_noname"}
+                    }
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        assert_eq!(msg.sender_name, None);
+    }
+
+    // --- Slack: file_shared with mimetype but no name ---
+    #[test]
+    fn test_slack_file_shared_no_name() {
+        let adapter = SlackAdapter::new("token".to_string(), None);
+        let request = WebhookRequest {
+            platform: ImPlatform::Slack,
+            headers: HashMap::new(),
+            body: serde_json::json!({
+                "event": {
+                    "type": "file_shared",
+                    "file": {
+                        "url_private": "https://slack.com/f/no-name",
+                        "mimetype": "image/png"
+                    },
+                    "user": "U_no_name",
+                    "channel": "C_no_name",
+                    "ts": "1700002200.000001",
+                    "channel_type": "im"
+                }
+            }),
+            query_params: HashMap::new(),
+        };
+        let msg = adapter.parse_webhook(&request).unwrap();
+        match &msg.content {
+            MessageContent::File { url, filename, mime_type } => {
+                assert_eq!(url, "https://slack.com/f/no-name");
+                assert_eq!(filename, "");
+                assert_eq!(mime_type.as_deref(), Some("image/png"));
+            }
+            _ => panic!("Expected File content"),
+        }
+    }
+
+    // --- UnifiedMessage with Channel message type ---
+    #[test]
+    fn test_unified_message_channel_type() {
+        let msg = UnifiedMessage {
+            id: "ch1".to_string(),
+            platform: ImPlatform::Slack,
+            sender_id: "U_ch".to_string(),
+            sender_name: Some("ChannelUser".to_string()),
+            receiver_id: Some("C_announce".to_string()),
+            content: MessageContent::Text("announcement".to_string()),
+            message_type: MessageType::Channel,
+            timestamp: 1000,
+            raw_data: None,
+        };
+        assert_eq!(msg.message_type, MessageType::Channel);
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: UnifiedMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.message_type, MessageType::Channel);
+    }
+
+    // --- Manager handle_webhook with Feishu adapter that has encrypt key ---
+    #[test]
+    fn test_manager_feishu_with_encrypt_key() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(ImPlatform::Feishu, Box::new(FeishuAdapter::new("vt".to_string(), Some("ek_123".to_string()))));
+        let resp = manager.handle_webhook(&feishu_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+        assert!(resp.should_reply);
+    }
+
+    // --- Manager handle_webhook with Slack adapter that has signing secret ---
+    #[test]
+    fn test_manager_slack_with_signing_secret() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(ImPlatform::Slack, Box::new(SlackAdapter::new("vtt".to_string(), Some("ss_456".to_string()))));
+        let resp = manager.handle_webhook(&slack_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
+
+    // --- Manager handle_webhook with Wechat adapter that has encoding_aes_key ---
+    #[test]
+    fn test_manager_wechat_with_encoding_aes_key() {
+        let mut manager = ImIntegrationManager::new();
+        manager.register_adapter(ImPlatform::Wechat, Box::new(WechatAdapter::new("wt".to_string(), Some("aes_789".to_string()))));
+        let resp = manager.handle_webhook(&wechat_text_request()).unwrap();
+        assert_eq!(resp.status_code, 200);
+    }
 }

@@ -110,6 +110,22 @@ async fn test_readiness_endpoint_no_auth_required() {
     assert_eq!(status, StatusCode::OK);
 }
 
+#[tokio::test]
+async fn test_health_state_returns_multilayer_state_and_budgets() {
+    let app = create_router(default_state().await);
+    let (status, body) = get_json(&app, "/health/state").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["state"].is_string());
+    assert!(body["liveness"].is_boolean());
+    assert!(body["readiness"].is_boolean());
+    assert!(body["should_receive_traffic"].is_boolean());
+    assert!(body["traffic_weight"].is_number());
+    let budgets = body["dependency_budgets"].as_array().unwrap();
+    assert_eq!(budgets.len(), 3);
+    assert_eq!(budgets[0]["name"], "sqlite");
+    assert!(budgets[0]["timeout_ms"].as_u64().unwrap() > 0);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. Agent CRUD
 // ═══════════════════════════════════════════════════════════════════════════

@@ -17,6 +17,77 @@ pub async fn liveness() -> Json<serde_json::Value> {
     }))
 }
 
+#[derive(Debug, Serialize)]
+pub struct DependencyBudget {
+    pub name: String,
+    pub timeout_ms: u64,
+    pub max_retries: u32,
+    pub retry_budget_per_minute: u32,
+    pub bulkhead_concurrency: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HealthStateResponse {
+    pub state: String,
+    pub liveness: bool,
+    pub readiness: bool,
+    pub should_receive_traffic: bool,
+    pub traffic_weight: f64,
+    pub dependency_budgets: Vec<DependencyBudget>,
+}
+
+/// GET /health/state
+/// Multi-layer health state with dependency timeout/retry/bulkhead budgets.
+pub async fn health_state(State(state): State<AppState>) -> Json<HealthStateResponse> {
+    let agents_ready = state.agents.try_read().is_ok();
+    let nodes_ready = state.nodes.try_read().is_ok();
+    let workflows_ready = state.workflows.try_read().is_ok();
+
+    let liveness = true;
+    let readiness = agents_ready && nodes_ready && workflows_ready;
+
+    let (state_name, traffic_weight) = if !liveness {
+        ("Draining", 0.0)
+    } else if !readiness {
+        ("Liveness", 0.5)
+    } else {
+        ("Readiness", 1.0)
+    };
+
+    let dependency_budgets = vec![
+        DependencyBudget {
+            name: "sqlite".to_string(),
+            timeout_ms: 800,
+            max_retries: 2,
+            retry_budget_per_minute: 60,
+            bulkhead_concurrency: 32,
+        },
+        DependencyBudget {
+            name: "etcd".to_string(),
+            timeout_ms: 1200,
+            max_retries: 3,
+            retry_budget_per_minute: 40,
+            bulkhead_concurrency: 16,
+        },
+        DependencyBudget {
+            name: "model_gateway".to_string(),
+            timeout_ms: 3000,
+            max_retries: 1,
+            retry_budget_per_minute: 20,
+            bulkhead_concurrency: 8,
+        },
+    ];
+
+    Json(HealthStateResponse {
+        state: state_name.to_string(),
+        liveness,
+        readiness,
+        should_receive_traffic: readiness,
+        traffic_weight,
+        dependency_budgets,
+    })
+}
+
 /// Deep health check response
 #[derive(Debug, Serialize)]
 pub struct DeepHealthResponse {

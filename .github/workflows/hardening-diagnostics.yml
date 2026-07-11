@@ -28,6 +28,8 @@ jobs:
 
       - name: Collect diagnostics
         shell: bash
+        env:
+          ORGANIZATION_DENYLIST_B64: ${{ secrets.ORGANIZATION_DENYLIST_B64 }}
         run: |
           set +e
           rustup update stable >/tmp/rustup.log 2>&1
@@ -62,6 +64,13 @@ jobs:
             >/tmp/privacy-command.log 2>&1
           privacy_status=$?
 
+          cat >/tmp/statuses <<EOF
+          clippy=$clippy_status
+          npm=$npm_status
+          audit=$audit_status
+          privacy=$privacy_status
+          EOF
+
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -74,7 +83,7 @@ jobs:
 
           statuses = {}
           for raw in Path("/tmp/statuses").read_text("utf-8").splitlines():
-              key, value = raw.split("=", 1)
+              key, value = raw.strip().split("=", 1)
               statuses[key] = value
 
           privacy_lines = []
@@ -99,7 +108,7 @@ jobs:
           sections = [
               "# Temporary hardening diagnostics",
               "",
-              "> Generated from synthetic/build metadata only. Secret and PII matches are masked.",
+              "> Generated from build metadata only. Secret and PII matches are masked.",
               "",
               f"- Clippy exit: `{statuses['clippy']}`",
               f"- npm ci exit: `{statuses['npm']}`",
@@ -128,20 +137,10 @@ jobs:
           ]
           Path(".hardening-diagnostics.tmp.md").write_text("\n".join(sections), "utf-8")
           PY
-        env:
-          ORGANIZATION_DENYLIST_B64: ${{ secrets.ORGANIZATION_DENYLIST_B64 }}
-
-      - name: Record command statuses
-        if: always()
-        run: echo "status collection is embedded in the collection step"
 
       - name: Remove workflow and commit masked diagnostics
-        if: always()
         shell: bash
         run: |
-          # Re-run only the status capture because shell-local variables do not
-          # cross process boundaries. The diagnostic step writes this file before
-          # invoking Python through the EXIT trap below.
           test -f .hardening-diagnostics.tmp.md
           rm -f .github/workflows/hardening-diagnostics.yml
           git config user.name "github-actions[bot]"

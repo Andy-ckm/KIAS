@@ -62,13 +62,11 @@ jobs:
               'for (key, _) in entries.iter() {',
               'for key in entries.keys() {',
           )
-
           replace_regex(
               'crates/mcp-protocol/src/server.rs',
               r'use crate::capabilities::\{\s*ClientCapabilities,\s*PromptsCapability,\s*ResourcesCapability,\s*ToolsCapability,\s*VersionNegotiation,\s*\};',
               'use crate::capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability};',
           )
-
           replace_regex(
               'crates/mcp-protocol/src/sandbox.rs',
               r'struct DockerContainerInfo \{\s*container_id: String,\s*start_time: std::time::Instant,\s*\}',
@@ -100,7 +98,6 @@ jobs:
               '            runsc_bin: bin.into(),',
               '            _runsc_bin: bin.into(),',
           )
-
           replace_literal(
               'dashboard/src/pages/AgentDetail.tsx',
               "formatter={(value: number, name: string) => [",
@@ -121,7 +118,6 @@ jobs:
               "formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Tokens']}",
               "formatter={value => [`${Number(value ?? 0).toLocaleString()} tokens`, 'Tokens']}",
           )
-
           replace_literal(
               'dashboard/src/pages/Tokens.tsx',
               "formatter={(value: number, name: string) => [formatTokens(value), name === 'input_tokens' ? 'Input' : 'Output']}",
@@ -140,19 +136,51 @@ jobs:
           PY
 
       - name: Validate targeted Rust changes
+        id: rust_validation
+        continue-on-error: true
         run: |
-          cargo fmt --all
-          cargo test -p kias-cache -p kias-mcp-protocol --all-features --locked --quiet
-          cargo clippy -p kias-cache -p kias-mcp-protocol --all-targets --all-features --locked -- -D warnings
+          set -o pipefail
+          {
+            cargo fmt --all
+            cargo test -p kias-cache -p kias-mcp-protocol --all-features --locked --quiet
+            cargo clippy -p kias-cache -p kias-mcp-protocol --all-targets --all-features --locked -- -D warnings
+          } 2>&1 | tee /tmp/compat-rust.log
+
+      - name: Upload Rust compatibility diagnostics
+        if: steps.rust_validation.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compatibility-rust-diagnostics
+          path: /tmp/compat-rust.log
+          retention-days: 1
 
       - name: Validate dashboard
+        id: dashboard_validation
+        if: steps.rust_validation.outcome == 'success'
+        continue-on-error: true
         working-directory: dashboard
         run: |
-          npm ci --ignore-scripts
-          npm run lint -- --max-warnings=0
-          npm run build
+          set -o pipefail
+          {
+            npm ci --ignore-scripts
+            npm run lint -- --max-warnings=0
+            npm run build
+          } 2>&1 | tee /tmp/compat-dashboard.log
+
+      - name: Upload dashboard compatibility diagnostics
+        if: steps.dashboard_validation.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compatibility-dashboard-diagnostics
+          path: /tmp/compat-dashboard.log
+          retention-days: 1
+
+      - name: Stop after validation failure
+        if: steps.rust_validation.outcome == 'failure' || steps.dashboard_validation.outcome == 'failure'
+        run: exit 1
 
       - name: Commit exact reviewed file set and remove workflow
+        if: steps.rust_validation.outcome == 'success' && steps.dashboard_validation.outcome == 'success'
         run: |
           rm -f .github/workflows/compatibility-fixes-once.yml
           allowed='^(crates/cache/src/strategy.rs|crates/mcp-protocol/src/server.rs|crates/mcp-protocol/src/sandbox.rs|dashboard/src/pages/AgentDetail.tsx|dashboard/src/pages/Tokens.tsx|.github/workflows/compatibility-fixes-once.yml)$'

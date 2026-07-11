@@ -29,7 +29,6 @@ CORE_PATHS = {
     "crates/data-governance",
     "crates/monitor",
     "crates/model-router",
-    "crates/compliance-security",
     "crates/intent-core",
     "crates/api-server",
     "crates/kias-main",

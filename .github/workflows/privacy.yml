@@ -1,0 +1,55 @@
+name: Privacy and secret gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "41 2 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy-scan:
+    name: Scan tracked files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Scan for secrets, PII, and private organization identifiers
+        env:
+          ORGANIZATION_DENYLIST_B64: ${{ secrets.ORGANIZATION_DENYLIST_B64 }}
+        run: |
+          python3 scripts/privacy_scan.py \
+            --repo . \
+            --output privacy-scan.json \
+            --fail-on high
+
+      - name: Print masked findings on failure
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("privacy-scan.json")
+          if not path.exists():
+              raise SystemExit("privacy report was not generated")
+          report = json.loads(path.read_text("utf-8"))
+          print(json.dumps(report["summary"], indent=2, sort_keys=True))
+          for finding in report["findings"][:100]:
+              print(
+                  f"{finding['severity']}: {finding['path']}:{finding['line']} "
+                  f"{finding['kind']} {finding['masked']}"
+              )
+          PY

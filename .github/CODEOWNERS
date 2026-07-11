@@ -1,0 +1,18 @@
+# Default reviewer
+* @Andy-ckm
+
+# Security-sensitive boundaries
+/SECURITY.md @Andy-ckm
+/PRIVACY.md @Andy-ckm
+/.github/workflows/ @Andy-ckm
+/Cargo.toml @Andy-ckm
+/Cargo.lock @Andy-ckm
+/crates/api-server/src/auth.rs @Andy-ckm
+/crates/api-server/src/middleware/ @Andy-ckm
+/crates/api-server/src/handlers/auth_gxp.rs @Andy-ckm
+/crates/common/src/gxp_auth.rs @Andy-ckm
+/crates/common/src/audit.rs @Andy-ckm
+/crates/compliance-security/ @Andy-ckm
+/crates/im-integration/ @Andy-ckm
+/crates/tool-executor/ @Andy-ckm
+/scripts/privacy_scan.py @Andy-ckm

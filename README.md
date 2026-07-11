@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo/agentguard-logo.svg" alt="KIAS logo" width="480">
+  <img src="docs/logo/kias-logo.svg" alt="KIAS logo" width="480">
 </p>
 
 <h1 align="center">KIAS</h1>
@@ -85,34 +85,46 @@ A capability appearing in the workspace does not imply every adapter or backend 
 
 - a current stable Rust toolchain;
 - Git;
+- OpenSSL or another secure random-value generator for local credentials;
 - optional external services only for the integration being tested.
 
-### Build the default product surface
+### Build the default Core surface
 
 ```bash
 git clone https://github.com/Andy-ckm/KIAS.git
 cd KIAS
 
-cargo build
-cargo test
+cargo build --locked
+cargo test --locked
 ```
 
 ### Verify the complete workspace
 
 ```bash
-cargo check --workspace --all-features
-cargo test --workspace --all-features
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo check --workspace --all-features --locked
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo fmt --all -- --check
 ```
 
-Inspect the command-line interface:
+### Start a local authenticated control plane
+
+The shipped configuration binds only to loopback and enables authentication. Generate a temporary local JWT secret at runtime rather than placing one in a file:
 
 ```bash
-cargo run -p kias-main --bin kias -- --help
+export KIAS_API_SERVER__JWT_SECRET="$(openssl rand -hex 32)"
+cargo run -p kias-main --bin kias --locked -- server
 ```
 
-Configuration starts from [`config/default.toml`](config/default.toml). Supply secrets through environment variables or an external secret provider; never commit a populated `.env` file.
+Inspect command-line options:
+
+```bash
+cargo run -p kias-main --bin kias --locked -- --help
+```
+
+Configuration starts from [`config/default.toml`](config/default.toml). Nested environment overrides use `__`, such as `KIAS_API_SERVER__PORT`. Supply secrets through environment injection or an external secret provider; never commit a populated `.env` file.
+
+Non-loopback listeners are refused unless authentication is active and `KIAS_TRUSTED_TLS_PROXY=true` explicitly acknowledges a trusted TLS-terminating proxy. Native TLS is not yet wired into the `kias` binary; the process fails rather than pretending that `tls=true` is effective.
 
 ## Security model
 
@@ -138,6 +150,7 @@ The project uses pre-1.0 semantic versioning. Interfaces may change while securi
 The repository configures the following quality gates:
 
 - workspace build, tests, formatting, and Clippy with warnings denied;
+- machine-enforced Core, Extensions, and Labs dependency boundaries;
 - dashboard dependency, lint, and production-build checks;
 - CodeQL static analysis;
 - OpenSSF Scorecard analysis;

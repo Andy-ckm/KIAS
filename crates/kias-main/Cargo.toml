@@ -22,3 +22,6 @@ anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+serde_json.workspace = true

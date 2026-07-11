@@ -38,6 +38,10 @@ jobs:
           import textwrap
 
           workflow = Path('.github/workflows/privacy-remediation.yml').read_text('utf-8')
+          workflow = workflow.replace(
+              'crates/common/src/secrets_manager.rs',
+              'crates/compliance-security/src/secrets_manager.rs',
+          )
           begin_marker = "          python3 - <<'PY'\n"
           end_marker = "\n          PY\n"
           begin = workflow.index(begin_marker) + len(begin_marker)

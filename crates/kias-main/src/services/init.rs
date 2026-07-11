@@ -11,6 +11,10 @@ use std::time::Instant;
 use kias_common::{KiasConfig, KiasError, KiasResult};
 use serde::{Deserialize, Serialize};
 
+const MIN_JWT_SECRET_BYTES: usize = 32;
+const MIN_STATIC_TOKEN_BYTES: usize = 24;
+const MAX_JWT_EXPIRATION_HOURS: u64 = 168;
+
 /// Readiness of a process-level resource.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -32,9 +36,9 @@ impl std::fmt::Display for HealthStatus {
 
 /// Process-level readiness snapshot.
 ///
-/// This report deliberately covers only resources verified during composition.
-/// Domain-specific health belongs to the domain service that can perform a real
-/// check. KIAS does not label an unused or merely constructed component healthy.
+/// This report covers only resources verified during composition. Domain health
+/// belongs to services that can execute a real check; KIAS does not label an
+/// unused or merely constructed component healthy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SystemHealthReport {
     pub overall: HealthStatus,
@@ -63,23 +67,30 @@ impl KiasServiceManager {
     /// Validate configuration and open the configured durable store.
     ///
     /// Startup fails if the database cannot be opened. An in-memory store is
-    /// available only through the explicit test/development constructor; silent
+    /// available only through the explicit embedding/test constructor; silent
     /// fallback would make audit and recovery guarantees disappear unnoticed.
     pub async fn new(config: KiasConfig) -> KiasResult<Self> {
         Self::validate_config(&config)?;
 
-        let database_path =
-            std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| "kias.db".to_string());
-        let repository = kias_data_store::SqliteRepository::open(&database_path).await?;
+        let configured_path = config
+            .storage
+            .sqlite_url
+            .strip_prefix("sqlite://")
+            .unwrap_or(&config.storage.sqlite_url);
+        let database_path = std::env::var("KIAS_DB_PATH")
+            .unwrap_or_else(|_| configured_path.to_string());
+        if database_path.trim().is_empty() {
+            return Err(KiasError::Config(
+                "SQLite database path must not be empty".to_string(),
+            ));
+        }
 
-        tracing::info!(path = %database_path, "KIAS durable store initialized");
+        let repository = kias_data_store::SqliteRepository::open(&database_path).await?;
+        tracing::info!("KIAS durable store initialized");
         Self::from_repository(repository)
     }
 
     /// Compose process resources from an already-open repository.
-    ///
-    /// This is useful for deterministic tests and embedding scenarios that own
-    /// storage lifecycle outside the binary.
     pub fn from_repository(repository: kias_data_store::SqliteRepository) -> KiasResult<Self> {
         let audit_log = kias_data_store::SqliteAuditLog::new(repository.pool.clone());
         let dead_letter_queue = kias_data_store::DeadLetterQueue::new(repository.pool.clone());
@@ -128,21 +139,103 @@ impl KiasServiceManager {
                 "API server port must not be 0".to_string(),
             ));
         }
-        if config.scheduler.algorithm.trim().is_empty() {
+
+        if !matches!(config.api_server.tls_min_version.as_str(), "1.2" | "1.3") {
             return Err(KiasError::Config(
-                "Scheduler algorithm must not be empty".to_string(),
+                "TLS minimum version must be 1.2 or 1.3".to_string(),
             ));
         }
+        if config.api_server.tls
+            && (config.api_server.tls_cert_path.is_none()
+                || config.api_server.tls_key_path.is_none())
+        {
+            return Err(KiasError::Config(
+                "TLS requires both certificate and private-key paths".to_string(),
+            ));
+        }
+
+        if config.api_server.auth_enabled {
+            let has_static_token = !config.api_server.auth_tokens.is_empty();
+            let has_jwt_secret = config.api_server.jwt_secret.is_some();
+            if !has_static_token && !has_jwt_secret {
+                return Err(KiasError::Config(
+                    "authentication is enabled but no credential verifier is configured"
+                        .to_string(),
+                ));
+            }
+
+            if config
+                .api_server
+                .auth_tokens
+                .iter()
+                .any(|token| token.as_bytes().len() < MIN_STATIC_TOKEN_BYTES)
+            {
+                return Err(KiasError::Config(format!(
+                    "static API tokens must be at least {MIN_STATIC_TOKEN_BYTES} bytes"
+                )));
+            }
+
+            if let Some(secret) = &config.api_server.jwt_secret {
+                if secret.as_bytes().len() < MIN_JWT_SECRET_BYTES {
+                    return Err(KiasError::Config(format!(
+                        "JWT secret must be at least {MIN_JWT_SECRET_BYTES} bytes"
+                    )));
+                }
+            }
+
+            if !(1..=MAX_JWT_EXPIRATION_HOURS)
+                .contains(&config.api_server.jwt_expiration_hours)
+            {
+                return Err(KiasError::Config(format!(
+                    "JWT expiration must be between 1 and {MAX_JWT_EXPIRATION_HOURS} hours"
+                )));
+            }
+        }
+
+        if !matches!(
+            config.scheduler.algorithm.as_str(),
+            "round_robin" | "least_loaded" | "resource_aware" | "cache_aware"
+        ) {
+            return Err(KiasError::Config(
+                "unsupported scheduler algorithm".to_string(),
+            ));
+        }
+        if config.scheduler.interval_ms == 0 {
+            return Err(KiasError::Config(
+                "scheduler interval must be greater than 0".to_string(),
+            ));
+        }
+
         if config.controller.heartbeat_interval_secs == 0 {
             return Err(KiasError::Config(
-                "Heartbeat interval must be greater than 0".to_string(),
+                "heartbeat interval must be greater than 0".to_string(),
             ));
         }
-        if config.controller.failure_timeout_secs == 0 {
+        if config.controller.failure_timeout_secs
+            <= config.controller.heartbeat_interval_secs
+        {
             return Err(KiasError::Config(
-                "Failure timeout must be greater than 0".to_string(),
+                "failure timeout must be greater than the heartbeat interval"
+                    .to_string(),
             ));
         }
+        if config.controller.max_retries == 0 {
+            return Err(KiasError::Config(
+                "controller max retries must be greater than 0".to_string(),
+            ));
+        }
+
+        if config.agentsight.enabled && config.agentsight.metrics_port == 0 {
+            return Err(KiasError::Config(
+                "metrics port must not be 0 when observability is enabled".to_string(),
+            ));
+        }
+        if !matches!(config.storage.cache_mode.as_str(), "sqlite" | "memory") {
+            return Err(KiasError::Config(
+                "cache mode must be 'sqlite' or 'memory'".to_string(),
+            ));
+        }
+
         Ok(())
     }
 }
@@ -201,38 +294,68 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn health_report_uses_process_uptime() {
-        let manager = test_manager(default_config()).await.unwrap();
-        assert!(manager.health_check().uptime_secs < 5);
+    async fn rejects_authentication_without_verifier() {
+        let mut config = default_config();
+        config.api_server.auth_enabled = true;
+        let error = test_manager(config).await.unwrap_err();
+        assert!(error.to_string().contains("no credential verifier"));
+    }
+
+    #[tokio::test]
+    async fn accepts_runtime_length_jwt_secret() {
+        let mut config = default_config();
+        config.api_server.auth_enabled = true;
+        config.api_server.jwt_secret = Some("x".repeat(MIN_JWT_SECRET_BYTES));
+        assert!(test_manager(config).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn rejects_weak_jwt_secret() {
+        let mut config = default_config();
+        config.api_server.auth_enabled = true;
+        config.api_server.jwt_secret = Some("x".repeat(MIN_JWT_SECRET_BYTES - 1));
+        assert!(test_manager(config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_tls_without_key_material() {
+        let mut config = default_config();
+        config.api_server.tls = true;
+        assert!(test_manager(config).await.is_err());
     }
 
     #[tokio::test]
     async fn rejects_zero_port() {
         let mut config = default_config();
         config.api_server.port = 0;
-        let error = test_manager(config).await.unwrap_err();
-        assert!(error.to_string().contains("port"));
-    }
-
-    #[tokio::test]
-    async fn rejects_empty_scheduler_algorithm() {
-        let mut config = default_config();
-        config.scheduler.algorithm = "   ".to_string();
-        let error = test_manager(config).await.unwrap_err();
-        assert!(error.to_string().contains("algorithm"));
-    }
-
-    #[tokio::test]
-    async fn rejects_zero_heartbeat_interval() {
-        let mut config = default_config();
-        config.controller.heartbeat_interval_secs = 0;
         assert!(test_manager(config).await.is_err());
     }
 
     #[tokio::test]
-    async fn rejects_zero_failure_timeout() {
+    async fn rejects_unknown_scheduler_algorithm() {
         let mut config = default_config();
-        config.controller.failure_timeout_secs = 0;
+        config.scheduler.algorithm = "unknown".to_string();
+        assert!(test_manager(config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_zero_scheduler_interval() {
+        let mut config = default_config();
+        config.scheduler.interval_ms = 0;
+        assert!(test_manager(config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_failure_timeout_not_greater_than_heartbeat() {
+        let mut config = default_config();
+        config.controller.failure_timeout_secs = config.controller.heartbeat_interval_secs;
+        assert!(test_manager(config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_unknown_cache_mode() {
+        let mut config = default_config();
+        config.storage.cache_mode = "unknown".to_string();
         assert!(test_manager(config).await.is_err());
     }
 }

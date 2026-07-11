@@ -2,14 +2,14 @@ mod services;
 
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use services::KiasServiceManager;
 
 #[derive(Parser)]
 #[command(
     name = "kias",
     version,
-    about = "AgentGuard - Kubernetes-inspired Intelligent Agent System"
+    about = "Policy-driven control plane for operating AI agents safely"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -18,18 +18,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the KIAS server
+    /// Start the KIAS control-plane server.
     Server {
-        #[arg(short, long, default_value = "0.0.0.0")]
+        /// Listen address. The loopback default avoids accidental public exposure.
+        #[arg(short, long, default_value = "127.0.0.1")]
         host: String,
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
     },
-    /// Show system status
+    /// Show local build information.
     Status,
-    /// Run health check
+    /// Validate that local configuration can be loaded.
     Health,
-    /// Show version
+    /// Show version.
     Version,
 }
 
@@ -44,18 +45,20 @@ async fn main() -> anyhow::Result<()> {
             start_server(host, port).await?;
         }
         Some(Commands::Status) => {
-            println!("AgentGuard Status: Running");
+            println!("KIAS CLI is available");
             println!("Version: {}", env!("CARGO_PKG_VERSION"));
+            println!("Use the authenticated control-plane health endpoint for runtime status.");
         }
         Some(Commands::Health) => {
-            println!("Health: OK");
+            let _ = kias_common::KiasConfig::load()?;
+            println!("Configuration: valid");
         }
         Some(Commands::Version) => {
             println!("kias {}", env!("CARGO_PKG_VERSION"));
         }
         None => {
-            // Default: start server
-            start_server("0.0.0.0".to_string(), 8080).await?;
+            Cli::command().print_help()?;
+            println!();
         }
     }
 
@@ -63,22 +66,25 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
-    tracing::info!("Starting AgentGuard System");
+    tracing::info!("Starting KIAS control plane");
 
-    // Load configuration (uses defaults if no config file found).
-    let config = kias_common::KiasConfig::load().unwrap_or_default();
+    // Configuration errors fail startup rather than silently selecting a potentially
+    // unsafe fallback. The default configuration remains available through the normal
+    // configuration loader.
+    let config = kias_common::KiasConfig::load()?;
 
-    // Initialize all subsystems via the service manager.
+    // Bind before spawning the serving task so a port or address error is returned to
+    // the caller instead of being logged after the process reports successful startup.
+    let addr = format!("{host}:{port}");
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+
+    // Initialize all required subsystems via the composition root.
     let manager = KiasServiceManager::new(config.clone()).await?;
 
-    // Run initial health check.
     let health = manager.health_check();
     tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial health check");
 
-    // Get the graceful shutdown coordinator.
     let shutdown = manager.shutdown_handle();
-
-    // Spawn signal handler (SIGTERM/SIGINT).
     let shutdown_for_signal = shutdown.clone();
     let signal_handle = tokio::spawn(async move {
         kias_common::graceful_shutdown::wait_for_signal().await;
@@ -86,54 +92,36 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
         shutdown_for_signal.shutdown().await;
     });
 
-    // Start the API server.
     let api_config = config.clone();
     let sqlite_audit_log = Arc::new(manager.audit_log().clone());
     let dead_letter_queue = Arc::new(manager.dlq().clone());
     let api_handle = tokio::spawn(async move {
-        let addr = format!("{}:{}", host, port);
-
-        tracing::info!(addr = %addr, "Starting API server");
+        tracing::info!(addr = %addr, "KIAS API server listening");
 
         let state = kias_api_server::AppState::new(api_config)
             .await
             .with_persistence(sqlite_audit_log, dead_letter_queue);
         let app = kias_api_server::routes::api::create_router(state);
 
-        let listener = match tokio::net::TcpListener::bind(&addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to bind API server");
-                return;
-            }
-        };
-
-        tracing::info!(addr = %addr, "API server listening");
-
-        if let Err(e) = axum::serve(listener, app).await {
-            tracing::error!(error = %e, "API server error");
+        if let Err(error) = axum::serve(listener, app).await {
+            tracing::error!(%error, "KIAS API server stopped with an error");
         }
     });
 
-    tracing::info!("AgentGuard System started successfully");
+    tracing::info!("KIAS control plane started");
     tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
-    // Wait for shutdown signal.
     let _ = shutdown
         .wait_for_phase(
             kias_common::graceful_shutdown::ShutdownPhase::Complete,
-            std::time::Duration::from_secs(u64::MAX), // Wait forever
+            std::time::Duration::from_secs(u64::MAX),
         )
         .await;
 
-    // Graceful shutdown.
     manager.shutdown().await?;
-    tracing::info!("AgentGuard System shut down gracefully");
+    tracing::info!("KIAS control plane shut down gracefully");
 
-    // Abort API server.
     api_handle.abort();
-
-    // Wait for signal handler to finish.
     let _ = signal_handle.await;
 
     Ok(())

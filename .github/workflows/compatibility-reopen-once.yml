@@ -1,0 +1,88 @@
+name: Apply reviewed compatibility patch on reopen
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/privacy-hardening' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout hardening branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/privacy-hardening
+          persist-credentials: true
+
+      - name: Install stable Rust
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add clippy rustfmt
+
+      - name: Repair script separator and apply exact patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/apply_compatibility_fixes.py')
+          text = path.read_text('utf-8')
+          old = '''        "formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Tokens']}"
+        "formatter={value => [`${Number(value ?? 0).toLocaleString()} tokens`, 'Tokens']}",'''
+          new = '''        "formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Tokens']}",
+        "formatter={value => [`${Number(value ?? 0).toLocaleString()} tokens`, 'Tokens']}",'''
+          if text.count(old) != 1:
+              raise SystemExit('expected AgentDetail formatter separator exactly once')
+          path.write_text(text.replace(old, new), 'utf-8')
+          PY
+          python3 -m py_compile scripts/apply_compatibility_fixes.py
+          python3 scripts/apply_compatibility_fixes.py
+
+      - name: Validate targeted Rust changes
+        run: |
+          cargo fmt --all
+          cargo test -p kias-cache -p kias-mcp-protocol --all-features --locked --quiet
+          cargo clippy -p kias-cache -p kias-mcp-protocol --all-targets --all-features --locked -- -D warnings
+
+      - name: Validate dashboard
+        working-directory: dashboard
+        run: |
+          npm ci --ignore-scripts
+          npm run lint -- --max-warnings=0
+          npm run build
+
+      - name: Commit exact reviewed changes and remove one-shot machinery
+        run: |
+          rm -f .github/workflows/compatibility-reopen-once.yml
+          rm -f .github/workflows/compatibility-push-once.yml
+          rm -f .github/workflows/compatibility-fixes-once.yml
+          rm -f scripts/apply_compatibility_fixes.py
+
+          allowed='^(crates/cache/src/strategy.rs|crates/cache/src/layered_cache.rs|crates/mcp-protocol/src/server.rs|crates/mcp-protocol/src/sandbox.rs|dashboard/src/pages/AgentDetail.tsx|dashboard/src/pages/Tokens.tsx|.github/workflows/compatibility-reopen-once.yml|.github/workflows/compatibility-push-once.yml|.github/workflows/compatibility-fixes-once.yml|scripts/apply_compatibility_fixes.py)$'
+          unexpected="$(git status --short | sed 's/^...//' | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo 'Unexpected files changed:'
+            echo "$unexpected"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/cache/src/strategy.rs crates/cache/src/layered_cache.rs \
+            crates/mcp-protocol/src/server.rs crates/mcp-protocol/src/sandbox.rs \
+            dashboard/src/pages/AgentDetail.tsx dashboard/src/pages/Tokens.tsx \
+            .github/workflows/compatibility-reopen-once.yml \
+            .github/workflows/compatibility-push-once.yml \
+            .github/workflows/compatibility-fixes-once.yml \
+            scripts/apply_compatibility_fixes.py
+          git commit -m "fix: resolve Rust and dashboard compatibility errors"
+          git push origin HEAD:agent/privacy-hardening

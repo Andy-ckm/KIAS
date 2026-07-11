@@ -570,11 +570,11 @@ mod tests {
 
         let leaf_kp = KeyPair::generate(SignatureAlgorithm::RsaSha256);
         let leaf_dn = DistinguishedName {
-            common_name: "agent-1.agentguard.local".to_string(),
-            organization: Some("AgentGuard".to_string()),
+            common_name: "agent-1.example.invalid".to_string(),
+            organization: Some("Example Organization".to_string()),
             organizational_unit: None,
             country: None,
-            email: Some("agent@agentguard.local".to_string()),
+            email: Some("agent@example.invalid".to_string()),
         };
 
         let cert = pki

@@ -21,7 +21,6 @@ base64 = "0.22"
 hmac = "0.12"
 zeroize = { workspace = true }
 libc = "0.2"
-printpdf = "0.7"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

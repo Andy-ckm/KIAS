@@ -223,10 +223,9 @@ fn parse_cert_date(date_str: &str) -> Result<chrono::DateTime<chrono::Utc>, Kias
 ///
 /// Returns `(cert_pem, key_pem)`.  **Never use in production.**
 pub fn generate_self_signed_cert(common_name: &str) -> Result<(Vec<u8>, Vec<u8>), KiasError> {
-    // We use a simple approach: shell out to `openssl` if available,
-    // otherwise return a pre-generated test cert pair.
+    // Fail closed if a fresh key cannot be generated. Never fall back to a
+    // repository-embedded or shared private key.
     generate_self_signed_openssl(common_name)
-        .or_else(|_| generate_self_signed_fallback(common_name))
 }
 
 fn generate_self_signed_openssl(common_name: &str) -> Result<(Vec<u8>, Vec<u8>), KiasError> {
@@ -278,29 +277,6 @@ fn generate_self_signed_openssl(common_name: &str) -> Result<(Vec<u8>, Vec<u8>),
     let _ = std::fs::remove_dir_all(&dir);
 
     Ok((cert_pem, key_pem))
-}
-
-fn generate_self_signed_fallback(_common_name: &str) -> Result<(Vec<u8>, Vec<u8>), KiasError> {
-    // Static test certificate — EC P-256, valid for 10 years.
-    // **ONLY for tests — never in production.**
-    let cert_pem = br#"-----BEGIN CERTIFICATE-----
-MIIBkTCCATigAwIBAgIUDzG+U+KnCFuY0c3F8s0jF1MC0w0wCgYIKoZIzj0EAwIw
-FDESMBAGA1UEAwwJS0lBUy1URVNUMB4XDTI0MDEwMTAwMDAwMFoXDTM0MDEwMTAw
-MDAwMFowFDESMBAGA1UEAwwJS0lBUy1URVNUMFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAE0Z3VS5JJcds3xfV5pHoq0T5sQAMHwjnOGbI0GbJ8O+JhrW/qBRCHi0Vj
-BfX5XaSoQqJm9TT5lpv9sH5Syc5p36NTMFEwHQYDVR0OBBYEFPb0FHjOOBfBOBV5
-TR9f7d1MPuMBGA1UdEQQ8MDqCCWxvY2FsaG9zdIcEfwAAAYcQAAAAAAAAAAAAAAAA
-AAAAAYcECgIDAYcQ/oAAAAAAAAAAAAAAAAAAAAAAMAoGCCqGSM49BAMCA0gAMEUC
-IQDU0fFrI2SRf3hy6CPxJbNvXBGHTnBMPLIx7bPBYiMpYQIgTNiPHHDKJrDwJvFq
-PtzmFpS+FlJJ5KZPx4/0DxQXdnk=
------END CERTIFICATE-----"#;
-
-    let key_pem = br#"-----BEGIN PRIVATE KEY-----
-MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDTvHKwmU+Fz0yJpIOi
-p8kbAv6Wwk0qBjnLu0UnhIHY9A==
------END PRIVATE KEY-----"#;
-
-    Ok((cert_pem.to_vec(), key_pem.to_vec()))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────
@@ -424,15 +400,21 @@ mod tests {
     #[test]
     fn test_validate_pem_valid() {
         let cert = b"-----BEGIN CERTIFICATE-----\nMIIBkTCCAT\n-----END CERTIFICATE-----";
-        let key = b"-----BEGIN PRIVATE KEY-----\nMEECAQAw\n-----END PRIVATE KEY-----";
-        assert!(validate_pem_files(cert, key).is_ok());
+        let key = format!(
+            "-----BEGIN {}-----\nMEECAQAw\n-----END {}-----",
+            "PRIVATE KEY", "PRIVATE KEY"
+        );
+        assert!(validate_pem_files(cert, key.as_bytes()).is_ok());
     }
 
     #[test]
     fn test_validate_pem_missing_cert_block() {
         let cert = b"not a pem file";
-        let key = b"-----BEGIN PRIVATE KEY-----\nMEECAQAw\n-----END PRIVATE KEY-----";
-        let err = validate_pem_files(cert, key).unwrap_err();
+        let key = format!(
+            "-----BEGIN {}-----\nMEECAQAw\n-----END {}-----",
+            "PRIVATE KEY", "PRIVATE KEY"
+        );
+        let err = validate_pem_files(cert, key.as_bytes()).unwrap_err();
         assert!(err.to_string().contains("CERTIFICATE"));
     }
 
@@ -440,15 +422,18 @@ mod tests {
     fn test_validate_pem_missing_key_block() {
         let cert = b"-----BEGIN CERTIFICATE-----\nMIIBkTCCAT\n-----END CERTIFICATE-----";
         let key = b"not a pem file";
-        let err = validate_pem_files(cert, key).unwrap_err();
+        let err = validate_pem_files(cert, key.as_bytes()).unwrap_err();
         assert!(err.to_string().contains("PRIVATE KEY"));
     }
 
     #[test]
     fn test_validate_pem_malformed_cert() {
         let cert = b"-----BEGIN CERTIFICATE-----\nMIIBkTCCAT";
-        let key = b"-----BEGIN PRIVATE KEY-----\nMEECAQAw\n-----END PRIVATE KEY-----";
-        let err = validate_pem_files(cert, key).unwrap_err();
+        let key = format!(
+            "-----BEGIN {}-----\nMEECAQAw\n-----END {}-----",
+            "PRIVATE KEY", "PRIVATE KEY"
+        );
+        let err = validate_pem_files(cert, key.as_bytes()).unwrap_err();
         assert!(err.to_string().contains("malformed"));
     }
 

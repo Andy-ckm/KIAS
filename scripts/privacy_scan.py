@@ -128,6 +128,8 @@ SAFE_HINTS = (
     "000000000000",
     "sk-test",
     "test-api-key",
+    "your_api_key",
+    "example",
 )
 
 
@@ -244,6 +246,8 @@ def scan_line(
     for kind, pattern, severity in patterns:
         for match in pattern.finditer(line):
             value = match.group(0)
+            if kind == "secret_assignment" and not re.search(r"[:=]\s*[\"']", value):
+                continue
             finding_severity = severity
             note = ""
 

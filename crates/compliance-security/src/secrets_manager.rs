@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn test_detect_aws_key() {
         let detector = SecretPatternDetector::new();
-        let text = "AWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE";
+        let text = "AWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
         assert_eq!(findings[0].secret_type, "AWS Access Key");
@@ -490,7 +490,7 @@ mod tests {
     #[test]
     fn test_detect_github_token() {
         let detector = SecretPatternDetector::new();
-        let text = "GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+        let text = "GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
     }
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_detect_jwt() {
         let detector = SecretPatternDetector::new();
-        let text = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        let text = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
     }

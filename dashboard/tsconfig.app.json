@@ -6,6 +6,10 @@
     "module": "esnext",
     "types": ["vite/client"],
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "recharts": ["src/types/recharts-compat.d.ts"]
+    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

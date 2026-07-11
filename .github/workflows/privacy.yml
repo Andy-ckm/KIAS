@@ -13,8 +13,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   privacy-scan:
@@ -54,9 +52,8 @@ jobs:
           lines = [
               "Privacy and secret gate found blocking items.",
               "",
-              f"Summary: `{json.dumps(report['summary'], sort_keys=True)}`",
+              f"Summary: {json.dumps(report['summary'], sort_keys=True)}",
               "",
-              "```text",
           ]
           for finding in report["findings"]:
               if finding["severity"] not in {"high", "critical"}:
@@ -69,21 +66,20 @@ jobs:
               if len(lines) >= 85:
                   lines.append("... additional findings omitted")
                   break
-          lines.append("```")
-          lines.append("")
-          lines.append("Values are masked; the comment does not contain full matching data.")
-          Path("/tmp/privacy-comment.md").write_text("\n".join(lines), "utf-8")
+          lines.append("Values are masked; no full matching value is emitted.")
+          Path("privacy-summary.txt").write_text("\n".join(lines), "utf-8")
           print("\n".join(lines))
           PY
 
-      - name: Comment on same-repository pull request
-        if: >-
-          steps.scan.outcome == 'failure' &&
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/privacy-comment.md
+      - name: Upload masked privacy diagnostics
+        if: steps.scan.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: privacy-diagnostics
+          path: |
+            privacy-summary.txt
+            privacy-scan.json
+          retention-days: 3
 
       - name: Enforce privacy gate
         if: steps.scan.outcome == 'failure'

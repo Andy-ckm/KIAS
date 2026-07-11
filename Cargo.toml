@@ -1,5 +1,20 @@
 [workspace]
 resolver = "2"
+default-members = [
+    "crates/common",
+    "crates/controller",
+    "crates/scheduler",
+    "crates/workflow-engine",
+    "crates/autonomy-controller",
+    "crates/executor",
+    "crates/tool-executor",
+    "crates/agent-runtime",
+    "crates/data-store",
+    "crates/data-governance",
+    "crates/monitor",
+    "crates/model-router",
+    "crates/compliance-security",
+]
 members = [
     "crates/kias-cli",
     "crates/langgraph-engine",
@@ -42,6 +57,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Andy-ckm/KIAS"
+rust-version = "1.85"
 
 [workspace.dependencies]
 # Async runtime
@@ -105,7 +121,8 @@ rustls-pemfile = "2"
 etcd-client = "0.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
-# Utils
+
+# Utilities
 dashmap = "6"
 url = "2"
 

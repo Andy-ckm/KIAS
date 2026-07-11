@@ -1,6 +1,7 @@
 pub mod a2a;
 pub mod agents;
 pub mod auth_gxp;
+pub mod auto_loop;
 pub mod config;
 pub mod context;
 pub mod dashboard;

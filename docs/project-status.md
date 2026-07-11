@@ -6,55 +6,52 @@ KIAS is a pre-1.0 open-source project under active development. This page distin
 
 | Area | Current status | Evidence expected |
 |---|---|---|
-| Workspace build | Gated in CI | `cargo build/check --workspace --all-features` |
-| Unit and integration tests | Gated in CI | `cargo test --workspace --all-features` |
+| Product scope | Defined | `PRODUCT.md` and capability maturity matrix |
+| Architecture boundaries | Enforced in CI | Core default surface; no Core dependency on Labs packages |
+| Workspace build | Gated in CI | `cargo check --workspace --all-features --locked` |
+| Unit and integration tests | Gated in CI | `cargo test --workspace --all-features --locked` |
 | Rust lint and formatting | Gated in CI | Clippy with warnings denied; rustfmt check |
-| Dashboard | Gated in CI | dependency install, lint, production build |
+| Dashboard | Gated in CI | dependency install, lint, and production build |
 | Static security analysis | Enabled | CodeQL results in repository Security tab |
-| Dependency updates | Enabled | automated Cargo, frontend, and workflow updates |
+| Dependency updates and audit | Enabled | Dependabot and RustSec advisory workflow |
 | Repository security posture | Enabled | OpenSSF Scorecard workflow |
-| Secret and privacy scanning | Enabled | masked CI scan with private organization denylist support |
-| Release provenance | Planned in this hardening cycle | checksums and signed artifact attestation |
+| Secret, PII, and organization scanning | Enabled | masked read-only CI scan with private denylist support |
+| Release provenance | Partially implemented | checksums, attestations, and verification instructions require release validation |
 | Independent security audit | Not completed | third-party report and tracked remediation |
 | Multi-tenant isolation | Experimental | adversarial end-to-end tests required |
-| Production support commitment | Not offered | documented support and release policy required |
+| Production support commitment | Not offered | documented support and regular release practice required |
 
 A green CI run demonstrates that configured checks passed for a revision. It is not proof that the system is vulnerability-free or suitable for every deployment.
 
-## Useful project scope
+## Product boundary
 
-KIAS is intended to be useful to teams that need reusable infrastructure for one or more of these problems:
+KIAS is a self-hosted, policy-driven control plane for teams operating tool-using AI agents. The intended users are AI platform engineers, security and governance engineers, SRE/operations teams, and architects evaluating transparent agent-control infrastructure.
 
-- managing agent lifecycle state instead of launching isolated scripts;
-- scheduling agent workloads by capacity, cost, or cache affinity;
-- expressing long-running or branching work as resumable workflows;
-- applying role, tool, autonomy, rate, and budget policies;
-- collecting operational metrics and privacy-aware audit evidence;
-- testing isolation and failure-recovery designs for agent runtimes;
-- experimenting with protocol and integration adapters behind explicit boundaries.
+The stable product direction is organized around three outcomes:
 
-KIAS is not intended to be:
+- **Control** — identity, tools, autonomy, budgets, rate limits, and resources require explicit decisions;
+- **Evidence** — important behavior produces privacy-aware operational and audit evidence;
+- **Recovery** — work has bounded retries, cancellation, checkpoints, reconciliation, and graceful shutdown.
 
-- a hosted model service;
-- a replacement for a deployment's identity provider, secret manager, network controls, or incident-response program;
-- a guarantee that arbitrary tools, prompts, models, or external data are safe;
-- an organization-specific workflow or private compliance mapping repository.
+KIAS is not intended to be a hosted model service, model-training platform, no-code chatbot builder, generic operating-system automation suite, public-data collection platform, or repository for organization-specific workflows and compliance mappings.
 
-## Verification levels
+See [`../PRODUCT.md`](../PRODUCT.md) and [`capability-maturity.md`](capability-maturity.md).
 
-Features should be described using one of these levels:
+## Core, Extensions, and Labs
 
-1. **Prototype** — code demonstrates an interface or approach; not enabled by default.
-2. **Tested** — deterministic automated tests cover normal and important failure paths.
-3. **Integrated** — cross-crate or API-level tests cover the behavior and its security boundary.
-4. **Hardened** — threat model, misuse cases, resource limits, observability, and operational documentation exist.
-5. **Audited** — an independent review has been completed and findings are tracked publicly when safe.
+The workspace contains three explicit maturity tiers:
 
-Until a feature has explicit evidence, readers should assume the lowest applicable level.
+- **Core** is the default Cargo surface and the long-term security/compatibility boundary;
+- **Extensions** provide optional integrations and higher-level capabilities through Core interfaces;
+- **Labs** contains disabled-by-default research with no compatibility promise.
+
+A machine-enforced architecture check rejects Core dependencies on Labs packages. The API no longer depends on the experimental self-modifying loop; bounded deterministic classification and decomposition now live in the Core `kias-intent-core` crate.
+
+The full workspace is still built and tested in CI so experimental code cannot silently decay, but its presence is not presented as a production commitment.
 
 ## Security and privacy hardening completed in the current change set
 
-- removed tracked local development state, research queues, orchestration state, and API-key queue data;
+- removed tracked local development state, research queues, orchestration state, API-key queue data, and unnecessary binary/reference material;
 - replaced full-URI logging with path-only logging;
 - removed raw provider error bodies from application errors;
 - added redacted `Debug` and serialization behavior for credentials and secret values;
@@ -64,21 +61,83 @@ Until a feature has explicit evidence, readers should assume the lowest applicab
 - pseudonymized authentication audit subjects;
 - disabled raw webhook payload retention by default;
 - implemented signed-request validation for a supported adapter and made incomplete adapters fail closed;
-- changed secret scan findings to masked values and fingerprints;
-- added security, privacy, governance, contribution, support, and conduct policies;
-- added static analysis, Scorecard, dependency, CI, and privacy gates.
+- changed secret scan findings to masked values and short fingerprints;
+- removed a repository-wide fixed JWT fallback;
+- aligned runtime environment loading with the documented `KIAS_` prefix and `__` nested separator;
+- made the shipped listener loopback-only and authentication-enabled;
+- refused unauthenticated public listeners and misleading native-TLS configuration;
+- removed silent durable-storage fallback to volatile memory;
+- removed self-modifying CI workflows after their bounded one-time remediation tasks;
+- added security, privacy, governance, contribution, support, conduct, release, and maintenance policies;
+- added architecture, static-analysis, Scorecard, dependency, CI, and privacy gates with pinned workflow actions.
+
+## Engineering changes completed in the current change set
+
+- defined a Core-only default Cargo build while retaining full-workspace CI;
+- reduced the process composition root to resources it actually owns;
+- replaced unconditional construction and false-positive health claims with explicit process readiness;
+- added deterministic startup validation for authentication, token length, JWT lifetime, scheduler settings, controller timing, storage mode, and TLS configuration;
+- changed the CLI so no arguments display help rather than unexpectedly starting a service;
+- synchronized command-line listener overrides with runtime configuration;
+- refreshed and locked Rust dependencies;
+- added concise failure artifacts for Rust, dashboard, architecture, and privacy checks;
+- clarified feature maturity and promotion criteria crate by crate;
+- aligned README, architecture, logo, and product language with evidence rather than unsupported superlatives.
+
+## Verification status for this pull request
+
+The pull request remains Draft until the current head revision passes all configured read-only checks:
+
+- architecture boundary check;
+- Rust workspace tests;
+- Rust Clippy with warnings denied;
+- Rust formatting;
+- dashboard lint and production build;
+- privacy and secret scan;
+- CodeQL analysis;
+- Rust dependency audit.
+
+Failures are handled through masked or build-only diagnostic artifacts. Normal CI does not write code or comments back to the repository.
+
+## Known pre-1.0 limitations
+
+- the API still contains optional knowledge, messaging, protocol, and industry-oriented surfaces that require further feature-gating or extraction;
+- synthetic bootstrap nodes remain for dashboard and handler-contract tests; production discovery must replace them;
+- native TLS is not wired into the `kias` server binary, so deployments must use a trusted TLS-terminating proxy and explicit acknowledgement for non-loopback listeners;
+- multi-tenant storage and authorization isolation has not completed adversarial end-to-end verification;
+- not every external integration has completed signature, replay, retention, and conformance testing;
+- optional provider-specific configuration names remain for pre-1.0 compatibility;
+- release provenance and reproducibility require validation on an actual tagged release;
+- no independent security audit has been completed.
 
 ## Release blockers for a production-oriented 1.0
 
 - complete end-to-end tenant isolation and authorization tests;
 - complete signature and replay validation for every enabled integration;
+- feature-gate or extract remaining Extensions and Labs from the default server/API surface;
 - replace or isolate any remaining demonstration-grade security primitives;
+- remove synthetic bootstrap state from production composition;
 - complete external security review and remediate findings;
-- document performance, failure, recovery, backup, and upgrade tests;
-- publish compatibility and deprecation policy;
-- establish reproducible release artifacts, provenance, and verification instructions;
-- demonstrate at least one complete, documented reference deployment using only synthetic data;
-- establish maintainer succession and regular release/security response practice.
+- document performance, failure, recovery, backup, restore, migration, and upgrade tests;
+- publish compatibility and deprecation policy backed by release practice;
+- validate reproducible release artifacts, provenance, SBOM, and verification instructions;
+- demonstrate at least one complete reference deployment using only synthetic data;
+- establish maintainer succession and regular security-response practice.
+
+## Repository-administrator actions outside the code change
+
+The following actions cannot be completed safely by a normal source-code pull request and remain mandatory:
+
+- rotate every API key, bot token, webhook secret, signing key, and other credential ever used on a machine working with this repository;
+- inspect provider usage logs for unexpected calls or source addresses;
+- enable repository secret scanning and push protection where available;
+- configure branch/ruleset protection so required checks and review cannot be bypassed casually;
+- configure the private `ORGANIZATION_DENYLIST_B64` secret with employer, customer, partner, domain, project-code, and internal-system aliases;
+- perform a reviewed full-history rewrite for previously tracked internal-state paths and sensitive blobs, force-push all branches/tags, and require collaborators to re-clone;
+- inspect forks, mirrors, releases, Actions artifacts, caches, and old clones that may retain pre-rewrite objects;
+- consider moving the project to a neutral organization account if personal repository ownership itself reveals unwanted identity context.
+
+History rewriting never substitutes for credential rotation.
 
 ## Evidence policy
 
@@ -90,8 +149,8 @@ README and release claims must be supported by one or more of:
 - a release artifact and verification command;
 - an independent assessment.
 
-Avoid vanity metrics, unsupported superlatives, undated model/provider comparisons, and statements such as “production-grade” when the corresponding evidence is absent.
+Avoid vanity metrics, unsupported superlatives, undated provider comparisons, and statements such as “production-grade” when the corresponding evidence is absent.
 
 ## Privacy and organizational independence
 
-The public repository must not contain personal data, employer/customer/partner identifiers, enterprise domains, tenant IDs, internal systems, private project names, production logs, or real credentials. The project is general-purpose and does not claim endorsement by any employer or customer.
+The public repository must not contain personal data, employer/customer/partner identifiers, enterprise domains, tenant IDs, internal systems, private project names, production logs, or real credentials. Examples use synthetic data and reserved domains. The project is general-purpose and does not claim endorsement by any employer or customer.

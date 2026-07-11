@@ -10,6 +10,7 @@
 //! - [`audit_filter`] – query helper
 
 use chrono::{DateTime, Utc};
+use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::fmt;
 use tokio::sync::RwLock;
@@ -68,7 +69,7 @@ impl fmt::Display for AuditOutcome {
 // ── AuditEvent ────────────────────────────────────────────────────────
 
 /// A single audit trail entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct AuditEvent {
     /// Unique event identifier.
     pub id: String,
@@ -90,6 +91,46 @@ pub struct AuditEvent {
     pub user_agent: Option<String>,
     /// Whether the action succeeded or failed.
     pub outcome: AuditOutcome,
+}
+
+/// Convert a potentially identifying subject into a stable pseudonym.
+///
+/// Deployments that require cross-system correlation should replace this with
+/// an HMAC keyed by a deployment-specific secret. Raw identities must not be
+/// written to application logs.
+pub fn pseudonymize_identifier(identifier: &str) -> String {
+    match identifier {
+        "system" | "unknown" | "api-key-user" => identifier.to_string(),
+        _ => {
+            let mut hasher = Sha256::new();
+            hasher.update(identifier.as_bytes());
+            let digest = format!("{:x}", hasher.finalize());
+            format!("subject:{}", &digest[..16])
+        }
+    }
+}
+
+impl fmt::Debug for AuditEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuditEvent")
+            .field("id", &self.id)
+            .field("timestamp", &self.timestamp)
+            .field("actor", &"[PSEUDONYMOUS]")
+            .field("action", &self.action)
+            .field("resource_type", &self.resource_type)
+            .field("resource_id", &"[REDACTED]")
+            .field("details", &"[REDACTED]")
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "user_agent",
+                &self.user_agent.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("outcome", &self.outcome)
+            .finish()
+    }
 }
 
 impl AuditEvent {

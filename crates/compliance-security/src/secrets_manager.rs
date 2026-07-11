@@ -11,13 +11,25 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::RwLock;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Secret value type
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub enum SecretValue {
     Text(String),
     Binary(Vec<u8>),
     Opaque(String),
+}
+
+impl std::fmt::Debug for SecretValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            Self::Text(_) => "Text",
+            Self::Binary(_) => "Binary",
+            Self::Opaque(_) => "Opaque",
+        };
+        f.debug_tuple("SecretValue").field(&kind).field(&"[REDACTED]").finish()
+    }
 }
 
 /// Secret reference (not the actual secret)
@@ -316,7 +328,8 @@ impl SecretPatternDetector {
             for mat in re.find_iter(text) {
                 findings.push(DetectedSecret {
                     secret_type: pattern_name.clone(),
-                    matched_text: mat.as_str().to_string(),
+                    masked_text: mask_detected_secret(mat.as_str()),
+                    fingerprint: fingerprint_detected_secret(mat.as_str()),
                     start: mat.start(),
                     end: mat.end(),
                     line_number: text[..mat.start()].chars().filter(|c| *c == '\n').count() + 1,
@@ -331,10 +344,25 @@ impl SecretPatternDetector {
     }
 }
 
+fn mask_detected_secret(value: &str) -> String {
+    if value.len() <= 6 {
+        return "*".repeat(value.len());
+    }
+    format!("{}…{}", &value[..3], &value[value.len() - 3..])
+}
+
+fn fingerprint_detected_secret(value: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    digest[..16].to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectedSecret {
     pub secret_type: String,
-    pub matched_text: String,
+    pub masked_text: String,
+    pub fingerprint: String,
     pub start: usize,
     pub end: usize,
     pub line_number: usize,

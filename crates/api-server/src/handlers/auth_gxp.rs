@@ -194,6 +194,9 @@ fn auth_error_response(err: AuthError, detail: &str) -> (StatusCode, Json<ErrorR
         AuthError::PasswordExpired => (StatusCode::FORBIDDEN, "PASSWORD_EXPIRED"),
         AuthError::PasswordTooWeak { .. } => (StatusCode::BAD_REQUEST, "PASSWORD_TOO_WEAK"),
         AuthError::PasswordReused => (StatusCode::BAD_REQUEST, "PASSWORD_REUSED"),
+        AuthError::PasswordHashingFailed => {
+            (StatusCode::INTERNAL_SERVER_ERROR, "PASSWORD_HASHING_FAILED")
+        }
         AuthError::TwoFactorRequired => (StatusCode::UNAUTHORIZED, "2FA_REQUIRED"),
         AuthError::TwoFactorInvalid => (StatusCode::UNAUTHORIZED, "2FA_INVALID"),
         AuthError::SessionExpired => (StatusCode::UNAUTHORIZED, "SESSION_EXPIRED"),

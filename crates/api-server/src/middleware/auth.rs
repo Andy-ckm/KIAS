@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
 
-use kias_common::audit::{AuditAction, AuditEvent, AuditOutcome};
+use kias_common::audit::{pseudonymize_identifier, AuditAction, AuditEvent, AuditOutcome};
 
 use crate::auth::{validate_token, Claims, Role};
 use crate::AppState;
@@ -48,16 +48,17 @@ pub async fn auth_middleware(
     // ── Try JWT first ────────────────────────────────────────────────
     if let Some(jwt_secret) = state.config.api_server.jwt_secret.as_deref() {
         if let Ok(claims) = validate_token(token, jwt_secret) {
-            tracing::debug!(sub = %claims.sub, role = %claims.role, "JWT auth succeeded");
+            tracing::debug!(role = %claims.role, "JWT auth succeeded");
+            let audit_actor = pseudonymize_identifier(&claims.sub);
             let audit_event = AuditEvent::new(
-                &claims.sub,
+                &audit_actor,
                 AuditAction::Login,
                 "auth",
                 "jwt",
                 AuditOutcome::Success,
             )
             .with_details("JWT validation succeeded");
-            tracing::debug!(audit = ?audit_event, "audit: login success");
+            tracing::debug!(audit_id = %audit_event.id, "audit: login success");
             request.extensions_mut().insert(claims);
             return Ok(next.run(request).await);
         }
@@ -74,7 +75,7 @@ pub async fn auth_middleware(
             AuditOutcome::Failure,
         )
         .with_details("No API keys configured, denying all");
-        tracing::debug!(audit = ?audit_event, "audit: login failure (no keys)");
+        tracing::debug!(audit_id = %audit_event.id, "audit: login failure (no keys)");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -108,7 +109,7 @@ pub async fn auth_middleware(
         AuditOutcome::Failure,
     )
     .with_details("Invalid credentials provided");
-    tracing::debug!(audit = ?audit_event, "audit: login failure");
+    tracing::debug!(audit_id = %audit_event.id, "audit: login failure");
     Err(StatusCode::UNAUTHORIZED)
 }
 

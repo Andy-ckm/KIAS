@@ -2,6 +2,7 @@
 //!
 //! 统一Webhook接口，消息解析和回复，支持多平台消息路由。
 
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -196,7 +197,7 @@ impl PlatformAdapter for WechatAdapter {
             content,
             message_type: MessageType::Private,
             timestamp: body["CreateTime"].as_i64().unwrap_or(0),
-            raw_data: Some(body.clone()),
+            raw_data: None,
         })
     }
 
@@ -227,8 +228,8 @@ impl PlatformAdapter for WechatAdapter {
     }
 
     fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
-        // 简化实现，生产环境需要完整的签名验证
-        true
+        // Fail closed until the adapter's official signature scheme is configured.
+        false
     }
 
     fn platform_type(&self) -> ImPlatform {
@@ -288,7 +289,7 @@ impl PlatformAdapter for TelegramAdapter {
             content,
             message_type,
             timestamp: message["date"].as_i64().unwrap_or(0),
-            raw_data: Some(body.clone()),
+            raw_data: None,
         })
     }
 
@@ -318,8 +319,8 @@ impl PlatformAdapter for TelegramAdapter {
     }
 
     fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
-        // Telegram使用secret_path验证，这里简化处理
-        true
+        // Fail closed until the adapter's official signature scheme is configured.
+        false
     }
 
     fn platform_type(&self) -> ImPlatform {
@@ -384,7 +385,7 @@ impl PlatformAdapter for SlackAdapter {
             content,
             message_type,
             timestamp: event["ts"].as_str().unwrap_or("0").parse().unwrap_or(0),
-            raw_data: Some(body.clone()),
+            raw_data: None,
         })
     }
 
@@ -412,9 +413,39 @@ impl PlatformAdapter for SlackAdapter {
         })
     }
 
-    fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
-        // 简化实现，生产环境需要完整的签名验证
-        true
+    fn verify_signature(&self, headers: &HashMap<String, String>, body: &[u8]) -> bool {
+        let Some(secret) = self.signing_secret.as_deref() else {
+            return false;
+        };
+        let signature = headers
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case("x-slack-signature"))
+            .map(|(_, value)| value.as_str());
+        let timestamp = headers
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case("x-slack-request-timestamp"))
+            .map(|(_, value)| value.as_str());
+        let (Some(signature), Some(timestamp)) = (signature, timestamp) else {
+            return false;
+        };
+        let Ok(timestamp_value) = timestamp.parse::<i64>() else {
+            return false;
+        };
+        if (chrono::Utc::now().timestamp() - timestamp_value).abs() > 300 {
+            return false;
+        }
+        let Some(signature_hex) = signature.strip_prefix("v0=") else {
+            return false;
+        };
+        let Ok(signature_bytes) = hex::decode(signature_hex) else {
+            return false;
+        };
+        let Ok(mut mac) = Hmac::<sha2::Sha256>::new_from_slice(secret.as_bytes()) else {
+            return false;
+        };
+        mac.update(format!("v0:{timestamp}:").as_bytes());
+        mac.update(body);
+        mac.verify_slice(&signature_bytes).is_ok()
     }
 
     fn platform_type(&self) -> ImPlatform {
@@ -492,7 +523,7 @@ impl PlatformAdapter for FeishuAdapter {
                 .unwrap_or("0")
                 .parse()
                 .unwrap_or(0),
-            raw_data: Some(body.clone()),
+            raw_data: None,
         })
     }
 
@@ -520,8 +551,8 @@ impl PlatformAdapter for FeishuAdapter {
     }
 
     fn verify_signature(&self, _headers: &HashMap<String, String>, _body: &[u8]) -> bool {
-        // 简化实现，生产环境需要完整的签名验证
-        true
+        // Fail closed until the adapter's official signature scheme is configured.
+        false
     }
 
     fn platform_type(&self) -> ImPlatform {
@@ -3347,16 +3378,16 @@ mod tests {
     // ===== Verify all adapter verify_signature returns true =====
 
     #[test]
-    fn test_all_adapters_verify_signature_always_true() {
+    fn test_unsigned_requests_fail_closed() {
         let wechat = WechatAdapter::new("token".to_string(), None);
         let telegram = TelegramAdapter::new("token".to_string());
         let slack = SlackAdapter::new("token".to_string(), None);
         let feishu = FeishuAdapter::new("token".to_string(), None);
 
-        assert!(wechat.verify_signature(&HashMap::new(), b"body"));
-        assert!(telegram.verify_signature(&HashMap::new(), b"body"));
-        assert!(slack.verify_signature(&HashMap::new(), b"body"));
-        assert!(feishu.verify_signature(&HashMap::new(), b"body"));
+        assert!(!wechat.verify_signature(&HashMap::new(), b"body"));
+        assert!(!telegram.verify_signature(&HashMap::new(), b"body"));
+        assert!(!slack.verify_signature(&HashMap::new(), b"body"));
+        assert!(!feishu.verify_signature(&HashMap::new(), b"body"));
     }
 
     // ===== UnifiedMessage with System message type =====

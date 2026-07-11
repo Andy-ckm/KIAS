@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   remediate:
@@ -27,8 +29,11 @@ jobs:
           fetch-depth: 0
 
       - name: Execute reviewed remediation script
+        id: remediation
+        continue-on-error: true
         run: |
-          python3 - <<'PY'
+          set -o pipefail
+          python3 - <<'PY' 2>&1 | tee /tmp/privacy-remediation.log
           from pathlib import Path
           import textwrap
 
@@ -41,7 +46,23 @@ jobs:
           exec(compile(script, 'privacy-remediation', 'exec'), {'__name__': '__main__'})
           PY
 
+      - name: Report remediation failure
+        if: steps.remediation.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo 'The one-shot privacy remediation stopped before committing changes.'
+            echo
+            echo '```text'
+            tail -n 80 /tmp/privacy-remediation.log
+            echo '```'
+          } > /tmp/remediation-comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/remediation-comment.md
+          exit 1
+
       - name: Format and validate remediated code
+        if: steps.remediation.outcome == 'success'
         run: |
           rustup update stable
           rustup default stable
@@ -51,6 +72,7 @@ jobs:
           cargo check --workspace --all-features
 
       - name: Remove one-shot trigger and commit
+        if: steps.remediation.outcome == 'success'
         run: |
           rm -f .github/workflows/privacy-remediation-pr.yml
           git config user.name "github-actions[bot]"

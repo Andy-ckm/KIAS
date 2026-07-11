@@ -147,11 +147,7 @@ impl AppState {
             gxp_auth: handlers::auth_gxp::create_gxp_auth_state(
                 kias_common::gxp_auth::PasswordPolicy::default(),
             ),
-            jwt_config: auth::JwtConfig::new(
-                jwt_secret,
-                jwt_issuer,
-                jwt_expiration_hours,
-            ),
+            jwt_config: auth::JwtConfig::new(jwt_secret, jwt_issuer, jwt_expiration_hours),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
             token_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }

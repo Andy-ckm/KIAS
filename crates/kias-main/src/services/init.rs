@@ -77,8 +77,8 @@ impl KiasServiceManager {
             .sqlite_url
             .strip_prefix("sqlite://")
             .unwrap_or(&config.storage.sqlite_url);
-        let database_path = std::env::var("KIAS_DB_PATH")
-            .unwrap_or_else(|_| configured_path.to_string());
+        let database_path =
+            std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| configured_path.to_string());
         if database_path.trim().is_empty() {
             return Err(KiasError::Config(
                 "SQLite database path must not be empty".to_string(),
@@ -183,9 +183,7 @@ impl KiasServiceManager {
                 }
             }
 
-            if !(1..=MAX_JWT_EXPIRATION_HOURS)
-                .contains(&config.api_server.jwt_expiration_hours)
-            {
+            if !(1..=MAX_JWT_EXPIRATION_HOURS).contains(&config.api_server.jwt_expiration_hours) {
                 return Err(KiasError::Config(format!(
                     "JWT expiration must be between 1 and {MAX_JWT_EXPIRATION_HOURS} hours"
                 )));
@@ -211,12 +209,9 @@ impl KiasServiceManager {
                 "heartbeat interval must be greater than 0".to_string(),
             ));
         }
-        if config.controller.failure_timeout_secs
-            <= config.controller.heartbeat_interval_secs
-        {
+        if config.controller.failure_timeout_secs <= config.controller.heartbeat_interval_secs {
             return Err(KiasError::Config(
-                "failure timeout must be greater than the heartbeat interval"
-                    .to_string(),
+                "failure timeout must be greater than the heartbeat interval".to_string(),
             ));
         }
         if config.controller.max_retries == 0 {

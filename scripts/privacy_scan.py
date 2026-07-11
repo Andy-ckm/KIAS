@@ -78,7 +78,7 @@ PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     ),
     (
         "provider_token",
-        re.compile(r"\b(?:sk|pk|xox[baprs]|api)[-_][A-Za-z0-9_-]{20,}\b", re.I),
+        re.compile(r"\b(?:sk|pk|xox[baprs])[-_][A-Za-z0-9_-]{20,}\b", re.I),
         "high",
     ),
     (

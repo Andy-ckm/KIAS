@@ -154,8 +154,14 @@ impl fmt::Debug for KnowledgeConfig {
             .field("enabled", &self.enabled)
             .field("embedding_model", &self.embedding_model)
             .field("embedding_provider", &self.embedding_provider)
-            .field("remote_api_key_configured", &self.siliconflow_api_key.is_some())
-            .field("remote_endpoint_configured", &!self.siliconflow_base_url.is_empty())
+            .field(
+                "remote_api_key_configured",
+                &self.siliconflow_api_key.is_some(),
+            )
+            .field(
+                "remote_endpoint_configured",
+                &!self.siliconflow_base_url.is_empty(),
+            )
             .finish()
     }
 }

@@ -226,16 +226,10 @@ pub mod tool_aware_intent {
                 IntentType::BugFix => Some(("diagnostics", "bug-fix intent")),
                 IntentType::Documentation => Some(("documentation", "documentation intent")),
                 IntentType::TestGeneration => Some(("test_runner", "test intent")),
-                IntentType::ArchitectureDesign => {
-                    Some(("architecture_analysis", "design intent"))
-                }
-                IntentType::PerformanceOptimization => {
-                    Some(("profiler", "performance intent"))
-                }
+                IntentType::ArchitectureDesign => Some(("architecture_analysis", "design intent")),
+                IntentType::PerformanceOptimization => Some(("profiler", "performance intent")),
                 IntentType::SecurityAudit => Some(("security_scanner", "security intent")),
-                IntentType::KnowledgeQuery => {
-                    Some(("knowledge_search", "knowledge-query intent"))
-                }
+                IntentType::KnowledgeQuery => Some(("knowledge_search", "knowledge-query intent")),
                 IntentType::SystemAdmin => Some(("operations", "system-administration intent")),
                 IntentType::Unknown => None,
             };
@@ -326,8 +320,7 @@ pub mod task_decomposer {
                 previous = Some(id);
             }
 
-            let total_estimated_duration =
-                nodes.values().map(|task| task.estimated_duration).sum();
+            let total_estimated_duration = nodes.values().map(|task| task.estimated_duration).sum();
             let task_count = nodes.len();
 
             DecompositionResult {
@@ -375,12 +368,7 @@ pub mod task_decomposer {
                 60,
                 &["debugging"],
             ),
-            (
-                "Diagnose",
-                "Identify the root cause",
-                90,
-                &["analysis"],
-            ),
+            ("Diagnose", "Identify the root cause", 90, &["analysis"]),
             (
                 "Repair",
                 "Implement the smallest safe fix",
@@ -441,12 +429,7 @@ pub mod task_decomposer {
                 60,
                 &["analysis"],
             ),
-            (
-                "Plan",
-                "Create a bounded execution plan",
-                90,
-                &["planning"],
-            ),
+            ("Plan", "Create a bounded execution plan", 90, &["planning"]),
         ];
 
         match intent {

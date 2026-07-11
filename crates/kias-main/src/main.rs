@@ -131,10 +131,7 @@ async fn start_server(
     Ok(())
 }
 
-fn validate_listener_security(
-    host: &str,
-    config: &kias_common::KiasConfig,
-) -> anyhow::Result<()> {
+fn validate_listener_security(host: &str, config: &kias_common::KiasConfig) -> anyhow::Result<()> {
     if config.api_server.tls {
         bail!(
             "native TLS is not wired into the kias server binary; terminate TLS at a trusted proxy and keep api_server.tls=false"

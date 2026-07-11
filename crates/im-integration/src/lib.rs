@@ -22,7 +22,7 @@ pub enum ImPlatform {
 }
 
 /// 统一消息格式
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct UnifiedMessage {
     /// 消息ID
     pub id: String,
@@ -45,7 +45,7 @@ pub struct UnifiedMessage {
 }
 
 /// 消息内容
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum MessageContent {
     /// 文本消息
     Text(String),
@@ -71,7 +71,7 @@ pub enum MessageContent {
 }
 
 /// 事件类型
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum EventType {
     /// 用户关注
     Subscribe,
@@ -99,7 +99,7 @@ pub enum MessageType {
 }
 
 /// 回复消息
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ReplyMessage {
     /// 回复内容
     pub content: MessageContent,
@@ -110,7 +110,7 @@ pub struct ReplyMessage {
 }
 
 /// Webhook请求
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct WebhookRequest {
     /// 平台
     pub platform: ImPlatform,
@@ -123,7 +123,7 @@ pub struct WebhookRequest {
 }
 
 /// Webhook响应
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct WebhookResponse {
     /// 状态码
     pub status_code: u16,
@@ -133,6 +133,90 @@ pub struct WebhookResponse {
     pub should_reply: bool,
     /// 回复消息
     pub reply: Option<ReplyMessage>,
+}
+
+impl std::fmt::Debug for MessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            Self::Text(_) => "text",
+            Self::Image { .. } => "image",
+            Self::File { .. } => "file",
+            Self::Location { .. } => "location",
+            Self::Event(_) => "event",
+        };
+        f.debug_struct("MessageContent")
+            .field("kind", &kind)
+            .field("value", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            Self::Subscribe => "subscribe",
+            Self::Unsubscribe => "unsubscribe",
+            Self::JoinGroup => "join_group",
+            Self::LeaveGroup => "leave_group",
+            Self::Custom(_) => "custom",
+        };
+        f.write_str(kind)
+    }
+}
+
+impl std::fmt::Debug for UnifiedMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UnifiedMessage")
+            .field("id", &"[REDACTED]")
+            .field("platform", &self.platform)
+            .field("sender_id", &"[REDACTED]")
+            .field(
+                "sender_name",
+                &self.sender_name.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "receiver_id",
+                &self.receiver_id.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("content", &self.content)
+            .field("message_type", &self.message_type)
+            .field("timestamp", &self.timestamp)
+            .field("raw_data", &self.raw_data.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for ReplyMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplyMessage")
+            .field("content", &self.content)
+            .field("reply_to", &self.reply_to.as_ref().map(|_| "[REDACTED]"))
+            .field("silent", &self.silent)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for WebhookRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let header_names = self.headers.keys().collect::<Vec<_>>();
+        f.debug_struct("WebhookRequest")
+            .field("platform", &self.platform)
+            .field("header_names", &header_names)
+            .field("body", &"[REDACTED]")
+            .field("query_parameter_count", &self.query_params.len())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for WebhookResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WebhookResponse")
+            .field("status_code", &self.status_code)
+            .field("body", &"[REDACTED]")
+            .field("should_reply", &self.should_reply)
+            .field("reply", &self.reply)
+            .finish()
+    }
 }
 
 /// 平台适配器 trait

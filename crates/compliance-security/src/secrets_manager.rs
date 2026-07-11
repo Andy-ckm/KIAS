@@ -103,12 +103,30 @@ pub struct SecretProvider {
     hash_function: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SecretAccessRecord {
     pub secret_name: String,
     pub accessor: String,
     pub access_time: chrono::DateTime<chrono::Utc>,
     pub success: bool,
+}
+
+impl std::fmt::Debug for SecretAccessRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretAccessRecord")
+            .field("secret_name", &"[REDACTED]")
+            .field("accessor", &"[PSEUDONYMOUS]")
+            .field("access_time", &self.access_time)
+            .field("success", &self.success)
+            .finish()
+    }
+}
+
+fn pseudonymize_accessor(accessor: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(accessor.as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    format!("accessor:{}", &digest[..16])
 }
 
 impl Default for SecretProvider {
@@ -178,7 +196,7 @@ impl SecretProvider {
             Some(value) => {
                 audit.push(SecretAccessRecord {
                     secret_name: name.to_string(),
-                    accessor: accessor.to_string(),
+                    accessor: pseudonymize_accessor(accessor),
                     access_time: now,
                     success: true,
                 });
@@ -187,11 +205,11 @@ impl SecretProvider {
             None => {
                 audit.push(SecretAccessRecord {
                     secret_name: name.to_string(),
-                    accessor: accessor.to_string(),
+                    accessor: pseudonymize_accessor(accessor),
                     access_time: now,
                     success: false,
                 });
-                Err(KiasError::Secrets(format!("Secret not found: {}", name)))
+                Err(KiasError::Secrets("Secret not found".to_string()))
             }
         }
     }
@@ -208,7 +226,7 @@ impl SecretProvider {
                 hint: m.hint.clone(),
                 created_at: m.created_at,
             })
-            .ok_or_else(|| KiasError::Secrets(format!("Secret ref not found: {}", name)))
+            .ok_or_else(|| KiasError::Secrets("Secret reference not found".to_string()))
     }
 
     pub fn rotate(&self, name: &str, new_value: SecretValue) -> KiasResult<RotationStatus> {
@@ -239,7 +257,7 @@ impl SecretProvider {
                 error: None,
             })
         } else {
-            Err(KiasError::Secrets(format!("Secret not found: {}", name)))
+            Err(KiasError::Secrets("Secret not found".to_string()))
         }
     }
 

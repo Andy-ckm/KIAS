@@ -7,6 +7,7 @@
 //!
 //! All auth operations produce audit events via [`AuthAuditEvent`].
 
+use crate::audit::pseudonymize_identifier;
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
@@ -14,7 +15,7 @@ use argon2::{
 use chrono::{DateTime, Duration, Utc};
 use hmac::{Hmac, Mac};
 use rand::{rngs::OsRng, RngCore};
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -148,7 +149,7 @@ pub enum TwoFactorMethod {
 // ── User ────────────────────────────────────────────────────────────────
 
 /// User credential with GxP tracking fields.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct GxpUser {
     pub user_id: String,
     /// Unique identification code (§11.100(d)).
@@ -156,13 +157,13 @@ pub struct GxpUser {
     /// Printed / display name for §11.50(a)(1).
     pub display_name: String,
     pub email: String,
-    /// Hashed password (SHA-256 for demonstration; production should use Argon2/bcrypt).
-    #[serde(skip_serializing)]
+    /// PHC-formatted Argon2id password hash.
+    #[serde(skip)]
     pub password_hash: String,
     /// When the password was last changed (for §11.300(b) aging).
     pub password_changed_at: DateTime<Utc>,
     /// Hashes of previous passwords to prevent reuse.
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub password_history: Vec<String>,
     pub is_active: bool,
     /// Roles for RBAC (EU Annex 11 Clause 8).
@@ -172,15 +173,15 @@ pub struct GxpUser {
     pub failed_login_attempts: u32,
     pub locked_until: Option<DateTime<Utc>>,
     pub two_factor_enabled: bool,
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub two_factor_secret: Option<String>,
 }
 
 impl fmt::Debug for GxpUser {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("GxpUser")
-            .field("user_id", &self.user_id)
-            .field("username", &self.username)
+            .field("user_id", &"[REDACTED]")
+            .field("username", &"[REDACTED]")
             .field("display_name", &"[REDACTED]")
             .field("email", &"[REDACTED]")
             .field("password_hash", &"[REDACTED]")
@@ -200,7 +201,7 @@ impl fmt::Debug for GxpUser {
 // ── Session (§11.200(a)(1)) ─────────────────────────────────────────────
 
 /// Session with continuous tracking (§11.200(a)(1)).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct GxpSession {
     pub session_id: String,
     pub user_id: String,
@@ -213,16 +214,68 @@ pub struct GxpSession {
     pub is_continuous: bool,
 }
 
+impl fmt::Debug for GxpSession {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GxpSession")
+            .field("session_id", &"[REDACTED]")
+            .field("user_id", &"[REDACTED]")
+            .field("created_at", &self.created_at)
+            .field("last_activity", &self.last_activity)
+            .field("expires_at", &self.expires_at)
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "device_info",
+                &self.device_info.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("is_continuous", &self.is_continuous)
+            .finish()
+    }
+}
+
 // ── Audit Events ────────────────────────────────────────────────────────
 
 /// Audit event for auth operations (linked to GxP audit log).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct AuthAuditEvent {
     pub timestamp: DateTime<Utc>,
     pub user_id: String,
     pub event_type: AuthEventType,
     pub detail: String,
     pub ip_address: Option<String>,
+}
+
+impl fmt::Debug for AuthAuditEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthAuditEvent")
+            .field("timestamp", &self.timestamp)
+            .field("user_id", &"[PSEUDONYMOUS]")
+            .field("event_type", &self.event_type)
+            .field("detail", &"[REDACTED]")
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[PSEUDONYMOUS]"),
+            )
+            .finish()
+    }
+}
+
+impl Serialize for AuthAuditEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AuthAuditEvent", 5)?;
+        state.serialize_field("timestamp", &self.timestamp)?;
+        state.serialize_field("user_id", &pseudonymize_identifier(&self.user_id))?;
+        state.serialize_field("event_type", &self.event_type)?;
+        state.serialize_field("detail", &self.detail)?;
+        let pseudonymous_ip = self.ip_address.as_deref().map(pseudonymize_identifier);
+        state.serialize_field("ip_address", &pseudonymous_ip)?;
+        state.end()
+    }
 }
 
 /// Categorised auth event types.
@@ -750,7 +803,7 @@ impl GxpAuthManager {
                 timestamp: now,
                 user_id: session.user_id.clone(),
                 event_type: AuthEventType::SessionExpired,
-                detail: format!("Session {session_id} expired"),
+                detail: "Session expired".into(),
                 ip_address: session.ip_address.clone(),
             });
             return Err(AuthError::SessionExpired);
@@ -767,7 +820,7 @@ impl GxpAuthManager {
                 timestamp: now,
                 user_id: session.user_id,
                 event_type: AuthEventType::Logout,
-                detail: format!("Session {session_id} invalidated"),
+                detail: "Session invalidated".into(),
                 ip_address: session.ip_address,
             });
         }

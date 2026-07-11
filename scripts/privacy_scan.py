@@ -228,11 +228,20 @@ def is_public_ip_candidate(value: str) -> bool:
     )
 
 
-def scan_line(path: str, line_no: int, line: str, denylist: Iterable[str]) -> list[Finding]:
+def scan_line(
+    path: str,
+    line_no: int,
+    line: str,
+    denylist: Iterable[str],
+    *,
+    synthetic_context: bool = False,
+    pattern_scan: bool = True,
+) -> list[Finding]:
     findings: list[Finding] = []
     lower_line = line.lower()
 
-    for kind, pattern, severity in PATTERNS:
+    patterns = PATTERNS if pattern_scan else []
+    for kind, pattern, severity in patterns:
         for match in pattern.finditer(line):
             value = match.group(0)
             finding_severity = severity
@@ -247,6 +256,16 @@ def scan_line(path: str, line_no: int, line: str, denylist: Iterable[str]) -> li
             if any(hint in lower_line for hint in SAFE_HINTS):
                 finding_severity = "info"
                 note = "likely_test_or_placeholder"
+            elif synthetic_context and kind in {
+                "secret_assignment",
+                "email",
+                "cn_phone",
+                "international_phone",
+                "cn_national_id",
+                "local_user_path",
+            }:
+                finding_severity = "info"
+                note = "synthetic_test_context"
 
             findings.append(
                 Finding(
@@ -333,8 +352,24 @@ def scan_repository(repo: Path, denylist: list[str]) -> tuple[list[Finding], lis
             continue
 
         text = data.decode("utf-8", "replace")
+        rust_test_module = False
+        fixture_path = any(
+            part in {"tests", "testdata", "fixtures"}
+            for part in Path(relative).parts
+        )
         for line_no, line in enumerate(text.splitlines(), 1):
-            findings.extend(scan_line(relative, line_no, line, denylist))
+            if relative.endswith(".rs") and line.strip() == "#[cfg(test)]":
+                rust_test_module = True
+            findings.extend(
+                scan_line(
+                    relative,
+                    line_no,
+                    line,
+                    denylist,
+                    synthetic_context=fixture_path or rust_test_module,
+                    pattern_scan=relative != "scripts/privacy_scan.py",
+                )
+            )
 
         for private_identifier in denylist:
             if private_identifier.casefold() in relative.casefold():

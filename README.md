@@ -3,8 +3,8 @@
 </p>
 
 <h1 align="center">KIAS</h1>
-<p align="center"><strong>Policy-driven infrastructure for operating AI agents safely.</strong></p>
-<p align="center">A modular Rust workspace for scheduling, lifecycle control, workflows, observability, audit, and security boundaries.</p>
+<p align="center"><strong>Control, evidence, and recovery for tool-using AI agents.</strong></p>
+<p align="center">A self-hosted, policy-driven agent control plane built in Rust.</p>
 
 <p align="center">
   <a href="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml"><img src="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -14,60 +14,70 @@
 </p>
 
 > [!IMPORTANT]
-> KIAS is a pre-1.0 project under active development. It is suitable for research, evaluation, and controlled pilots. It has not completed an independent security audit, and production deployment requires threat modeling, hardened configuration, external secret management, and operational review.
+> KIAS is a pre-1.0 project under active development. It is suitable for research, evaluation, and controlled pilots. It has not completed an independent security audit, and production deployment requires threat modeling, hardened configuration, external secret management, tenant-isolation validation, and operational review.
 
-## Why KIAS exists
+## What KIAS is
 
-Building an agent demo is easy; operating many agents predictably is not. Real systems need lifecycle control, policy enforcement, scheduling, recovery, auditability, and bounded access to external tools.
+Building an agent demo is easy; operating agents predictably is not. Real systems need lifecycle control, policy enforcement, bounded tools, scheduling, recovery, auditability, and privacy-aware operations.
 
-KIAS treats an agent as a managed resource rather than an unbounded script. The project focuses on reusable infrastructure concerns:
+KIAS treats an agent as a managed resource rather than an unbounded script. Its product contract is organized around three outcomes:
 
-- declare and track agent lifecycle state;
-- schedule work using resource and cache signals;
-- execute workflows with retries, checkpoints, cancellation, and recovery;
-- enforce authorization, tool, budget, and autonomy policies;
-- expose metrics and pseudonymous audit events;
-- isolate tool execution behind explicit security boundaries;
-- minimize and redact sensitive data by default.
+- **Control** — identity, tools, autonomy, budgets, rate limits, and resources require explicit decisions.
+- **Evidence** — important behavior produces privacy-aware state, metrics, traces, and pseudonymous audit records.
+- **Recovery** — work has bounded retries, cancellation, checkpoints, reconciliation, and graceful shutdown.
+
+Read the complete product boundary in [`PRODUCT.md`](PRODUCT.md).
+
+## Who it is for
+
+KIAS is designed primarily for:
+
+- AI platform engineers operating multiple agents;
+- security and governance engineers defining control boundaries;
+- SRE and operations teams responsible for health, failure, and recovery;
+- architects evaluating a transparent self-hosted agent control plane.
+
+KIAS is not a hosted model service, model-training platform, no-code chatbot builder, generic Linux automation suite, or repository for organization-specific workflows and compliance mappings.
 
 ## Architecture
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │                     API and control plane                    │
-│               REST · gRPC · WebSocket · TLS                 │
+│         authentication · authorization · desired state      │
 ├───────────────────┬───────────────────┬──────────────────────┤
-│ Scheduler         │ Lifecycle control │ Workflow / goal loop │
+│ Scheduler         │ Lifecycle control │ Workflow execution   │
 │ placement policy  │ reconcile/recover │ checkpoint / retry   │
 ├───────────────────┼───────────────────┼──────────────────────┤
-│ Agent teams       │ Policy engine     │ Observability / audit │
-│ worker / verifier │ tool / role / cost│ metrics / traces      │
+│ Tool boundary     │ Policy engine     │ Observability / audit│
+│ timeout/isolation │ role/cost/autonomy│ metrics/evidence     │
 ├───────────────────┴───────────────────┴──────────────────────┤
-│ Storage · cache · knowledge · integration adapters           │
-├──────────────────────────────────────────────────────────────┤
-│ Common types, configuration, masking, errors, protocols      │
+│ Persistence · normalized integrations · shared contracts     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-The repository is a Rust workspace split into focused crates. Dependencies are intended to flow from common types and storage toward orchestration and API layers, keeping security-sensitive boundaries reviewable.
+The repository is divided into three product tiers:
 
-See [`docs/architecture.md`](docs/architecture.md) for the detailed module map.
+- **Core** — the supported control-plane boundary;
+- **Extensions** — optional integrations and higher-level capabilities;
+- **Labs** — disabled-by-default research with no compatibility promise.
+
+See [`docs/architecture.md`](docs/architecture.md) and [`docs/capability-maturity.md`](docs/capability-maturity.md).
 
 ## Current capabilities
 
-| Area | Examples |
+| Outcome | Capability examples |
 |---|---|
-| Lifecycle | desired/observed state, health checks, retries, recovery |
-| Scheduling | round-robin, load-aware, resource-aware, cache-aware policies |
-| Workflows | DAG execution, conditional routing, fan-out, checkpoints |
-| Agent collaboration | worker/verifier roles, task delegation, bounded memory |
-| Policies | RBAC, tool policy, autonomy levels, budgets, rate limits |
-| Interfaces | REST, gRPC, WebSocket, agent-to-agent and tool protocols |
-| Data | embedded persistence, cache, document and knowledge components |
-| Security | TLS options, redacted credential types, secret references, privacy gates |
-| Operations | metrics, traces, health endpoints, pseudonymous audit records |
+| Control | authenticated APIs, RBAC, tool policy, autonomy levels, budgets, rate limits |
+| Lifecycle | desired/observed state, health, bounded retries, reconciliation, graceful shutdown |
+| Scheduling | load-aware, resource-aware and optional cache-affinity placement |
+| Workflows | DAG execution, conditional routing, fan-out, cancellation and checkpoints |
+| Evidence | metrics, traces, state transitions and pseudonymous audit records |
+| Recovery | durable state primitives, dead-letter handling and checkpoint-based continuation |
+| Security | redacted credential types, runtime secret references, TLS options and privacy gates |
+| Interoperability | model, tool and agent protocol interfaces behind explicit adapters |
 
-A capability appearing in the workspace does not imply every adapter or backend is production-ready. Unsupported or incomplete integrations must fail closed.
+A capability appearing in the workspace does not imply every adapter or backend is production-ready. Unsupported or incomplete security integrations must fail closed.
 
 ## Quickstart
 
@@ -75,17 +85,25 @@ A capability appearing in the workspace does not imply every adapter or backend 
 
 - a current stable Rust toolchain;
 - Git;
-- optional external services only for the specific integration being tested.
+- optional external services only for the integration being tested.
 
-### Build and verify
+### Build the default product surface
 
 ```bash
 git clone https://github.com/Andy-ckm/KIAS.git
 cd KIAS
 
-cargo build --workspace --all-features
+cargo build
+cargo test
+```
+
+### Verify the complete workspace
+
+```bash
+cargo check --workspace --all-features
 cargo test --workspace --all-features
 cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
 ```
 
 Inspect the command-line interface:
@@ -96,14 +114,14 @@ cargo run -p kias-main --bin kias -- --help
 
 Configuration starts from [`config/default.toml`](config/default.toml). Supply secrets through environment variables or an external secret provider; never commit a populated `.env` file.
 
-## Minimal security model
+## Security model
 
 KIAS assumes that prompts, model output, uploaded files, webhook bodies, identity claims, and tool parameters may be hostile or sensitive.
 
 Default project expectations are:
 
 - authentication is enabled before exposing management APIs;
-- credentials never use derived `Debug` or plaintext serialization;
+- credentials never use plaintext diagnostics or serialization;
 - request logs exclude query strings and message bodies;
 - webhook adapters verify origin and replay windows or fail closed;
 - raw external payload retention is disabled by default;
@@ -117,25 +135,28 @@ Read [`SECURITY.md`](SECURITY.md), [`PRIVACY.md`](PRIVACY.md), and [`docs/threat
 
 The project uses pre-1.0 semantic versioning. Interfaces may change while security boundaries and deployment contracts are stabilized.
 
-Verified repository gates include:
+The repository configures the following quality gates:
 
-- workspace build and tests;
-- formatting and Clippy with warnings denied;
-- dashboard lint and build;
-- CodeQL analysis;
+- workspace build, tests, formatting, and Clippy with warnings denied;
+- dashboard dependency, lint, and production-build checks;
+- CodeQL static analysis;
 - OpenSSF Scorecard analysis;
-- dependency update automation;
+- dependency audit and update automation;
 - masked secret, PII, and private-organization scanning.
 
-Known limitations and readiness criteria are maintained in [`docs/project-status.md`](docs/project-status.md). Planned work is tracked in [`ROADMAP.md`](ROADMAP.md).
+A badge or green run proves only that its configured checks passed for a revision. It is not a security certification.
+
+Known limitations and readiness evidence are maintained in [`docs/project-status.md`](docs/project-status.md). Planned work is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 ## Documentation
 
+- [Product definition](PRODUCT.md)
 - [Architecture](docs/architecture.md)
+- [Capability maturity](docs/capability-maturity.md)
+- [Project status and evidence](docs/project-status.md)
 - [Development guide](docs/development.md)
 - [API documentation](docs/api.md)
 - [Threat model](docs/threat-model.md)
-- [Project status and evidence](docs/project-status.md)
 - [Security policy](SECURITY.md)
 - [Privacy policy](PRIVACY.md)
 - [Support policy](SUPPORT.md)
@@ -143,7 +164,7 @@ Known limitations and readiness criteria are maintained in [`docs/project-status
 
 ## Contributing
 
-Contributions that improve correctness, security, privacy, interoperability, documentation, and user experience are welcome.
+Contributions that improve correctness, security, privacy, interoperability, documentation, and operator experience are welcome.
 
 Please read:
 

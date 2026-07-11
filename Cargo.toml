@@ -14,11 +14,13 @@ default-members = [
     "crates/monitor",
     "crates/model-router",
     "crates/compliance-security",
+    "crates/intent-core",
 ]
 members = [
     "crates/kias-cli",
     "crates/langgraph-engine",
     "crates/common",
+    "crates/intent-core",
     "crates/api-server",
     "crates/scheduler",
     "crates/controller",

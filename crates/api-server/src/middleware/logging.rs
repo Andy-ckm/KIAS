@@ -2,10 +2,15 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 
-/// Logging middleware that records method, path, status and latency for every request.
+/// Logging middleware that records only non-sensitive request metadata.
+///
+/// Query strings are deliberately excluded because they can contain access
+/// tokens, email addresses, search terms, document identifiers, or other
+/// personal and confidential data. Correlation should use an explicit request
+/// id header rather than copying user-controlled values into logs.
 pub async fn logging_middleware(request: Request, next: Next) -> Response {
     let method = request.method().clone();
-    let uri = request.uri().clone();
+    let path = request.uri().path().to_owned();
     let start = std::time::Instant::now();
 
     let response = next.run(request).await;
@@ -15,7 +20,7 @@ pub async fn logging_middleware(request: Request, next: Next) -> Response {
 
     tracing::info!(
         method = %method,
-        path = %uri,
+        path = %path,
         status = %status.as_u16(),
         latency_ms = %latency.as_millis(),
         "request completed"
@@ -79,11 +84,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_logging_does_not_change_query_requests() {
+        let app = create_logging_router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test?email=private%40example.invalid&token=do-not-log")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
     async fn test_logging_preserves_method() {
         let app = Router::new()
             .route("/post-only", axum::routing::post(|| async { "posted" }))
             .layer(axum::middleware::from_fn(logging_middleware));
-        // GET to a POST-only route should return 405
         let resp = app
             .oneshot(
                 Request::builder()

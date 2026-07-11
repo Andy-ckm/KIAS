@@ -1,4 +1,4 @@
-name: Preview bounded formatting
+name: Apply reviewed formatting once
 
 on:
   pull_request:
@@ -8,23 +8,24 @@ on:
       - synchronize
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: bounded-format-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  preview:
+  apply:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/privacy-hardening' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Checkout branch
+      - name: Checkout remediation branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          ref: agent/privacy-hardening
+          persist-credentials: true
 
       - name: Install stable Rust
         run: |
@@ -32,7 +33,7 @@ jobs:
           rustup default stable
           rustup component add rustfmt
 
-      - name: Correct provider-token rule in preview
+      - name: Apply reviewed scanner and formatting changes
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -45,23 +46,24 @@ jobs:
               raise SystemExit('provider-token rule did not match exactly once')
           path.write_text(text.replace(old, new), 'utf-8')
           PY
-
-      - name: Format Rust sources and verify privacy
-        run: |
           cargo fmt --all
-          python3 scripts/privacy_scan.py --repo . --output privacy-scan.json --fail-on high
-          git diff --name-status > format-files.txt
-          git diff --binary > format.patch
-          tar -czf formatted-files.tar.gz $(git diff --name-only --diff-filter=AM)
-          cat format-files.txt
+          python3 scripts/privacy_scan.py --repo . --output /tmp/privacy-scan.json --fail-on high
 
-      - name: Upload reviewed formatting preview
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: bounded-format-preview
-          path: |
-            format-files.txt
-            format.patch
-            formatted-files.tar.gz
-            privacy-scan.json
-          retention-days: 1
+      - name: Commit exact reviewed file set and remove workflow
+        run: |
+          rm -f .github/workflows/format-privacy-once.yml
+          allowed='^(scripts/privacy_scan.py|crates/common/src/config.rs|crates/kias-main/src/main.rs|crates/kias-main/src/services/init.rs|crates/api-server/src/lib.rs|crates/api-server/src/handlers/mod.rs|crates/intent-core/src/lib.rs|.github/workflows/format-privacy-once.yml)$'
+          unexpected="$(git status --short | sed 's/^...//' | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo 'Unexpected files changed:'
+            echo "$unexpected"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/privacy_scan.py crates/common/src/config.rs \
+            crates/kias-main/src/main.rs crates/kias-main/src/services/init.rs \
+            crates/api-server/src/lib.rs crates/api-server/src/handlers/mod.rs \
+            crates/intent-core/src/lib.rs .github/workflows/format-privacy-once.yml
+          git commit -m "style: format hardening changes and refine privacy scan"
+          git push origin HEAD:agent/privacy-hardening

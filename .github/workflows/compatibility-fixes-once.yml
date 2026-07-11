@@ -1,0 +1,183 @@
+name: Apply reviewed compatibility fixes once
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compatibility-fixes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/privacy-hardening' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/privacy-hardening
+          persist-credentials: true
+
+      - name: Install stable Rust
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add clippy rustfmt
+
+      - name: Apply exact reviewed replacements
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text('utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old!r}')
+              target.write_text(text.replace(old, new), 'utf-8')
+
+          replace_once(
+              'crates/cache/src/strategy.rs',
+              'for (key, _) in entries.iter() {',
+              'for key in entries.keys() {',
+          )
+
+          replace_once(
+              'crates/mcp-protocol/src/server.rs',
+              'use crate::capabilities::{\n    ClientCapabilities, PromptsCapability, ResourcesCapability, ToolsCapability, VersionNegotiation,\n};',
+              'use crate::capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability};',
+          )
+
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              'struct DockerContainerInfo {\n    container_id: String,\n    start_time: std::time::Instant,\n}',
+              'struct DockerContainerInfo {\n    start_time: std::time::Instant,\n}',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              'let info = DockerContainerInfo {\n            container_id: cid.clone(),\n            start_time: std::time::Instant::now(),\n        };',
+              'let info = DockerContainerInfo {\n            start_time: std::time::Instant::now(),\n        };',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              'struct GVisorContainerInfo {\n    container_id: String,\n    start_time: std::time::Instant,\n}',
+              'struct GVisorContainerInfo {\n    start_time: std::time::Instant,\n}',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              'let info = GVisorContainerInfo {\n            container_id: cid.clone(),\n            start_time: std::time::Instant::now(),\n        };',
+              'let info = GVisorContainerInfo {\n            start_time: std::time::Instant::now(),\n        };',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              '    runsc_bin: String,',
+              '    _runsc_bin: String,',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              '            runsc_bin: "runsc".to_string(),',
+              '            _runsc_bin: "runsc".to_string(),',
+          )
+          replace_once(
+              'crates/mcp-protocol/src/sandbox.rs',
+              '            runsc_bin: bin.into(),',
+              '            _runsc_bin: bin.into(),',
+          )
+
+          replace_once(
+              'dashboard/src/pages/AgentDetail.tsx',
+              '''formatter={(value: number, name: string) => [
+                name === 'cpu_percent' ? `${value.toFixed(1)}%` : `${value.toFixed(0)} MB`,
+                name === 'cpu_percent' ? 'CPU' : 'Memory',
+              ]}''',
+              '''formatter={(value, name) => {
+                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                const seriesName = String(name);
+                return [
+                  seriesName === 'cpu_percent'
+                    ? `${numericValue.toFixed(1)}%`
+                    : `${numericValue.toFixed(0)} MB`,
+                  seriesName === 'cpu_percent' ? 'CPU' : 'Memory',
+                ];
+              }}''',
+          )
+          replace_once(
+              'dashboard/src/pages/AgentDetail.tsx',
+              '''formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Tokens']}''',
+              '''formatter={value => {
+                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                return [`${numericValue.toLocaleString()} tokens`, 'Tokens'];
+              }}''',
+          )
+
+          replace_once(
+              'dashboard/src/pages/Tokens.tsx',
+              '''formatter={(value: number, name: string) => [formatTokens(value), name === 'input_tokens' ? 'Input' : 'Output']}''',
+              '''formatter={(value, name) => {
+                  const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                  return [
+                    formatTokens(numericValue),
+                    String(name) === 'input_tokens' ? 'Input' : 'Output',
+                  ];
+                }}''',
+          )
+          replace_once(
+              'dashboard/src/pages/Tokens.tsx',
+              '''formatter={(value: number) => formatTokens(value)}''',
+              '''formatter={value =>
+                    formatTokens(typeof value === 'number' ? value : Number(value ?? 0))
+                  }''',
+          )
+          replace_once(
+              'dashboard/src/pages/Tokens.tsx',
+              '''formatter={(value: number, name: string) => [formatTokens(value), name === 'input' ? 'Input' : 'Output']}''',
+              '''formatter={(value, name) => {
+                  const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                  return [
+                    formatTokens(numericValue),
+                    String(name) === 'input' ? 'Input' : 'Output',
+                  ];
+                }}''',
+          )
+          PY
+
+      - name: Validate targeted Rust changes
+        run: |
+          cargo fmt --all
+          cargo test -p kias-cache -p kias-mcp-protocol --all-features --locked --quiet
+          cargo clippy -p kias-cache -p kias-mcp-protocol --all-targets --all-features --locked -- -D warnings
+
+      - name: Validate dashboard
+        working-directory: dashboard
+        run: |
+          npm ci --ignore-scripts
+          npm run lint -- --max-warnings=0
+          npm run build
+
+      - name: Commit exact reviewed file set and remove workflow
+        run: |
+          rm -f .github/workflows/compatibility-fixes-once.yml
+          allowed='^(crates/cache/src/strategy.rs|crates/mcp-protocol/src/server.rs|crates/mcp-protocol/src/sandbox.rs|dashboard/src/pages/AgentDetail.tsx|dashboard/src/pages/Tokens.tsx|.github/workflows/compatibility-fixes-once.yml)$'
+          unexpected="$(git status --short | sed 's/^...//' | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo 'Unexpected files changed:'
+            echo "$unexpected"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/cache/src/strategy.rs crates/mcp-protocol/src/server.rs \
+            crates/mcp-protocol/src/sandbox.rs dashboard/src/pages/AgentDetail.tsx \
+            dashboard/src/pages/Tokens.tsx .github/workflows/compatibility-fixes-once.yml
+          git commit -m "fix: resolve Rust and dashboard compatibility errors"
+          git push origin HEAD:agent/privacy-hardening

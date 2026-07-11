@@ -86,7 +86,7 @@ The full workspace is still built and tested in CI so experimental code cannot s
 
 ## Verification status for this pull request
 
-The pull request remains Draft until the current head revision passes all configured read-only checks:
+The pull request remains Draft until its current maintainer-authored head revision passes all configured read-only checks:
 
 - architecture boundary check;
 - Rust workspace tests;
@@ -97,7 +97,7 @@ The pull request remains Draft until the current head revision passes all config
 - CodeQL analysis;
 - Rust dependency audit.
 
-Failures are handled through masked or build-only diagnostic artifacts. Normal CI does not write code or comments back to the repository.
+The current verification cycle was re-triggered after bounded mechanical formatting and lockfile workflows removed themselves. Failures are handled through masked or build-only diagnostic artifacts. Normal CI does not write code or comments back to the repository.
 
 ## Known pre-1.0 limitations
 

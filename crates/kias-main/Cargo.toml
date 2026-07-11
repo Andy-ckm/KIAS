@@ -2,6 +2,9 @@
 name = "kias-main"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "KIAS self-hosted AI agent control-plane server"
 
 [[bin]]
 name = "kias"
@@ -10,26 +13,12 @@ path = "src/main.rs"
 [dependencies]
 kias-common = { path = "../common" }
 kias-api-server = { path = "../api-server" }
-kias-scheduler = { path = "../scheduler" }
-kias-controller = { path = "../controller" }
-kias-knowledge = { path = "../knowledge" }
-kias-cache = { path = "../cache" }
-kias-monitor = { path = "../monitor" }
-kias-executor = { path = "../executor" }
-kias-skills = { path = "../skills" }
-kias-team-engine = { path = "../team-engine" }
-kias-goal-engine = { path = "../goal-engine" }
-kias-workflow-engine = { path = "../workflow-engine" }
-kias-autonomy-controller = { path = "../autonomy-controller" }
 kias-data-store = { path = "../data-store" }
 
 tokio.workspace = true
 axum.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-chrono.workspace = true
 clap = { version = "4", features = ["derive"] }

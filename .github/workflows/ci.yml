@@ -32,7 +32,17 @@ jobs:
           persist-credentials: false
 
       - name: Enforce Core, Extensions, and Labs boundaries
-        run: python3 scripts/check_architecture.py
+        run: |
+          set -o pipefail
+          python3 scripts/check_architecture.py 2>&1 | tee architecture.log
+
+      - name: Upload architecture diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: architecture-diagnostics
+          path: architecture.log
+          retention-days: 3
 
   rust-test:
     name: Rust tests
@@ -51,7 +61,17 @@ jobs:
           rustup default stable
 
       - name: Run workspace tests
-        run: cargo test --workspace --all-features --locked --quiet
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-features --locked --quiet 2>&1 | tee rust-tests.log
+
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-test-diagnostics
+          path: rust-tests.log
+          retention-days: 3
 
   rust-clippy:
     name: Rust Clippy
@@ -71,9 +91,18 @@ jobs:
           rustup component add clippy
 
       - name: Run Clippy
-        run: >-
-          cargo clippy --workspace --all-targets --all-features --locked
-          --message-format=short -- -D warnings
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --all-features --locked \
+            --message-format=short -- -D warnings 2>&1 | tee rust-clippy.log
+
+      - name: Upload Clippy diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-clippy-diagnostics
+          path: rust-clippy.log
+          retention-days: 3
 
   rust-format:
     name: Rust format
@@ -93,7 +122,17 @@ jobs:
           rustup component add rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: |
+          set -o pipefail
+          cargo fmt --all -- --check 2>&1 | tee rust-format.log
+
+      - name: Upload formatting diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-format-diagnostics
+          path: rust-format.log
+          retention-days: 3
 
   dashboard:
     name: Dashboard lint and build
@@ -113,7 +152,22 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Lint dashboard
-        run: npm run lint -- --max-warnings=0
+        run: |
+          set -o pipefail
+          npm run lint -- --max-warnings=0 2>&1 | tee dashboard-lint.log
 
       - name: Build dashboard
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee dashboard-build.log
+
+      - name: Upload dashboard diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dashboard-diagnostics
+          path: |
+            dashboard/dashboard-lint.log
+            dashboard/dashboard-build.log
+          if-no-files-found: ignore
+          retention-days: 3

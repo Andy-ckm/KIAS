@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
@@ -33,7 +37,7 @@ jobs:
           rustup default stable
 
       - name: Run workspace tests
-        run: cargo test --workspace --all-features
+        run: cargo test --workspace --all-features --locked --quiet
 
   rust-clippy:
     name: Rust Clippy
@@ -53,7 +57,9 @@ jobs:
           rustup component add clippy
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: >-
+          cargo clippy --workspace --all-targets --all-features --locked
+          --message-format=short -- -D warnings
 
   rust-format:
     name: Rust format
@@ -93,7 +99,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Lint dashboard
-        run: npm run lint
+        run: npm run lint -- --max-warnings=0
 
       - name: Build dashboard
         run: npm run build

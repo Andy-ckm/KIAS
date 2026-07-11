@@ -1,7 +1,9 @@
 mod services;
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
+use anyhow::{bail, Context};
 use clap::{CommandFactory, Parser, Subcommand};
 use services::KiasServiceManager;
 
@@ -20,11 +22,12 @@ struct Cli {
 enum Commands {
     /// Start the KIAS control-plane server.
     Server {
-        /// Listen address. The loopback default avoids accidental public exposure.
-        #[arg(short, long, default_value = "127.0.0.1")]
-        host: String,
-        #[arg(short, long, default_value_t = 8080)]
-        port: u16,
+        /// Override the configured listen address.
+        #[arg(short, long)]
+        host: Option<String>,
+        /// Override the configured listen port.
+        #[arg(short, long)]
+        port: Option<u16>,
     },
     /// Show local build information.
     Status,
@@ -41,9 +44,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Server { host, port }) => {
-            start_server(host, port).await?;
-        }
+        Some(Commands::Server { host, port }) => start_server(host, port).await?,
         Some(Commands::Status) => {
             println!("KIAS CLI is available");
             println!("Version: {}", env!("CARGO_PKG_VERSION"));
@@ -51,11 +52,10 @@ async fn main() -> anyhow::Result<()> {
         }
         Some(Commands::Health) => {
             let _ = kias_common::KiasConfig::load()?;
-            println!("Configuration: valid");
+            println!("Configuration file: readable");
+            println!("Run `kias server` to perform full startup validation.");
         }
-        Some(Commands::Version) => {
-            println!("kias {}", env!("CARGO_PKG_VERSION"));
-        }
+        Some(Commands::Version) => println!("kias {}", env!("CARGO_PKG_VERSION")),
         None => {
             Cli::command().print_help()?;
             println!();
@@ -65,24 +65,28 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
+async fn start_server(
+    host_override: Option<String>,
+    port_override: Option<u16>,
+) -> anyhow::Result<()> {
     tracing::info!("Starting KIAS control plane");
 
-    // Configuration errors fail startup rather than silently selecting a potentially
-    // unsafe fallback. The default configuration remains available through the normal
-    // configuration loader.
-    let config = kias_common::KiasConfig::load()?;
+    let mut config = kias_common::KiasConfig::load()?;
+    let host = host_override.unwrap_or_else(|| config.api_server.host.clone());
+    let port = port_override.unwrap_or(config.api_server.port);
+    config.api_server.host.clone_from(&host);
+    config.api_server.port = port;
 
-    // Bind before spawning the serving task so a port or address error is returned to
-    // the caller instead of being logged after the process reports successful startup.
-    let addr = format!("{host}:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    validate_listener_security(&host, &config)?;
 
-    // Initialize all required subsystems via the composition root.
+    let address = format!("{host}:{port}");
+    let listener = tokio::net::TcpListener::bind(&address)
+        .await
+        .with_context(|| format!("failed to bind KIAS listener at {address}"))?;
+
     let manager = KiasServiceManager::new(config.clone()).await?;
-
     let health = manager.health_check();
-    tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial health check");
+    tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial readiness check");
 
     let shutdown = manager.shutdown_handle();
     let shutdown_for_signal = shutdown.clone();
@@ -96,14 +100,14 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
     let sqlite_audit_log = Arc::new(manager.audit_log().clone());
     let dead_letter_queue = Arc::new(manager.dlq().clone());
     let api_handle = tokio::spawn(async move {
-        tracing::info!(addr = %addr, "KIAS API server listening");
+        tracing::info!(address = %address, "KIAS API server listening");
 
         let state = kias_api_server::AppState::new(api_config)
             .await
             .with_persistence(sqlite_audit_log, dead_letter_queue);
-        let app = kias_api_server::routes::api::create_router(state);
+        let application = kias_api_server::routes::api::create_router(state);
 
-        if let Err(error) = axum::serve(listener, app).await {
+        if let Err(error) = axum::serve(listener, application).await {
             tracing::error!(%error, "KIAS API server stopped with an error");
         }
     });
@@ -125,4 +129,69 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
     let _ = signal_handle.await;
 
     Ok(())
+}
+
+fn validate_listener_security(
+    host: &str,
+    config: &kias_common::KiasConfig,
+) -> anyhow::Result<()> {
+    if config.api_server.tls {
+        bail!(
+            "native TLS is not wired into the kias server binary; terminate TLS at a trusted proxy and keep api_server.tls=false"
+        );
+    }
+
+    if !is_loopback_host(host) {
+        if !config.api_server.auth_enabled {
+            bail!("refusing a non-loopback listener while authentication is disabled");
+        }
+
+        let proxy_acknowledged = std::env::var("KIAS_TRUSTED_TLS_PROXY")
+            .map(|value| value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        if !proxy_acknowledged {
+            bail!(
+                "refusing plaintext public listener; place KIAS behind a trusted TLS proxy and set KIAS_TRUSTED_TLS_PROXY=true"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<IpAddr>()
+            .map(|address| address.is_loopback())
+            .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_loopback_hosts() {
+        assert!(is_loopback_host("127.0.0.1"));
+        assert!(is_loopback_host("::1"));
+        assert!(is_loopback_host("localhost"));
+        assert!(!is_loopback_host("0.0.0.0"));
+        assert!(!is_loopback_host("::"));
+    }
+
+    #[test]
+    fn rejects_public_listener_without_authentication() {
+        let config = kias_common::KiasConfig::default();
+        let error = validate_listener_security("0.0.0.0", &config).unwrap_err();
+        assert!(error.to_string().contains("authentication"));
+    }
+
+    #[test]
+    fn rejects_unimplemented_native_tls_mode() {
+        let mut config = kias_common::KiasConfig::default();
+        config.api_server.tls = true;
+        let error = validate_listener_security("127.0.0.1", &config).unwrap_err();
+        assert!(error.to_string().contains("native TLS"));
+    }
 }

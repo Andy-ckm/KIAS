@@ -42,12 +42,24 @@ jobs:
               'crates/common/src/secrets_manager.rs',
               'crates/compliance-security/src/secrets_manager.rs',
           )
+          workflow = workflow.replace(
+              '#[derive(Clone, Deserialize, Zeroize, ZeroizeOnDrop)]',
+              '#[derive(Clone, Deserialize, Zeroize)]',
+          )
           begin_marker = "          python3 - <<'PY'\n"
           end_marker = "\n          PY\n"
           begin = workflow.index(begin_marker) + len(begin_marker)
           end = workflow.index(end_marker, begin)
           script = textwrap.dedent(workflow[begin:end])
           exec(compile(script, 'privacy-remediation', 'exec'), {'__name__': '__main__'})
+
+          path = Path('crates/compliance-security/src/auth_providers.rs')
+          source = path.read_text('utf-8')
+          old_test = '''    #[test]\n    fn test_auth_credential_serde() {\n        let cred = AuthCredential::Password {\n            username: "user".to_string(),\n            password: "pass".to_string(),\n        };\n        let json = serde_json::to_string(&cred).unwrap();\n        let back: AuthCredential = serde_json::from_str(&json).unwrap();\n        match back {\n            AuthCredential::Password { username, password } => {\n                assert_eq!(username, "user");\n                assert_eq!(password, "pass");\n            }\n            _ => panic!("Wrong variant"),\n        }\n    }'''
+          new_test = '''    #[test]\n    fn test_auth_credential_serialization_is_redacted() {\n        let cred = AuthCredential::Password {\n            username: "user".to_string(),\n            password: "pass".to_string(),\n        };\n        let json = serde_json::to_string(&cred).unwrap();\n        assert!(json.contains("password"));\n        assert!(json.contains("[REDACTED]"));\n        assert!(!json.contains("user"));\n        assert!(!json.contains("pass"));\n    }'''
+          if old_test not in source:
+              raise SystemExit('credential serde test block not found')
+          path.write_text(source.replace(old_test, new_test, 1), 'utf-8')
           PY
 
       - name: Format and validate remediated code

@@ -34,9 +34,9 @@ Core is the intended long-term compatibility and security boundary.
 | `data-governance` | governance evidence and policy records | Tested | privacy lifecycle and tamper tests |
 | `monitor` | metrics and telemetry primitives | Tested | cardinality, overload and redaction tests |
 | `model-router` | bounded provider-routing interface | Tested | fallback, budget and error-normalization tests |
-| `compliance-security` | reusable authentication and security primitives | Tested | external cryptographic review and misuse tests |
-| `api-server` | authenticated control-plane API | Integrated | remove Labs dependency; tenant-isolation tests |
-| `kias-main` | composition root and service lifecycle | Prototype | feature-gate optional services; real health checks |
+| `intent-core` | bounded deterministic intent classification and task decomposition | Tested | stabilize taxonomy and adversarial-input tests |
+| `api-server` | authenticated control-plane API | Integrated | tenant-isolation and object-level authorization tests |
+| `kias-main` | composition root and service lifecycle | Tested | dependency readiness and production discovery |
 | `kias-cli` | operator client | Prototype | stable API compatibility and end-to-end tests |
 
 ### Supported extensions
@@ -45,6 +45,7 @@ Extensions are useful but not part of the minimum control plane. They must remai
 
 | Crate | Role | Current level | Boundary requirement |
 |---|---|---:|---|
+| `compliance-security` | optional authentication-provider and security primitives | Tested | external cryptographic review; no implicit activation in Core |
 | `cache` | optional cache strategies | Tested | no correctness dependency on cache availability |
 | `knowledge` | optional knowledge representation | Tested | no raw sensitive-data retention by default |
 | `skills` | reusable tool/skill registration | Tested | policy enforcement remains in Core |
@@ -64,7 +65,7 @@ Labs are excluded from the stable product promise and should be disabled by defa
 | Crate | Reason for Labs classification | Decision before 1.0 |
 |---|---|---|
 | `goal-engine` | open-ended autonomous loops increase control risk | feature-gate; promote only with bounded objectives and approval controls |
-| `auto-loop` | self-modifying/development loop is not required by the control plane | remove from API default dependencies; keep experimental or split repository |
+| `auto-loop` | self-modifying/development loop is not required by the control plane | keep experimental or split repository; never become a Core dependency |
 | `data-aggregator` | unrelated public/social data collection expands privacy scope | split into an optional project or remove |
 | `im-integration` | platform-specific message and identity data; conformance incomplete | keep disabled until signed-request and retention tests pass per adapter |
 | `it-change-management` | broad domain workflow outside minimum agent control plane | move to example/extension or separate repository |
@@ -74,8 +75,10 @@ Labs are excluded from the stable product promise and should be disabled by defa
 ## Default-build policy
 
 - The repository CI validates the entire workspace.
-- The default developer build should target Core rather than every experiment.
-- Extensions and Labs must use explicit Cargo features or separate binaries.
+- The default developer build targets Core rather than every experiment.
+- Core tests and Clippy treat warnings as errors.
+- Extensions and Labs must compile and pass tests in the full-workspace compatibility job.
+- Extensions and Labs must use explicit Cargo features or separate binaries before 1.0.
 - Disabling an optional capability must not weaken authentication, audit, policy or recovery behavior.
 - A dependency from Core to Labs is a release blocker.
 

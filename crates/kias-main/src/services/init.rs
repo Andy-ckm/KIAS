@@ -292,7 +292,10 @@ mod tests {
     async fn rejects_authentication_without_verifier() {
         let mut config = default_config();
         config.api_server.auth_enabled = true;
-        let error = test_manager(config).await.unwrap_err();
+        let error = match test_manager(config).await {
+            Ok(_) => panic!("authentication without a verifier must be rejected"),
+            Err(error) => error,
+        };
         assert!(error.to_string().contains("no credential verifier"));
     }
 

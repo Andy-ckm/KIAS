@@ -15,6 +15,9 @@ default-members = [
     "crates/model-router",
     "crates/compliance-security",
     "crates/intent-core",
+    "crates/api-server",
+    "crates/kias-main",
+    "crates/kias-cli",
 ]
 members = [
     "crates/kias-cli",

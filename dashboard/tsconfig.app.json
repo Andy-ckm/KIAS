@@ -7,7 +7,7 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "paths": {
-      "recharts": ["src/types/recharts-compat.d.ts"]
+      "recharts": ["./src/types/recharts-compat.d.ts"]
     },
 
     /* Bundler mode */

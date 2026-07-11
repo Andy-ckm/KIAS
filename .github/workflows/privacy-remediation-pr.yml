@@ -50,33 +50,45 @@ jobs:
           exec(compile(script, 'privacy-remediation', 'exec'), {'__name__': '__main__'})
           PY
 
-      - name: Report remediation failure
-        if: steps.remediation.outcome == 'failure'
+      - name: Format and validate remediated code
+        id: validation
+        if: steps.remediation.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            rustup update stable
+            rustup default stable
+            rustup component add rustfmt
+            cargo fmt --all
+            cargo test -p kias-common -p kias-api-server -p compliance-security -p im-integration
+            cargo check --workspace --all-features
+          } 2>&1 | tee /tmp/privacy-validation.log
+
+      - name: Report remediation or validation failure
+        if: steps.remediation.outcome == 'failure' || steps.validation.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ "${{ steps.remediation.outcome }}" = "failure" ]; then
+            title='The one-shot privacy remediation stopped before code validation.'
+            log=/tmp/privacy-remediation.log
+          else
+            title='The privacy changes were generated but failed compile/test validation; no changes were committed.'
+            log=/tmp/privacy-validation.log
+          fi
           {
-            echo 'The one-shot privacy remediation stopped before committing changes.'
+            echo "$title"
             echo
             echo '```text'
-            tail -n 80 /tmp/privacy-remediation.log
+            tail -n 120 "$log"
             echo '```'
           } > /tmp/remediation-comment.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/remediation-comment.md
           exit 1
 
-      - name: Format and validate remediated code
-        if: steps.remediation.outcome == 'success'
-        run: |
-          rustup update stable
-          rustup default stable
-          rustup component add rustfmt
-          cargo fmt --all
-          cargo test -p kias-common -p kias-api-server -p compliance-security -p im-integration
-          cargo check --workspace --all-features
-
-      - name: Remove one-shot trigger and commit
-        if: steps.remediation.outcome == 'success'
+      - name: Remove one-shot workflows and commit
+        if: steps.remediation.outcome == 'success' && steps.validation.outcome == 'success'
         run: |
           rm -f .github/workflows/privacy-remediation-pr.yml
           git config user.name "github-actions[bot]"

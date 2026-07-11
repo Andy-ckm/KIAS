@@ -3,7 +3,8 @@
 
 The repository may contain Core, Extensions, and Labs in one Cargo workspace, but
 Core crates must never acquire a normal, development, or build dependency on a
-Labs crate. The default Cargo surface must also contain Core crates only.
+Labs package. Cargo dependency aliases are classified by their resolved `package`
+name, not by the local alias used in source code.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ CORE_PATHS = {
     "crates/monitor",
     "crates/model-router",
     "crates/compliance-security",
+    "crates/intent-core",
     "crates/api-server",
     "crates/kias-main",
     "crates/kias-cli",
@@ -64,8 +66,8 @@ def dependency_package_name(key: str, specification: Any) -> str:
     return key
 
 
-def source_references(crate_path: Path, dependency_name: str) -> list[str]:
-    rust_name = dependency_name.replace("-", "_")
+def source_references(crate_path: Path, dependency_alias: str) -> list[str]:
+    rust_name = dependency_alias.replace("-", "_")
     references: list[str] = []
     source_root = crate_path / "src"
     if not source_root.exists():
@@ -111,17 +113,16 @@ def check_core_dependencies() -> list[str]:
             if not isinstance(dependencies, dict):
                 continue
 
-            for key, specification in dependencies.items():
-                package_name = dependency_package_name(key, specification)
-                if package_name not in LAB_PACKAGE_NAMES and key not in LAB_PACKAGE_NAMES:
+            for alias, specification in dependencies.items():
+                package_name = dependency_package_name(alias, specification)
+                if package_name not in LAB_PACKAGE_NAMES:
                     continue
 
-                dependency_name = package_name if package_name in LAB_PACKAGE_NAMES else key
                 errors.append(
-                    f"{relative_path} has forbidden {table_name} dependency on Labs crate "
-                    f"{dependency_name!r}"
+                    f"{relative_path} has forbidden {table_name} dependency on Labs package "
+                    f"{package_name!r} (alias {alias!r})"
                 )
-                errors.extend(source_references(crate_path, dependency_name))
+                errors.extend(source_references(crate_path, alias))
 
     return errors
 
@@ -137,7 +138,10 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print("Architecture boundary check passed: default surface is Core-only and Core has no Labs dependencies.")
+    print(
+        "Architecture boundary check passed: default surface is Core-only and "
+        "Core has no Labs package dependencies."
+    )
     return 0
 
 

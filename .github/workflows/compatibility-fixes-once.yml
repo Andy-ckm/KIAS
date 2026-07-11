@@ -62,6 +62,35 @@ jobs:
               'for (key, _) in entries.iter() {',
               'for key in entries.keys() {',
           )
+          replace_literal(
+              'crates/cache/src/layered_cache.rs',
+              'use tracing::warn;\n',
+              '',
+          )
+          replace_literal(
+              'crates/cache/src/layered_cache.rs',
+              '''    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn clear(&mut self) {''',
+              '''    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn clear(&mut self) {''',
+              expected=3,
+          )
+          replace_literal(
+              'crates/cache/src/layered_cache.rs',
+              'cache.entries.get(&"a".to_string()).unwrap()',
+              'cache.entries.get("a").unwrap()',
+          )
+
           replace_regex(
               'crates/mcp-protocol/src/server.rs',
               r'use crate::capabilities::\{\s*ClientCapabilities,\s*PromptsCapability,\s*ResourcesCapability,\s*ToolsCapability,\s*VersionNegotiation,\s*\};',
@@ -98,6 +127,7 @@ jobs:
               '            runsc_bin: bin.into(),',
               '            _runsc_bin: bin.into(),',
           )
+
           replace_literal(
               'dashboard/src/pages/AgentDetail.tsx',
               "formatter={(value: number, name: string) => [",
@@ -118,6 +148,7 @@ jobs:
               "formatter={(value: number) => [`${value.toLocaleString()} tokens`, 'Tokens']}",
               "formatter={value => [`${Number(value ?? 0).toLocaleString()} tokens`, 'Tokens']}",
           )
+
           replace_literal(
               'dashboard/src/pages/Tokens.tsx',
               "formatter={(value: number, name: string) => [formatTokens(value), name === 'input_tokens' ? 'Input' : 'Output']}",
@@ -183,7 +214,7 @@ jobs:
         if: steps.rust_validation.outcome == 'success' && steps.dashboard_validation.outcome == 'success'
         run: |
           rm -f .github/workflows/compatibility-fixes-once.yml
-          allowed='^(crates/cache/src/strategy.rs|crates/mcp-protocol/src/server.rs|crates/mcp-protocol/src/sandbox.rs|dashboard/src/pages/AgentDetail.tsx|dashboard/src/pages/Tokens.tsx|.github/workflows/compatibility-fixes-once.yml)$'
+          allowed='^(crates/cache/src/strategy.rs|crates/cache/src/layered_cache.rs|crates/mcp-protocol/src/server.rs|crates/mcp-protocol/src/sandbox.rs|dashboard/src/pages/AgentDetail.tsx|dashboard/src/pages/Tokens.tsx|.github/workflows/compatibility-fixes-once.yml)$'
           unexpected="$(git status --short | sed 's/^...//' | grep -Ev "$allowed" || true)"
           if [ -n "$unexpected" ]; then
             echo 'Unexpected files changed:'
@@ -192,8 +223,9 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/cache/src/strategy.rs crates/mcp-protocol/src/server.rs \
-            crates/mcp-protocol/src/sandbox.rs dashboard/src/pages/AgentDetail.tsx \
-            dashboard/src/pages/Tokens.tsx .github/workflows/compatibility-fixes-once.yml
+          git add crates/cache/src/strategy.rs crates/cache/src/layered_cache.rs \
+            crates/mcp-protocol/src/server.rs crates/mcp-protocol/src/sandbox.rs \
+            dashboard/src/pages/AgentDetail.tsx dashboard/src/pages/Tokens.tsx \
+            .github/workflows/compatibility-fixes-once.yml
           git commit -m "fix: resolve Rust and dashboard compatibility errors"
           git push origin HEAD:agent/privacy-hardening

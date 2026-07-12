@@ -206,7 +206,8 @@ fn resolve_database_path(config: &kias_common::KiasConfig) -> anyhow::Result<Str
         .sqlite_url
         .strip_prefix("sqlite://")
         .unwrap_or(&config.storage.sqlite_url);
-    let database_path = std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| configured_path.to_string());
+    let database_path =
+        std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| configured_path.to_string());
     if database_path.trim().is_empty() {
         bail!("SQLite database path must not be empty");
     }

@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.kias-dev/
 *.key
 *.pem
 *.p12

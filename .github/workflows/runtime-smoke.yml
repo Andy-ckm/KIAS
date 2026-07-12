@@ -78,6 +78,7 @@ jobs:
       - name: Exercise complete Agent Run lifecycle
         run: |
           set -euo pipefail
+          exec > >(tee runtime-lifecycle.log) 2>&1
 
           wait_for_health() {
             for attempt in $(seq 1 80); do
@@ -111,7 +112,9 @@ jobs:
           }
 
           api() {
-            curl --fail --silent -H "Authorization: Bearer ${TOKEN}" "$@"
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "$@"
           }
 
           wait_for_run() {
@@ -257,7 +260,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: runtime-smoke-diagnostics
-          path: runtime-smoke.log
+          path: |
+            runtime-smoke.log
+            runtime-lifecycle.log
           if-no-files-found: ignore
           retention-days: 3
 

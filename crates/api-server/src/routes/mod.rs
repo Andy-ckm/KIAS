@@ -1,3 +1,3 @@
-pub mod api;
+pub mod product;
 
-pub use api::create_router;
+pub use product::{create_router, create_router_with_surfaces};

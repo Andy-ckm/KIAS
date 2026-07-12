@@ -5,6 +5,7 @@ pub mod capabilities;
 pub mod config;
 pub mod context;
 pub mod dashboard;
+pub mod durable_agents;
 pub mod health;
 pub mod im;
 pub mod knowledge;

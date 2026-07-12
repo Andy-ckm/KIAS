@@ -139,35 +139,32 @@ impl AppState {
 
 fn synthetic_nodes() -> std::collections::HashMap<String, models::node::Node> {
     let now = chrono::Utc::now().to_rfc3339();
-    [
-        ("node-1", "8", "16Gi", "1"),
-        ("node-2", "4", "8Gi", "0"),
-    ]
-    .into_iter()
-    .map(|(id, cpu, memory, gpu)| {
-        (
-            id.to_string(),
-            models::node::Node {
-                id: id.to_string(),
-                name: id.to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: cpu.to_string(),
-                    memory: memory.to_string(),
-                    gpu: gpu.to_string(),
+    [("node-1", "8", "16Gi", "1"), ("node-2", "4", "8Gi", "0")]
+        .into_iter()
+        .map(|(id, cpu, memory, gpu)| {
+            (
+                id.to_string(),
+                models::node::Node {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    status: models::node::NodeStatus::Ready,
+                    resources: models::node::ResourceCapacity {
+                        cpu: cpu.to_string(),
+                        memory: memory.to_string(),
+                        gpu: gpu.to_string(),
+                    },
+                    allocatable: models::node::ResourceCapacity {
+                        cpu: cpu.to_string(),
+                        memory: memory.to_string(),
+                        gpu: gpu.to_string(),
+                    },
+                    labels: Default::default(),
+                    created_at: now.clone(),
+                    last_heartbeat: now.clone(),
                 },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: cpu.to_string(),
-                    memory: memory.to_string(),
-                    gpu: gpu.to_string(),
-                },
-                labels: Default::default(),
-                created_at: now.clone(),
-                last_heartbeat: now.clone(),
-            },
-        )
-    })
-    .collect()
+            )
+        })
+        .collect()
 }
 
 pub mod auth;

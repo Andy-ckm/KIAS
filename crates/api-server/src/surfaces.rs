@@ -13,6 +13,9 @@ pub struct SurfaceConfig {
     pub context: bool,
     pub a2a: bool,
     pub tier_routing: bool,
+    /// Browser-compatible authenticated streaming is not complete yet, so the
+    /// WebSocket surface remains an explicit opt-in during pre-1.0.
+    pub realtime: bool,
     pub nl_commands: bool,
     pub im: bool,
     pub visualization: bool,
@@ -29,6 +32,7 @@ impl SurfaceConfig {
             context: env_flag("KIAS_SURFACES__CONTEXT"),
             a2a: env_flag("KIAS_SURFACES__A2A"),
             tier_routing: env_flag("KIAS_SURFACES__TIER_ROUTING"),
+            realtime: env_flag("KIAS_SURFACES__REALTIME"),
             nl_commands: env_flag("KIAS_SURFACES__NL_COMMANDS"),
             im: env_flag("KIAS_SURFACES__IM"),
             visualization: env_flag("KIAS_SURFACES__VISUALIZATION"),
@@ -40,7 +44,12 @@ impl SurfaceConfig {
     pub fn profile(self) -> &'static str {
         if self.nl_commands || self.im || self.visualization {
             "labs-enabled"
-        } else if self.knowledge || self.context || self.a2a || self.tier_routing {
+        } else if self.knowledge
+            || self.context
+            || self.a2a
+            || self.tier_routing
+            || self.realtime
+        {
             "core-with-extensions"
         } else {
             "core"
@@ -50,7 +59,12 @@ impl SurfaceConfig {
 
 fn env_flag(name: &str) -> bool {
     std::env::var(name)
-        .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -67,6 +81,7 @@ mod tests {
         assert!(!surfaces.context);
         assert!(!surfaces.a2a);
         assert!(!surfaces.tier_routing);
+        assert!(!surfaces.realtime);
         assert!(!surfaces.nl_commands);
         assert!(!surfaces.im);
         assert!(!surfaces.visualization);

@@ -188,8 +188,10 @@ jobs:
             '{"name":"runtime-success","image":"busybox:1.36","command":["sh","-c","cat"],"resource_request":{"cpu":"500m","memory":"64Mi","gpu":"0"},"labels":{"kias.io/execution":"enabled"}}')"
           SUCCESS_AGENT_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"${SUCCESS_AGENT}")"
 
+          echo "stage=success-run-admission"
           SUCCESS_RUN="$(start_run "${SUCCESS_AGENT_ID}" runtime-success-run \
             '{"input":"hello from a bounded KIAS Agent Run","timeout_seconds":20,"max_retries":0}')"
+          printf 'success_run=%s\n' "${SUCCESS_RUN}"
           SUCCESS_RUN_ID="$(python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["policy"]["allowed"] is True; print(payload["id"])' <<<"${SUCCESS_RUN}")"
           wait_for_run "${SUCCESS_RUN_ID}" succeeded >/dev/null
 

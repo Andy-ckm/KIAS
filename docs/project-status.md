@@ -7,7 +7,8 @@ KIAS is a pre-1.0 open-source project under active development. This page distin
 | Area | Current status | Evidence expected |
 |---|---|---|
 | Product scope | Defined | `PRODUCT.md`, product strategy and capability maturity matrix |
-| Runtime product profiles | Implemented, under verification | Core-only default routes and authenticated capability discovery |
+| Runtime product profiles | Verified for Core | Core-only default routes and authenticated capability discovery |
+| Sandboxed Agent Run lifecycle | Verified in runtime smoke | admission, execution, logs, resource evidence, cancel, retry, restart recovery and input non-persistence |
 | Architecture boundaries | Enforced in CI | Core default surface; no Core dependency on Labs packages |
 | Workspace build | Gated in CI | `cargo check --workspace --all-features --locked` |
 | Unit and integration tests | Gated in CI | `cargo test --workspace --all-features --locked` |
@@ -40,13 +41,13 @@ See [`../PRODUCT.md`](../PRODUCT.md), [`product-strategy.md`](product-strategy.m
 
 ## Core, Extensions, and Labs
 
-The workspace and runtime now expose three explicit maturity tiers:
+The workspace and runtime expose three explicit maturity tiers:
 
 - **Core** is the default Cargo and API surface and the long-term security/compatibility boundary;
 - **Extensions** provide optional integrations and higher-level capabilities through explicit runtime opt-ins;
 - **Labs** contains disabled-by-default research with no compatibility promise.
 
-A machine-enforced architecture check rejects Core dependencies on Labs packages. Optional routes are absent by default rather than merely hidden. The authenticated `/api/v1/system/capabilities` endpoint reports the effective instance profile and surface maturity.
+A machine-enforced architecture check rejects Core dependencies on Labs packages. Optional routes are absent by default rather than merely hidden. The authenticated `/api/v1/system/capabilities` endpoint reports the effective instance profile and whether a Docker-backed Agent Run service is available.
 
 The former monolithic API router has been removed. The Core-first router no longer mounts knowledge, context, A2A, advanced routing, natural-language commands, messaging adapters, realtime events or industry-oriented visualization unless the corresponding surface switch is enabled.
 
@@ -71,7 +72,9 @@ The full workspace is still built and tested in CI so optional and experimental 
 - removed wildcard CORS from the canonical product router;
 - moved deep health and WebSocket statistics behind authentication;
 - removed silent durable-storage fallback to volatile memory;
-- removed self-modifying CI workflows after bounded one-time remediation tasks;
+- stopped idempotency middleware from persisting request bodies;
+- made Agent Run persistence store only input SHA-256 and byte length, never raw input;
+- denied AgentSpec environment values in the Core execution path;
 - added architecture, static-analysis, Scorecard, dependency, CI and privacy gates with pinned workflow actions.
 
 ## Product and engineering changes completed in the current change set
@@ -87,14 +90,23 @@ The full workspace is still built and tested in CI so optional and experimental 
 - added a Dashboard operator-token gate using tab-scoped session storage;
 - updated Dashboard language from scheduler-centric to Agent Operations Control Plane;
 - added deterministic startup validation for authentication, token length, JWT lifetime, scheduler settings, controller timing, storage mode and TLS configuration;
+- added durable Agent and Agent Run state backed by SQLite;
+- added policy admission using explicit execution opt-in, image allowlist, bounded command/input, timeout, retry and resource constraints;
+- added Docker sandbox execution with no network, read-only root filesystem, dropped capabilities, non-root user, bounded tmpfs, CPU/memory/PID limits and no host mounts;
+- added Run status, bounded logs, resource observations, sandbox evidence and SHA-256 evidence envelopes;
+- added cancellation, bounded automatic retries, lineage-linked manual retry, interrupted-run detection and replay recovery;
+- extracted a locally reproducible runtime smoke script proving the complete lifecycle and verifying raw input is absent from SQLite;
 - refreshed and locked Rust dependencies;
-- added concise failure artifacts for Rust, Dashboard, architecture and privacy checks;
-- documented the product wedge, ideal customer, first user journey, flagship workspaces, priority sequence and success measures.
+- added concise failure artifacts for Rust, Dashboard, architecture, privacy and runtime checks;
+- documented the product wedge, ideal customer, first user journey, flagship workspaces, priority sequence and success measures;
+- rewrote README around verified startup and Agent Run paths rather than repository feature inventory.
 
 ## Verification status for this pull request
 
-The pull request remains Draft until its current maintainer-authored head revision passes all configured read-only checks:
+The pull request remains Draft until its current maintainer-authored head revision passes all configured checks:
 
+- complete Agent Run runtime smoke;
+- Docker Compose API/Dashboard build, restart and persistence smoke;
 - architecture boundary check;
 - Core tests and Clippy;
 - complete-workspace build and tests;
@@ -104,18 +116,24 @@ The pull request remains Draft until its current maintainer-authored head revisi
 - CodeQL analysis;
 - Rust dependency audit.
 
-A bounded mechanical workflow generated the reviewed rustfmt output and Cargo lockfile, committed only an exact allowlist, and deleted itself. The following maintainer-authored revision re-triggered normal read-only verification. Normal CI does not write code or comments back to the repository.
+The native runtime smoke has demonstrated admission, real Docker execution, logs, evidence, failure retries, manual retry, cancellation, restart interruption, replay recovery and raw-input non-persistence. Final acceptance still requires these checks on the final formatted head revision.
+
+Normal CI is read-only. Any bounded mechanical maintenance workflow must use an exact file allowlist and delete itself in its successful commit.
 
 ## Known pre-1.0 limitations
 
-- the first authenticated synthetic-agent journey is documented but still requires a deterministic end-to-end CI or reference-deployment test;
+- the current runner uses the local Docker CLI and shares the control-plane host trust boundary; a production-oriented deployment needs an independently authenticated Runner service;
+- the standard Compose stack intentionally does not mount the host container socket, so it provides the control plane and Dashboard without execution privilege;
+- SQLite is the current single-node authority; high availability and distributed transaction semantics are not implemented;
 - the current `AgentSpec` lacks stable owner/service identity, environment, policy-set and risk-tier fields;
-- policy simulation, human approval and explainable deny decisions are not yet a complete flagship workflow;
-- evidence still spans subsystem-specific records rather than one stable run/correlation model;
+- object-level and tenant-level authorization are not complete;
+- replay recovery restarts the admitted command and verifies the resupplied input digest; it is not a process-memory or filesystem snapshot;
+- image signature, digest provenance and SBOM admission are not implemented;
+- resource observations are best-effort samples; configured limits and final exit state are authoritative;
+- network policy is currently `none`; selective controlled egress is not implemented;
+- the Dashboard does not yet expose the complete Run evidence and intervention workflow;
 - authenticated browser WebSocket transport is incomplete, so realtime events remain an explicit pre-1.0 opt-in;
-- the Dashboard still has pages whose backend detail routes or evidence quality require end-to-end verification;
 - native TLS is not wired into the `kias` server binary, so deployments must use a trusted TLS-terminating proxy and explicit acknowledgement for non-loopback listeners;
-- multi-tenant storage and authorization isolation has not completed adversarial end-to-end verification;
 - not every external integration has completed signature, replay, retention and conformance testing;
 - Core still constructs some optional subsystem state internally even when the corresponding routes are disabled; dependency extraction remains desirable;
 - release provenance and reproducibility require validation on an actual tagged release;
@@ -123,15 +141,18 @@ A bounded mechanical workflow generated the reviewed rustfmt output and Cargo lo
 
 ## Release blockers for a production-oriented 1.0
 
-- complete the five-minute authenticated reference journey with synthetic data and automated evidence;
+- separate the execution Runner from the API process and mutually authenticate control-plane-to-runner traffic;
 - add stable agent ownership, environment, policy and risk metadata;
 - implement policy simulation and a bounded human-approval queue;
-- define a unified run/evidence/recovery correlation model;
+- add image digest, signature, provenance and SBOM admission;
 - complete end-to-end tenant isolation and object-authorization tests;
+- define backup, restore, migration, upgrade and high-availability behavior for durable Run evidence;
+- add configurable evidence/log retention and external secret references;
 - complete signature and replay validation for every enabled integration;
 - separate optional subsystem construction and heavy dependencies from the Core process;
+- expose the verified Run lifecycle in the Dashboard;
 - complete external security review and remediate findings;
-- document performance, failure, recovery, backup, restore, migration and upgrade tests;
+- document performance, failure, recovery and capacity tests;
 - publish compatibility and deprecation policy backed by release practice;
 - validate reproducible release artifacts, provenance, SBOM and verification instructions;
 - establish maintainer succession and regular security-response practice.

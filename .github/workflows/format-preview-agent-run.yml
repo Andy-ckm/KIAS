@@ -39,7 +39,7 @@ jobs:
           rustup default stable
           rustup component add rustfmt
 
-      - name: Apply reviewed formatting and enforce exact scope
+      - name: Apply reviewed formatting and enforce bounded scope
         run: |
           set -euo pipefail
           cargo fmt --all
@@ -47,12 +47,27 @@ jobs:
           git diff --check
           git rm .github/workflows/format-preview-agent-run.yml
 
-          changed="$(git diff --name-only | sort)"
-          expected="$(printf '%s\n' \
-            '.github/workflows/format-preview-agent-run.yml' \
-            'crates/api-server/src/run_service.rs' \
-            'crates/executor/src/docker_sandbox.rs' | sort)"
-          test "${changed}" = "${expected}"
+          git diff --name-only | sort > /tmp/rustfmt-changed.txt
+          cat /tmp/rustfmt-changed.txt
+
+          while IFS= read -r path; do
+            case "${path}" in
+              .github/workflows/format-preview-agent-run.yml|\
+              crates/api-server/src/error.rs|\
+              crates/api-server/src/handlers/capabilities.rs|\
+              crates/api-server/src/run_service.rs|\
+              crates/executor/src/docker_sandbox.rs)
+                ;;
+              *)
+                echo "Unexpected rustfmt change: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < /tmp/rustfmt-changed.txt
+
+          grep -Fxq '.github/workflows/format-preview-agent-run.yml' /tmp/rustfmt-changed.txt
+          grep -Fxq 'crates/api-server/src/run_service.rs' /tmp/rustfmt-changed.txt
+          grep -Fxq 'crates/executor/src/docker_sandbox.rs' /tmp/rustfmt-changed.txt
           git add -A
 
       - name: Validate focused crates

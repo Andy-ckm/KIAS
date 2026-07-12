@@ -195,7 +195,9 @@ mod tests {
 
     #[tokio::test]
     async fn durable_handlers_survive_state_rehydration() {
-        let database = kias_data_store::SqliteRepository::in_memory().await.unwrap();
+        let database = kias_data_store::SqliteRepository::in_memory()
+            .await
+            .unwrap();
         let repository = Arc::new(kias_data_store::AgentRepository::new(database.pool.clone()));
         let state = AppState::new(kias_common::config::KiasConfig::default())
             .await

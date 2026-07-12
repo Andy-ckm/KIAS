@@ -1,23 +1,34 @@
-version: '3.8'
-
 services:
   kias:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["server", "--host", "0.0.0.0", "--port", "8080"]
     ports:
-      - "8080:8080"
-      - "9090:9090"  # Metrics
+      - "127.0.0.1:8080:8080"
     volumes:
       - kias-data:/app/data
-      - ./config:/app/config:ro
     environment:
-      - AgentGuard_LOG_LEVEL=info
-      - AgentGuard_DB_PATH=/app/data/kias.db
+      KIAS_API_SERVER__JWT_SECRET: "${KIAS_JWT_SECRET:?Run scripts/dev-up.sh or export KIAS_JWT_SECRET}"
+      KIAS_API_SERVER__JWT_ISSUER: "kias-local"
+      KIAS_DB_PATH: "/app/data/kias.db"
+      KIAS_LOCAL_CONTAINER_MODE: "true"
+    init: true
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
-      interval: 30s
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 10s
       timeout: 3s
-      retries: 3
+      start_period: 10s
+      retries: 6
+    stop_grace_period: 20s
 
 volumes:
   kias-data:

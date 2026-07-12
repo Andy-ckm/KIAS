@@ -94,6 +94,7 @@ jobs:
             crates/data-governance/Cargo.toml
             crates/data-store/Cargo.toml
             crates/document-management/Cargo.toml
+            crates/it-change-management/Cargo.toml
             crates/tool-executor/src/builtin.rs
             crates/tool-executor/src/vulnerability_scan.rs
           if-no-files-found: error

@@ -29,8 +29,6 @@ function Definition({ label, value }: { label: string; value: string }) {
 }
 
 function ConstraintCard({ agent }: { agent: Agent }) {
-  const requested = agent.spec.resource_request;
-
   return (
     <section className="rounded-xl border border-slate-700 bg-[#1e293b] p-6">
       <div className="flex items-start justify-between gap-4">

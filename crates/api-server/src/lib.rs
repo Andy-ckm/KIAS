@@ -59,52 +59,12 @@ pub struct IngestedDoc {
 impl AppState {
     /// Create application state for a Tokio runtime.
     pub async fn new(config: KiasConfig) -> Self {
-        let mut nodes = std::collections::HashMap::new();
-
-        // Synthetic nodes remain available for the pre-1.0 dashboard and handler
-        // contract tests. Production discovery must replace this bootstrap state.
-        nodes.insert(
-            "node-1".to_string(),
-            models::node::Node {
-                id: "node-1".to_string(),
-                name: "node-1".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-        nodes.insert(
-            "node-2".to_string(),
-            models::node::Node {
-                id: "node-2".to_string(),
-                name: "node-2".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
+        let surfaces = surfaces::SurfaceConfig::from_env(&config);
+        let nodes = if surfaces.dev_fixtures {
+            synthetic_nodes()
+        } else {
+            std::collections::HashMap::new()
+        };
 
         let graph = KnowledgeGraph::new();
         let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
@@ -177,6 +137,39 @@ impl AppState {
     }
 }
 
+fn synthetic_nodes() -> std::collections::HashMap<String, models::node::Node> {
+    let now = chrono::Utc::now().to_rfc3339();
+    [
+        ("node-1", "8", "16Gi", "1"),
+        ("node-2", "4", "8Gi", "0"),
+    ]
+    .into_iter()
+    .map(|(id, cpu, memory, gpu)| {
+        (
+            id.to_string(),
+            models::node::Node {
+                id: id.to_string(),
+                name: id.to_string(),
+                status: models::node::NodeStatus::Ready,
+                resources: models::node::ResourceCapacity {
+                    cpu: cpu.to_string(),
+                    memory: memory.to_string(),
+                    gpu: gpu.to_string(),
+                },
+                allocatable: models::node::ResourceCapacity {
+                    cpu: cpu.to_string(),
+                    memory: memory.to_string(),
+                    gpu: gpu.to_string(),
+                },
+                labels: Default::default(),
+                created_at: now.clone(),
+                last_heartbeat: now.clone(),
+            },
+        )
+    })
+    .collect()
+}
+
 pub mod auth;
 pub mod contract_test;
 pub mod error;
@@ -185,5 +178,6 @@ pub mod handlers;
 pub mod middleware;
 pub mod models;
 pub mod routes;
+pub mod surfaces;
 pub mod tls;
 pub mod websocket;

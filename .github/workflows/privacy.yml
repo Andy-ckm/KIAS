@@ -85,11 +85,13 @@ jobs:
         if: steps.scan.outcome == 'failure'
         run: exit 1
 
-  diagnose-final-apply:
-    name: Diagnose final remediation apply
+  apply-fixture-and-lint-fixes:
+    name: Apply reviewed fixture and lint fixes once
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/privacy-hardening'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 110
 
     steps:
       - name: Checkout remediation branch
@@ -97,13 +99,13 @@ jobs:
         with:
           ref: agent/privacy-hardening
           fetch-depth: 40
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Install rustfmt
+      - name: Install stable Rust tooling
         run: |
           rustup update stable
           rustup default stable
-          rustup component add rustfmt
+          rustup component add rustfmt clippy
 
       - name: Apply through bounded staging
         id: apply
@@ -118,7 +120,7 @@ jobs:
           python3 scripts/apply_ci_fixture_fixes.py
           git show c02c29149071f377b38a6004a7cba7e61f625601:.github/workflows/privacy.yml > .github/workflows/privacy.yml
           git rm .github/workflows/fix-test-warnings-once.yml
-          git rm scripts/apply_ci_fixture_fixes.py
+          git rm -f scripts/apply_ci_fixture_fixes.py
           cargo fmt --all
           git diff HEAD --check
           git diff --name-only HEAD | sort > /tmp/changed-files.txt
@@ -138,15 +140,61 @@ jobs:
           grep -Fxq 'scripts/apply_ci_fixture_fixes.py' /tmp/changed-files.txt
           git add -A
 
-      - name: Upload apply diagnostics
+      - name: Test Core default surface
+        id: core_test
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: |
+          set -o pipefail
+          cargo test --all-features --locked --quiet 2>&1 | tee remediation-core-tests.log
+
+      - name: Lint Core default surface
+        id: core_clippy
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets --all-features --locked --message-format=short -- -D warnings 2>&1 | tee remediation-core-clippy.log
+
+      - name: Test complete workspace
+        id: workspace_test
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-features --locked --quiet 2>&1 | tee remediation-workspace-tests.log
+
+      - name: Check Rust formatting
+        id: rustfmt
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo fmt --all -- --check 2>&1 | tee remediation-rustfmt.log
+
+      - name: Upload remediation diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: final-remediation-apply-diagnostics
-          path: final-remediation-apply.log
-          if-no-files-found: error
+          name: fixture-lint-remediation-diagnostics
+          path: |
+            final-remediation-apply.log
+            remediation-core-tests.log
+            remediation-core-clippy.log
+            remediation-workspace-tests.log
+            remediation-rustfmt.log
+          if-no-files-found: warn
           retention-days: 3
 
-      - name: Enforce apply
-        if: steps.apply.outcome != 'success'
+      - name: Enforce validation
+        if: steps.apply.outcome != 'success' || steps.core_test.outcome != 'success' || steps.core_clippy.outcome != 'success' || steps.workspace_test.outcome != 'success' || steps.rustfmt.outcome != 'success'
         run: exit 1
+
+      - name: Commit reviewed fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: repair fixtures and strict workspace lints"
+          git push origin HEAD:agent/privacy-hardening

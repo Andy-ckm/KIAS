@@ -85,20 +85,20 @@ jobs:
         if: steps.scan.outcome == 'failure'
         run: exit 1
 
-  apply-test-warning-fixes:
-    name: Apply reviewed test warning fixes once
+  apply-fixture-and-lint-fixes:
+    name: Apply reviewed fixture and lint fixes once
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/privacy-hardening'
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     steps:
       - name: Checkout remediation branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: agent/privacy-hardening
-          fetch-depth: 2
+          fetch-depth: 12
           persist-credentials: true
 
       - name: Install stable Rust tooling
@@ -107,27 +107,59 @@ jobs:
           rustup default stable
           rustup component add rustfmt clippy
 
-      - name: Apply exact reviewed fixes
+      - name: Apply bounded reviewed changes
         run: |
           set -euo pipefail
-          python3 -c 'from pathlib import Path; p=Path("crates/tool-executor/src/builtin.rs"); s=p.read_text(encoding="utf-8"); old="        let result = tool.execute(serde_json::json!({\"command\": \"\"})).await;\n        // Empty command should not panic - just return a result\n        assert!(true); // Always true - just verifying no panic\n"; new="        let _result = tool.execute(serde_json::json!({\"command\": \"\"})).await;\n        // Returning from execute is sufficient for this no-panic regression test.\n"; assert s.count(old)==1; p.write_text(s.replace(old,new,1), encoding="utf-8")'
-          python3 -c 'from pathlib import Path; p=Path("crates/tool-executor/src/builtin.rs"); s=p.read_text(encoding="utf-8"); old="        let result = tool\n            .execute(serde_json::json!({\n                \"path\": \"/root/impossible_file_12345.txt\","; new="        let _result = tool\n            .execute(serde_json::json!({\n                \"path\": \"/root/impossible_file_12345.txt\","; assert s.count(old)==1; p.write_text(s.replace(old,new,1), encoding="utf-8")'
-          python3 -c 'from pathlib import Path; p=Path("crates/tool-executor/src/builtin.rs"); s=p.read_text(encoding="utf-8"); old="        // Should fail gracefully, not panic\n        assert!(true); // Always true - just verifying no panic\n"; new="        // Returning from execute is sufficient for this no-panic regression test.\n"; assert s.count(old)==1; p.write_text(s.replace(old,new,1), encoding="utf-8")'
-          python3 -c 'from pathlib import Path; p=Path("crates/tool-executor/src/vulnerability_scan.rs"); s=p.read_text(encoding="utf-8"); old="        let result = scanner.scan(\"shell\", &params, &default_ctx());\n        // This might not be caught since pattern is \"chmod +s\" not numeric\n        // Just verify no panic\n        // u64 is always >= 0, this assertion is always true\n"; new="        let _result = scanner.scan(\"shell\", &params, &default_ctx());\n        // Returning from scan is sufficient for this no-panic regression test.\n"; assert s.count(old)==1; p.write_text(s.replace(old,new,1), encoding="utf-8")'
-
-          git show HEAD^:.github/workflows/privacy.yml > .github/workflows/privacy.yml
+          python3 scripts/apply_ci_fixture_fixes.py
+          git show c02c29149071f377b38a6004a7cba7e61f625601:.github/workflows/privacy.yml > .github/workflows/privacy.yml
           git rm .github/workflows/fix-test-warnings-once.yml
+          git rm scripts/apply_ci_fixture_fixes.py
           cargo fmt --all
           git diff HEAD --check
 
-          changed="$(git diff --name-only HEAD | sort)"
-          expected="$(printf '%s\n' \
-            '.github/workflows/privacy.yml' \
-            '.github/workflows/fix-test-warnings-once.yml' \
-            'crates/tool-executor/src/builtin.rs' \
-            'crates/tool-executor/src/vulnerability_scan.rs' | sort)"
-          printf '%s\n' "${changed}"
-          test "${changed}" = "${expected}"
+          git diff --name-only HEAD | sort > /tmp/changed-files.txt
+          cat /tmp/changed-files.txt
+          while IFS= read -r path; do
+            case "${path}" in
+              .github/workflows/privacy.yml|\
+              .github/workflows/fix-test-warnings-once.yml|\
+              scripts/apply_ci_fixture_fixes.py|\
+              crates/api-server/src/handlers/agents.rs|\
+              crates/api-server/src/handlers/auth_gxp.rs|\
+              crates/api-server/src/handlers/config.rs|\
+              crates/api-server/src/handlers/context.rs|\
+              crates/api-server/src/handlers/health.rs|\
+              crates/api-server/src/handlers/im.rs|\
+              crates/api-server/src/handlers/metrics.rs|\
+              crates/api-server/src/handlers/nl_command.rs|\
+              crates/api-server/src/handlers/nodes.rs|\
+              crates/api-server/src/handlers/scheduler.rs|\
+              crates/api-server/src/handlers/tier_routing.rs|\
+              crates/api-server/src/handlers/tokens.rs|\
+              crates/api-server/src/handlers/durable_agents.rs|\
+              crates/controller/src/runtime_loop.rs|\
+              crates/controller/src/state.rs|\
+              crates/mcp-protocol/src/server.rs|\
+              crates/mcp-protocol/src/sandbox.rs|\
+              crates/compliance-security/src/auth_providers.rs|\
+              crates/a2a-registry/src/a2a_enhanced.rs|\
+              crates/gxp-compliance/src/audit_trail.rs|\
+              crates/gxp-compliance/src/risk_assessment.rs|\
+              crates/llm-engine/src/cost.rs|\
+              crates/llm-engine/src/provider.rs|\
+              crates/llm-engine/src/streaming.rs|\
+              crates/tool-executor/src/builtin.rs|\
+              crates/tool-executor/src/vulnerability_scan.rs)
+                ;;
+              *)
+                echo "Unexpected remediation change: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < /tmp/changed-files.txt
+          grep -Fxq '.github/workflows/privacy.yml' /tmp/changed-files.txt
+          grep -Fxq '.github/workflows/fix-test-warnings-once.yml' /tmp/changed-files.txt
+          grep -Fxq 'scripts/apply_ci_fixture_fixes.py' /tmp/changed-files.txt
           git add -A
 
       - name: Test Core default surface
@@ -164,7 +196,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-warning-remediation-diagnostics
+          name: fixture-lint-remediation-diagnostics
           path: |
             remediation-core-tests.log
             remediation-core-clippy.log
@@ -181,5 +213,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "test: make no-panic assertions warning-free"
+          git commit -m "test: repair fixtures and strict workspace lints"
           git push origin HEAD:agent/privacy-hardening

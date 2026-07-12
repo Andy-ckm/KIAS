@@ -16,6 +16,9 @@ pub struct SurfaceConfig {
     /// Browser-compatible authenticated streaming is not complete yet, so the
     /// WebSocket surface remains an explicit opt-in during pre-1.0.
     pub realtime: bool,
+    /// The current direct invocation path reaches a shell executor. It remains
+    /// Labs-only until sandbox, egress and side-effect guarantees are verified.
+    pub direct_execution: bool,
     pub nl_commands: bool,
     pub im: bool,
     pub visualization: bool,
@@ -33,6 +36,7 @@ impl SurfaceConfig {
             a2a: env_flag("KIAS_SURFACES__A2A"),
             tier_routing: env_flag("KIAS_SURFACES__TIER_ROUTING"),
             realtime: env_flag("KIAS_SURFACES__REALTIME"),
+            direct_execution: env_flag("KIAS_SURFACES__DIRECT_EXECUTION"),
             nl_commands: env_flag("KIAS_SURFACES__NL_COMMANDS"),
             im: env_flag("KIAS_SURFACES__IM"),
             visualization: env_flag("KIAS_SURFACES__VISUALIZATION"),
@@ -42,7 +46,7 @@ impl SurfaceConfig {
 
     /// The instance profile is observable to operators and clients.
     pub fn profile(self) -> &'static str {
-        if self.nl_commands || self.im || self.visualization {
+        if self.direct_execution || self.nl_commands || self.im || self.visualization {
             "labs-enabled"
         } else if self.knowledge || self.context || self.a2a || self.tier_routing || self.realtime {
             "core-with-extensions"
@@ -77,6 +81,7 @@ mod tests {
         assert!(!surfaces.a2a);
         assert!(!surfaces.tier_routing);
         assert!(!surfaces.realtime);
+        assert!(!surfaces.direct_execution);
         assert!(!surfaces.nl_commands);
         assert!(!surfaces.im);
         assert!(!surfaces.visualization);

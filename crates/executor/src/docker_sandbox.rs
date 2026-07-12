@@ -199,6 +199,7 @@ impl TaskExecutor for DockerSandboxExecutor {
             .args([
                 "create",
                 "--pull=never",
+                "--interactive",
                 "--name",
                 &name,
                 "--hostname",
@@ -253,7 +254,9 @@ impl TaskExecutor for DockerSandboxExecutor {
                         ..Default::default()
                     },
                 })),
-                error: Some(format!("sandbox admission passed but container creation failed: {error}")),
+                error: Some(format!(
+                    "sandbox admission passed but container creation failed: {error}"
+                )),
                 started_at,
                 completed_at: Utc::now(),
             });
@@ -266,14 +269,21 @@ impl TaskExecutor for DockerSandboxExecutor {
         process.stderr(std::process::Stdio::piped());
         process.kill_on_drop(true);
 
-        let mut child = process.spawn().map_err(|error| {
-            KiasError::ExternalService(format!("failed to start sandbox container: {error}"))
-        })?;
+        let mut child = match process.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                Self::remove_container(&name).await;
+                return Err(KiasError::ExternalService(format!(
+                    "failed to start sandbox container: {error}"
+                )));
+            }
+        };
         if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(input.as_bytes()).await?;
             if !input.ends_with('\n') {
                 stdin.write_all(b"\n").await?;
             }
+            stdin.shutdown().await?;
         }
 
         let mut wait = Box::pin(child.wait_with_output());
@@ -325,7 +335,10 @@ impl TaskExecutor for DockerSandboxExecutor {
         };
         let error = match status {
             TaskStatus::Completed => None,
-            _ if timed_out => Some(format!("Agent Run timed out after {}ms", timeout.as_millis())),
+            _ if timed_out => Some(format!(
+                "Agent Run timed out after {}ms",
+                timeout.as_millis()
+            )),
             _ if oom_killed => Some("Agent Run exceeded its memory limit".to_string()),
             _ => Some(format!("Agent Run exited with code {exit_code}")),
         };
@@ -387,7 +400,10 @@ fn parse_memory_usage(raw: &str) -> u64 {
     let split_at = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
         .unwrap_or(value.len());
-    let number = value[..split_at].trim().parse::<f64>().unwrap_or_default();
+    let number = value[..split_at]
+        .trim()
+        .parse::<f64>()
+        .unwrap_or_default();
     let unit = value[split_at..].trim().to_ascii_lowercase();
     let multiplier = match unit.as_str() {
         "b" | "" => 1_f64,

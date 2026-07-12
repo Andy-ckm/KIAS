@@ -44,16 +44,33 @@ jobs:
           rustup component add rustfmt clippy
 
       - name: Build recovery candidate
+        id: candidate_build
+        continue-on-error: true
         run: |
-          set -euxo pipefail
-          python3 scripts/export_ci_recovery.py
-          python3 scripts/export_ci_test_contract_fixes.py
-          python3 scripts/export_ci_integration_contract_fixes_v2.py
-          python3 scripts/export_ci_last_contract_fix.py
-          python3 scripts/export_ci_search_fallback_fix.py
-          cargo update -p sqlx
-          cargo fmt --all
-          git diff --check
+          set -o pipefail
+          (
+            set -euxo pipefail
+            python3 scripts/export_ci_recovery.py
+            python3 scripts/export_ci_test_contract_fixes.py
+            python3 scripts/export_ci_integration_contract_fixes_v2.py
+            python3 scripts/export_ci_last_contract_fix.py
+            python3 scripts/export_ci_search_fallback_fix.py
+            cargo update -p sqlx
+            cargo fmt --all
+            git diff --check
+          ) 2>&1 | tee recovery-build.log
+
+      - name: Upload candidate-build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-build-diagnostics
+          path: recovery-build.log
+          retention-days: 3
+
+      - name: Enforce candidate build
+        if: steps.candidate_build.outcome == 'failure'
+        run: exit 1
 
       - name: Package exact recovery candidate
         run: |

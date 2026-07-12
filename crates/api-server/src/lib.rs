@@ -16,6 +16,8 @@ pub struct AppState {
     pub config: Arc<KiasConfig>,
     /// Agent persistence repository, when configured.
     pub agent_repository: Option<Arc<kias_data_store::AgentRepository>>,
+    /// Durable Agent Run orchestration, when configured.
+    pub run_service: Option<Arc<run_service::RunService>>,
     /// In-memory agent working set hydrated from durable storage at startup.
     pub agents: Arc<RwLock<std::collections::HashMap<String, models::agent::Agent>>>,
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
@@ -89,6 +91,7 @@ impl AppState {
         Self {
             config: Arc::new(config),
             agent_repository: None,
+            run_service: None,
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -151,6 +154,24 @@ impl AppState {
         Ok(self)
     }
 
+    /// Attach durable Agent Run orchestration and mark non-terminal runs from a
+    /// previous process as interrupted, making them explicitly recoverable.
+    pub async fn with_run_repository(
+        mut self,
+        repository: Arc<kias_data_store::TaskRepository>,
+    ) -> kias_common::KiasResult<Self> {
+        let service = Arc::new(run_service::RunService::new(repository));
+        let interrupted = service.mark_interrupted_runs().await?;
+        if interrupted > 0 {
+            tracing::warn!(
+                count = interrupted,
+                "Marked unfinished Agent Runs as interrupted during startup"
+            );
+        }
+        self.run_service = Some(service);
+        Ok(self)
+    }
+
     /// Compatibility wrapper for existing async test code.
     pub async fn new_async(config: KiasConfig) -> Self {
         Self::new(config).await
@@ -196,6 +217,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod models;
 pub mod routes;
+pub mod run_service;
 pub mod surfaces;
 pub mod tls;
 pub mod websocket;

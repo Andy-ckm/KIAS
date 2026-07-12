@@ -24,10 +24,12 @@ import type {
   LogEntry,
   StatusTransition,
 } from '../types';
+import type { ProductCapabilities } from '../types/capabilities';
 
-const BASE_URL = '';  // Use Vite proxy in dev
+const BASE_URL = ''; // Use Vite proxy in dev
+const OPERATOR_TOKEN_KEY = 'kias.operator-token';
 
-class KiasApiError extends Error {
+export class KiasApiError extends Error {
   status: number;
   apiMessage: string;
 
@@ -39,12 +41,31 @@ class KiasApiError extends Error {
   }
 }
 
+export function getOperatorToken(): string | null {
+  return window.sessionStorage.getItem(OPERATOR_TOKEN_KEY);
+}
+
+export function setOperatorToken(token: string): void {
+  const normalized = token.trim();
+  if (normalized) {
+    window.sessionStorage.setItem(OPERATOR_TOKEN_KEY, normalized);
+  } else {
+    window.sessionStorage.removeItem(OPERATOR_TOKEN_KEY);
+  }
+}
+
+export function clearOperatorToken(): void {
+  window.sessionStorage.removeItem(OPERATOR_TOKEN_KEY);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const token = getOperatorToken();
   const resp = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -63,7 +84,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return resp.json();
 }
 
-// ── Health ─────────────────────────────────────────────────────────────────
+// ── Health and product contract ─────────────────────────────────────────────
 
 export async function getHealth(): Promise<{ status: string }> {
   return request('/health');
@@ -71,6 +92,10 @@ export async function getHealth(): Promise<{ status: string }> {
 
 export async function getReadiness(): Promise<HealthResponse> {
   return request('/readyz');
+}
+
+export async function getCapabilities(): Promise<ProductCapabilities> {
+  return request('/api/v1/system/capabilities');
 }
 
 // ── Agents ─────────────────────────────────────────────────────────────────
@@ -136,13 +161,13 @@ export async function getClusterStatus(): Promise<ClusterStatus> {
   return request('/api/v1/cluster/status');
 }
 
-// ── Token Analytics ────────────────────────────────────────────────────────
+// ── Token Analytics ───────────────────────────────────────────────────────
 
 export async function getTokenAnalytics(): Promise<TokenAnalytics> {
   return request('/api/v1/tokens');
 }
 
-// ── Workflows ──────────────────────────────────────────────────────────────
+// ── Workflows ─────────────────────────────────────────────────────────────
 
 export async function listWorkflows(): Promise<WorkflowSummary> {
   return request('/api/v1/workflows');
@@ -163,7 +188,7 @@ export async function deleteWorkflow(id: string): Promise<ActionResponse> {
   return request(`/api/v1/workflows/${id}`, { method: 'DELETE' });
 }
 
-// ── Agent Detail ───────────────────────────────────────────────────────────
+// ── Agent Detail ──────────────────────────────────────────────────────────
 
 export async function getAgentStatusHistory(id: string): Promise<StatusTransition[]> {
   return request(`/api/v1/agents/${id}/status-history`);
@@ -184,7 +209,7 @@ export async function getAgentResourceHistory(id: string): Promise<AgentResource
   return request(`/api/v1/agents/${id}/resources`);
 }
 
-// ── Scheduler ──────────────────────────────────────────────────────────────
+// ── Scheduler ─────────────────────────────────────────────────────────────
 
 export async function getSchedulerStatus(): Promise<SchedulerStatus> {
   return request('/api/v1/scheduler/status');

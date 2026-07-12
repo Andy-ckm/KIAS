@@ -34,10 +34,11 @@ jobs:
 
       - name: Apply exact reviewed fixes in workspace
         run: |
-          python3 scripts/apply_reviewed_core_fixes.py
-          cargo fmt --all
-          cargo generate-lockfile
-          git diff --check
+          set -o pipefail
+          python3 scripts/apply_reviewed_core_fixes.py 2>&1 | tee apply.log
+          cargo fmt --all 2>&1 | tee -a apply.log
+          cargo generate-lockfile -vv 2>&1 | tee -a apply.log
+          git diff --check 2>&1 | tee -a apply.log
 
       - name: Test Core default surface
         id: core_test
@@ -70,6 +71,7 @@ jobs:
         with:
           name: core-quality-fix-preview
           path: |
+            apply.log
             core-quality-fixes.patch
             core-tests.log
             core-clippy.log

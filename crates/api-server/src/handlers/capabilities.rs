@@ -107,6 +107,13 @@ pub async fn get_capabilities(State(state): State<AppState>) -> Json<ProductCapa
                 "pre-1.0 opt-in",
             ),
             capability(
+                "direct-execution",
+                "Direct shell-backed agent invocation",
+                "labs",
+                surfaces.direct_execution,
+                "experimental; sandbox not verified",
+            ),
+            capability(
                 "natural-language-commands",
                 "Natural-language command surface",
                 "labs",

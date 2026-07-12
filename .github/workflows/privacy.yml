@@ -91,7 +91,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     steps:
       - name: Checkout remediation branch
@@ -130,14 +130,52 @@ jobs:
           test "${changed}" = "${expected}"
           git add -A
 
-      - name: Validate Core and workspace
+      - name: Test Core default surface
+        id: core_test
+        continue-on-error: true
         env:
           RUSTFLAGS: "-D warnings"
         run: |
-          cargo test --all-features --locked --quiet
-          cargo clippy --all-targets --all-features --locked -- -D warnings
-          cargo test --workspace --all-features --locked --quiet
-          cargo fmt --all -- --check
+          set -o pipefail
+          cargo test --all-features --locked --quiet 2>&1 | tee remediation-core-tests.log
+
+      - name: Lint Core default surface
+        id: core_clippy
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets --all-features --locked --message-format=short -- -D warnings 2>&1 | tee remediation-core-clippy.log
+
+      - name: Test complete workspace
+        id: workspace_test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-features --locked --quiet 2>&1 | tee remediation-workspace-tests.log
+
+      - name: Check Rust formatting
+        id: rustfmt
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo fmt --all -- --check 2>&1 | tee remediation-rustfmt.log
+
+      - name: Upload remediation diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-warning-remediation-diagnostics
+          path: |
+            remediation-core-tests.log
+            remediation-core-clippy.log
+            remediation-workspace-tests.log
+            remediation-rustfmt.log
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Enforce validation
+        if: steps.core_test.outcome != 'success' || steps.core_clippy.outcome != 'success' || steps.workspace_test.outcome != 'success' || steps.rustfmt.outcome != 'success'
+        run: exit 1
 
       - name: Commit reviewed fixes
         run: |

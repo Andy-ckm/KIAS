@@ -173,7 +173,9 @@ jobs:
           start_server
           TOKEN="$(target/debug/kias token --role operator --subject runtime-smoke)"
 
+          echo "stage=capabilities"
           CAPABILITIES="$(api http://127.0.0.1:8080/api/v1/system/capabilities)"
+          printf 'capabilities=%s\n' "${CAPABILITIES}"
           python3 -c '
           import json,sys
           payload=json.load(sys.stdin)

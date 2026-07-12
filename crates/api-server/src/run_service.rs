@@ -11,10 +11,10 @@ use kias_executor::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::models::agent::{Agent, AgentSpec, ResourceRequest};
+use crate::models::agent::{Agent, AgentSpec};
 use crate::models::run::{
-    RunCheckpoint, RunConstraints, RunEvidence, RunLineage, RunLogs, RunPolicyDecision, RunRecord,
-    RunStatus, StartRunRequest,
+    ReplayRunRequest, RunCheckpoint, RunConstraints, RunEvidence, RunLineage, RunLogs,
+    RunPolicyDecision, RunRecord, RunStatus, StartRunRequest,
 };
 
 const RUN_TASK_TYPE: &str = "agent_run";
@@ -36,10 +36,13 @@ struct StoredAgentSnapshot {
     spec_sha256: String,
 }
 
+/// Durable Run metadata deliberately excludes the caller input. Only a digest
+/// and byte count are persisted so prompts, messages, and PII do not become a
+/// second unmanaged copy in the control-plane database.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredRunInput {
-    input: String,
     input_sha256: String,
+    input_bytes: usize,
     agent: StoredAgentSnapshot,
     policy: RunPolicyDecision,
     lineage: RunLineage,
@@ -61,7 +64,7 @@ impl RunService {
             .map(ToOwned::to_owned)
             .collect();
         let runtime_available = std::process::Command::new("docker")
-            .args(["version", "--format", "{{.Server.Version}}"])
+            .arg("info")
             .output()
             .map(|output| output.status.success())
             .unwrap_or(false);
@@ -106,19 +109,18 @@ impl RunService {
         agent: &Agent,
         request: StartRunRequest,
     ) -> KiasResult<RunRecord> {
-        let lineage = RunLineage::default();
         let (policy, executor_policy) = self.evaluate(agent, &request);
-        let snapshot = snapshot_agent(&agent.spec)?;
         let input_sha256 = sha256_hex(request.input.as_bytes());
+        let input_bytes = request.input.len();
         let stored = StoredRunInput {
-            input: request.input,
             input_sha256,
-            agent: snapshot,
+            input_bytes,
+            agent: snapshot_agent(&agent.spec)?,
             policy,
-            lineage,
+            lineage: RunLineage::default(),
         };
 
-        self.persist_and_maybe_spawn(agent.id.clone(), stored, executor_policy)
+        self.persist_and_maybe_spawn(agent.id.clone(), stored, executor_policy, request.input)
             .await
     }
 
@@ -131,17 +133,12 @@ impl RunService {
     }
 
     pub async fn get_run(&self, id: &str) -> KiasResult<RunRecord> {
-        let row = self.get_run_row(id).await?;
-        run_record_from_row(row)
+        run_record_from_row(self.get_run_row(id).await?)
     }
 
     pub async fn get_logs(&self, id: &str) -> KiasResult<RunLogs> {
         let row = self.get_run_row(id).await?;
-        let output = row
-            .output
-            .as_deref()
-            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-            .unwrap_or_default();
+        let output = parse_output(&row);
         let final_execution = output.get("final").cloned().unwrap_or_default();
         let stdout = final_execution
             .get("stdout")
@@ -163,18 +160,13 @@ impl RunService {
     pub async fn get_evidence(&self, id: &str) -> KiasResult<RunEvidence> {
         let row = self.get_run_row(id).await?;
         let run = run_record_from_row(row.clone())?;
-        let output = row
-            .output
-            .as_deref()
-            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-            .unwrap_or_default();
+        let output = parse_output(&row);
         let attempts = output
             .get("attempts")
             .and_then(serde_json::Value::as_array)
             .cloned()
             .unwrap_or_default();
         let final_execution = output.get("final").cloned().filter(|value| !value.is_null());
-
         let unsigned = serde_json::json!({
             "run": &run,
             "attempts": &attempts,
@@ -201,15 +193,14 @@ impl RunService {
             input_sha256: stored.input_sha256,
             agent_spec_sha256: stored.agent.spec_sha256,
             created_at: row.created_at,
-            note: "Replay checkpoint: KIAS persists the admitted AgentSpec, bounded input, policy decision, and lineage. It does not snapshot process memory."
+            note: "Replay checkpoint: KIAS persists the admitted AgentSpec, input digest, policy decision, and lineage. Retry or recovery must resupply the identical input; process memory is never snapshotted."
                 .to_string(),
         })
     }
 
     pub async fn cancel(&self, id: &str) -> KiasResult<RunRecord> {
         let mut row = self.get_run_row(id).await?;
-        let status = RunStatus::from_storage(&row.status);
-        if status.is_terminal() {
+        if RunStatus::from_storage(&row.status).is_terminal() {
             return run_record_from_row(row);
         }
 
@@ -221,7 +212,11 @@ impl RunService {
         run_record_from_row(row)
     }
 
-    pub async fn retry(self: &Arc<Self>, id: &str) -> KiasResult<RunRecord> {
+    pub async fn retry(
+        self: &Arc<Self>,
+        id: &str,
+        request: ReplayRunRequest,
+    ) -> KiasResult<RunRecord> {
         let source = self.get_run_row(id).await?;
         let status = RunStatus::from_storage(&source.status);
         if !matches!(status, RunStatus::Failed | RunStatus::Cancelled) {
@@ -229,30 +224,44 @@ impl RunService {
                 "Only failed or cancelled Agent Runs can be retried".to_string(),
             ));
         }
-        let mut stored = parse_stored_input(&source)?;
-        stored.lineage = RunLineage {
-            retry_of: Some(source.id.clone()),
-            recovery_of: None,
-        };
-        let executor_policy = executor_policy_from_decision(&stored.policy);
-        self.persist_and_maybe_spawn(source.agent_id, stored, executor_policy)
-            .await
+        self.replay(source, request.input, true).await
     }
 
-    pub async fn recover(self: &Arc<Self>, id: &str) -> KiasResult<RunRecord> {
+    pub async fn recover(
+        self: &Arc<Self>,
+        id: &str,
+        request: ReplayRunRequest,
+    ) -> KiasResult<RunRecord> {
         let source = self.get_run_row(id).await?;
         if RunStatus::from_storage(&source.status) != RunStatus::Interrupted {
             return Err(KiasError::Conflict(
                 "Only interrupted Agent Runs can be recovered".to_string(),
             ));
         }
+        self.replay(source, request.input, false).await
+    }
+
+    async fn replay(
+        self: &Arc<Self>,
+        source: TaskRow,
+        input: String,
+        is_retry: bool,
+    ) -> KiasResult<RunRecord> {
         let mut stored = parse_stored_input(&source)?;
-        stored.lineage = RunLineage {
-            retry_of: None,
-            recovery_of: Some(source.id.clone()),
+        verify_replay_input(&stored, &input)?;
+        stored.lineage = if is_retry {
+            RunLineage {
+                retry_of: Some(source.id.clone()),
+                recovery_of: None,
+            }
+        } else {
+            RunLineage {
+                retry_of: None,
+                recovery_of: Some(source.id.clone()),
+            }
         };
         let executor_policy = executor_policy_from_decision(&stored.policy);
-        self.persist_and_maybe_spawn(source.agent_id, stored, executor_policy)
+        self.persist_and_maybe_spawn(source.agent_id, stored, executor_policy, input)
             .await
     }
 
@@ -261,6 +270,7 @@ impl RunService {
         agent_id: String,
         stored: StoredRunInput,
         executor_policy: DockerSandboxPolicy,
+        execution_input: String,
     ) -> KiasResult<RunRecord> {
         let now = Utc::now().to_rfc3339();
         let mut row = TaskRow::new(agent_id, format!("Agent Run: {}", stored.agent.name));
@@ -283,18 +293,19 @@ impl RunService {
 
         self.repository.create(&row).await?;
         let record = run_record_from_row(row.clone())?;
-
         if stored.policy.allowed {
             let service = Arc::clone(self);
             let id = row.id.clone();
             tokio::spawn(async move {
-                if let Err(error) = service.execute_run(&id, executor_policy).await {
+                if let Err(error) = service
+                    .execute_run(&id, executor_policy, execution_input)
+                    .await
+                {
                     tracing::error!(run_id = %id, error = %error, "Agent Run execution failed");
                     let _ = service.fail_run(&id, error.to_string()).await;
                 }
             });
         }
-
         Ok(record)
     }
 
@@ -302,6 +313,7 @@ impl RunService {
         &self,
         id: &str,
         executor_policy: DockerSandboxPolicy,
+        execution_input: String,
     ) -> KiasResult<()> {
         let mut row = self.get_run_row(id).await?;
         let stored = parse_stored_input(&row)?;
@@ -330,7 +342,7 @@ impl RunService {
                 payload: serde_json::json!({
                     "image": stored.agent.image.clone(),
                     "command": stored.agent.command.clone(),
-                    "input": stored.input.clone(),
+                    "input": execution_input,
                 }),
                 created_at: Utc::now(),
                 timeout: row
@@ -340,15 +352,13 @@ impl RunService {
 
             let result = executor.execute(&task).await?;
             let result_status = result.status.clone();
-            let result_error = result.error.clone();
-            let result_output = result.output.clone();
             attempts.push(serde_json::json!({
                 "attempt": attempt,
                 "status": result_status.clone(),
                 "started_at": result.started_at,
                 "completed_at": result.completed_at,
-                "error": result_error,
-                "execution": result_output,
+                "error": result.error.clone(),
+                "execution": result.output.clone(),
             }));
 
             let latest = self.get_run_row(id).await?;
@@ -381,7 +391,6 @@ impl RunService {
                 return Ok(());
             }
         }
-
         Ok(())
     }
 
@@ -555,6 +564,13 @@ fn parse_stored_input(row: &TaskRow) -> KiasResult<StoredRunInput> {
     serde_json::from_str(&row.input).map_err(Into::into)
 }
 
+fn parse_output(row: &TaskRow) -> serde_json::Value {
+    row.output
+        .as_deref()
+        .and_then(|raw| serde_json::from_str(raw).ok())
+        .unwrap_or_default()
+}
+
 fn run_record_from_row(row: TaskRow) -> KiasResult<RunRecord> {
     let stored = parse_stored_input(&row)?;
     Ok(RunRecord {
@@ -565,7 +581,7 @@ fn run_record_from_row(row: TaskRow) -> KiasResult<RunRecord> {
         max_retries: row.max_retries.max(0) as u32,
         timeout_seconds: row.timeout_seconds.unwrap_or(30).max(1) as u64,
         input_sha256: stored.input_sha256,
-        input_bytes: stored.input.len(),
+        input_bytes: stored.input_bytes,
         policy: stored.policy,
         lineage: stored.lineage,
         error: row.error_message,
@@ -574,6 +590,16 @@ fn run_record_from_row(row: TaskRow) -> KiasResult<RunRecord> {
         completed_at: row.completed_at,
         updated_at: row.updated_at,
     })
+}
+
+fn verify_replay_input(stored: &StoredRunInput, input: &str) -> KiasResult<()> {
+    let digest = sha256_hex(input.as_bytes());
+    if input.len() != stored.input_bytes || digest != stored.input_sha256 {
+        return Err(KiasError::Validation(
+            "retry/recovery input must exactly match the original input digest".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 fn sha256_hex(value: &[u8]) -> String {
@@ -611,6 +637,7 @@ fn parse_memory(raw: &str) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::agent::ResourceRequest;
     use std::collections::HashMap;
 
     fn agent() -> Agent {
@@ -661,6 +688,37 @@ mod tests {
             .insert("TOKEN".to_string(), "secret".to_string());
         let (decision, _) = service.evaluate(&agent, &StartRunRequest::default());
         assert!(!decision.allowed);
+    }
+
+    #[test]
+    fn durable_metadata_excludes_raw_input() {
+        let stored = StoredRunInput {
+            input_sha256: sha256_hex(b"sensitive"),
+            input_bytes: 9,
+            agent: snapshot_agent(&agent().spec).unwrap(),
+            policy: RunPolicyDecision {
+                allowed: true,
+                policy_version: POLICY_VERSION.to_string(),
+                reasons: Vec::new(),
+                constraints: RunConstraints {
+                    image: "busybox:1.36".to_string(),
+                    network: "none".to_string(),
+                    root_filesystem: "read-only".to_string(),
+                    host_mounts: false,
+                    no_new_privileges: true,
+                    cpu_limit: 0.5,
+                    memory_limit_bytes: DEFAULT_MEMORY_BYTES,
+                    pids_limit: PIDS_LIMIT,
+                    timeout_seconds: 30,
+                    max_retries: 0,
+                },
+            },
+            lineage: RunLineage::default(),
+        };
+        let json = serde_json::to_string(&stored).unwrap();
+        assert!(!json.contains("sensitive"));
+        assert!(verify_replay_input(&stored, "sensitive").is_ok());
+        assert!(verify_replay_input(&stored, "different").is_err());
     }
 
     #[test]

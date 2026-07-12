@@ -1,0 +1,48 @@
+name: Preview Agent Run rustfmt
+
+on:
+  push:
+    branches:
+      - agent/privacy-hardening
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-agent-run-rustfmt
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install rustfmt
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt
+
+      - name: Format without writing to the repository
+        run: |
+          cargo fmt --all
+          git diff --check
+          git diff --name-only > rustfmt-changed.txt
+          test -s rustfmt-changed.txt
+          tar -czf rustfmt-files.tar.gz -T rustfmt-changed.txt
+          cat rustfmt-changed.txt
+
+      - name: Upload reviewed formatting preview
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-run-rustfmt-preview
+          path: |
+            rustfmt-changed.txt
+            rustfmt-files.tar.gz
+          if-no-files-found: error
+          retention-days: 3

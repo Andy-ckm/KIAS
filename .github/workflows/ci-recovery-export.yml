@@ -50,6 +50,7 @@ jobs:
           python3 scripts/export_ci_test_contract_fixes.py
           python3 scripts/export_ci_integration_contract_fixes_v2.py
           python3 scripts/export_ci_last_contract_fix.py
+          python3 scripts/export_ci_search_fallback_fix.py
           cargo update -p sqlx
           cargo fmt --all
           git diff --check

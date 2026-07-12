@@ -143,20 +143,36 @@ jobs:
           cargo fmt --all
           git diff --check
 
+      - name: Commit recovery candidate
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: apply bounded CI and dependency recovery"
+          git push origin HEAD:agent/ci-recovery
+
       - name: Test Core default surface
-        run: cargo test --locked
+        id: core_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --locked 2>&1 | tee core-tests.log
+
+      - name: Upload Core recovery diagnostics
+        if: steps.core_tests.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-core-diagnostics
+          path: core-tests.log
+          retention-days: 3
+
+      - name: Enforce Core test result
+        if: steps.core_tests.outcome == 'failure'
+        run: exit 1
 
       - name: Lint Core default surface
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Test complete workspace
         run: cargo test --workspace --locked
-
-      - name: Commit verified recovery
-        run: |
-          set -euxo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: recover strict CI and dependency audit baseline"
-          git push origin HEAD:agent/ci-recovery

@@ -1,0 +1,79 @@
+name: Apply durable Agent router once
+
+on:
+  push:
+    branches:
+      - agent/privacy-hardening
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-durable-agent-router-once
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/agent/privacy-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/privacy-hardening
+          persist-credentials: true
+
+      - name: Apply exact reviewed route replacements
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('crates/api-server/src/routes/product.rs')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '    a2a, agents, capabilities, config, context, dashboard, health, im, knowledge, metrics,\n',
+                  '    a2a, agents, capabilities, config, context, dashboard, durable_agents, health, im, knowledge, metrics,\n',
+              ),
+              (
+                  '            axum::routing::get(agents::list_agents).post(agents::create_agent),',
+                  '            axum::routing::get(durable_agents::list_agents)\n                .post(durable_agents::create_agent),',
+              ),
+              (
+                  '            axum::routing::get(agents::get_agent).delete(agents::delete_agent),',
+                  '            axum::routing::get(durable_agents::get_agent)\n                .delete(durable_agents::delete_agent),',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one match, found {count}: {old!r}')
+              text = text.replace(old, new)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          rustfmt --edition 2021 crates/api-server/src/routes/product.rs
+          git diff --check
+
+      - name: Validate durable Core route composition
+        run: cargo check --locked -p kias-api-server -p kias-main
+
+      - name: Remove one-shot workflow and enforce allowlist
+        run: |
+          git rm .github/workflows/apply-durable-agent-router-once.yml
+          git add crates/api-server/src/routes/product.rs
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' '.github/workflows/apply-durable-agent-router-once.yml' 'crates/api-server/src/routes/product.rs' | sort)"
+          test "${changed}" = "${expected}"
+
+      - name: Commit reviewed router switch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(runtime): route Core Agent CRUD through SQLite"
+          git push origin HEAD:agent/privacy-hardening

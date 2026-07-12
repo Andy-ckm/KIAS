@@ -1,168 +1,338 @@
-# AgentGuard 架构设计
+# KIAS Architecture
 
-## 分层架构
+KIAS is a self-hosted control plane for operating tool-using AI agents under explicit lifecycle, policy, audit, and recovery boundaries.
 
+This document describes the intended architecture. It distinguishes the stable Core from optional Extensions and experimental Labs; repository presence alone does not imply production readiness.
+
+## Architectural outcomes
+
+The architecture is optimized for three outcomes:
+
+- **Control:** an agent cannot obtain identity, tools, autonomy, budget, or resources without an explicit decision.
+- **Evidence:** important decisions and state transitions produce privacy-aware operational and audit evidence.
+- **Recovery:** managed work can be cancelled, reconciled, retried, resumed, or contained after failure.
+
+## System context
+
+```text
+                  ┌──────────────────────────────┐
+                  │ Operators and platform APIs │
+                  └──────────────┬───────────────┘
+                                 │ authenticated requests
+                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                         KIAS control plane                       │
+│                                                                  │
+│  API boundary ─► identity/policy ─► desired state ─► scheduler   │
+│                         │                │              │          │
+│                         │                ▼              ▼          │
+│                         │         reconciler       runtime/tool    │
+│                         │                │          execution      │
+│                         ▼                ▼              │          │
+│                    audit evidence ◄── state/events ◄────┘          │
+│                         │                                         │
+│                         ▼                                         │
+│              metrics, health and recovery state                  │
+└─────────────────────────┬────────────────────────────────────────┘
+                          │ explicitly configured adapters
+                          ▼
+        ┌────────────────────────────────────────────────┐
+        │ External identity, model, tool, storage and    │
+        │ observability systems                          │
+        └────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        L3: Handlers                         │
-│              (API 路由、请求处理、响应序列化)                    │
-├─────────────────────────────────────────────────────────────┤
-│                        L2: Services                         │
-│           (业务逻辑、调度算法、缓存策略、监控分析)                │
-├─────────────────────────────────────────────────────────────┤
-│                        L1: Models                           │
-│              (数据模型、配置结构、事件定义)                      │
-├─────────────────────────────────────────────────────────────┤
-│                        L0: Common                           │
-│              (工具函数、错误类型、日志、配置)                    │
-└─────────────────────────────────────────────────────────────┘
+
+KIAS does not replace external identity providers, secret managers, network policy, backup systems, SIEMs, or incident-response processes. It integrates with them through explicit boundaries.
+
+## Product tiers
+
+### Core
+
+Core owns the minimum control-plane contract:
+
+- authenticated management interfaces;
+- desired and observed agent state;
+- scheduling and resource decisions;
+- workflow execution, cancellation and checkpoints;
+- tool, role, autonomy, rate and budget policies;
+- persistence, audit, health, metrics and recovery primitives;
+- normalized model-routing interfaces.
+
+Core must remain useful when every optional integration is disabled.
+
+### Extensions
+
+Extensions provide optional orchestration, protocol, cache, knowledge, document or user-interface capabilities. They consume Core interfaces and must not bypass Core policy or audit decisions.
+
+### Labs
+
+Labs contains experimental autonomous loops, broad automation domains and incomplete integrations. Labs is disabled by default and carries no stability promise. See [`capability-maturity.md`](capability-maturity.md).
+
+## Logical layers
+
+```text
+L4  Composition and operator surfaces
+    kias-main · kias-cli · dashboard
+
+L3  Control-plane interfaces
+    api-server · protocol adapters
+
+L2  Domain services
+    controller · scheduler · workflow-engine · autonomy-controller
+    executor · tool-executor · agent-runtime · model-router
+
+L1  State, evidence and platform services
+    data-store · data-governance · monitor · compliance-security
+
+L0  Shared contracts
+    common types · configuration · errors · masking · audit primitives
 ```
 
-## 依赖规则
+### Dependency rules
 
-**允许的依赖方向**：
-- L3 → L2, L1, L0
-- L2 → L1, L0
-- L1 → L0
+- dependencies flow downward;
+- Core may depend on Core, not on Labs;
+- Extensions depend on published Core interfaces;
+- Labs cannot become a transitive requirement of the default Core build;
+- API handlers contain transport logic, not domain decisions;
+- authentication, authorization and data minimization occur before side effects;
+- adapters translate external formats but do not own control-plane policy;
+- persistence implementations do not decide authorization;
+- audit generation is part of a state-changing use case, not an afterthought.
 
-**禁止的依赖**：
-- L0 → L1, L2, L3
-- L1 → L2, L3
-- L2 → L3
+A Core-to-Labs dependency is a release blocker. Architecture checks should enforce these rules mechanically as the feature-gating refactor progresses.
 
-**自动检查**：`make lint-arch`
+## Core request path
 
-## 核心组件
-
-### API Server
-- **职责**：接收请求，认证授权，路由分发
-- **技术**：axum (HTTP) + tonic (gRPC)
-- **依赖**：scheduler, controller
-
-### A2A Protocol (Agent-to-Agent)
-- **职责**：标准化 Agent 间通信，任务委派，能力发现
-- **参考**：Google A2A 协议规范
-- **端点**：
-  - `GET /.well-known/agent.json` — Agent Card 发现
-  - `GET /a2a/v1/agents` — 列出所有 Agent Card
-  - `POST /a2a/v1/tasks` — 发送任务（支持 Direct/Capability/LoadBalanced/Broadcast/Chain 路由）
-  - `GET /a2a/v1/tasks/:id` — 查询任务状态
-  - `GET /a2a/v1/tasks/:id/stream` — SSE 实时推送
-  - `POST /a2a/v1/tasks/:id/cancel` — 取消任务
-- **路由策略**：5 种（Direct、Capability、LoadBalanced、Broadcast、Chain）
-- **任务生命周期**：Submitted → Working → Completed/Failed/Cancelled
-
-### Scheduler
-- **职责**：资源调度，Agent 分配
-- **算法**：
-  - Round Robin（轮询）
-  - Least Loaded（最少负载）
-  - Resource Aware（资源感知）
-  - Cache Aware（缓存感知，借鉴 DeepSeek）
-- **依赖**：controller, cache-hub
-
-### Controller
-- **职责**：Agent 生命周期管理
-- **功能**：
-  - 创建/删除 Agent
-  - 自动扩缩容
-  - 故障恢复
-- **依赖**：agentsight
-
-### AgentSight
-- **职责**：可观测性，Token 追踪
-- **借鉴**：ANOLISA 的 AgentSight 组件
-- **功能**：
-  - Token 逐笔拆账
-  - Agent 健康监控
-  - eBPF 零侵入探针
-  - 可视化 Dashboard
-- **依赖**：无（独立组件）
-
-### Cache Hub
-- **职责**：KV Cache 优化
-- **借鉴**：DeepSeek 的 Prefix Caching
-- **功能**：
-  - Prefix Caching：相同前缀复用
-  - 语义缓存：相似请求命中
-  - 分布式缓存：跨节点共享
-- **依赖**：无（独立组件）
-
-## 数据流
-
+```text
+1. Receive request
+2. Assign request/correlation identifier
+3. Authenticate caller
+4. Resolve tenant and subject scope
+5. Validate input and size limits
+6. Authorize action and target resource
+7. Evaluate policy, autonomy, budget and rate limits
+8. Persist the intended state or command atomically
+9. Emit a pseudonymous audit event
+10. Reconcile desired state with runtime state
+11. Expose status, metrics and bounded error information
 ```
-用户请求
+
+Sensitive request bodies, credentials, tokens, query strings and raw external payloads are excluded from normal application logs.
+
+## Agent lifecycle
+
+An agent is modeled as a managed resource with explicit desired and observed state.
+
+```text
+Declared ─► Pending ─► Scheduled ─► Starting ─► Running
+    │            │          │           │          │
+    │            └──────────┴───────────┴──────────┤
+    │                                               ▼
+    └────────────────────────────────────────► Degraded
+                                                    │
+                           retry / reconcile ◄──────┤
+                                                    ▼
+                                               Failed
+                                                    │
+                                      stop/delete ──┘
+```
+
+Required invariants:
+
+- state transitions are validated;
+- retries are bounded and observable;
+- cancellation is idempotent;
+- desired state survives process restarts where durability is promised;
+- reconciliation does not silently widen permissions;
+- terminal failures enter a dead-letter or operator-review path;
+- health reflects real dependencies rather than successful construction alone.
+
+## Scheduling boundary
+
+The scheduler receives a constrained placement request rather than arbitrary agent code. Inputs may include:
+
+- required capabilities and resource limits;
+- tenant and policy constraints;
+- workload priority and deadlines;
+- current capacity and health;
+- optional cache-affinity hints.
+
+The scheduler returns a placement decision and explanation. It must not:
+
+- grant a capability absent from the request;
+- ignore tenant or policy constraints to improve utilization;
+- treat optional cache state as a correctness dependency;
+- retry indefinitely under overload.
+
+Future hardening includes fairness, admission control, backpressure and adversarial scheduling tests.
+
+## Workflow and tool execution
+
+The workflow engine coordinates bounded steps; the tool-execution boundary performs side effects.
+
+```text
+Workflow state
     │
-    ▼
-API Server (认证、路由)
+    ├─► route / condition / fan-out
     │
-    ▼
-Scheduler (资源调度)
+    ├─► policy decision
+    │       ├─ deny ─► auditable failure
+    │       ├─ require approval ─► suspended checkpoint
+    │       └─ allow
     │
-    ├──→ Cache Hub (缓存命中检查)
-    │
-    ▼
-Controller (Agent 生命周期)
-    │
-    ▼
-Agent Pod (执行任务)
-    │
-    ▼
-AgentSight (监控、Token 追踪)
+    └─► isolated tool execution
+            ├─ timeout
+            ├─ cancellation
+            ├─ resource and egress limits
+            ├─ normalized output
+            └─ result / failure evidence
 ```
 
-## Agent Pod 结构
+Tool output is untrusted input. It must be size-limited, validated and prevented from implicitly changing authorization context.
 
+## Identity and authorization
+
+Authentication establishes a subject; authorization decides whether that subject may perform an action on a resource within a scope.
+
+Design requirements:
+
+- no static default administrative credential;
+- secrets are provided at runtime through environment or external providers;
+- credential values have redacted diagnostics and serialization;
+- direct personal identifiers are avoided in ordinary logs and audit views;
+- audit subjects use keyed pseudonyms when direct identity is unnecessary;
+- tenant context is explicit and included in every storage and cache key;
+- authorization is checked on both collection and object-level operations;
+- service identities and human identities are distinguishable;
+- high-impact actions can require human approval.
+
+Multi-tenant isolation is not considered hardened until end-to-end cross-tenant misuse tests pass.
+
+## Data classification and retention
+
+KIAS data falls into four broad classes:
+
+| Class | Examples | Default treatment |
+|---|---|---|
+| Credentials | passwords, API keys, tokens, private keys, recovery codes | never logged; encrypted/externalized; shortest lifetime |
+| Personal/confidential content | prompts, messages, documents, identity claims, locations | do not retain by default; explicit purpose and retention required |
+| Operational state | desired state, checkpoints, health, resource usage | persist only as needed for recovery and operations |
+| Audit evidence | pseudonymous subject, action, resource, outcome, policy decision | integrity-protected, access-controlled, retention documented |
+
+Raw webhook bodies and provider error bodies are not normal telemetry. Adapters extract only fields required for the configured use case.
+
+## Persistence and consistency
+
+Core state-changing operations should use an atomic boundary that records:
+
+- the accepted command or desired-state change;
+- the resulting resource version;
+- an audit event or durable event reference;
+- an idempotency key where clients may retry.
+
+Required behaviors before 1.0:
+
+- schema migrations are versioned and tested;
+- backup and restore are documented;
+- corruption and partial-write behavior is tested;
+- retries do not duplicate irreversible effects;
+- cache loss does not lose authoritative state;
+- recovery after process termination is deterministic.
+
+## Observability
+
+KIAS separates operational telemetry from security audit evidence.
+
+### Operational telemetry
+
+- request duration and outcome;
+- queue depth, saturation and retry counts;
+- reconciliation and workflow latency;
+- resource usage and health;
+- provider and tool error categories without raw response bodies.
+
+### Audit evidence
+
+- pseudonymous actor or service subject;
+- scoped action and target resource;
+- policy decision and outcome;
+- timestamp and correlation identifier;
+- approval or override reference where applicable.
+
+Metrics must avoid unbounded labels. Logs must avoid credentials, raw prompts, messages, files, query strings and direct identifiers unless a documented incident workflow temporarily enables controlled capture.
+
+## Integration adapter contract
+
+An external adapter must:
+
+1. validate origin, signature and replay window where the platform supports them;
+2. fail closed when validation is incomplete or configuration is missing;
+3. parse bounded input without panics;
+4. retain only required normalized fields;
+5. call Core policy and identity interfaces rather than bypassing them;
+6. normalize provider errors without returning raw confidential bodies;
+7. provide deterministic fixtures and failure-path tests;
+8. document permissions, data flow, retention and revocation.
+
+An adapter that cannot meet this contract remains in Labs and is disabled by default.
+
+## Composition and feature flags
+
+The long-term composition model is:
+
+```text
+kias-core binary
+  ├─ required Core services
+  ├─ optional Extension features
+  └─ no Labs features by default
+
+separate experimental binaries or examples
+  └─ explicitly selected Labs capabilities
 ```
-Agent Pod
-├── AGENTS.md          # Agent 上下文（给 AI 看）
-├── agent-config.yaml  # 配置
-├── workspace/         # 工作目录
-├── logs/              # 日志
-└── eBPF Probe         # 监控探针
-```
 
-## 资源管理
+`kias-main` is currently a composition root under refactoring. Optional services that are always constructed, and health checks that only report successful construction, are tracked as pre-1.0 gaps.
 
-### 资源类型
-- CPU：核心数
-- Memory：GiB
-- GPU：卡数
-- Token：配额
+## Deployment trust boundaries
 
-### 资源请求
-```yaml
-resources:
-  requests:
-    cpu: "0.5"
-    memory: "512Mi"
-  limits:
-    cpu: "2"
-    memory: "2Gi"
-```
+A production-oriented deployment should separate:
 
-## 调度策略
+- public ingress from the management API;
+- human/operator identity from agent/service identity;
+- control-plane state from untrusted tool workloads;
+- secret storage from repository and application configuration;
+- tenant data and encryption contexts;
+- audit storage from mutable application logs;
+- network egress for tools from control-plane network access;
+- build/release identities from runtime identities.
 
-### 亲和性
-```yaml
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: gpu
-              operator: In
-              values:
-                - "true"
-```
+KIAS cannot create these boundaries merely by being installed; the deployment must configure and verify them.
 
-### 优先级
-```yaml
-priorityClassName: high  # high, medium, low
-```
+## Failure model
 
-## 参考
+The system assumes:
 
-- [Kubernetes 架构](https://kubernetes.io/docs/concepts/overview/components/)
-- [ANOLISA AgentSight](https://github.com/alibaba/anolisa)
-- [DeepSeek Cache](https://arxiv.org/abs/2405.04532)
+- external providers become unavailable or return malformed data;
+- tools hang, exceed limits or produce hostile output;
+- processes terminate between state transitions;
+- duplicate and reordered requests occur;
+- storage may be slow, full or partially unavailable;
+- credentials are revoked during active work;
+- operators make configuration mistakes;
+- a tenant attempts to reference another tenant's resources.
+
+Design reviews and tests should begin with these failure cases, not only the happy path.
+
+## Architecture decision policy
+
+Significant changes require an Architecture Decision Record covering:
+
+- context and user problem;
+- alternatives considered;
+- security and privacy impact;
+- compatibility and migration;
+- operational failure behavior;
+- dependency and binary-size impact;
+- evidence and rollback plan.
+
+See [`../PRODUCT.md`](../PRODUCT.md), [`capability-maturity.md`](capability-maturity.md), [`threat-model.md`](threat-model.md), and [`project-status.md`](project-status.md).

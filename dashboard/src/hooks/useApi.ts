@@ -1,4 +1,4 @@
-// Custom React hooks for KIAS API data fetching
+// Custom React hooks for KIAS API data fetching.
 
 import { useState, useEffect, useCallback } from 'react';
 
@@ -9,8 +9,11 @@ interface UseApiState<T> {
 }
 
 /**
- * Generic hook for fetching data from the KIAS API.
- * Handles loading state, errors, and automatic refetching.
+ * Fetch data from the KIAS API and expose loading, error, and refetch state.
+ *
+ * Callers that capture changing values in `fetcher` must provide the same values
+ * in `deps`. This mirrors React's effect dependency contract while keeping the
+ * public refetch callback stable between dependency changes.
  */
 export function useApi<T>(
   fetcher: () => Promise<T>,
@@ -23,38 +26,37 @@ export function useApi<T>(
   });
 
   const fetchData = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState(previous => ({ ...previous, loading: true, error: null }));
     try {
       const data = await fetcher();
       setState({ data, loading: false, error: null });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Unknown error';
       setState({ data: null, loading: false, error: message });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // The dependency list is intentionally caller-supplied; see the function contract above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   }, deps);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   return { ...state, refetch: fetchData };
 }
 
-/**
- * Hook that auto-refreshes data at a given interval (in ms).
- */
+/** Auto-refresh data at the configured interval. */
 export function usePolling<T>(
   fetcher: () => Promise<T>,
   intervalMs: number = 5000,
   deps: unknown[] = []
-): UseApiState<T> {
+): UseApiState<T> & { refetch: () => void } {
   const { data, loading, error, refetch } = useApi(fetcher, deps);
 
   useEffect(() => {
-    const timer = setInterval(refetch, intervalMs);
-    return () => clearInterval(timer);
+    const timer = window.setInterval(refetch, intervalMs);
+    return () => window.clearInterval(timer);
   }, [refetch, intervalMs]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch };
 }

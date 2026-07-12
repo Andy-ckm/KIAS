@@ -7,8 +7,16 @@
 //!
 //! All auth operations produce audit events via [`AuthAuditEvent`].
 
+use crate::audit::pseudonymize_identifier;
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, SaltString},
+    Argon2, PasswordVerifier,
+};
 use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
+use hmac::{Hmac, Mac};
+use rand::{rngs::OsRng, RngCore};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt;
@@ -29,6 +37,8 @@ pub enum AuthError {
     PasswordTooWeak { reason: String },
     /// The new password matches one of the recently used passwords.
     PasswordReused,
+    /// A secure password hash could not be generated.
+    PasswordHashingFailed,
     /// Two-factor authentication is required but not yet completed.
     TwoFactorRequired,
     /// The provided 2FA code is invalid.
@@ -58,6 +68,7 @@ impl fmt::Display for AuthError {
             Self::PasswordReused => {
                 write!(f, "Password matches a recently used password")
             }
+            Self::PasswordHashingFailed => write!(f, "Password hashing failed"),
             Self::TwoFactorRequired => {
                 write!(f, "Two-factor authentication required")
             }
@@ -138,7 +149,7 @@ pub enum TwoFactorMethod {
 // ── User ────────────────────────────────────────────────────────────────
 
 /// User credential with GxP tracking fields.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct GxpUser {
     pub user_id: String,
     /// Unique identification code (§11.100(d)).
@@ -146,11 +157,13 @@ pub struct GxpUser {
     /// Printed / display name for §11.50(a)(1).
     pub display_name: String,
     pub email: String,
-    /// Hashed password (SHA-256 for demonstration; production should use Argon2/bcrypt).
+    /// PHC-formatted Argon2id password hash.
+    #[serde(skip)]
     pub password_hash: String,
     /// When the password was last changed (for §11.300(b) aging).
     pub password_changed_at: DateTime<Utc>,
     /// Hashes of previous passwords to prevent reuse.
+    #[serde(skip)]
     pub password_history: Vec<String>,
     pub is_active: bool,
     /// Roles for RBAC (EU Annex 11 Clause 8).
@@ -160,13 +173,35 @@ pub struct GxpUser {
     pub failed_login_attempts: u32,
     pub locked_until: Option<DateTime<Utc>>,
     pub two_factor_enabled: bool,
+    #[serde(skip)]
     pub two_factor_secret: Option<String>,
+}
+
+impl fmt::Debug for GxpUser {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GxpUser")
+            .field("user_id", &"[REDACTED]")
+            .field("username", &"[REDACTED]")
+            .field("display_name", &"[REDACTED]")
+            .field("email", &"[REDACTED]")
+            .field("password_hash", &"[REDACTED]")
+            .field("password_history", &"[REDACTED]")
+            .field("is_active", &self.is_active)
+            .field("roles", &self.roles)
+            .field("created_at", &self.created_at)
+            .field("updated_at", &self.updated_at)
+            .field("failed_login_attempts", &self.failed_login_attempts)
+            .field("locked_until", &self.locked_until)
+            .field("two_factor_enabled", &self.two_factor_enabled)
+            .field("two_factor_secret", &"[REDACTED]")
+            .finish()
+    }
 }
 
 // ── Session (§11.200(a)(1)) ─────────────────────────────────────────────
 
 /// Session with continuous tracking (§11.200(a)(1)).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct GxpSession {
     pub session_id: String,
     pub user_id: String,
@@ -179,16 +214,68 @@ pub struct GxpSession {
     pub is_continuous: bool,
 }
 
+impl fmt::Debug for GxpSession {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GxpSession")
+            .field("session_id", &"[REDACTED]")
+            .field("user_id", &"[REDACTED]")
+            .field("created_at", &self.created_at)
+            .field("last_activity", &self.last_activity)
+            .field("expires_at", &self.expires_at)
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "device_info",
+                &self.device_info.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("is_continuous", &self.is_continuous)
+            .finish()
+    }
+}
+
 // ── Audit Events ────────────────────────────────────────────────────────
 
 /// Audit event for auth operations (linked to GxP audit log).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct AuthAuditEvent {
     pub timestamp: DateTime<Utc>,
     pub user_id: String,
     pub event_type: AuthEventType,
     pub detail: String,
     pub ip_address: Option<String>,
+}
+
+impl fmt::Debug for AuthAuditEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthAuditEvent")
+            .field("timestamp", &self.timestamp)
+            .field("user_id", &"[PSEUDONYMOUS]")
+            .field("event_type", &self.event_type)
+            .field("detail", &"[REDACTED]")
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[PSEUDONYMOUS]"),
+            )
+            .finish()
+    }
+}
+
+impl Serialize for AuthAuditEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AuthAuditEvent", 5)?;
+        state.serialize_field("timestamp", &self.timestamp)?;
+        state.serialize_field("user_id", &pseudonymize_identifier(&self.user_id))?;
+        state.serialize_field("event_type", &self.event_type)?;
+        state.serialize_field("detail", &self.detail)?;
+        let pseudonymous_ip = self.ip_address.as_deref().map(pseudonymize_identifier);
+        state.serialize_field("ip_address", &pseudonymous_ip)?;
+        state.end()
+    }
 }
 
 /// Categorised auth event types.
@@ -210,35 +297,58 @@ pub enum AuthEventType {
 
 // ── Helper functions ────────────────────────────────────────────────────
 
-/// Hash a password using SHA-256.
-///
-/// # Note
-/// Production systems should use Argon2id or bcrypt. SHA-256 is used here
-/// for simplicity and to avoid additional heavy dependencies in unit tests.
-fn hash_password(password: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(password.as_bytes());
-    let result = hasher.finalize();
-    hex_encode(&result)
+/// Hash a password with Argon2id and a unique random salt.
+fn hash_password(password: &str) -> Result<String, AuthError> {
+    let salt = SaltString::generate(&mut OsRng);
+    Argon2::default()
+        .hash_password(password.as_bytes(), &salt)
+        .map(|hash| hash.to_string())
+        .map_err(|_| AuthError::PasswordHashingFailed)
 }
 
-/// Verify a password against a stored SHA-256 hash.
+/// Verify a password against a PHC-formatted Argon2id hash.
 fn verify_password(password: &str, hash: &str) -> bool {
-    hash_password(password) == hash
+    let Ok(parsed) = PasswordHash::new(hash) else {
+        return false;
+    };
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed)
+        .is_ok()
 }
 
-/// Generate a simple TOTP-like 6-digit code from a secret and current time.
-/// Production systems should use the `totp-rs` or `otpauth` crate.
+/// Generate an RFC 6238 compatible six-digit TOTP using HMAC-SHA1.
 fn generate_totp(secret: &str, now: DateTime<Utc>) -> String {
-    let ts = now.timestamp() / 30; // 30-second window
+    let secret_bytes = hex_decode(secret).unwrap_or_default();
+    if secret_bytes.is_empty() {
+        return "000000".to_string();
+    }
+    let counter = (now.timestamp().max(0) as u64) / 30;
+    let mut mac =
+        Hmac::<Sha1>::new_from_slice(&secret_bytes).expect("HMAC accepts keys of any length");
+    mac.update(&counter.to_be_bytes());
+    let digest = mac.finalize().into_bytes();
+    let offset = (digest[digest.len() - 1] & 0x0f) as usize;
+    let binary = ((u32::from(digest[offset]) & 0x7f) << 24)
+        | (u32::from(digest[offset + 1]) << 16)
+        | (u32::from(digest[offset + 2]) << 8)
+        | u32::from(digest[offset + 3]);
+    format!("{:06}", binary % 1_000_000)
+}
+
+fn hash_recovery_code(code: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(secret.as_bytes());
-    hasher.update(ts.to_string().as_bytes());
-    let result = hasher.finalize();
-    // Take first 8 hex chars → convert to 6-digit code
-    let hex_str = hex_encode(&result);
-    let numeric: u64 = u64::from_str_radix(&hex_str[..8], 16).unwrap_or(0);
-    format!("{:06}", numeric % 1_000_000)
+    hasher.update(code.as_bytes());
+    hex_encode(&hasher.finalize())
+}
+
+fn hex_decode(value: &str) -> Option<Vec<u8>> {
+    if !value.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..value.len())
+        .step_by(2)
+        .map(|index| u8::from_str_radix(&value[index..index + 2], 16).ok())
+        .collect()
 }
 
 /// Minimal hex encoding (avoids adding `hex` crate as dependency).
@@ -345,7 +455,7 @@ impl GxpAuthManager {
             username: username.to_string(),
             display_name: display_name.to_string(),
             email: email.to_string(),
-            password_hash: hash_password(password),
+            password_hash: hash_password(password)?,
             password_changed_at: now,
             password_history: Vec::new(),
             is_active: true,
@@ -478,7 +588,7 @@ impl GxpAuthManager {
         // Validate new password strength first (no borrow needed)
         self.validate_password_strength(new_password)?;
 
-        let new_hash = hash_password(new_password);
+        let new_hash = hash_password(new_password)?;
         let now = self.now();
         let history_limit = self.policy.history_count;
 
@@ -491,12 +601,12 @@ impl GxpAuthManager {
 
         // Check history (§11.300(c))
         for old_hash in user.password_history.iter().rev().take(history_limit) {
-            if *old_hash == new_hash {
+            if verify_password(new_password, old_hash) {
                 return Err(AuthError::PasswordReused);
             }
         }
         // Also check current password
-        if user.password_hash == new_hash {
+        if verify_password(new_password, &user.password_hash) {
             return Err(AuthError::PasswordReused);
         }
 
@@ -543,7 +653,9 @@ impl GxpAuthManager {
 
         let user = self.users.get_mut(user_id).ok_or(AuthError::UserNotFound)?;
 
-        let secret = Uuid::new_v4().to_string().replace('-', "");
+        let mut secret_bytes = [0_u8; 20];
+        OsRng.fill_bytes(&mut secret_bytes);
+        let secret = hex_encode(&secret_bytes);
         // Generate 8 backup codes
         let backup_codes: Vec<String> = (0..8)
             .map(|_| Uuid::new_v4().to_string()[..8].to_string())
@@ -553,13 +665,23 @@ impl GxpAuthManager {
         user.two_factor_secret = Some(secret.clone());
         user.updated_at = now;
 
-        let config = TwoFactorConfig {
+        let stored_config = TwoFactorConfig {
             enabled: true,
             method: TwoFactorMethod::Totp,
-            backup_codes: backup_codes.clone(),
+            backup_codes: backup_codes
+                .iter()
+                .map(|code| hash_recovery_code(code))
+                .collect(),
         };
         self.two_factor_configs
-            .insert(user_id.to_string(), config.clone());
+            .insert(user_id.to_string(), stored_config);
+
+        // Recovery codes are returned exactly once; only hashes are retained.
+        let enrollment_config = TwoFactorConfig {
+            enabled: true,
+            method: TwoFactorMethod::Totp,
+            backup_codes,
+        };
 
         self.audit_log.push(AuthAuditEvent {
             timestamp: now,
@@ -569,7 +691,7 @@ impl GxpAuthManager {
             ip_address: None,
         });
 
-        Ok(config)
+        Ok(enrollment_config)
     }
 
     /// Verify a two-factor code for a user.
@@ -601,18 +723,28 @@ impl GxpAuthManager {
             return Ok(true);
         }
 
-        // Check backup codes
-        if let Some(config) = self.two_factor_configs.get(user_id) {
-            if config.backup_codes.iter().any(|bc| bc == code) {
-                self.audit_log.push(AuthAuditEvent {
-                    timestamp: now,
-                    user_id: user_id.to_string(),
-                    event_type: AuthEventType::TwoFactorVerified,
-                    detail: "Backup code used".into(),
-                    ip_address: None,
-                });
-                return Ok(true);
-            }
+        // Check a recovery code by hash and consume it atomically on success.
+        let code_hash = hash_recovery_code(code);
+        let used_recovery_code = self
+            .two_factor_configs
+            .get_mut(user_id)
+            .and_then(|config| {
+                config
+                    .backup_codes
+                    .iter()
+                    .position(|stored| stored == &code_hash)
+                    .map(|index| config.backup_codes.remove(index))
+            })
+            .is_some();
+        if used_recovery_code {
+            self.audit_log.push(AuthAuditEvent {
+                timestamp: now,
+                user_id: user_id.to_string(),
+                event_type: AuthEventType::TwoFactorVerified,
+                detail: "Recovery code used".into(),
+                ip_address: None,
+            });
+            return Ok(true);
         }
 
         Err(AuthError::TwoFactorInvalid)
@@ -671,7 +803,7 @@ impl GxpAuthManager {
                 timestamp: now,
                 user_id: session.user_id.clone(),
                 event_type: AuthEventType::SessionExpired,
-                detail: format!("Session {session_id} expired"),
+                detail: "Session expired".into(),
                 ip_address: session.ip_address.clone(),
             });
             return Err(AuthError::SessionExpired);
@@ -688,7 +820,7 @@ impl GxpAuthManager {
                 timestamp: now,
                 user_id: session.user_id,
                 event_type: AuthEventType::Logout,
-                detail: format!("Session {session_id} invalidated"),
+                detail: "Session invalidated".into(),
                 ip_address: session.ip_address,
             });
         }

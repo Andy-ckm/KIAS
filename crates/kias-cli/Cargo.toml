@@ -1,8 +1,10 @@
 [package]
 name = "kias-cli"
-version = "0.1.0"
-edition = "2021"
-description = "KIAS CLI - Enterprise Agent Management Tool (超越阿里云 AgentRun)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Operator CLI for the KIAS policy-driven AI agent control plane"
 
 [dependencies]
 kias-common = { path = "../common" }

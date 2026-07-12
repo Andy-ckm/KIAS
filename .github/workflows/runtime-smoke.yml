@@ -1,0 +1,197 @@
+name: Runtime smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - "config/**"
+      - "crates/common/**"
+      - "crates/executor/**"
+      - "crates/data-store/**"
+      - "crates/api-server/**"
+      - "crates/kias-main/**"
+      - "dashboard/**"
+      - "scripts/dev-up.sh"
+      - "scripts/dev-down.sh"
+      - "scripts/runtime-smoke-agent-run.sh"
+      - ".github/workflows/runtime-smoke.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
+      - "config/**"
+      - "crates/common/**"
+      - "crates/executor/**"
+      - "crates/data-store/**"
+      - "crates/api-server/**"
+      - "crates/kias-main/**"
+      - "dashboard/**"
+      - "scripts/dev-up.sh"
+      - "scripts/dev-down.sh"
+      - "scripts/runtime-smoke-agent-run.sh"
+      - ".github/workflows/runtime-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  control-plane:
+    name: Execute, prove, cancel, retry, recover
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      KIAS_API_SERVER__JWT_SECRET: "runtime-smoke-jwt-secret-with-at-least-thirty-two-bytes"
+      KIAS_API_SERVER__JWT_ISSUER: "kias-runtime-smoke"
+      KIAS_DB_PATH: "${{ github.workspace }}/runtime-smoke.db"
+      KIAS_RUN_ALLOWED_IMAGES: "busybox:1.36"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install stable Rust
+        run: |
+          rustup update stable
+          rustup default stable
+
+      - name: Prepare pinned sandbox fixture
+        run: docker pull busybox:1.36
+
+      - name: Build runnable binary
+        run: cargo build --locked -p kias-main --bin kias
+
+      - name: Exercise complete Agent Run lifecycle
+        run: bash scripts/runtime-smoke-agent-run.sh
+
+      - name: Upload runtime diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: runtime-smoke-diagnostics
+          path: |
+            runtime-smoke.log
+            runtime-lifecycle.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+  docker-compose:
+    name: Build, restart, and verify the local stack
+    needs: control-plane
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KIAS_JWT_SECRET: "docker-smoke-jwt-secret-with-at-least-thirty-two-bytes"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
+
+      - name: Build API and Dashboard images
+        id: docker_build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          docker compose build --pull --progress plain 2>&1 | tee docker-build.log
+
+      - name: Exercise Dashboard proxy and restart-safe KIAS
+        if: steps.docker_build.outcome == 'success'
+        run: |
+          set -euo pipefail
+
+          wait_for_url() {
+            local url="$1"
+            local service="$2"
+            for attempt in $(seq 1 120); do
+              if curl --fail --silent "${url}" >/dev/null; then
+                return 0
+              fi
+              if [[ "${attempt}" -eq 120 ]]; then
+                echo "${service} did not become healthy at ${url}" >&2
+                docker compose ps >&2
+                docker compose logs --tail=160 kias dashboard >&2
+                exit 1
+              fi
+              sleep 0.5
+            done
+          }
+
+          cleanup() {
+            docker compose logs --no-color kias >docker-runtime.log 2>&1 || true
+            docker compose logs --no-color dashboard >dashboard-runtime.log 2>&1 || true
+            docker compose down --volumes --remove-orphans || true
+          }
+          trap cleanup EXIT
+
+          docker compose up --detach
+          wait_for_url http://127.0.0.1:8080/health "KIAS API"
+          wait_for_url http://127.0.0.1:3000/ "KIAS Dashboard"
+
+          DASHBOARD_HTML="$(curl --fail --silent http://127.0.0.1:3000/)"
+          grep -Eiq '<title>|id="root"' <<<"${DASHBOARD_HTML}"
+
+          TOKEN="$(docker compose run --rm --no-deps kias token --role operator --subject docker-runtime-smoke | tail -n 1)"
+          CAPABILITIES="$(curl --fail --silent -H "Authorization: Bearer ${TOKEN}" http://127.0.0.1:3000/api/v1/system/capabilities)"
+          python3 -c '
+          import json,sys
+          payload=json.load(sys.stdin)
+          capabilities={item["id"]:item for item in payload["capabilities"]}
+          assert payload["profile"] == "core"
+          assert capabilities["sandboxed-runs"]["enabled"] is False
+          ' <<<"${CAPABILITIES}"
+
+          CREATED="$(curl --fail --silent -X POST -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" -H "X-Idempotency-Key: docker-runtime-create-agent" \
+            --data '{"name":"docker-persistent-agent","image":"busybox:1.36","command":["sh","-c","cat"]}' \
+            http://127.0.0.1:3000/api/v1/agents)"
+          AGENT_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"${CREATED}")"
+
+          docker compose restart kias
+          wait_for_url http://127.0.0.1:8080/health "restarted KIAS API"
+
+          RESTORED="$(curl --fail --silent -H "Authorization: Bearer ${TOKEN}" "http://127.0.0.1:3000/api/v1/agents/${AGENT_ID}")"
+          python3 -c 'import json,sys; assert json.load(sys.stdin)["data"]["spec"]["name"] == "docker-persistent-agent"' <<<"${RESTORED}"
+
+          curl --fail --silent -X DELETE -H "Authorization: Bearer ${TOKEN}" \
+            "http://127.0.0.1:3000/api/v1/agents/${AGENT_ID}" >/dev/null
+
+          docker compose stop --timeout 20 dashboard kias
+          trap - EXIT
+          cleanup
+
+      - name: Upload Docker and Dashboard diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-runtime-diagnostics
+          path: |
+            docker-build.log
+            docker-runtime.log
+            dashboard-runtime.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Enforce Docker build
+        if: steps.docker_build.outcome != 'success'
+        run: exit 1

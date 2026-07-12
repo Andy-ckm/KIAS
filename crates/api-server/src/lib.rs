@@ -6,52 +6,47 @@ use kias_knowledge::graph::KnowledgeGraph;
 use kias_knowledge::retriever::Retriever;
 use kias_knowledge::vector::{LocalEmbeddingEngine, VectorRetriever};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::websocket::{ConnectionRegistry, EventBus, EventReplayBuffer};
 
-/// Shared application state passed to all handlers
+/// Shared application state passed to all handlers.
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<KiasConfig>,
-    /// Agent持久化存储（SQLite）
+    /// Agent persistence repository, when configured.
     pub agent_repository: Option<Arc<kias_data_store::AgentRepository>>,
-    /// Agent内存缓存（启动时从SQLite加载）
+    /// Durable Agent Run orchestration, when configured.
+    pub run_service: Option<Arc<run_service::RunService>>,
+    /// In-memory agent working set hydrated from durable storage at startup.
     pub agents: Arc<RwLock<std::collections::HashMap<String, models::agent::Agent>>>,
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
     pub audit_log: Arc<MemoryAuditLog>,
-    /// SQLite-backed audit log for production persistence (optional)
+    /// SQLite-backed audit log for durable evidence, when configured.
     pub sqlite_audit_log: Option<Arc<kias_data_store::SqliteAuditLog>>,
-    /// Dead letter queue for failed tasks (optional)
+    /// Dead-letter queue for failed tasks, when configured.
     pub dead_letter_queue: Option<Arc<kias_data_store::DeadLetterQueue>>,
-    /// Idempotency key store for API-level duplicate request detection (optional)
+    /// Idempotency store for API duplicate-request detection, when configured.
     pub idempotency_store: Option<Arc<kias_data_store::IdempotencyRepository>>,
     pub event_bus: EventBus,
     pub a2a_tasks: handlers::a2a::A2aTaskStore,
-    /// Tracks active WebSocket connections and metrics.
     pub connection_registry: ConnectionRegistry,
-    /// Ring buffer for event replay to new WebSocket clients.
     pub event_replay_buffer: EventReplayBuffer,
-    /// Knowledge base retriever (vector search + hybrid retrieval)
+    /// Optional knowledge retriever used by knowledge endpoints.
     pub knowledge_retriever: Arc<dyn Retriever>,
-    /// Ingested documents store (for RAG ingest → search pipeline)
     pub ingested_docs: Arc<RwLock<Vec<IngestedDoc>>>,
-    /// Session context manager (7-layer memory architecture)
     pub context_manager: Option<Arc<kias_knowledge::context_manager::MultiSessionContextManager>>,
-    /// Tier routing state (PrfaaS-inspired intelligent task routing)
     pub tier_routing: handlers::tier_routing::TierRoutingState,
-    /// GxP-compliant authentication manager (§11.200, §11.300)
     pub gxp_auth: handlers::auth_gxp::GxpAuthState,
-    /// JWT configuration for token generation
+    /// JWT signing configuration. A configured runtime secret is always preferred.
     pub jwt_config: auth::JwtConfig,
-    /// Slow action trace collector (surpasses EMQ slow subscription tracking)
     pub slow_trace_collector: kias_monitor::SlowTraceCollector,
-    /// Per-agent token budgets (enforced at API layer)
     pub token_budgets:
         Arc<RwLock<std::collections::HashMap<String, handlers::token_budget::TokenBudget>>>,
 }
 
-/// An ingested document stored in memory
+/// An ingested document stored in memory.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IngestedDoc {
     pub id: String,
@@ -64,70 +59,45 @@ pub struct IngestedDoc {
 }
 
 impl AppState {
-    /// Create AppState (async, for use in tokio runtime)
+    /// Create application state for a Tokio runtime.
     pub async fn new(config: KiasConfig) -> Self {
-        let mut nodes = std::collections::HashMap::new();
+        let surfaces = surfaces::SurfaceConfig::from_env(&config);
+        let nodes = if surfaces.dev_fixtures {
+            synthetic_nodes()
+        } else {
+            std::collections::HashMap::new()
+        };
 
-        // Seed default demo nodes
-        nodes.insert(
-            "node-1".to_string(),
-            models::node::Node {
-                id: "node-1".to_string(),
-                name: "node-1".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-        nodes.insert(
-            "node-2".to_string(),
-            models::node::Node {
-                id: "node-2".to_string(),
-                name: "node-2".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-
-        // Build knowledge retriever with an empty graph (populated at runtime)
         let graph = KnowledgeGraph::new();
         let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
         let knowledge_retriever = VectorRetriever::new(graph, embedding_engine)
             .await
-            .expect("Failed to initialize knowledge retriever");
+            .expect("local knowledge retriever initialization must succeed");
+
+        let jwt_secret = config.api_server.jwt_secret.clone().unwrap_or_else(|| {
+            // No shared fallback is embedded in the binary. This process-local key
+            // only supports configurations that do not use JWT authentication; the
+            // production composition root rejects auth-enabled configurations without
+            // an explicit verifier before the listener starts.
+            format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
+        });
+        let jwt_issuer = config
+            .api_server
+            .jwt_issuer
+            .clone()
+            .unwrap_or_else(|| "kias".to_string());
+        let jwt_expiration_hours = config.api_server.jwt_expiration_hours;
 
         Self {
             config: Arc::new(config),
-            agent_repository: None, // Will be set up if SQLite is configured
+            agent_repository: None,
+            run_service: None,
             agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
             nodes: Arc::new(RwLock::new(nodes)),
             workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
             audit_log: Arc::new(MemoryAuditLog::new()),
-            sqlite_audit_log: None,  // Will be set up if SQLite is configured
-            dead_letter_queue: None, // Will be set up if SQLite is configured
+            sqlite_audit_log: None,
+            dead_letter_queue: None,
             idempotency_store: None,
             event_bus: EventBus::default(),
             a2a_tasks: handlers::a2a::A2aTaskStore::new(),
@@ -140,117 +110,105 @@ impl AppState {
             gxp_auth: handlers::auth_gxp::create_gxp_auth_state(
                 kias_common::gxp_auth::PasswordPolicy::default(),
             ),
-            jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
+            jwt_config: auth::JwtConfig::new(jwt_secret, jwt_issuer, jwt_expiration_hours),
             slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
             token_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
 
-    /// Attach persistent audit log and DLQ after construction.
-    ///
-    /// Called by the service manager once SQLite is initialized.
     pub fn with_persistence(
         mut self,
         audit_log: Arc<kias_data_store::SqliteAuditLog>,
-        dlq: Arc<kias_data_store::DeadLetterQueue>,
+        dead_letter_queue: Arc<kias_data_store::DeadLetterQueue>,
     ) -> Self {
         self.sqlite_audit_log = Some(audit_log);
-        self.dead_letter_queue = Some(dlq);
+        self.dead_letter_queue = Some(dead_letter_queue);
         self
     }
 
-    /// Attach idempotency store after repository initialization.
     pub fn with_idempotency_store(
         mut self,
-        repo: Arc<kias_data_store::IdempotencyRepository>,
+        repository: Arc<kias_data_store::IdempotencyRepository>,
     ) -> Self {
-        self.idempotency_store = Some(repo);
+        self.idempotency_store = Some(repository);
         self
     }
 
-    /// Create AppState asynchronously (for use in async test contexts)
-    pub async fn new_async(config: KiasConfig) -> Self {
-        let mut nodes = std::collections::HashMap::new();
+    /// Attach the durable Agent repository and hydrate the in-memory read model.
+    pub async fn with_agent_repository(
+        mut self,
+        repository: Arc<kias_data_store::AgentRepository>,
+    ) -> kias_common::KiasResult<Self> {
+        use kias_data_store::Repository;
 
-        // Seed default demo nodes
-        nodes.insert(
-            "node-1".to_string(),
-            models::node::Node {
-                id: "node-1".to_string(),
-                name: "node-1".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "8".to_string(),
-                    memory: "16Gi".to_string(),
-                    gpu: "1".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-        nodes.insert(
-            "node-2".to_string(),
-            models::node::Node {
-                id: "node-2".to_string(),
-                name: "node-2".to_string(),
-                status: models::node::NodeStatus::Ready,
-                resources: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                allocatable: models::node::ResourceCapacity {
-                    cpu: "4".to_string(),
-                    memory: "8Gi".to_string(),
-                    gpu: "0".to_string(),
-                },
-                labels: Default::default(),
-                created_at: chrono::Utc::now().to_rfc3339(),
-                last_heartbeat: chrono::Utc::now().to_rfc3339(),
-            },
-        );
-
-        // Build knowledge retriever with an empty graph (populated at runtime)
-        let graph = KnowledgeGraph::new();
-        let embedding_engine = Arc::new(LocalEmbeddingEngine::default_dim());
-        let knowledge_retriever = VectorRetriever::new(graph, embedding_engine)
-            .await
-            .expect("Failed to initialize knowledge retriever");
-
-        Self {
-            config: Arc::new(config),
-            agent_repository: None, // Will be set up if SQLite is configured
-            agents: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            nodes: Arc::new(RwLock::new(nodes)),
-            workflows: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            audit_log: Arc::new(MemoryAuditLog::new()),
-            sqlite_audit_log: None,  // Will be set up if SQLite is configured
-            dead_letter_queue: None, // Will be set up if SQLite is configured
-            idempotency_store: None,
-            event_bus: EventBus::default(),
-            a2a_tasks: handlers::a2a::A2aTaskStore::new(),
-            connection_registry: ConnectionRegistry::default(),
-            event_replay_buffer: EventReplayBuffer::default(),
-            knowledge_retriever: Arc::new(knowledge_retriever),
-            ingested_docs: Arc::new(RwLock::new(Vec::new())),
-            context_manager: None,
-            tier_routing: handlers::tier_routing::TierRoutingState::new(),
-            gxp_auth: handlers::auth_gxp::create_gxp_auth_state(
-                kias_common::gxp_auth::PasswordPolicy::default(),
-            ),
-            jwt_config: auth::JwtConfig::new("kias-default-jwt-secret-change-me", "kias", 24),
-            slow_trace_collector: kias_monitor::SlowTraceCollector::new(),
-            token_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+        let rows = repository.list(None, None).await?;
+        let mut agents = std::collections::HashMap::with_capacity(rows.len());
+        for row in rows {
+            let agent = agent_persistence::from_row(row)?;
+            agents.insert(agent.id.clone(), agent);
         }
+        tracing::info!(count = agents.len(), "Hydrated durable Agent working set");
+
+        self.agents = Arc::new(RwLock::new(agents));
+        self.agent_repository = Some(repository);
+        Ok(self)
+    }
+
+    /// Attach durable Agent Run orchestration and mark non-terminal runs from a
+    /// previous process as interrupted, making them explicitly recoverable.
+    pub async fn with_run_repository(
+        mut self,
+        repository: Arc<kias_data_store::TaskRepository>,
+    ) -> kias_common::KiasResult<Self> {
+        let service = Arc::new(run_service::RunService::new(repository));
+        let interrupted = service.mark_interrupted_runs().await?;
+        if interrupted > 0 {
+            tracing::warn!(
+                count = interrupted,
+                "Marked unfinished Agent Runs as interrupted during startup"
+            );
+        }
+        self.run_service = Some(service);
+        Ok(self)
+    }
+
+    /// Compatibility wrapper for existing async test code.
+    pub async fn new_async(config: KiasConfig) -> Self {
+        Self::new(config).await
     }
 }
 
+fn synthetic_nodes() -> std::collections::HashMap<String, models::node::Node> {
+    let now = chrono::Utc::now().to_rfc3339();
+    [("node-1", "8", "16Gi", "1"), ("node-2", "4", "8Gi", "0")]
+        .into_iter()
+        .map(|(id, cpu, memory, gpu)| {
+            (
+                id.to_string(),
+                models::node::Node {
+                    id: id.to_string(),
+                    name: id.to_string(),
+                    status: models::node::NodeStatus::Ready,
+                    resources: models::node::ResourceCapacity {
+                        cpu: cpu.to_string(),
+                        memory: memory.to_string(),
+                        gpu: gpu.to_string(),
+                    },
+                    allocatable: models::node::ResourceCapacity {
+                        cpu: cpu.to_string(),
+                        memory: memory.to_string(),
+                        gpu: gpu.to_string(),
+                    },
+                    labels: Default::default(),
+                    created_at: now.clone(),
+                    last_heartbeat: now.clone(),
+                },
+            )
+        })
+        .collect()
+}
+
+pub mod agent_persistence;
 pub mod auth;
 pub mod contract_test;
 pub mod error;
@@ -259,5 +217,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod models;
 pub mod routes;
+pub mod run_service;
+pub mod surfaces;
 pub mod tls;
 pub mod websocket;

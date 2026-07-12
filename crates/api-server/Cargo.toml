@@ -2,6 +2,9 @@
 name = "kias-api-server"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Authenticated management API for the KIAS agent control plane"
 
 [[bin]]
 name = "kias-api-server"
@@ -13,7 +16,7 @@ kias-executor = { path = "../executor" }
 kias-knowledge = { path = "../knowledge" }
 kias-data-store = { path = "../data-store" }
 kias-scheduler = { path = "../scheduler" }
-auto-loop = { path = "../auto-loop" }
+auto-loop = { package = "kias-intent-core", path = "../intent-core" }
 kias-monitor = { path = "../monitor" }
 
 tokio.workspace = true

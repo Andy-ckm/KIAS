@@ -110,12 +110,8 @@ impl MiniMaxClient {
 
         let status = resp.status();
         if !status.is_success() {
-            let text = resp
-                .text()
-                .await
-                .unwrap_or_else(|_| "<unreadable body>".to_string());
             return Err(KiasError::ExternalService(format!(
-                "MiniMax API returned {status}: {text}"
+                "model provider returned HTTP {status}; response body suppressed"
             )));
         }
 

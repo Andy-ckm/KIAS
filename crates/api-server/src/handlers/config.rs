@@ -3,7 +3,9 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use kias_common::audit::{AuditAction, AuditEvent, AuditLogger, AuditOutcome};
+use kias_common::audit::{
+    pseudonymize_identifier, AuditAction, AuditEvent, AuditLogger, AuditOutcome,
+};
 
 use crate::auth::{Claims, Role};
 use crate::error::ApiError;
@@ -159,7 +161,9 @@ pub async fn update_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), ApiError> {
     // Determine actor identity (auth may be disabled)
     let (actor, is_admin) = match &claims {
-        Some(axum::extract::Extension(c)) => (c.sub.clone(), c.role == Role::Admin),
+        Some(axum::extract::Extension(c)) => {
+            (pseudonymize_identifier(&c.sub), c.role == Role::Admin)
+        }
         None => ("system".to_string(), true), // auth disabled, allow all
     };
 

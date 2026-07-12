@@ -11,13 +11,25 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::RwLock;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Secret value type
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub enum SecretValue {
     Text(String),
     Binary(Vec<u8>),
     Opaque(String),
+}
+
+impl std::fmt::Debug for SecretValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            Self::Text(_) => "Text",
+            Self::Binary(_) => "Binary",
+            Self::Opaque(_) => "Opaque",
+        };
+        f.debug_tuple("SecretValue").field(&kind).field(&"[REDACTED]").finish()
+    }
 }
 
 /// Secret reference (not the actual secret)
@@ -91,12 +103,30 @@ pub struct SecretProvider {
     hash_function: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SecretAccessRecord {
     pub secret_name: String,
     pub accessor: String,
     pub access_time: chrono::DateTime<chrono::Utc>,
     pub success: bool,
+}
+
+impl std::fmt::Debug for SecretAccessRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretAccessRecord")
+            .field("secret_name", &"[REDACTED]")
+            .field("accessor", &"[PSEUDONYMOUS]")
+            .field("access_time", &self.access_time)
+            .field("success", &self.success)
+            .finish()
+    }
+}
+
+fn pseudonymize_accessor(accessor: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(accessor.as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    format!("accessor:{}", &digest[..16])
 }
 
 impl Default for SecretProvider {
@@ -166,7 +196,7 @@ impl SecretProvider {
             Some(value) => {
                 audit.push(SecretAccessRecord {
                     secret_name: name.to_string(),
-                    accessor: accessor.to_string(),
+                    accessor: pseudonymize_accessor(accessor),
                     access_time: now,
                     success: true,
                 });
@@ -175,11 +205,11 @@ impl SecretProvider {
             None => {
                 audit.push(SecretAccessRecord {
                     secret_name: name.to_string(),
-                    accessor: accessor.to_string(),
+                    accessor: pseudonymize_accessor(accessor),
                     access_time: now,
                     success: false,
                 });
-                Err(KiasError::Secrets(format!("Secret not found: {}", name)))
+                Err(KiasError::Secrets("Secret not found".to_string()))
             }
         }
     }
@@ -196,7 +226,7 @@ impl SecretProvider {
                 hint: m.hint.clone(),
                 created_at: m.created_at,
             })
-            .ok_or_else(|| KiasError::Secrets(format!("Secret ref not found: {}", name)))
+            .ok_or_else(|| KiasError::Secrets("Secret reference not found".to_string()))
     }
 
     pub fn rotate(&self, name: &str, new_value: SecretValue) -> KiasResult<RotationStatus> {
@@ -227,7 +257,7 @@ impl SecretProvider {
                 error: None,
             })
         } else {
-            Err(KiasError::Secrets(format!("Secret not found: {}", name)))
+            Err(KiasError::Secrets("Secret not found".to_string()))
         }
     }
 
@@ -316,7 +346,8 @@ impl SecretPatternDetector {
             for mat in re.find_iter(text) {
                 findings.push(DetectedSecret {
                     secret_type: pattern_name.clone(),
-                    matched_text: mat.as_str().to_string(),
+                    masked_text: mask_detected_secret(mat.as_str()),
+                    fingerprint: fingerprint_detected_secret(mat.as_str()),
                     start: mat.start(),
                     end: mat.end(),
                     line_number: text[..mat.start()].chars().filter(|c| *c == '\n').count() + 1,
@@ -331,10 +362,25 @@ impl SecretPatternDetector {
     }
 }
 
+fn mask_detected_secret(value: &str) -> String {
+    if value.len() <= 6 {
+        return "*".repeat(value.len());
+    }
+    format!("{}…{}", &value[..3], &value[value.len() - 3..])
+}
+
+fn fingerprint_detected_secret(value: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    digest[..16].to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectedSecret {
     pub secret_type: String,
-    pub matched_text: String,
+    pub masked_text: String,
+    pub fingerprint: String,
     pub start: usize,
     pub end: usize,
     pub line_number: usize,
@@ -435,7 +481,7 @@ mod tests {
     #[test]
     fn test_detect_aws_key() {
         let detector = SecretPatternDetector::new();
-        let text = "AWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE";
+        let text = "AWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
         assert_eq!(findings[0].secret_type, "AWS Access Key");
@@ -444,7 +490,7 @@ mod tests {
     #[test]
     fn test_detect_github_token() {
         let detector = SecretPatternDetector::new();
-        let text = "GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+        let text = "GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
     }
@@ -469,7 +515,7 @@ mod tests {
     #[test]
     fn test_detect_jwt() {
         let detector = SecretPatternDetector::new();
-        let text = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        let text = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"; // placeholder fixture
         let findings = detector.detect(text);
         assert!(!findings.is_empty());
     }

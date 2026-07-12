@@ -1,6 +1,4 @@
-// Status badge component for Agent and Node statuses
-
-import type { AgentStatus } from '../types';
+// Shared dashboard presentation components.
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -24,7 +22,6 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// Stat card for the dashboard
 export function StatCard({
   label,
   value,
@@ -57,7 +54,6 @@ export function StatCard({
   );
 }
 
-// Loading spinner
 export function Spinner() {
   return (
     <div className="flex items-center justify-center p-12">
@@ -66,7 +62,6 @@ export function Spinner() {
   );
 }
 
-// Error display
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
@@ -86,7 +81,6 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
   );
 }
 
-// Empty state
 export function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center p-12 text-slate-500">

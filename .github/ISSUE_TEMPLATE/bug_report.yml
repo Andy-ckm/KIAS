@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible defect using synthetic, non-sensitive data.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, personal data, private organization/customer identifiers, production logs, internal paths, or proprietary documents. Report security/privacy issues through the private advisory link instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - API / control plane
+        - Scheduling / lifecycle
+        - Workflow / goal engine
+        - Authentication / authorization
+        - Storage / cache / knowledge
+        - Integration adapter
+        - Dashboard
+        - Build / release / documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use synthetic data and include exact commands or a small test case.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, architecture, Rust version, and relevant feature flags. Redact private hostnames and identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted diagnostics
+      description: Include only the minimum necessary output. Remove tokens, identities, query strings, payloads, documents, and internal infrastructure details.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: This report contains only synthetic or fully redacted data.
+          required: true
+        - label: This is not a vulnerability or privacy incident.
+          required: true

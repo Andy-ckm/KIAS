@@ -1,74 +1,94 @@
-# 项目开发文件 - 推送到GitHub
-# 内部运行文件 - 不推送到GitHub
-
-# 敏感文件
-.env*
-.env.local
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.kias-dev/
 *.key
 *.pem
 *.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.der
+*.mobileprovision
+*.secrets.*
+secrets/
+private/
+company-denylist.txt
+.organization-denylist
+privacy-scan*.json
+secret-scan*.json
 
-# 内部运行脚本（mimo/MiniMax协调）
+# Local agent, orchestration, and research state
+.dev-state
+.dev-state.*
+.dev-log
+.dev-insights.md
+.dev-tasks.yaml
+.goal-state.yaml
+.orchestrator-state.json
+.matrix-qa-marker
+.research-queue.yaml
+.task-queue/
+kias/.task-queue/
+.trace/
+.worktrees/
+target-worktree/
+
+# Local operational scripts and generated coordination data
 scripts/backup-mechanism.sh
 scripts/loop-fix.sh
-scripts/secret-scanner.py
-scripts/pre-commit-hook.sh
 scripts/load-env.sh
 scripts/cicd-push.sh
-scripts/minimax-*.py
-scripts/minimax-*.sh
-scripts/fire_minimax*.sh
-scripts/minimax_log*.txt
-scripts/minimax_wave*.txt
+scripts/fire_*.sh
+scripts/*_log*.txt
+scripts/*_wave*.txt
 
-# 内部日志
+# Logs, databases, dumps, and local runtime state
 logs/
 *.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+*.snapshot
+*.trace
+*.har
+*.pcap
+*.core
 
-# 临时文件
+# Temporary files
 tmp/
 temp/
 *.tmp
 *.temp
+*.swp
+*.swo
+*~
 
-# 编译产物
+# Build artifacts and dependencies
 target/
+cargo-target/
+.cargo_registry_cache/
+node_modules/
+vendor/
 *.o
 *.so
 *.dylib
+*.dll
+*.exe
 
-# 依赖目录
-node_modules/
-vendor/
-
-# IDE配置
+# IDE and operating-system files
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# 系统文件
 .DS_Store
 Thumbs.db
-cargo-target/
-kias.db
-.agentguard.db
-.agentguard-state.db
-.dev-state
-.dev-insights.md
-.dev-tasks.yaml
-.matrix-qa-marker
-.research-queue.yaml
-target-worktree/
-.task-queue/
-kias/.task-queue/
-.trace/
+
+# Local copies of external references and generated audit material
 docs/papers/
 docs/reference/
 docs/audit-rectification-plan.md
-crates/data-governance/src/sast_pipeline.rs
-crates/data-governance/src/unified_audit_merkle.rs
-.cargo_registry_cache/
-target/
-.worktrees/
-target/

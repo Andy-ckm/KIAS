@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a reusable capability for the public core.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Public-core proposals should solve a reusable problem. Organization-specific workflows, private compliance mappings, customer identifiers, and proprietary integrations belong outside this repository.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user problem without prescribing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Intended users and outcome
+      description: Who benefits and how would success be measured?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Include interfaces, alternatives, and compatibility impact.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy impact
+      description: Identify new inputs, trust boundaries, data, credentials, tools, permissions, retention, and misuse cases.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and validation plan
+      description: What tests, benchmarks, reference use case, or interoperability evidence would demonstrate usefulness?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Scope check
+      options:
+        - label: I searched the roadmap, issues, and pull requests.
+          required: true
+        - label: The proposal does not require publishing private organization or personal information.
+          required: true
+        - label: I understand that implementation requires tests, documentation, and threat-model updates.
+          required: true

@@ -9,10 +9,11 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ── Error ──────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ impl fmt::Display for AuthProviderType {
 // ── Credentials ────────────────────────────────────────────────────────
 
 /// Authentication credential supplied by the caller.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Deserialize, Zeroize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthCredential {
     /// Username + password.
@@ -146,10 +147,59 @@ pub enum AuthCredential {
     },
 }
 
+impl fmt::Debug for AuthCredential {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let credential_type = match self {
+            Self::Password { .. } => "password",
+            Self::JwtToken { .. } => "jwt_token",
+            Self::OAuth2Token { .. } => "oauth2_token",
+            Self::Scram { .. } => "scram",
+            Self::ApiKey { .. } => "api_key",
+            Self::Certificate { .. } => "certificate",
+            Self::LdapBind { .. } => "ldap_bind",
+            Self::SamlAssertion { .. } => "saml_assertion",
+            Self::OidcIdToken { .. } => "oidc_id_token",
+            Self::KerberosTicket { .. } => "kerberos_ticket",
+            Self::BiometricHash { .. } => "biometric_hash",
+            Self::HardwareTokenSignature { .. } => "hardware_token_signature",
+        };
+        f.debug_struct("AuthCredential")
+            .field("type", &credential_type)
+            .field("value", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl Serialize for AuthCredential {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let credential_type = match self {
+            Self::Password { .. } => "password",
+            Self::JwtToken { .. } => "jwt_token",
+            Self::OAuth2Token { .. } => "oauth2_token",
+            Self::Scram { .. } => "scram",
+            Self::ApiKey { .. } => "api_key",
+            Self::Certificate { .. } => "certificate",
+            Self::LdapBind { .. } => "ldap_bind",
+            Self::SamlAssertion { .. } => "saml_assertion",
+            Self::OidcIdToken { .. } => "oidc_id_token",
+            Self::KerberosTicket { .. } => "kerberos_ticket",
+            Self::BiometricHash { .. } => "biometric_hash",
+            Self::HardwareTokenSignature { .. } => "hardware_token_signature",
+        };
+        let mut state = serializer.serialize_struct("AuthCredential", 2)?;
+        state.serialize_field("type", credential_type)?;
+        state.serialize_field("value", "[REDACTED]")?;
+        state.end()
+    }
+}
+
 // ── Auth Result ────────────────────────────────────────────────────────
 
 /// Result of a successful authentication.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AuthResult {
     /// The authenticated user/agent identifier.
     pub subject: String,
@@ -163,6 +213,19 @@ pub struct AuthResult {
     pub claims: HashMap<String, String>,
     /// When this result was issued.
     pub issued_at: DateTime<Utc>,
+}
+
+impl fmt::Debug for AuthResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthResult")
+            .field("subject", &"[PSEUDONYMOUS]")
+            .field("provider", &self.provider)
+            .field("roles", &self.roles)
+            .field("ttl_seconds", &self.ttl_seconds)
+            .field("claim_keys", &self.claims.keys().collect::<Vec<_>>())
+            .field("issued_at", &self.issued_at)
+            .finish()
+    }
 }
 
 // ── Provider Trait ─────────────────────────────────────────────────────
@@ -371,10 +434,13 @@ impl AuthProvider for JwtProvider {
             .unwrap_or_default();
 
         let mut claims = HashMap::new();
+        const SAFE_CLAIMS: &[&str] = &["aud", "iss", "jti", "azp"];
         if let Some(obj) = payload.as_object() {
-            for (k, v) in obj {
-                if let Some(s) = v.as_str() {
-                    claims.insert(k.clone(), s.to_string());
+            for (key, value) in obj {
+                if SAFE_CLAIMS.contains(&key.as_str()) {
+                    if let Some(value) = value.as_str() {
+                        claims.insert(key.clone(), value.to_string());
+                    }
                 }
             }
         }
@@ -1486,20 +1552,16 @@ mod tests {
     }
 
     #[test]
-    fn test_auth_credential_serde() {
+    fn test_auth_credential_serialization_is_redacted() {
         let cred = AuthCredential::Password {
             username: "user".to_string(),
             password: "pass".to_string(),
         };
         let json = serde_json::to_string(&cred).unwrap();
-        let back: AuthCredential = serde_json::from_str(&json).unwrap();
-        match back {
-            AuthCredential::Password { username, password } => {
-                assert_eq!(username, "user");
-                assert_eq!(password, "pass");
-            }
-            _ => panic!("Wrong variant"),
-        }
+        assert!(json.contains("password"));
+        assert!(json.contains("[REDACTED]"));
+        assert!(!json.contains("user"));
+        assert!(!json.contains("pass"));
     }
 
     #[tokio::test]

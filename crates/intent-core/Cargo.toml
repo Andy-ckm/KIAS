@@ -1,0 +1,10 @@
+[package]
+name = "kias-intent-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bounded deterministic intent classification and task decomposition for KIAS"
+
+[dependencies]
+serde.workspace = true

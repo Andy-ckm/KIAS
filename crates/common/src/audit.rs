@@ -10,8 +10,12 @@
 //! - [`audit_filter`] – query helper
 
 use chrono::{DateTime, Utc};
+use hmac::{Hmac, Mac};
+use rand::{rngs::OsRng, RngCore};
+use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::fmt;
+use std::sync::OnceLock;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -68,7 +72,7 @@ impl fmt::Display for AuditOutcome {
 // ── AuditEvent ────────────────────────────────────────────────────────
 
 /// A single audit trail entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct AuditEvent {
     /// Unique event identifier.
     pub id: String,
@@ -90,6 +94,67 @@ pub struct AuditEvent {
     pub user_agent: Option<String>,
     /// Whether the action succeeded or failed.
     pub outcome: AuditOutcome,
+}
+
+/// Convert a potentially identifying subject into a keyed pseudonym.
+///
+/// Set `KIAS_AUDIT_PSEUDONYM_KEY` to a deployment-managed secret when audit
+/// correlation must survive restarts. If it is absent, a random process-local
+/// key is generated so identities cannot be dictionary-matched from logs.
+fn audit_pseudonym_key() -> &'static [u8; 32] {
+    static KEY: OnceLock<[u8; 32]> = OnceLock::new();
+    KEY.get_or_init(|| {
+        if let Ok(configured) = std::env::var("KIAS_AUDIT_PSEUDONYM_KEY") {
+            let digest = Sha256::digest(configured.as_bytes());
+            let mut key = [0_u8; 32];
+            key.copy_from_slice(&digest);
+            key
+        } else {
+            let mut key = [0_u8; 32];
+            OsRng.fill_bytes(&mut key);
+            key
+        }
+    })
+}
+
+pub fn pseudonymize_identifier(identifier: &str) -> String {
+    match identifier {
+        "system" | "unknown" | "api-key-user" => identifier.to_string(),
+        _ => {
+            let mut mac = Hmac::<Sha256>::new_from_slice(audit_pseudonym_key())
+                .expect("HMAC accepts a 32-byte key");
+            mac.update(identifier.as_bytes());
+            let digest = mac.finalize().into_bytes();
+            let short = digest[..8]
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>();
+            format!("subject:{short}")
+        }
+    }
+}
+
+impl fmt::Debug for AuditEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuditEvent")
+            .field("id", &self.id)
+            .field("timestamp", &self.timestamp)
+            .field("actor", &"[PSEUDONYMOUS]")
+            .field("action", &self.action)
+            .field("resource_type", &self.resource_type)
+            .field("resource_id", &"[REDACTED]")
+            .field("details", &"[REDACTED]")
+            .field(
+                "ip_address",
+                &self.ip_address.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field(
+                "user_agent",
+                &self.user_agent.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("outcome", &self.outcome)
+            .finish()
+    }
 }
 
 impl AuditEvent {

@@ -1,15 +1,17 @@
 mod services;
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
+use anyhow::{bail, Context};
+use clap::{CommandFactory, Parser, Subcommand};
 use services::KiasServiceManager;
 
 #[derive(Parser)]
 #[command(
     name = "kias",
     version,
-    about = "AgentGuard - Kubernetes-inspired Intelligent Agent System"
+    about = "Policy-driven control plane for operating AI agents safely"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -18,18 +20,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the KIAS server
+    /// Start the KIAS control-plane server.
     Server {
-        #[arg(short, long, default_value = "0.0.0.0")]
-        host: String,
-        #[arg(short, long, default_value_t = 8080)]
-        port: u16,
+        /// Override the configured listen address.
+        #[arg(short = 'H', long)]
+        host: Option<String>,
+        /// Override the configured listen port.
+        #[arg(short, long)]
+        port: Option<u16>,
     },
-    /// Show system status
+    /// Issue a short-lived JWT for a local operator or controlled pilot.
+    Token {
+        /// Token role: viewer, operator, or admin.
+        #[arg(long, default_value = "operator")]
+        role: String,
+        /// Pseudonymous subject recorded in authorization and audit context.
+        #[arg(long, default_value = "local-operator")]
+        subject: String,
+    },
+    /// Show local build information.
     Status,
-    /// Run health check
+    /// Validate that local configuration can be loaded.
     Health,
-    /// Show version
+    /// Show version.
     Version,
 }
 
@@ -40,45 +53,118 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Server { host, port }) => {
-            start_server(host, port).await?;
-        }
+        Some(Commands::Server { host, port }) => start_server(host, port).await?,
+        Some(Commands::Token { role, subject }) => issue_local_token(&role, &subject)?,
         Some(Commands::Status) => {
-            println!("AgentGuard Status: Running");
+            println!("KIAS CLI is available");
             println!("Version: {}", env!("CARGO_PKG_VERSION"));
+            println!("Use the authenticated control-plane health endpoint for runtime status.");
         }
         Some(Commands::Health) => {
-            println!("Health: OK");
+            let _ = kias_common::KiasConfig::load()?;
+            println!("Configuration file: readable");
+            println!("Run `kias server` to perform full startup validation.");
         }
-        Some(Commands::Version) => {
-            println!("kias {}", env!("CARGO_PKG_VERSION"));
-        }
+        Some(Commands::Version) => println!("kias {}", env!("CARGO_PKG_VERSION")),
         None => {
-            // Default: start server
-            start_server("0.0.0.0".to_string(), 8080).await?;
+            Cli::command().print_help()?;
+            println!();
         }
     }
 
     Ok(())
 }
 
-async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
-    tracing::info!("Starting AgentGuard System");
+fn issue_local_token(role_name: &str, subject: &str) -> anyhow::Result<()> {
+    if subject.trim().is_empty() {
+        bail!("token subject must not be empty");
+    }
 
-    // Load configuration (uses defaults if no config file found).
-    let config = kias_common::KiasConfig::load().unwrap_or_default();
+    let config = kias_common::KiasConfig::load()?;
+    let secret = config
+        .api_server
+        .jwt_secret
+        .as_deref()
+        .context("JWT token issuance requires KIAS_API_SERVER__JWT_SECRET")?;
+    let role = match role_name.trim().to_ascii_lowercase().as_str() {
+        "viewer" => kias_api_server::auth::Role::Viewer,
+        "operator" => kias_api_server::auth::Role::Operator,
+        "admin" => kias_api_server::auth::Role::Admin,
+        _ => bail!("unsupported role; use viewer, operator, or admin"),
+    };
+    let issuer = config
+        .api_server
+        .jwt_issuer
+        .clone()
+        .unwrap_or_else(|| "kias".to_string());
+    let jwt_config = kias_api_server::auth::JwtConfig::new(
+        secret,
+        issuer,
+        config.api_server.jwt_expiration_hours,
+    );
+    let claims = kias_api_server::auth::create_claims(subject.trim(), role, &jwt_config);
+    let token = kias_api_server::auth::generate_token(&claims, &jwt_config.secret)?;
 
-    // Initialize all subsystems via the service manager.
+    // Keep stdout machine-readable so operators can pipe the value into a
+    // password manager or paste it into the Dashboard connection gate.
+    println!("{token}");
+    Ok(())
+}
+
+async fn start_server(
+    host_override: Option<String>,
+    port_override: Option<u16>,
+) -> anyhow::Result<()> {
+    tracing::info!("Starting KIAS control plane");
+
+    let mut config = kias_common::KiasConfig::load()?;
+    let host = host_override.unwrap_or_else(|| config.api_server.host.clone());
+    let port = port_override.unwrap_or(config.api_server.port);
+    config.api_server.host.clone_from(&host);
+    config.api_server.port = port;
+
+    validate_listener_security(&host, &config)?;
+
+    let address = format!("{host}:{port}");
+    let listener = tokio::net::TcpListener::bind(&address)
+        .await
+        .with_context(|| format!("failed to bind KIAS listener at {address}"))?;
+
+    let database_path = resolve_database_path(&config)?;
     let manager = KiasServiceManager::new(config.clone()).await?;
-
-    // Run initial health check.
     let health = manager.health_check();
-    tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial health check");
+    if !health.is_healthy() {
+        bail!("initial KIAS readiness check failed: {}", health.overall);
+    }
+    tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial readiness check");
 
-    // Get the graceful shutdown coordinator.
+    // Open a dedicated API pool against the already validated durable database.
+    // Repository handles own cloned pool references and remain valid for the
+    // lifetime of AppState.
+    let api_repository = kias_data_store::SqliteRepository::open(&database_path).await?;
+    let agent_repository = Arc::new(kias_data_store::AgentRepository::new(
+        api_repository.pool.clone(),
+    ));
+    let task_repository = Arc::new(kias_data_store::TaskRepository::new(
+        api_repository.pool.clone(),
+    ));
+    let idempotency_repository = Arc::new(kias_data_store::IdempotencyRepository::new(
+        api_repository.pool.clone(),
+    ));
+
+    let sqlite_audit_log = Arc::new(manager.audit_log().clone());
+    let dead_letter_queue = Arc::new(manager.dlq().clone());
+    let state = kias_api_server::AppState::new(config.clone())
+        .await
+        .with_persistence(sqlite_audit_log, dead_letter_queue)
+        .with_idempotency_store(idempotency_repository)
+        .with_agent_repository(agent_repository)
+        .await?
+        .with_run_repository(task_repository)
+        .await?;
+    let application = kias_api_server::routes::create_router(state);
+
     let shutdown = manager.shutdown_handle();
-
-    // Spawn signal handler (SIGTERM/SIGINT).
     let shutdown_for_signal = shutdown.clone();
     let signal_handle = tokio::spawn(async move {
         kias_common::graceful_shutdown::wait_for_signal().await;
@@ -86,55 +172,149 @@ async fn start_server(host: String, port: u16) -> anyhow::Result<()> {
         shutdown_for_signal.shutdown().await;
     });
 
-    // Start the API server.
-    let api_config = config.clone();
-    let sqlite_audit_log = Arc::new(manager.audit_log().clone());
-    let dead_letter_queue = Arc::new(manager.dlq().clone());
-    let api_handle = tokio::spawn(async move {
-        let addr = format!("{}:{}", host, port);
-
-        tracing::info!(addr = %addr, "Starting API server");
-
-        let state = kias_api_server::AppState::new(api_config)
-            .await
-            .with_persistence(sqlite_audit_log, dead_letter_queue);
-        let app = kias_api_server::routes::api::create_router(state);
-
-        let listener = match tokio::net::TcpListener::bind(&addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to bind API server");
-                return;
-            }
-        };
-
-        tracing::info!(addr = %addr, "API server listening");
-
-        if let Err(e) = axum::serve(listener, app).await {
-            tracing::error!(error = %e, "API server error");
-        }
+    let mut api_handle = tokio::spawn(async move {
+        tracing::info!(address = %address, "KIAS API server listening");
+        axum::serve(listener, application).await
     });
 
-    tracing::info!("AgentGuard System started successfully");
+    tracing::info!("KIAS control plane started");
     tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
-    // Wait for shutdown signal.
-    let _ = shutdown
-        .wait_for_phase(
+    tokio::select! {
+        _ = shutdown.wait_for_phase(
             kias_common::graceful_shutdown::ShutdownPhase::Complete,
-            std::time::Duration::from_secs(u64::MAX), // Wait forever
-        )
-        .await;
+            std::time::Duration::from_secs(u64::MAX),
+        ) => {}
+        server_result = &mut api_handle => {
+            match server_result {
+                Ok(Ok(())) => bail!("KIAS API server stopped unexpectedly"),
+                Ok(Err(error)) => return Err(error).context("KIAS API server failed"),
+                Err(error) => return Err(error).context("KIAS API server task failed"),
+            }
+        }
+    }
 
-    // Graceful shutdown.
     manager.shutdown().await?;
-    tracing::info!("AgentGuard System shut down gracefully");
+    tracing::info!("KIAS control plane shut down gracefully");
 
-    // Abort API server.
-    api_handle.abort();
-
-    // Wait for signal handler to finish.
-    let _ = signal_handle.await;
+    if !api_handle.is_finished() {
+        api_handle.abort();
+    }
+    signal_handle.abort();
 
     Ok(())
+}
+
+fn resolve_database_path(config: &kias_common::KiasConfig) -> anyhow::Result<String> {
+    let configured_path = config
+        .storage
+        .sqlite_url
+        .strip_prefix("sqlite://")
+        .unwrap_or(&config.storage.sqlite_url);
+    let database_path =
+        std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| configured_path.to_string());
+    if database_path.trim().is_empty() {
+        bail!("SQLite database path must not be empty");
+    }
+    Ok(database_path)
+}
+
+fn validate_listener_security(host: &str, config: &kias_common::KiasConfig) -> anyhow::Result<()> {
+    if config.api_server.tls {
+        bail!(
+            "native TLS is not wired into the kias server binary; terminate TLS at a trusted proxy and keep api_server.tls=false"
+        );
+    }
+
+    if !is_loopback_host(host) {
+        if !config.api_server.auth_enabled {
+            bail!("refusing a non-loopback listener while authentication is disabled");
+        }
+
+        let proxy_acknowledged = env_flag("KIAS_TRUSTED_TLS_PROXY");
+        let local_container_mode = env_flag("KIAS_LOCAL_CONTAINER_MODE");
+        if !proxy_acknowledged && !local_container_mode {
+            bail!(
+                "refusing plaintext non-loopback listener; use a trusted TLS proxy or set KIAS_LOCAL_CONTAINER_MODE=true only when the container port is published to host loopback"
+            );
+        }
+
+        if local_container_mode && !proxy_acknowledged {
+            tracing::warn!(
+                "Local container mode permits a plaintext container listener; publish the host port to 127.0.0.1 only"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<IpAddr>()
+            .map(|address| address.is_loopback())
+            .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_definition_is_valid() {
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn recognizes_loopback_hosts() {
+        assert!(is_loopback_host("127.0.0.1"));
+        assert!(is_loopback_host("::1"));
+        assert!(is_loopback_host("localhost"));
+        assert!(!is_loopback_host("0.0.0.0"));
+        assert!(!is_loopback_host("::"));
+    }
+
+    #[test]
+    fn rejects_public_listener_without_authentication() {
+        let config = kias_common::KiasConfig::default();
+        let error = validate_listener_security("0.0.0.0", &config).unwrap_err();
+        assert!(error.to_string().contains("authentication"));
+    }
+
+    #[test]
+    fn rejects_unimplemented_native_tls_mode() {
+        let mut config = kias_common::KiasConfig::default();
+        config.api_server.tls = true;
+        let error = validate_listener_security("127.0.0.1", &config).unwrap_err();
+        assert!(error.to_string().contains("native TLS"));
+    }
+
+    #[test]
+    fn environment_flags_are_explicit() {
+        let key = "KIAS_TEST_BOOLEAN_FLAG";
+        std::env::set_var(key, "yes");
+        assert!(env_flag(key));
+        std::env::set_var(key, "no");
+        assert!(!env_flag(key));
+        std::env::remove_var(key);
+    }
+
+    #[test]
+    fn resolves_configured_database_path() {
+        let mut config = kias_common::KiasConfig::default();
+        config.storage.sqlite_url = "sqlite://data/test.db".to_string();
+        assert_eq!(resolve_database_path(&config).unwrap(), "data/test.db");
+    }
 }

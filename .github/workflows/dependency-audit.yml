@@ -1,0 +1,70 @@
+name: Rust dependency audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**/Cargo.toml"
+      - ".github/workflows/dependency-audit.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**/Cargo.toml"
+      - ".github/workflows/dependency-audit.yml"
+  schedule:
+    - cron: "23 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: RustSec advisory audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version 0.22.1 --locked
+
+      - name: Audit Cargo.lock
+        id: audit
+        run: |
+          set +e
+          cargo audit --json > rustsec-audit.json
+          json_status=$?
+          cargo audit 2>&1 | tee rustsec-audit.txt
+          text_status=${PIPESTATUS[0]}
+          status=$json_status
+          if [ "$text_status" -ne 0 ]; then
+            status=$text_status
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload RustSec evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rustsec-audit-evidence
+          path: |
+            rustsec-audit.json
+            rustsec-audit.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce vulnerability gate
+        if: steps.audit.outputs.status != '0'
+        run: exit 1

@@ -1,15 +1,20 @@
 name: Preview Agent Run rustfmt
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/privacy-hardening
+      - main
+    paths:
+      - "crates/api-server/**"
+      - "crates/executor/**"
+      - "crates/kias-main/**"
+      - ".github/workflows/format-preview-agent-run.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: preview-agent-run-rustfmt
+  group: preview-agent-run-rustfmt-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:

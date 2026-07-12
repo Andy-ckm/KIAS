@@ -31,4 +31,5 @@ USER kias
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
     CMD curl --fail --silent http://127.0.0.1:8080/health || exit 1
 
+ENTRYPOINT ["/usr/local/bin/kias"]
 CMD ["server", "--host", "0.0.0.0", "--port", "8080"]

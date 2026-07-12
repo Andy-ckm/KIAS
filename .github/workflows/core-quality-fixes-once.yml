@@ -36,6 +36,7 @@ jobs:
         run: |
           set -o pipefail
           python3 scripts/apply_reviewed_core_fixes.py 2>&1 | tee apply.log
+          python3 scripts/apply_sqlite_compat_fix.py 2>&1 | tee -a apply.log
           cargo fmt --all 2>&1 | tee -a apply.log
           cargo generate-lockfile -vv 2>&1 | tee -a apply.log
           git diff --check 2>&1 | tee -a apply.log
@@ -92,6 +93,7 @@ jobs:
             crates/controller/src/state.rs
             crates/data-governance/Cargo.toml
             crates/data-store/Cargo.toml
+            crates/document-management/Cargo.toml
             crates/tool-executor/src/builtin.rs
             crates/tool-executor/src/vulnerability_scan.rs
           if-no-files-found: error

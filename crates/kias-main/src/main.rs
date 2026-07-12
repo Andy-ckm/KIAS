@@ -23,7 +23,7 @@ enum Commands {
     /// Start the KIAS control-plane server.
     Server {
         /// Override the configured listen address.
-        #[arg(short, long)]
+        #[arg(short = 'H', long)]
         host: Option<String>,
         /// Override the configured listen port.
         #[arg(short, long)]
@@ -219,7 +219,12 @@ fn validate_listener_security(host: &str, config: &kias_common::KiasConfig) -> a
 
 fn env_flag(name: &str) -> bool {
     std::env::var(name)
-        .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -234,6 +239,11 @@ fn is_loopback_host(host: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cli_definition_is_valid() {
+        Cli::command().debug_assert();
+    }
 
     #[test]
     fn recognizes_loopback_hosts() {

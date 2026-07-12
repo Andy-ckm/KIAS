@@ -1,20 +1,29 @@
 name: Apply reviewed Agent Run rustfmt once
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/privacy-hardening
+      - main
+    types:
+      - synchronize
+    paths:
+      - "crates/api-server/**"
+      - "crates/executor/**"
+      - "docs/project-status.md"
+      - ".github/workflows/format-preview-agent-run.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: apply-reviewed-agent-run-rustfmt-once
+  group: apply-reviewed-agent-run-rustfmt-once-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   apply:
-    if: github.ref == 'refs/heads/agent/privacy-hardening'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/privacy-hardening'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -32,6 +41,7 @@ jobs:
 
       - name: Apply reviewed formatting and enforce exact scope
         run: |
+          set -euo pipefail
           cargo fmt --all
           bash -n scripts/runtime-smoke-agent-run.sh
           git diff --check
@@ -49,6 +59,7 @@ jobs:
         run: |
           cargo test --locked -p kias-executor -p kias-api-server -p kias-main
           cargo clippy --locked -p kias-executor -p kias-api-server -p kias-main --all-targets -- -D warnings
+          cargo fmt --all -- --check
 
       - name: Commit reviewed formatting
         run: |

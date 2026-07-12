@@ -23,14 +23,12 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  issues: write
 
 jobs:
   audit:
     name: RustSec advisory audit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -38,7 +36,35 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version 0.22.1 --locked
+
       - name: Audit Cargo.lock
-        uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432 # v2-compatible, Node 24
+        id: audit
+        run: |
+          set +e
+          cargo audit --json > rustsec-audit.json
+          json_status=$?
+          cargo audit 2>&1 | tee rustsec-audit.txt
+          text_status=${PIPESTATUS[0]}
+          status=$json_status
+          if [ "$text_status" -ne 0 ]; then
+            status=$text_status
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload RustSec evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: rustsec-audit-evidence
+          path: |
+            rustsec-audit.json
+            rustsec-audit.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce vulnerability gate
+        if: steps.audit.outputs.status != '0'
+        run: exit 1

@@ -21,6 +21,7 @@ replace_exact(
 for manifest in (
     "crates/document-management/Cargo.toml",
     "crates/it-change-management/Cargo.toml",
+    "crates/linux-automation/Cargo.toml",
 ):
     replace_exact(
         manifest,

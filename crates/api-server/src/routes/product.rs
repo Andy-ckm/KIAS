@@ -2,9 +2,9 @@ use axum::middleware::{from_fn, from_fn_with_state};
 use axum::Router;
 
 use crate::handlers::{
-    a2a, agents, capabilities, config, context, dashboard, health, im, knowledge, metrics,
-    nl_command, nodes, scheduler, slow_trace, tier_routing, token_budget, tokens, visualization,
-    workflows,
+    a2a, agents, capabilities, config, context, dashboard, durable_agents, health, im, knowledge,
+    metrics, nl_command, nodes, scheduler, slow_trace, tier_routing, token_budget, tokens,
+    visualization, workflows,
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{
@@ -52,11 +52,11 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
     let agent_routes = Router::new()
         .route(
             "/api/v1/agents",
-            axum::routing::get(agents::list_agents).post(agents::create_agent),
+            axum::routing::get(durable_agents::list_agents).post(durable_agents::create_agent),
         )
         .route(
             "/api/v1/agents/:id",
-            axum::routing::get(agents::get_agent).delete(agents::delete_agent),
+            axum::routing::get(durable_agents::get_agent).delete(durable_agents::delete_agent),
         );
 
     let node_routes = Router::new()
@@ -378,11 +378,8 @@ mod tests {
     }
 
     fn bearer(role: crate::auth::Role) -> String {
-        let config = crate::auth::JwtConfig::new(
-            "synthetic-jwt-secret-at-least-32-bytes",
-            "kias-test",
-            1,
-        );
+        let config =
+            crate::auth::JwtConfig::new("synthetic-jwt-secret-at-least-32-bytes", "kias-test", 1);
         let claims = crate::auth::create_claims("synthetic-user", role, &config);
         crate::auth::generate_token(&claims, &config.secret).unwrap()
     }
@@ -463,7 +460,10 @@ mod tests {
                 Request::builder()
                     .method("POST")
                     .uri("/api/v1/agents")
-                    .header(AUTHORIZATION, format!("Bearer {}", bearer(crate::auth::Role::Viewer)))
+                    .header(
+                        AUTHORIZATION,
+                        format!("Bearer {}", bearer(crate::auth::Role::Viewer)),
+                    )
                     .header(CONTENT_TYPE, "application/json")
                     .body(Body::from("{}"))
                     .unwrap(),

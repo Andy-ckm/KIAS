@@ -59,8 +59,14 @@ jobs:
             python3 scripts/export_ci_mcp_transport_fix.py
             python3 scripts/export_ci_sqlx_version_fix.py
             python3 scripts/export_ci_sqlite_binding_fix.py
+            python3 scripts/export_ci_sqlx_row_mapping_fix.py
             cargo update -p rusqlite@0.31.0 --precise 0.32.1
             cargo update -p sqlx --precise 0.8.6
+            if grep -Eq '^name = "(rsa|sqlx-mysql|sqlx-macros|sqlx-macros-core)"$' Cargo.lock; then
+              echo 'Unexpected SQLx macro/MySQL/RSA dependency remains in Cargo.lock' >&2
+              grep -En '^name = "(rsa|sqlx-mysql|sqlx-macros|sqlx-macros-core)"$' Cargo.lock >&2
+              exit 1
+            fi
             cargo fmt --all
             git diff --check
           ) 2>&1 | tee recovery-build.log

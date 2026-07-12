@@ -16,7 +16,7 @@ pub struct AppState {
     pub config: Arc<KiasConfig>,
     /// Agent persistence repository, when configured.
     pub agent_repository: Option<Arc<kias_data_store::AgentRepository>>,
-    /// In-memory agent working set.
+    /// In-memory agent working set hydrated from durable storage at startup.
     pub agents: Arc<RwLock<std::collections::HashMap<String, models::agent::Agent>>>,
     pub nodes: Arc<RwLock<std::collections::HashMap<String, models::node::Node>>>,
     pub workflows: Arc<RwLock<std::collections::HashMap<String, handlers::workflows::Workflow>>>,
@@ -131,6 +131,26 @@ impl AppState {
         self
     }
 
+    /// Attach the durable Agent repository and hydrate the in-memory read model.
+    pub async fn with_agent_repository(
+        mut self,
+        repository: Arc<kias_data_store::AgentRepository>,
+    ) -> kias_common::KiasResult<Self> {
+        use kias_data_store::Repository;
+
+        let rows = repository.list(None, None).await?;
+        let mut agents = std::collections::HashMap::with_capacity(rows.len());
+        for row in rows {
+            let agent = agent_persistence::from_row(row)?;
+            agents.insert(agent.id.clone(), agent);
+        }
+        tracing::info!(count = agents.len(), "Hydrated durable Agent working set");
+
+        self.agents = Arc::new(RwLock::new(agents));
+        self.agent_repository = Some(repository);
+        Ok(self)
+    }
+
     /// Compatibility wrapper for existing async test code.
     pub async fn new_async(config: KiasConfig) -> Self {
         Self::new(config).await
@@ -167,6 +187,7 @@ fn synthetic_nodes() -> std::collections::HashMap<String, models::node::Node> {
         .collect()
 }
 
+pub mod agent_persistence;
 pub mod auth;
 pub mod contract_test;
 pub mod error;

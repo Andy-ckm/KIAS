@@ -1,6 +1,7 @@
-target/
-.git/
-.github/
-*.md
-.gitignore
-.dockerignore
+**
+!Cargo.toml
+!Cargo.lock
+!crates/
+!crates/**
+!config/
+!config/**

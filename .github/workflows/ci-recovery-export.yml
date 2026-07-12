@@ -56,7 +56,9 @@ jobs:
             python3 scripts/export_ci_last_contract_fix.py
             python3 scripts/export_ci_search_fallback_fix_v2.py
             python3 scripts/export_ci_clippy_fix.py
-            cargo update -p sqlx
+            python3 scripts/export_ci_mcp_transport_fix.py
+            python3 scripts/export_ci_sqlx_version_fix.py
+            cargo update -p sqlx@0.8.0 --precise 0.8.6
             cargo fmt --all
             git diff --check
           ) 2>&1 | tee recovery-build.log
@@ -105,13 +107,14 @@ jobs:
           set -o pipefail
           cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee core-clippy.log
 
-      - name: Test complete workspace
+      - name: Test complete workspace and MCP HTTP feature
         id: workspace_tests
         if: steps.core_tests.outcome == 'success' && steps.core_clippy.outcome == 'success'
         continue-on-error: true
         run: |
-          set -o pipefail
+          set -euo pipefail
           cargo test --workspace --locked 2>&1 | tee workspace-tests.log
+          cargo test -p kias-mcp-protocol --features http --locked 2>&1 | tee -a workspace-tests.log
 
       - name: Upload validation diagnostics
         if: always()

@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - agent/privacy-hardening
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: product-maintenance-preview
+  group: product-maintenance-preview-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

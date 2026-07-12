@@ -1,0 +1,111 @@
+name: CI recovery export
+
+on:
+  push:
+    branches:
+      - agent/ci-recovery
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-recovery-export
+  cancel-in-progress: true
+
+jobs:
+  export-and-test:
+    name: Export and verify recovery candidate
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -D warnings
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/ci-recovery
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install stable Rust tooling
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Build recovery candidate
+        run: |
+          set -euxo pipefail
+          python3 scripts/export_ci_recovery.py
+          cargo update -p sqlx
+          cargo fmt --all
+          git diff --check
+
+      - name: Package exact recovery candidate
+        run: |
+          set -euxo pipefail
+          mkdir -p recovery-export/files
+          git diff --name-only --diff-filter=ACMRTUXB -z | tar --null -T - -czf recovery-export/changed-files.tar.gz
+          git diff --name-only --diff-filter=D > recovery-export/deleted-files.txt
+          git diff --binary > recovery-export/recovery.patch
+          git diff --stat > recovery-export/recovery.stat
+          git status --short > recovery-export/recovery.status
+
+      - name: Upload recovery candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-candidate
+          path: recovery-export
+          retention-days: 3
+
+      - name: Test Core default surface
+        id: core_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --locked 2>&1 | tee core-tests.log
+
+      - name: Lint Core default surface
+        id: core_clippy
+        if: steps.core_tests.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee core-clippy.log
+
+      - name: Test complete workspace
+        id: workspace_tests
+        if: steps.core_tests.outcome == 'success' && steps.core_clippy.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked 2>&1 | tee workspace-tests.log
+
+      - name: Upload validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-validation
+          path: |
+            core-tests.log
+            core-clippy.log
+            workspace-tests.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Enforce validation
+        if: always()
+        run: |
+          test '${{ steps.core_tests.outcome }}' = success
+          test '${{ steps.core_clippy.outcome }}' = success
+          test '${{ steps.workspace_tests.outcome }}' = success

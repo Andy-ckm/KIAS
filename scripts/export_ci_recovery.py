@@ -112,22 +112,22 @@ def main() -> None:
     replace_dependency(
         "Cargo.toml",
         'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }',
-        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }',
+        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "derive"] }',
     )
     replace_dependency(
         "crates/data-store/Cargo.toml",
         'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }',
-        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }',
+        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "uuid", "derive"] }',
     )
     replace_dependency(
         "crates/data-governance/Cargo.toml",
         'sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }',
-        'sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }',
+        'sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio", "derive"] }',
     )
     replace_dependency(
         "crates/api-server/Cargo.toml",
         'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }',
-        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }',
+        'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "derive"] }',
     )
 
     replace_if_needed(

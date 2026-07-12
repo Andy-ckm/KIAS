@@ -1,0 +1,154 @@
+name: CI recovery once
+
+on:
+  push:
+    branches:
+      - agent/ci-recovery
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-recovery-once
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Apply and verify bounded CI recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -D warnings
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/ci-recovery
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install stable Rust tooling
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Apply bounded source and dependency fixes
+        run: |
+          set -euxo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply_ci_fixture_fixes.py")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  '            if marker < 0:\n                break\n            opening = text.find("{", marker)\n',
+                  '            if marker < 0:\n                break\n            line_start = text.rfind("\\n", 0, marker) + 1\n            line_prefix = text[line_start:marker]\n            preceding = text[marker - 1] if marker else ""\n            if preceding.isalnum() or preceding == "_" or "->" in line_prefix:\n                cursor = marker + len("AppState {")\n                continue\n            opening = text.find("{", marker)\n',
+              ),
+              (
+                  '                indentation = text[line_start:marker]\n                if indentation.strip():\n                    raise SystemExit(f"{path}: unexpected AppState indentation at byte {marker}")\n                insertions.append((opening + 1, f"\\n{indentation}    run_service: None,"))\n',
+                  '                line_prefix = text[line_start:marker]\n                indentation = line_prefix[: len(line_prefix) - len(line_prefix.lstrip())]\n                insertions.append((opening + 1, f"\\n{indentation}    run_service: None,"))\n',
+              ),
+              (
+                  '    replace_exact(\n        "crates/a2a-registry/src/a2a_enhanced.rs",\n        "    protocol_negotiator: ProtocolNegotiator,\\n",\n        "",\n    )\n    replace_exact(\n        "crates/a2a-registry/src/a2a_enhanced.rs",\n        "            protocol_negotiator: ProtocolNegotiator,\\n",\n        "",\n    )\n',
+                  '    replace_exact(\n        "crates/a2a-registry/src/a2a_enhanced.rs",\n        "    protocol_negotiator: ProtocolNegotiator,\\n",\n        "",\n        count=2,\n    )\n',
+              ),
+              (
+                  '    replace_exact(\n        "crates/llm-engine/src/provider.rs",\n        "        let mut chunks: Vec<StreamChunk> = Vec::new();\\n",\n        "        let chunks: Vec<StreamChunk> = Vec::new();\\n",\n    )\n',
+                  '    replace_exact(\n        "crates/llm-engine/src/provider.rs",\n        "    fn test_anthropic_sse_parsing_empty_body() {\\n        let sse_data = \\\"\\\";\\n        let mut chunks: Vec<StreamChunk> = Vec::new();\\n",\n        "    fn test_anthropic_sse_parsing_empty_body() {\\n        let sse_data = \\\"\\\";\\n        let chunks: Vec<StreamChunk> = Vec::new();\\n",\n    )\n',
+              ),
+          ]
+
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f"unexpected remediation script shape: {old[:80]!r}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          python3 scripts/apply_ci_fixture_fixes.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest_updates = {
+              "Cargo.toml": (
+                  'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }',
+                  'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }',
+              ),
+              "crates/data-store/Cargo.toml": (
+                  'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }',
+                  'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }',
+              ),
+              "crates/data-governance/Cargo.toml": (
+                  'sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }',
+                  'sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }',
+              ),
+              "crates/api-server/Cargo.toml": (
+                  'sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }',
+                  'sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }',
+              ),
+          }
+
+          for filename, (old, new) in manifest_updates.items():
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise SystemExit(f"{filename}: expected SQLx dependency declaration not found")
+              path.write_text(text, encoding="utf-8")
+
+          conditional_updates = {
+              "crates/common/src/metrics.rs": (
+                  '.find(|mf| mf.get_name() == "kias_scheduler_latency_seconds")',
+                  '.find(|mf| mf.name() == "kias_scheduler_latency_seconds")',
+              ),
+              "crates/common/src/tls.rs": (
+                  '        let key = b"not a pem file";\n        let err = validate_pem_files(cert, key.as_bytes()).unwrap_err();\n',
+                  '        let key = b"not a pem file";\n        let err = validate_pem_files(cert, key).unwrap_err();\n',
+              ),
+          }
+
+          for filename, (old, new) in conditional_updates.items():
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise SystemExit(f"{filename}: neither old nor corrected form found")
+              path.write_text(text, encoding="utf-8")
+          PY
+
+          git show c02c29149071f377b38a6004a7cba7e61f625601:.github/workflows/privacy.yml > .github/workflows/privacy.yml
+          git rm -f .github/workflows/fix-test-warnings-once.yml
+          git rm -f scripts/apply_ci_fixture_fixes.py
+          git rm -f .github/workflows/ci-recovery-once.yml
+
+          cargo update -p sqlx
+          cargo fmt --all
+          git diff --check
+
+      - name: Test Core default surface
+        run: cargo test --locked
+
+      - name: Lint Core default surface
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test complete workspace
+        run: cargo test --workspace --locked
+
+      - name: Commit verified recovery
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: recover strict CI and dependency audit baseline"
+          git push origin HEAD:agent/ci-recovery

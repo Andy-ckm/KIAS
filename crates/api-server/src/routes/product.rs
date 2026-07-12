@@ -1,4 +1,4 @@
-use axum::middleware::from_fn_with_state;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::Router;
 
 use crate::handlers::{
@@ -8,7 +8,8 @@ use crate::handlers::{
 };
 use crate::middleware::rate_limit::{RateLimiter, RateLimiterConfig};
 use crate::middleware::{
-    auth::auth_middleware, idempotency::idempotency_middleware, logging::logging_middleware,
+    auth::auth_middleware, authorization::control_plane_authorization,
+    idempotency::idempotency_middleware, logging::logging_middleware,
 };
 use crate::surfaces::SurfaceConfig;
 use crate::AppState;
@@ -46,18 +47,12 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
             public_routes.route("/ws", axum::routing::get(crate::websocket::ws_handler));
     }
 
+    // External callers may register and inspect agents, but observed-state
+    // transitions remain controller-owned and are not exposed as a public PATCH.
     let agent_routes = Router::new()
         .route(
             "/api/v1/agents",
             axum::routing::get(agents::list_agents).post(agents::create_agent),
-        )
-        .route(
-            "/api/v1/agents/:id/invoke",
-            axum::routing::post(agents::invoke_agent),
-        )
-        .route(
-            "/api/v1/agents/:id/status",
-            axum::routing::patch(agents::update_agent_status),
         )
         .route(
             "/api/v1/agents/:id",
@@ -89,7 +84,7 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
     // Runtime mutation was removed from the default product surface because the
     // legacy PATCH handler validated values but did not apply them. Configuration
     // remains an explicit deployment input until a transactional config service
-    // exists.
+    // exists. The authorization middleware restricts these reads to Admin.
     let config_routes = Router::new()
         .route("/api/v1/config", axum::routing::get(config::get_config))
         .route(
@@ -168,6 +163,13 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
         protected_routes = protected_routes.route(
             "/api/v1/ws/stats",
             axum::routing::get(crate::websocket::ws_stats_handler),
+        );
+    }
+
+    if surfaces.direct_execution {
+        protected_routes = protected_routes.route(
+            "/api/v1/agents/:id/invoke",
+            axum::routing::post(agents::invoke_agent),
         );
     }
 
@@ -338,13 +340,16 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
         );
     }
 
+    // Layer order is deliberate: authentication runs before role authorization;
+    // rate limiting and idempotency then operate on an authenticated request.
     let protected_routes = protected_routes
-        .layer(from_fn_with_state(state.clone(), auth_middleware))
+        .layer(from_fn_with_state(state.clone(), idempotency_middleware))
         .layer(from_fn_with_state(
             rate_limiter,
             crate::middleware::rate_limit::rate_limit_middleware,
         ))
-        .layer(from_fn_with_state(state.clone(), idempotency_middleware));
+        .layer(from_fn(control_plane_authorization))
+        .layer(from_fn_with_state(state.clone(), auth_middleware));
 
     Router::new()
         .merge(public_routes)
@@ -357,6 +362,7 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
 mod tests {
     use super::*;
     use axum::body::Body;
+    use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
     use axum::http::{Request, StatusCode};
     use tower::ServiceExt;
 
@@ -367,8 +373,18 @@ mod tests {
     async fn authenticated_state() -> AppState {
         let mut config = kias_common::config::KiasConfig::default();
         config.api_server.auth_enabled = true;
-        config.api_server.auth_tokens = vec!["synthetic-operator-token".to_string()];
+        config.api_server.jwt_secret = Some("synthetic-jwt-secret-at-least-32-bytes".to_string());
         AppState::new(config).await
+    }
+
+    fn bearer(role: crate::auth::Role) -> String {
+        let config = crate::auth::JwtConfig::new(
+            "synthetic-jwt-secret-at-least-32-bytes",
+            "kias-test",
+            1,
+        );
+        let claims = crate::auth::create_claims("synthetic-user", role, &config);
+        crate::auth::generate_token(&claims, &config.secret).unwrap()
     }
 
     #[tokio::test]
@@ -410,6 +426,7 @@ mod tests {
             "/api/v1/nl/command",
             "/api/v1/viz/compliance-status",
             "/api/v1/ws/stats",
+            "/api/v1/agents/example/invoke",
         ] {
             let response = app
                 .clone()
@@ -435,6 +452,47 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn viewer_cannot_mutate_control_plane_state() {
+        let app =
+            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/agents")
+                    .header(AUTHORIZATION, format!("Bearer {}", bearer(crate::auth::Role::Viewer)))
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn operator_cannot_read_admin_configuration() {
+        let app =
+            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/config")
+                    .header(
+                        AUTHORIZATION,
+                        format!("Bearer {}", bearer(crate::auth::Role::Operator)),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]

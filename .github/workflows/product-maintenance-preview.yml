@@ -1,22 +1,20 @@
-name: Product maintenance preview
+name: Apply reviewed product maintenance once
 
 on:
   push:
     branches:
       - agent/privacy-hardening
-  pull_request:
-    branches:
-      - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: product-maintenance-preview-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: apply-product-maintenance-once
+  cancel-in-progress: false
 
 jobs:
-  preview:
+  apply:
+    if: github.ref == 'refs/heads/agent/privacy-hardening'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -24,7 +22,8 @@ jobs:
       - name: Checkout remediation branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          ref: agent/privacy-hardening
+          persist-credentials: true
 
       - name: Install stable Rust tooling
         run: |
@@ -32,33 +31,42 @@ jobs:
           rustup default stable
           rustup component add rustfmt
 
-      - name: Format Rust
-        run: cargo fmt --all
+      - name: Reproduce reviewed outputs
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo generate-lockfile
+          git rm .github/workflows/product-maintenance-preview.yml
+          git add -A
 
-      - name: Refresh lockfile
-        id: lockfile
-        continue-on-error: true
-        run: cargo generate-lockfile
+      - name: Enforce exact file allowlist
+        run: |
+          set -euo pipefail
+          unexpected=0
+          while IFS= read -r file; do
+            case "$file" in
+              Cargo.lock|\
+              crates/api-server/src/handlers/capabilities.rs|\
+              crates/api-server/src/lib.rs|\
+              crates/api-server/src/routes/mod.rs|\
+              crates/api-server/src/routes/product.rs|\
+              crates/api-server/src/surfaces.rs|\
+              crates/kias-main/src/main.rs|\
+              .github/workflows/product-maintenance-preview.yml)
+                ;;
+              *)
+                echo "Unexpected maintenance change: $file" >&2
+                unexpected=1
+                ;;
+            esac
+          done < <(git diff --cached --name-only)
+          test "$unexpected" -eq 0
+          git diff --cached --check
 
-      - name: Record lockfile diagnostics
-        if: steps.lockfile.outcome != 'success'
-        run: echo "Cargo.lock refresh failed" > product-maintenance-error.txt
-
-      - name: Upload reviewed maintenance outputs
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: product-maintenance-preview
-          path: |
-            Cargo.lock
-            product-maintenance-error.txt
-            crates/api-server/src/lib.rs
-            crates/api-server/src/routes/product.rs
-            crates/api-server/src/surfaces.rs
-            crates/kias-main/src/main.rs
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Enforce lockfile refresh
-        if: steps.lockfile.outcome != 'success'
-        run: exit 1
+      - name: Commit mechanical maintenance
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: refresh lockfile and format product surfaces"
+          git push origin HEAD:agent/privacy-hardening

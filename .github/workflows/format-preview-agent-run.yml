@@ -1,53 +1,58 @@
-name: Preview Agent Run rustfmt
+name: Apply reviewed Agent Run rustfmt once
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
-    paths:
-      - "crates/api-server/**"
-      - "crates/executor/**"
-      - "crates/kias-main/**"
-      - ".github/workflows/format-preview-agent-run.yml"
+      - agent/privacy-hardening
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: preview-agent-run-rustfmt-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: apply-reviewed-agent-run-rustfmt-once
+  cancel-in-progress: false
 
 jobs:
-  preview:
+  apply:
+    if: github.ref == 'refs/heads/agent/privacy-hardening'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
-      - name: Checkout repository
+      - name: Checkout remediation branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          ref: agent/privacy-hardening
+          persist-credentials: true
 
-      - name: Install rustfmt
+      - name: Install stable Rust with rustfmt
         run: |
           rustup update stable
           rustup default stable
           rustup component add rustfmt
 
-      - name: Format without writing to the repository
+      - name: Apply reviewed formatting and enforce exact scope
         run: |
           cargo fmt --all
+          bash -n scripts/runtime-smoke-agent-run.sh
           git diff --check
-          git diff --name-only > rustfmt-changed.txt
-          test -s rustfmt-changed.txt
-          tar -czf rustfmt-files.tar.gz -T rustfmt-changed.txt
-          cat rustfmt-changed.txt
+          git rm .github/workflows/format-preview-agent-run.yml
 
-      - name: Upload reviewed formatting preview
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: agent-run-rustfmt-preview
-          path: |
-            rustfmt-changed.txt
-            rustfmt-files.tar.gz
-          if-no-files-found: error
-          retention-days: 3
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/format-preview-agent-run.yml' \
+            'crates/api-server/src/run_service.rs' \
+            'crates/executor/src/docker_sandbox.rs' | sort)"
+          test "${changed}" = "${expected}"
+          git add -A
+
+      - name: Validate focused crates
+        run: |
+          cargo test --locked -p kias-executor -p kias-api-server -p kias-main
+          cargo clippy --locked -p kias-executor -p kias-api-server -p kias-main --all-targets -- -D warnings
+
+      - name: Commit reviewed formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style: format Agent Run implementation"
+          git push origin HEAD:agent/privacy-hardening

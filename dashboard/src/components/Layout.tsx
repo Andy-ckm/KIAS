@@ -1,7 +1,7 @@
 // Layout component — sidebar + main content area
 
 import { NavLink, Outlet } from 'react-router-dom';
-import { useProductContext } from './AuthGate';
+import { useProductContext } from './ProductContext';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Overview', icon: '📊' },

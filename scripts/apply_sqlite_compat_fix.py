@@ -18,8 +18,12 @@ replace_exact(
     'rusqlite = { version = "0.31", features = ["bundled"] }',
     'rusqlite = { version = "0.32", features = ["bundled"] }',
 )
-replace_exact(
+for manifest in (
     "crates/document-management/Cargo.toml",
-    'rusqlite = { version = "0.31", features = ["bundled"] }',
-    'rusqlite.workspace = true',
-)
+    "crates/it-change-management/Cargo.toml",
+):
+    replace_exact(
+        manifest,
+        'rusqlite = { version = "0.31", features = ["bundled"] }',
+        'rusqlite.workspace = true',
+    )

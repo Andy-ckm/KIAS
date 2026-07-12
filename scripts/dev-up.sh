@@ -43,18 +43,37 @@ export KIAS_JWT_SECRET
 KIAS_JWT_SECRET="$(tr -d '\r\n' <"${SECRET_FILE}")"
 
 cd "${ROOT_DIR}"
+
+diagnose() {
+  echo "Recent KIAS logs:" >&2
+  docker compose logs --tail=120 kias >&2 || true
+  echo "Recent Dashboard logs:" >&2
+  docker compose logs --tail=80 dashboard >&2 || true
+}
+trap 'diagnose' ERR
+
 docker compose up --detach --build
 
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 90); do
   if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
     break
   fi
-  if [[ "${attempt}" -eq 60 ]]; then
-    echo "KIAS did not become healthy. Recent logs:" >&2
-    docker compose logs --tail=120 kias >&2 || true
+  if [[ "${attempt}" -eq 90 ]]; then
+    echo "KIAS API did not become healthy." >&2
     exit 1
   fi
   sleep 2
+done
+
+for attempt in $(seq 1 60); do
+  if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then
+    break
+  fi
+  if [[ "${attempt}" -eq 60 ]]; then
+    echo "KIAS Dashboard did not become healthy." >&2
+    exit 1
+  fi
+  sleep 1
 done
 
 TOKEN="$(docker compose run --rm --no-deps kias token --role operator --subject local-docker-operator | tail -n 1)"
@@ -63,18 +82,20 @@ chmod 600 "${TOKEN_FILE}"
 
 curl --fail --silent \
   -H "Authorization: Bearer ${TOKEN}" \
-  http://127.0.0.1:8080/api/v1/system/capabilities >/dev/null
+  http://127.0.0.1:3000/api/v1/system/capabilities >/dev/null
 
+trap - ERR
 cat <<EOF
 KIAS is running.
 
-Dashboard/API base: http://127.0.0.1:8080
-Health:             http://127.0.0.1:8080/health
-Operator token:     ${TOKEN_FILE}
+Dashboard:      http://127.0.0.1:3000
+API base:       http://127.0.0.1:8080
+Health:         http://127.0.0.1:8080/health
+Operator token: ${TOKEN_FILE}
 
-Use this token as:
+Paste the token into the Dashboard connection screen, or use:
   Authorization: Bearer \$(cat ${TOKEN_FILE})
 
 Stop KIAS with:
-  ./scripts/dev-down.sh
+  bash scripts/dev-down.sh
 EOF

@@ -400,10 +400,7 @@ fn parse_memory_usage(raw: &str) -> u64 {
     let split_at = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
         .unwrap_or(value.len());
-    let number = value[..split_at]
-        .trim()
-        .parse::<f64>()
-        .unwrap_or_default();
+    let number = value[..split_at].trim().parse::<f64>().unwrap_or_default();
     let unit = value[split_at..].trim().to_ascii_lowercase();
     let multiplier = match unit.as_str() {
         "b" | "" => 1_f64,

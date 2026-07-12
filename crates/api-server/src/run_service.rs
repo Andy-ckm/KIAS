@@ -5,9 +5,7 @@ use std::time::Duration;
 use chrono::Utc;
 use kias_common::{KiasError, KiasResult};
 use kias_data_store::{Repository, TaskRepository, TaskRow};
-use kias_executor::{
-    DockerSandboxExecutor, DockerSandboxPolicy, Task, TaskExecutor, TaskStatus,
-};
+use kias_executor::{DockerSandboxExecutor, DockerSandboxPolicy, Task, TaskExecutor, TaskStatus};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -166,7 +164,10 @@ impl RunService {
             .and_then(serde_json::Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let final_execution = output.get("final").cloned().filter(|value| !value.is_null());
+        let final_execution = output
+            .get("final")
+            .cloned()
+            .filter(|value| !value.is_null());
         let unsigned = serde_json::json!({
             "run": &run,
             "attempts": &attempts,
@@ -443,13 +444,23 @@ impl RunService {
         if !self.runtime_available {
             reasons.push("Docker runner is unavailable on this KIAS instance".to_string());
         }
-        if agent.spec.labels.get("kias.io/execution").map(String::as_str) != Some("enabled") {
+        if agent
+            .spec
+            .labels
+            .get("kias.io/execution")
+            .map(String::as_str)
+            != Some("enabled")
+        {
             reasons.push("AgentSpec must opt in with label kias.io/execution=enabled".to_string());
         }
         if !self.allowed_images.contains(&agent.spec.image) {
             reasons.push(format!(
                 "image is not in KIAS_RUN_ALLOWED_IMAGES ({})",
-                self.allowed_images.iter().cloned().collect::<Vec<_>>().join(", ")
+                self.allowed_images
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
         if agent.spec.image.ends_with(":latest") {
@@ -484,7 +495,9 @@ impl RunService {
             reasons.push(format!("max_retries must be at most {MAX_RETRIES}"));
         }
         if cpu <= 0.0 || cpu > MAX_CPU {
-            reasons.push(format!("CPU request must be greater than 0 and at most {MAX_CPU}"));
+            reasons.push(format!(
+                "CPU request must be greater than 0 and at most {MAX_CPU}"
+            ));
         }
         if memory_bytes == 0 || memory_bytes > MAX_MEMORY_BYTES {
             reasons.push(format!(
@@ -650,10 +663,7 @@ mod tests {
                 memory: Some("128Mi".to_string()),
                 gpu: Some("0".to_string()),
             }),
-            labels: HashMap::from([(
-                "kias.io/execution".to_string(),
-                "enabled".to_string(),
-            )]),
+            labels: HashMap::from([("kias.io/execution".to_string(), "enabled".to_string())]),
             priority: "medium".to_string(),
             env: HashMap::new(),
         })

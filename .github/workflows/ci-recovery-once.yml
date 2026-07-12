@@ -4,17 +4,25 @@ on:
   push:
     branches:
       - agent/ci-recovery
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 concurrency:
   group: ci-recovery-once
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   recover:
     name: Apply and verify bounded CI recovery
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:

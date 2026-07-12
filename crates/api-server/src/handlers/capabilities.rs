@@ -44,6 +44,16 @@ pub async fn get_capabilities(State(state): State<AppState>) -> Json<ProductCapa
                 "supported",
             ),
             capability(
+                "sandboxed-runs",
+                "Policy-admitted, isolated Agent Runs",
+                "core",
+                state
+                    .run_service
+                    .as_ref()
+                    .is_some_and(|service| service.runtime_available()),
+                "supported on Docker-backed runners",
+            ),
+            capability(
                 "scheduling",
                 "Policy-aware scheduling",
                 "core",
@@ -66,9 +76,12 @@ pub async fn get_capabilities(State(state): State<AppState>) -> Json<ProductCapa
             ),
             capability(
                 "recovery",
-                "Failure recovery primitives",
+                "Cancellation, retry, and replay recovery",
                 "core",
-                true,
+                state
+                    .run_service
+                    .as_ref()
+                    .is_some_and(|service| service.runtime_available()),
                 "supported",
             ),
             capability(
@@ -108,10 +121,10 @@ pub async fn get_capabilities(State(state): State<AppState>) -> Json<ProductCapa
             ),
             capability(
                 "direct-execution",
-                "Direct shell-backed agent invocation",
+                "Legacy direct shell-backed invocation",
                 "labs",
                 surfaces.direct_execution,
-                "experimental; sandbox not verified",
+                "experimental; use sandboxed-runs instead",
             ),
             capability(
                 "natural-language-commands",
@@ -170,5 +183,11 @@ mod tests {
             .iter()
             .filter(|capability| capability.tier == "labs")
             .all(|capability| !capability.enabled));
+        assert!(!response
+            .capabilities
+            .iter()
+            .find(|capability| capability.id == "sandboxed-runs")
+            .unwrap()
+            .enabled);
     }
 }

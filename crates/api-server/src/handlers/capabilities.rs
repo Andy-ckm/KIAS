@@ -183,11 +183,13 @@ mod tests {
             .iter()
             .filter(|capability| capability.tier == "labs")
             .all(|capability| !capability.enabled));
-        assert!(!response
-            .capabilities
-            .iter()
-            .find(|capability| capability.id == "sandboxed-runs")
-            .unwrap()
-            .enabled);
+        assert!(
+            !response
+                .capabilities
+                .iter()
+                .find(|capability| capability.id == "sandboxed-runs")
+                .unwrap()
+                .enabled
+        );
     }
 }

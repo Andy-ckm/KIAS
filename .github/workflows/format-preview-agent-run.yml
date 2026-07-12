@@ -39,16 +39,34 @@ jobs:
           rustup default stable
           rustup component add rustfmt
 
-      - name: Apply reviewed formatting and enforce bounded scope
+      - name: Generate reviewed formatting
         run: |
           set -euo pipefail
           cargo fmt --all
           bash -n scripts/runtime-smoke-agent-run.sh
-          git diff --check
           git rm .github/workflows/format-preview-agent-run.yml
+          git diff --name-only | sort > rustfmt-changed.txt
+          git diff > rustfmt.patch
+          git status --short > rustfmt-status.txt
+          cat rustfmt-changed.txt
+          cat rustfmt-status.txt
 
-          git diff --name-only | sort > /tmp/rustfmt-changed.txt
-          cat /tmp/rustfmt-changed.txt
+      - name: Upload formatting diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-run-rustfmt-apply-diagnostics
+          path: |
+            rustfmt-changed.txt
+            rustfmt-status.txt
+            rustfmt.patch
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Enforce bounded scope
+        run: |
+          set -euo pipefail
+          git diff --check
 
           while IFS= read -r path; do
             case "${path}" in
@@ -63,11 +81,11 @@ jobs:
                 exit 1
                 ;;
             esac
-          done < /tmp/rustfmt-changed.txt
+          done < rustfmt-changed.txt
 
-          grep -Fxq '.github/workflows/format-preview-agent-run.yml' /tmp/rustfmt-changed.txt
-          grep -Fxq 'crates/api-server/src/run_service.rs' /tmp/rustfmt-changed.txt
-          grep -Fxq 'crates/executor/src/docker_sandbox.rs' /tmp/rustfmt-changed.txt
+          grep -Fxq '.github/workflows/format-preview-agent-run.yml' rustfmt-changed.txt
+          grep -Fxq 'crates/api-server/src/run_service.rs' rustfmt-changed.txt
+          grep -Fxq 'crates/executor/src/docker_sandbox.rs' rustfmt-changed.txt
           git add -A
 
       - name: Validate focused crates

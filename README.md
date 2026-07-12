@@ -4,7 +4,7 @@
 
 <h1 align="center">KIAS</h1>
 <p align="center"><strong>Control, evidence, and recovery for tool-using AI agents.</strong></p>
-<p align="center">A self-hosted, policy-driven agent control plane built in Rust.</p>
+<p align="center">A self-hosted Agent Operations Control Plane built in Rust.</p>
 
 <p align="center">
   <a href="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml"><img src="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -26,7 +26,13 @@ KIAS treats an agent as a managed resource rather than an unbounded script. Its 
 - **Evidence** — important behavior produces privacy-aware state, metrics, traces, and pseudonymous audit records.
 - **Recovery** — work has bounded retries, cancellation, checkpoints, reconciliation, and graceful shutdown.
 
-Read the complete product boundary in [`PRODUCT.md`](PRODUCT.md).
+The core operating loop is:
+
+```text
+Register → Constrain → Run → Observe → Intervene → Prove
+```
+
+Read the complete boundary in [`PRODUCT.md`](PRODUCT.md) and the adoption strategy in [`docs/product-strategy.md`](docs/product-strategy.md).
 
 ## Who it is for
 
@@ -58,9 +64,11 @@ KIAS is not a hosted model service, model-training platform, no-code chatbot bui
 
 The repository is divided into three product tiers:
 
-- **Core** — the supported control-plane boundary;
+- **Core** — the supported default control-plane boundary;
 - **Extensions** — optional integrations and higher-level capabilities;
 - **Labs** — disabled-by-default research with no compatibility promise.
+
+The running instance reports its effective profile and surfaces through authenticated `GET /api/v1/system/capabilities`. Optional routes are absent until explicitly enabled; the Dashboard does not infer capability from repository contents.
 
 See [`docs/architecture.md`](docs/architecture.md) and [`docs/capability-maturity.md`](docs/capability-maturity.md).
 
@@ -74,21 +82,21 @@ See [`docs/architecture.md`](docs/architecture.md) and [`docs/capability-maturit
 | Workflows | DAG execution, conditional routing, fan-out, cancellation and checkpoints |
 | Evidence | metrics, traces, state transitions and pseudonymous audit records |
 | Recovery | durable state primitives, dead-letter handling and checkpoint-based continuation |
-| Security | redacted credential types, runtime secret references, TLS options and privacy gates |
+| Security | redacted credential types, runtime secret references, TLS deployment checks and privacy gates |
 | Interoperability | model, tool and agent protocol interfaces behind explicit adapters |
 
-A capability appearing in the workspace does not imply every adapter or backend is production-ready. Unsupported or incomplete security integrations must fail closed.
+A capability appearing in the workspace does not imply that its route is enabled or its adapter is production-ready. Unsupported or incomplete security integrations must fail closed.
 
-## Quickstart
+## Authenticated quickstart
 
 ### Prerequisites
 
 - a current stable Rust toolchain;
 - Git;
-- OpenSSL or another secure random-value generator for local credentials;
-- optional external services only for the integration being tested.
+- Node.js and npm for the optional Dashboard;
+- OpenSSL or another secure random-value generator for local credentials.
 
-### Build the default Core surface
+### 1. Build and test the default Core surface
 
 ```bash
 git clone https://github.com/Andy-ckm/KIAS.git
@@ -98,33 +106,79 @@ cargo build --locked
 cargo test --locked
 ```
 
+### 2. Generate a runtime signing secret and Operator token
+
+Do not place the secret or token in a tracked file.
+
+```bash
+export KIAS_API_SERVER__JWT_SECRET="$(openssl rand -hex 32)"
+export KIAS_OPERATOR_TOKEN="$(cargo run -q -p kias-main --bin kias --locked -- token --role operator)"
+```
+
+`KIAS_OPERATOR_TOKEN` is only a shell variable in this example. Paste its value into the Dashboard connection screen or use it as `Authorization: Bearer <token>`.
+
+### 3. Start the loopback-only control plane
+
+```bash
+cargo run -p kias-main --bin kias --locked -- server
+```
+
+In another terminal, export the same token and inspect the effective product contract:
+
+```bash
+curl -s \
+  -H "Authorization: Bearer ${KIAS_OPERATOR_TOKEN}" \
+  http://127.0.0.1:8080/api/v1/system/capabilities
+```
+
+### 4. Start the Dashboard
+
+```bash
+cd dashboard
+npm ci
+npm run dev
+```
+
+Open the local Vite URL and paste the Operator token. The token is stored only in the current browser tab through `sessionStorage`.
+
 ### Verify the complete workspace
 
 ```bash
 cargo check --workspace --all-features --locked
 cargo test --workspace --all-features --locked
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo clippy --all-targets --locked -- -D warnings
 cargo fmt --all -- --check
-```
-
-### Start a local authenticated control plane
-
-The shipped configuration binds only to loopback and enables authentication. Generate a temporary local JWT secret at runtime rather than placing one in a file:
-
-```bash
-export KIAS_API_SERVER__JWT_SECRET="$(openssl rand -hex 32)"
-cargo run -p kias-main --bin kias --locked -- server
-```
-
-Inspect command-line options:
-
-```bash
-cargo run -p kias-main --bin kias --locked -- --help
 ```
 
 Configuration starts from [`config/default.toml`](config/default.toml). Nested environment overrides use `__`, such as `KIAS_API_SERVER__PORT`. Supply secrets through environment injection or an external secret provider; never commit a populated `.env` file.
 
 Non-loopback listeners are refused unless authentication is active and `KIAS_TRUSTED_TLS_PROXY=true` explicitly acknowledges a trusted TLS-terminating proxy. Native TLS is not yet wired into the `kias` binary; the process fails rather than pretending that `tls=true` is effective.
+
+## Runtime product profiles
+
+The default profile is `core`. Optional surfaces require explicit opt-in:
+
+```bash
+# Extensions
+export KIAS_SURFACES__KNOWLEDGE=true
+export KIAS_SURFACES__CONTEXT=true
+export KIAS_SURFACES__A2A=true
+export KIAS_SURFACES__TIER_ROUTING=true
+export KIAS_SURFACES__REALTIME=true
+
+# Labs
+export KIAS_SURFACES__NL_COMMANDS=true
+export KIAS_SURFACES__IM=true
+export KIAS_SURFACES__VISUALIZATION=true
+```
+
+Synthetic nodes are available only for demonstrations and handler fixtures:
+
+```bash
+export KIAS_DEV_FIXTURES=true
+```
+
+Never use fixture state as evidence of real runtime discovery or health.
 
 ## Security model
 
@@ -149,9 +203,11 @@ The project uses pre-1.0 semantic versioning. Interfaces may change while securi
 
 The repository configures the following quality gates:
 
-- workspace build, tests, formatting, and Clippy with warnings denied;
+- Core tests and Clippy with warnings denied;
+- complete-workspace build and tests;
+- Rust formatting;
 - machine-enforced Core, Extensions, and Labs dependency boundaries;
-- dashboard dependency, lint, and production-build checks;
+- Dashboard dependency, lint, and production-build checks;
 - CodeQL static analysis;
 - OpenSSF Scorecard analysis;
 - dependency audit and update automation;
@@ -164,11 +220,10 @@ Known limitations and readiness evidence are maintained in [`docs/project-status
 ## Documentation
 
 - [Product definition](PRODUCT.md)
+- [Product strategy](docs/product-strategy.md)
 - [Architecture](docs/architecture.md)
 - [Capability maturity](docs/capability-maturity.md)
 - [Project status and evidence](docs/project-status.md)
-- [Development guide](docs/development.md)
-- [API documentation](docs/api.md)
 - [Threat model](docs/threat-model.md)
 - [Security policy](SECURITY.md)
 - [Privacy policy](PRIVACY.md)
@@ -179,12 +234,7 @@ Known limitations and readiness evidence are maintained in [`docs/project-status
 
 Contributions that improve correctness, security, privacy, interoperability, documentation, and operator experience are welcome.
 
-Please read:
-
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
-- [`GOVERNANCE.md`](GOVERNANCE.md)
-- [`MAINTAINERS.md`](MAINTAINERS.md)
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), [`GOVERNANCE.md`](GOVERNANCE.md), and [`MAINTAINERS.md`](MAINTAINERS.md).
 
 For vulnerabilities or privacy incidents, use the private process in [`SECURITY.md`](SECURITY.md), not a public issue.
 

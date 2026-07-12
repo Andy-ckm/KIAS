@@ -195,10 +195,14 @@ jobs:
           SUCCESS_RUN_ID="$(python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["policy"]["allowed"] is True; print(payload["id"])' <<<"${SUCCESS_RUN}")"
           wait_for_run "${SUCCESS_RUN_ID}" succeeded >/dev/null
 
+          echo "stage=success-run-logs"
           LOGS="$(api "http://127.0.0.1:8080/api/v1/runs/${SUCCESS_RUN_ID}/logs")"
+          printf 'logs=%s\n' "${LOGS}"
           python3 -c 'import json,sys; assert "hello from a bounded KIAS Agent Run" in json.load(sys.stdin)["stdout"]' <<<"${LOGS}"
 
+          echo "stage=success-run-evidence"
           EVIDENCE="$(api "http://127.0.0.1:8080/api/v1/runs/${SUCCESS_RUN_ID}/evidence")"
+          printf 'evidence=%s\n' "${EVIDENCE}"
           python3 -c '
           import json,sys
           evidence=json.load(sys.stdin)

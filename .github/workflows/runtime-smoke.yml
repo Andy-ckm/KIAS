@@ -165,9 +165,14 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build container image
-        run: docker compose build --pull
+        id: docker_build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          docker compose build --pull --progress plain 2>&1 | tee docker-build.log
 
       - name: Start and exercise containerized KIAS
+        if: steps.docker_build.outcome == 'success'
         run: |
           set -euo pipefail
 
@@ -203,10 +208,16 @@ jobs:
           cleanup
 
       - name: Upload Docker diagnostics
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: docker-runtime-diagnostics
-          path: docker-runtime.log
+          path: |
+            docker-build.log
+            docker-runtime.log
           if-no-files-found: ignore
           retention-days: 3
+
+      - name: Enforce Docker build
+        if: steps.docker_build.outcome != 'success'
+        run: exit 1

@@ -1,0 +1,115 @@
+name: Apply reviewed test warning fixes once
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+    paths:
+      - "crates/tool-executor/**"
+      - ".github/workflows/fix-test-warnings-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-reviewed-test-warning-fixes-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/privacy-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/privacy-hardening
+          persist-credentials: true
+
+      - name: Install stable Rust tooling
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Apply exact reviewed test fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_exact(
+              "crates/tool-executor/src/builtin.rs",
+              '''        let result = tool.execute(serde_json::json!({"command": ""})).await;
+        // Empty command should not panic - just return a result
+        assert!(true); // Always true - just verifying no panic
+''',
+              '''        let _result = tool.execute(serde_json::json!({"command": ""})).await;
+        // Returning from execute is sufficient for this no-panic regression test.
+''',
+          )
+
+          replace_exact(
+              "crates/tool-executor/src/builtin.rs",
+              '''        // Should fail gracefully, not panic
+        assert!(true); // Always true - just verifying no panic
+''',
+              '''        // Should fail gracefully, not panic.
+        assert!(!result.success);
+        assert!(result.error.is_some());
+''',
+          )
+
+          replace_exact(
+              "crates/tool-executor/src/vulnerability_scan.rs",
+              '''        let result = scanner.scan("shell", &params, &default_ctx());
+        // This might not be caught since pattern is "chmod +s" not numeric
+        // Just verify no panic
+        // u64 is always >= 0, this assertion is always true
+''',
+              '''        let _result = scanner.scan("shell", &params, &default_ctx());
+        // Returning from scan is sufficient for this no-panic regression test.
+''',
+          )
+          PY
+
+          cargo fmt --all
+          git rm .github/workflows/fix-test-warnings-once.yml
+          git diff HEAD --check
+
+          changed="$(git diff --name-only HEAD | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/fix-test-warnings-once.yml' \
+            'crates/tool-executor/src/builtin.rs' \
+            'crates/tool-executor/src/vulnerability_scan.rs' | sort)"
+          printf '%s\n' "${changed}"
+          test "${changed}" = "${expected}"
+          git add -A
+
+      - name: Validate Core and workspace
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: |
+          cargo test --locked --quiet
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo test --workspace --all-features --locked --quiet
+          cargo fmt --all -- --check
+
+      - name: Commit reviewed fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: make no-panic assertions warning-free"
+          git push origin HEAD:agent/privacy-hardening

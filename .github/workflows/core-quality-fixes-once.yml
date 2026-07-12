@@ -36,6 +36,7 @@ jobs:
         run: |
           set -o pipefail
           python3 scripts/apply_reviewed_core_fixes.py 2>&1 | tee apply.log
+          python3 scripts/apply_reviewed_followup_fixes.py 2>&1 | tee -a apply.log
           python3 scripts/apply_sqlite_compat_fix.py 2>&1 | tee -a apply.log
           cargo fmt --all 2>&1 | tee -a apply.log
           cargo generate-lockfile -vv 2>&1 | tee -a apply.log
@@ -89,12 +90,16 @@ jobs:
             crates/auto-loop/src/deployer.rs
             crates/common/src/metrics.rs
             crates/common/src/tls.rs
+            crates/compliance-security/src/auth_providers.rs
             crates/controller/src/runtime_loop.rs
             crates/controller/src/state.rs
             crates/data-governance/Cargo.toml
             crates/data-store/Cargo.toml
             crates/document-management/Cargo.toml
             crates/it-change-management/Cargo.toml
+            crates/kias-main/src/main.rs
+            crates/kias-main/src/services/init.rs
+            crates/linux-automation/Cargo.toml
             crates/tool-executor/src/builtin.rs
             crates/tool-executor/src/vulnerability_scan.rs
           if-no-files-found: error

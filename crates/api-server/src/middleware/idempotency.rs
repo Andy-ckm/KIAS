@@ -15,6 +15,7 @@
 //! Cached responses are stored in SQLite with a configurable TTL (default 24h).
 //! The cache key is the idempotency key itself; the operation hash (method+path+body)
 //! prevents false positives when the same key is reused for different operations.
+//! Request bodies are hashed for comparison but never persisted by this middleware.
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -97,13 +98,14 @@ pub async fn idempotency_middleware(
         _ => {}
     }
 
-    // Register pending entry (best-effort — don't block request if this fails)
+    // Register only the operation digest. Persisting a request body would turn the
+    // idempotency table into a second, less-governed copy of prompts or PII.
     let pending = kias_data_store::models::IdempotencyRow::new_pending(
         &idempotency_key,
         method.to_string(),
         path,
         body_hash,
-        Some(String::from_utf8_lossy(&body_bytes).to_string()),
+        None,
         DEFAULT_TTL_SECONDS,
     );
     if let Err(e) = store.insert_pending(&pending).await {

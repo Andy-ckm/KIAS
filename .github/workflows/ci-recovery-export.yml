@@ -58,7 +58,9 @@ jobs:
             python3 scripts/export_ci_clippy_fix.py
             python3 scripts/export_ci_mcp_transport_fix.py
             python3 scripts/export_ci_sqlx_version_fix.py
-            cargo update -p sqlx@0.8.0 --precise 0.8.6
+            python3 scripts/export_ci_sqlite_binding_fix.py
+            cargo update -p rusqlite@0.31.0 --precise 0.32.1
+            cargo update -p sqlx --precise 0.8.6
             cargo fmt --all
             git diff --check
           ) 2>&1 | tee recovery-build.log

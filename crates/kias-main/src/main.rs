@@ -130,12 +130,34 @@ async fn start_server(
         .await
         .with_context(|| format!("failed to bind KIAS listener at {address}"))?;
 
+    let database_path = resolve_database_path(&config)?;
     let manager = KiasServiceManager::new(config.clone()).await?;
     let health = manager.health_check();
     if !health.is_healthy() {
         bail!("initial KIAS readiness check failed: {}", health.overall);
     }
     tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial readiness check");
+
+    // Open a dedicated API pool against the already validated durable database.
+    // Repository handles own cloned pool references and remain valid for the
+    // lifetime of AppState.
+    let api_repository = kias_data_store::SqliteRepository::open(&database_path).await?;
+    let agent_repository = Arc::new(kias_data_store::AgentRepository::new(
+        api_repository.pool.clone(),
+    ));
+    let idempotency_repository = Arc::new(kias_data_store::IdempotencyRepository::new(
+        api_repository.pool.clone(),
+    ));
+
+    let sqlite_audit_log = Arc::new(manager.audit_log().clone());
+    let dead_letter_queue = Arc::new(manager.dlq().clone());
+    let state = kias_api_server::AppState::new(config.clone())
+        .await
+        .with_persistence(sqlite_audit_log, dead_letter_queue)
+        .with_idempotency_store(idempotency_repository)
+        .with_agent_repository(agent_repository)
+        .await?;
+    let application = kias_api_server::routes::create_router(state);
 
     let shutdown = manager.shutdown_handle();
     let shutdown_for_signal = shutdown.clone();
@@ -145,17 +167,8 @@ async fn start_server(
         shutdown_for_signal.shutdown().await;
     });
 
-    let api_config = config.clone();
-    let sqlite_audit_log = Arc::new(manager.audit_log().clone());
-    let dead_letter_queue = Arc::new(manager.dlq().clone());
     let mut api_handle = tokio::spawn(async move {
         tracing::info!(address = %address, "KIAS API server listening");
-
-        let state = kias_api_server::AppState::new(api_config)
-            .await
-            .with_persistence(sqlite_audit_log, dead_letter_queue);
-        let application = kias_api_server::routes::create_router(state);
-
         axum::serve(listener, application).await
     });
 
@@ -185,6 +198,19 @@ async fn start_server(
     signal_handle.abort();
 
     Ok(())
+}
+
+fn resolve_database_path(config: &kias_common::KiasConfig) -> anyhow::Result<String> {
+    let configured_path = config
+        .storage
+        .sqlite_url
+        .strip_prefix("sqlite://")
+        .unwrap_or(&config.storage.sqlite_url);
+    let database_path = std::env::var("KIAS_DB_PATH").unwrap_or_else(|_| configured_path.to_string());
+    if database_path.trim().is_empty() {
+        bail!("SQLite database path must not be empty");
+    }
+    Ok(database_path)
 }
 
 fn validate_listener_security(host: &str, config: &kias_common::KiasConfig) -> anyhow::Result<()> {
@@ -277,5 +303,12 @@ mod tests {
         std::env::set_var(key, "no");
         assert!(!env_flag(key));
         std::env::remove_var(key);
+    }
+
+    #[test]
+    fn resolves_configured_database_path() {
+        let mut config = kias_common::KiasConfig::default();
+        config.storage.sqlite_url = "sqlite://data/test.db".to_string();
+        assert_eq!(resolve_database_path(&config).unwrap(), "data/test.db");
     }
 }

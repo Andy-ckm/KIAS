@@ -49,6 +49,68 @@ def main() -> None:
         '        AppState::new(config).await\n'
         '    }\n',
     )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '    async fn core_profile_exposes_basic_probe_and_capability_contract() {\n'
+        '        let app = create_router_with_surfaces(test_state().await, SurfaceConfig::default());\n',
+        '    async fn core_profile_exposes_basic_probe_and_capability_contract() {\n'
+        '        let app =\n'
+        '            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());\n',
+    )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '                    .uri("/api/v1/system/capabilities")\n'
+        '                    .body(Body::empty())\n',
+        '                    .uri("/api/v1/system/capabilities")\n'
+        '                    .header(\n'
+        '                        AUTHORIZATION,\n'
+        '                        format!("Bearer {}", bearer(crate::auth::Role::Viewer)),\n'
+        '                    )\n'
+        '                    .body(Body::empty())\n',
+    )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '    async fn optional_and_labs_routes_are_absent_by_default() {\n'
+        '        let app = create_router_with_surfaces(test_state().await, SurfaceConfig::default());\n',
+        '    async fn optional_and_labs_routes_are_absent_by_default() {\n'
+        '        let app =\n'
+        '            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());\n',
+    )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())\n',
+        '                .oneshot(\n'
+        '                    Request::builder()\n'
+        '                        .uri(path)\n'
+        '                        .header(\n'
+        '                            AUTHORIZATION,\n'
+        '                            format!("Bearer {}", bearer(crate::auth::Role::Viewer)),\n'
+        '                        )\n'
+        '                        .body(Body::empty())\n'
+        '                        .unwrap(),\n'
+        '                )\n',
+    )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '    async fn fake_runtime_config_mutation_is_not_advertised() {\n'
+        '        let app = create_router_with_surfaces(test_state().await, SurfaceConfig::default());\n',
+        '    async fn fake_runtime_config_mutation_is_not_advertised() {\n'
+        '        let app =\n'
+        '            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());\n',
+    )
+    replace_once(
+        "crates/api-server/src/routes/product.rs",
+        '                    .method("PATCH")\n'
+        '                    .uri("/api/v1/config")\n'
+        '                    .body(Body::empty())\n',
+        '                    .method("PATCH")\n'
+        '                    .uri("/api/v1/config")\n'
+        '                    .header(\n'
+        '                        AUTHORIZATION,\n'
+        '                        format!("Bearer {}", bearer(crate::auth::Role::Admin)),\n'
+        '                    )\n'
+        '                    .body(Body::empty())\n',
+    )
 
     Path("scripts/export_ci_test_contract_fixes.py").unlink()
 

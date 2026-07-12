@@ -85,133 +85,35 @@ jobs:
         if: steps.scan.outcome == 'failure'
         run: exit 1
 
-  apply-fixture-and-lint-fixes:
-    name: Apply reviewed fixture and lint fixes once
+  diagnose-fixture-fixes:
+    name: Diagnose reviewed fixture fixes
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/privacy-hardening'
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 15
 
     steps:
       - name: Checkout remediation branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: agent/privacy-hardening
-          fetch-depth: 12
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Install stable Rust tooling
-        run: |
-          rustup update stable
-          rustup default stable
-          rustup component add rustfmt clippy
-
-      - name: Apply bounded reviewed changes
-        run: |
-          set -euo pipefail
-          python3 scripts/apply_ci_fixture_fixes.py
-          git show c02c29149071f377b38a6004a7cba7e61f625601:.github/workflows/privacy.yml > .github/workflows/privacy.yml
-          git rm .github/workflows/fix-test-warnings-once.yml
-          git rm scripts/apply_ci_fixture_fixes.py
-          cargo fmt --all
-          git diff HEAD --check
-
-          git diff --name-only HEAD | sort > /tmp/changed-files.txt
-          cat /tmp/changed-files.txt
-          while IFS= read -r path; do
-            case "${path}" in
-              .github/workflows/privacy.yml|\
-              .github/workflows/fix-test-warnings-once.yml|\
-              scripts/apply_ci_fixture_fixes.py|\
-              crates/api-server/src/handlers/agents.rs|\
-              crates/api-server/src/handlers/auth_gxp.rs|\
-              crates/api-server/src/handlers/config.rs|\
-              crates/api-server/src/handlers/context.rs|\
-              crates/api-server/src/handlers/health.rs|\
-              crates/api-server/src/handlers/im.rs|\
-              crates/api-server/src/handlers/metrics.rs|\
-              crates/api-server/src/handlers/nl_command.rs|\
-              crates/api-server/src/handlers/nodes.rs|\
-              crates/api-server/src/handlers/scheduler.rs|\
-              crates/api-server/src/handlers/tier_routing.rs|\
-              crates/api-server/src/handlers/tokens.rs|\
-              crates/api-server/src/handlers/durable_agents.rs|\
-              crates/controller/src/runtime_loop.rs|\
-              crates/controller/src/state.rs|\
-              crates/mcp-protocol/src/server.rs|\
-              crates/mcp-protocol/src/sandbox.rs|\
-              crates/compliance-security/src/auth_providers.rs|\
-              crates/a2a-registry/src/a2a_enhanced.rs|\
-              crates/gxp-compliance/src/audit_trail.rs|\
-              crates/gxp-compliance/src/risk_assessment.rs|\
-              crates/llm-engine/src/cost.rs|\
-              crates/llm-engine/src/provider.rs|\
-              crates/llm-engine/src/streaming.rs|\
-              crates/tool-executor/src/builtin.rs|\
-              crates/tool-executor/src/vulnerability_scan.rs)
-                ;;
-              *)
-                echo "Unexpected remediation change: ${path}" >&2
-                exit 1
-                ;;
-            esac
-          done < /tmp/changed-files.txt
-          grep -Fxq '.github/workflows/privacy.yml' /tmp/changed-files.txt
-          grep -Fxq '.github/workflows/fix-test-warnings-once.yml' /tmp/changed-files.txt
-          grep -Fxq 'scripts/apply_ci_fixture_fixes.py' /tmp/changed-files.txt
-          git add -A
-
-      - name: Test Core default surface
-        id: core_test
-        continue-on-error: true
-        env:
-          RUSTFLAGS: "-D warnings"
-        run: |
-          set -o pipefail
-          cargo test --all-features --locked --quiet 2>&1 | tee remediation-core-tests.log
-
-      - name: Lint Core default surface
-        id: core_clippy
+      - name: Run bounded transformation
+        id: apply
         continue-on-error: true
         run: |
           set -o pipefail
-          cargo clippy --all-targets --all-features --locked --message-format=short -- -D warnings 2>&1 | tee remediation-core-clippy.log
+          python3 scripts/apply_ci_fixture_fixes.py 2>&1 | tee fixture-remediation-apply.log
 
-      - name: Test complete workspace
-        id: workspace_test
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          cargo test --workspace --all-features --locked --quiet 2>&1 | tee remediation-workspace-tests.log
-
-      - name: Check Rust formatting
-        id: rustfmt
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          cargo fmt --all -- --check 2>&1 | tee remediation-rustfmt.log
-
-      - name: Upload remediation diagnostics
+      - name: Upload transformation diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: fixture-lint-remediation-diagnostics
-          path: |
-            remediation-core-tests.log
-            remediation-core-clippy.log
-            remediation-workspace-tests.log
-            remediation-rustfmt.log
-          if-no-files-found: warn
+          name: fixture-remediation-apply-diagnostics
+          path: fixture-remediation-apply.log
+          if-no-files-found: error
           retention-days: 3
 
-      - name: Enforce validation
-        if: steps.core_test.outcome != 'success' || steps.core_clippy.outcome != 'success' || steps.workspace_test.outcome != 'success' || steps.rustfmt.outcome != 'success'
+      - name: Enforce transformation
+        if: steps.apply.outcome != 'success'
         run: exit 1
-
-      - name: Commit reviewed fixes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "test: repair fixtures and strict workspace lints"
-          git push origin HEAD:agent/privacy-hardening

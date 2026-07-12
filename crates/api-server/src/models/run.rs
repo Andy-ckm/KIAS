@@ -20,6 +20,14 @@ impl Default for StartRunRequest {
     }
 }
 
+/// Retry and recovery requests must resupply the exact original input. KIAS
+/// persists only its SHA-256 digest and byte count, never the raw value.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReplayRunRequest {
+    #[serde(default)]
+    pub input: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RunStatus {

@@ -65,9 +65,9 @@ impl From<kias_common::KiasError> for ApiError {
     fn from(e: kias_common::KiasError) -> Self {
         use kias_common::KiasError;
         match e {
-            KiasError::AgentNotFound(m)
-            | KiasError::NodeNotFound(m)
-            | KiasError::NotFound(m) => ApiError::not_found(m),
+            KiasError::AgentNotFound(m) | KiasError::NodeNotFound(m) | KiasError::NotFound(m) => {
+                ApiError::not_found(m)
+            }
             KiasError::AuthenticationFailed(m) => ApiError::unauthorized(m),
             KiasError::AuthorizationDenied(m) => ApiError::forbidden(m),
             KiasError::Validation(m) | KiasError::BadRequest(m) => ApiError::bad_request(m),

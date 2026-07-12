@@ -140,8 +140,7 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
         .route("/healthz/deep", axum::routing::get(health::deep_health))
         .route(
             "/api/v1/observability/slow-traces",
-            axum::routing::get(slow_trace::list_slow_traces)
-                .delete(slow_trace::clear_slow_traces),
+            axum::routing::get(slow_trace::list_slow_traces).delete(slow_trace::clear_slow_traces),
         )
         .route(
             "/api/v1/observability/slow-traces/summary",
@@ -241,10 +240,7 @@ pub fn create_router_with_surfaces(state: AppState, surfaces: SurfaceConfig) -> 
     if surfaces.a2a {
         protected_routes = protected_routes.merge(
             Router::new()
-                .route(
-                    "/a2a/v1/agents",
-                    axum::routing::get(a2a::list_agent_cards),
-                )
+                .route("/a2a/v1/agents", axum::routing::get(a2a::list_agent_cards))
                 .route(
                     "/a2a/v1/agents/:id",
                     axum::routing::get(a2a::get_agent_card),
@@ -381,7 +377,12 @@ mod tests {
 
         let health = app
             .clone()
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(health.status(), StatusCode::OK);
@@ -421,7 +422,8 @@ mod tests {
 
     #[tokio::test]
     async fn sensitive_diagnostics_require_authentication() {
-        let app = create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());
+        let app =
+            create_router_with_surfaces(authenticated_state().await, SurfaceConfig::default());
         let response = app
             .oneshot(
                 Request::builder()

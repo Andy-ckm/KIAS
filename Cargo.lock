@@ -2397,6 +2397,7 @@ dependencies = [
  "kias-common",
  "kias-data-store",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

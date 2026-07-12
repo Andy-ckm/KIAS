@@ -1,0 +1,140 @@
+name: Runtime smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "config/**"
+      - "crates/common/**"
+      - "crates/data-store/**"
+      - "crates/api-server/**"
+      - "crates/kias-main/**"
+      - ".github/workflows/runtime-smoke.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "config/**"
+      - "crates/common/**"
+      - "crates/data-store/**"
+      - "crates/api-server/**"
+      - "crates/kias-main/**"
+      - ".github/workflows/runtime-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  control-plane:
+    name: Start, authenticate, mutate, and stop
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KIAS_API_SERVER__JWT_SECRET: "runtime-smoke-jwt-secret-with-at-least-thirty-two-bytes"
+      KIAS_API_SERVER__JWT_ISSUER: "kias-runtime-smoke"
+      KIAS_DB_PATH: "${{ github.workspace }}/runtime-smoke.db"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install stable Rust
+        run: |
+          rustup update stable
+          rustup default stable
+
+      - name: Build runnable binary
+        run: cargo build --locked -p kias-main --bin kias
+
+      - name: Start and exercise the Core control plane
+        run: |
+          set -euo pipefail
+
+          cleanup() {
+            if [[ -n "${SERVER_PID:-}" ]]; then
+              kill -TERM "${SERVER_PID}" 2>/dev/null || true
+              for _ in $(seq 1 20); do
+                if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+                  return
+                fi
+                sleep 0.25
+              done
+              kill -KILL "${SERVER_PID}" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          target/debug/kias server >runtime-smoke.log 2>&1 &
+          SERVER_PID=$!
+
+          for attempt in $(seq 1 80); do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+              echo "KIAS exited before becoming healthy" >&2
+              cat runtime-smoke.log >&2
+              exit 1
+            fi
+            if [[ "${attempt}" -eq 80 ]]; then
+              echo "KIAS did not become healthy" >&2
+              cat runtime-smoke.log >&2
+              exit 1
+            fi
+            sleep 0.25
+          done
+
+          TOKEN="$(target/debug/kias token --role operator --subject runtime-smoke)"
+
+          CAPABILITIES="$(curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            http://127.0.0.1:8080/api/v1/system/capabilities)"
+          python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["profile"] == "core"' <<<"${CAPABILITIES}"
+
+          CREATED="$(curl --fail --silent \
+            -X POST \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "X-Idempotency-Key: runtime-smoke-create-agent" \
+            --data '{"name":"runtime-smoke-agent","image":"python:3.11","command":["python","-c","print(1)"]}' \
+            http://127.0.0.1:8080/api/v1/agents)"
+          AGENT_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"${CREATED}")"
+
+          LISTED="$(curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            http://127.0.0.1:8080/api/v1/agents)"
+          python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["total"] == 1; assert payload["items"][0]["name"] == "runtime-smoke-agent"' <<<"${LISTED}"
+
+          curl --fail --silent \
+            -X DELETE \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "http://127.0.0.1:8080/api/v1/agents/${AGENT_ID}" >/dev/null
+
+          EMPTY="$(curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            http://127.0.0.1:8080/api/v1/agents)"
+          python3 -c 'import json,sys; assert json.load(sys.stdin)["total"] == 0' <<<"${EMPTY}"
+
+          kill -TERM "${SERVER_PID}"
+          wait "${SERVER_PID}"
+          SERVER_PID=""
+
+      - name: Upload runtime diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: runtime-smoke-diagnostics
+          path: runtime-smoke.log
+          if-no-files-found: ignore
+          retention-days: 3

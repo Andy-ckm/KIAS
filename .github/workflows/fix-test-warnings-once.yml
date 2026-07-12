@@ -2,11 +2,9 @@
 name: Apply reviewed test warning fixes once
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
-    types:
-      - synchronize
+      - agent/privacy-hardening
     paths:
       - "crates/tool-executor/**"
       - ".github/workflows/fix-test-warnings-once.yml"
@@ -15,14 +13,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-reviewed-test-warning-fixes-${{ github.event.pull_request.number }}
+  group: apply-reviewed-test-warning-fixes-once
   cancel-in-progress: false
 
 jobs:
   apply:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/privacy-hardening'
+    if: github.ref == 'refs/heads/agent/privacy-hardening'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

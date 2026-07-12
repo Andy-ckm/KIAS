@@ -70,7 +70,10 @@ mod tests {
 
     #[test]
     fn mutations_require_operator() {
-        assert_eq!(required_role(&Method::POST, "/api/v1/agents"), Role::Operator);
+        assert_eq!(
+            required_role(&Method::POST, "/api/v1/agents"),
+            Role::Operator
+        );
         assert_eq!(
             required_role(&Method::DELETE, "/api/v1/workflows/example"),
             Role::Operator

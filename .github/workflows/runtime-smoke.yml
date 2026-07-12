@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   control-plane:
-    name: Start, authenticate, mutate, and stop
+    name: Start, persist, restart, and stop
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -65,9 +65,40 @@ jobs:
       - name: Build runnable binary
         run: cargo build --locked -p kias-main --bin kias
 
-      - name: Start and exercise the Core control plane
+      - name: Exercise restart-safe Core control plane
         run: |
           set -euo pipefail
+
+          wait_for_health() {
+            for attempt in $(seq 1 80); do
+              if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+                return 0
+              fi
+              if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+                echo "KIAS exited before becoming healthy" >&2
+                cat runtime-smoke.log >&2
+                exit 1
+              fi
+              if [[ "${attempt}" -eq 80 ]]; then
+                echo "KIAS did not become healthy" >&2
+                cat runtime-smoke.log >&2
+                exit 1
+              fi
+              sleep 0.25
+            done
+          }
+
+          start_server() {
+            target/debug/kias server >>runtime-smoke.log 2>&1 &
+            SERVER_PID=$!
+            wait_for_health
+          }
+
+          stop_server() {
+            kill -TERM "${SERVER_PID}"
+            wait "${SERVER_PID}"
+            SERVER_PID=""
+          }
 
           cleanup() {
             if [[ -n "${SERVER_PID:-}" ]]; then
@@ -83,26 +114,8 @@ jobs:
           }
           trap cleanup EXIT
 
-          target/debug/kias server >runtime-smoke.log 2>&1 &
-          SERVER_PID=$!
-
-          for attempt in $(seq 1 80); do
-            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
-              break
-            fi
-            if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
-              echo "KIAS exited before becoming healthy" >&2
-              cat runtime-smoke.log >&2
-              exit 1
-            fi
-            if [[ "${attempt}" -eq 80 ]]; then
-              echo "KIAS did not become healthy" >&2
-              cat runtime-smoke.log >&2
-              exit 1
-            fi
-            sleep 0.25
-          done
-
+          : >runtime-smoke.log
+          start_server
           TOKEN="$(target/debug/kias token --role operator --subject runtime-smoke)"
 
           CAPABILITIES="$(curl --fail --silent \
@@ -115,14 +128,17 @@ jobs:
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Content-Type: application/json" \
             -H "X-Idempotency-Key: runtime-smoke-create-agent" \
-            --data '{"name":"runtime-smoke-agent","image":"python:3.11","command":["python","-c","print(1)"]}' \
+            --data '{"name":"runtime-smoke-agent","image":"python:3.11","command":["python","-c","print(1)"],"env":{"PROVIDER_TOKEN":"must-not-be-durable"}}' \
             http://127.0.0.1:8080/api/v1/agents)"
           AGENT_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"${CREATED}")"
 
-          LISTED="$(curl --fail --silent \
+          stop_server
+          start_server
+
+          RESTORED="$(curl --fail --silent \
             -H "Authorization: Bearer ${TOKEN}" \
-            http://127.0.0.1:8080/api/v1/agents)"
-          python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["total"] == 1; assert payload["items"][0]["name"] == "runtime-smoke-agent"' <<<"${LISTED}"
+            "http://127.0.0.1:8080/api/v1/agents/${AGENT_ID}")"
+          python3 -c 'import json,sys; payload=json.load(sys.stdin)["data"]; assert payload["spec"]["name"] == "runtime-smoke-agent"; assert payload["spec"]["env"]["PROVIDER_TOKEN"] == "[REDACTED_AFTER_RESTART]"' <<<"${RESTORED}"
 
           curl --fail --silent \
             -X DELETE \
@@ -134,9 +150,8 @@ jobs:
             http://127.0.0.1:8080/api/v1/agents)"
           python3 -c 'import json,sys; assert json.load(sys.stdin)["total"] == 0' <<<"${EMPTY}"
 
-          kill -TERM "${SERVER_PID}"
-          wait "${SERVER_PID}"
-          SERVER_PID=""
+          stop_server
+          trap - EXIT
 
       - name: Upload runtime diagnostics
         if: failure()
@@ -148,7 +163,7 @@ jobs:
           retention-days: 3
 
   docker-compose:
-    name: Build and run Docker Compose
+    name: Build, restart, and verify Docker Compose
     needs: control-plane
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -171,10 +186,25 @@ jobs:
           set -o pipefail
           docker compose build --pull --progress plain 2>&1 | tee docker-build.log
 
-      - name: Start and exercise containerized KIAS
+      - name: Exercise restart-safe containerized KIAS
         if: steps.docker_build.outcome == 'success'
         run: |
           set -euo pipefail
+
+          wait_for_health() {
+            for attempt in $(seq 1 120); do
+              if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+                return 0
+              fi
+              if [[ "${attempt}" -eq 120 ]]; then
+                echo "Containerized KIAS did not become healthy" >&2
+                docker compose ps >&2
+                docker compose logs --tail=160 kias >&2
+                exit 1
+              fi
+              sleep 0.5
+            done
+          }
 
           cleanup() {
             docker compose logs --no-color kias >docker-runtime.log 2>&1 || true
@@ -183,25 +213,30 @@ jobs:
           trap cleanup EXIT
 
           docker compose up --detach
-
-          for attempt in $(seq 1 120); do
-            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
-              break
-            fi
-            if [[ "${attempt}" -eq 120 ]]; then
-              echo "Containerized KIAS did not become healthy" >&2
-              docker compose ps >&2
-              docker compose logs --tail=160 kias >&2
-              exit 1
-            fi
-            sleep 0.5
-          done
+          wait_for_health
 
           TOKEN="$(docker compose run --rm --no-deps kias token --role operator --subject docker-runtime-smoke | tail -n 1)"
-          CAPABILITIES="$(curl --fail --silent \
+          CREATED="$(curl --fail --silent \
+            -X POST \
             -H "Authorization: Bearer ${TOKEN}" \
-            http://127.0.0.1:8080/api/v1/system/capabilities)"
-          python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["profile"] == "core"' <<<"${CAPABILITIES}"
+            -H "Content-Type: application/json" \
+            -H "X-Idempotency-Key: docker-runtime-create-agent" \
+            --data '{"name":"docker-persistent-agent","image":"python:3.11","command":["python","worker.py"]}' \
+            http://127.0.0.1:8080/api/v1/agents)"
+          AGENT_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"${CREATED}")"
+
+          docker compose restart kias
+          wait_for_health
+
+          RESTORED="$(curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "http://127.0.0.1:8080/api/v1/agents/${AGENT_ID}")"
+          python3 -c 'import json,sys; assert json.load(sys.stdin)["data"]["spec"]["name"] == "docker-persistent-agent"' <<<"${RESTORED}"
+
+          curl --fail --silent \
+            -X DELETE \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "http://127.0.0.1:8080/api/v1/agents/${AGENT_ID}" >/dev/null
 
           docker compose stop --timeout 20 kias
           trap - EXIT

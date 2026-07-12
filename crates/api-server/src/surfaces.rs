@@ -7,7 +7,7 @@
 use kias_common::config::KiasConfig;
 
 /// Runtime-visible product surfaces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SurfaceConfig {
     pub knowledge: bool,
     pub context: bool,

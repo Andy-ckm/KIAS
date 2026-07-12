@@ -61,13 +61,17 @@ jobs:
             python3 scripts/export_ci_sqlite_binding_fix.py
             python3 scripts/export_ci_sqlx_row_mapping_fix.py
             python3 scripts/export_ci_sqlx_feature_unification.py
+            python3 scripts/export_ci_sqlx_sqlite_facade.py
             cargo update -p rusqlite@0.31.0 --precise 0.32.1
-            cargo update -p sqlx --precise 0.8.6
-            if grep -Eq '^name = "(rsa|sqlx-mysql|sqlx-macros|sqlx-macros-core)"$' Cargo.lock; then
-              echo 'Unexpected SQLx macro/MySQL/RSA dependency remains in Cargo.lock' >&2
-              grep -En '^name = "(rsa|sqlx-mysql|sqlx-macros|sqlx-macros-core)"$' Cargo.lock >&2
+            cargo update -p sqlx-core --precise 0.8.6
+            cargo update -p sqlx-sqlite --precise 0.8.6
+            if grep -Eq '^name = "(sqlx|rsa|sqlx-mysql|sqlx-postgres|sqlx-macros|sqlx-macros-core)"$' Cargo.lock; then
+              echo 'Unexpected SQLx umbrella/macro/multi-database/RSA dependency remains in Cargo.lock' >&2
+              grep -En '^name = "(sqlx|rsa|sqlx-mysql|sqlx-postgres|sqlx-macros|sqlx-macros-core)"$' Cargo.lock >&2
+              cargo tree -e features -i sqlx || true
               cargo tree -e features -i sqlx-macros || true
               cargo tree -e features -i sqlx-mysql || true
+              cargo tree -e features -i sqlx-postgres || true
               cargo tree -e features -i rsa || true
               exit 1
             fi

@@ -29,6 +29,15 @@ enum Commands {
         #[arg(short, long)]
         port: Option<u16>,
     },
+    /// Issue a short-lived JWT for a local operator or controlled pilot.
+    Token {
+        /// Token role: viewer, operator, or admin.
+        #[arg(long, default_value = "operator")]
+        role: String,
+        /// Pseudonymous subject recorded in authorization and audit context.
+        #[arg(long, default_value = "local-operator")]
+        subject: String,
+    },
     /// Show local build information.
     Status,
     /// Validate that local configuration can be loaded.
@@ -45,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Some(Commands::Server { host, port }) => start_server(host, port).await?,
+        Some(Commands::Token { role, subject }) => issue_local_token(&role, &subject)?,
         Some(Commands::Status) => {
             println!("KIAS CLI is available");
             println!("Version: {}", env!("CARGO_PKG_VERSION"));
@@ -62,6 +72,42 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn issue_local_token(role_name: &str, subject: &str) -> anyhow::Result<()> {
+    if subject.trim().is_empty() {
+        bail!("token subject must not be empty");
+    }
+
+    let config = kias_common::KiasConfig::load()?;
+    let secret = config
+        .api_server
+        .jwt_secret
+        .as_deref()
+        .context("JWT token issuance requires KIAS_API_SERVER__JWT_SECRET")?;
+    let role = match role_name.trim().to_ascii_lowercase().as_str() {
+        "viewer" => kias_api_server::auth::Role::Viewer,
+        "operator" => kias_api_server::auth::Role::Operator,
+        "admin" => kias_api_server::auth::Role::Admin,
+        _ => bail!("unsupported role; use viewer, operator, or admin"),
+    };
+    let issuer = config
+        .api_server
+        .jwt_issuer
+        .clone()
+        .unwrap_or_else(|| "kias".to_string());
+    let jwt_config = kias_api_server::auth::JwtConfig::new(
+        secret,
+        issuer,
+        config.api_server.jwt_expiration_hours,
+    );
+    let claims = kias_api_server::auth::create_claims(subject.trim(), role, &jwt_config);
+    let token = kias_api_server::auth::generate_token(&claims, &jwt_config.secret)?;
+
+    // Keep stdout machine-readable so operators can pipe the value into a
+    // password manager or paste it into the Dashboard connection gate.
+    println!("{token}");
     Ok(())
 }
 
@@ -105,7 +151,7 @@ async fn start_server(
         let state = kias_api_server::AppState::new(api_config)
             .await
             .with_persistence(sqlite_audit_log, dead_letter_queue);
-        let application = kias_api_server::routes::api::create_router(state);
+        let application = kias_api_server::routes::create_router(state);
 
         if let Err(error) = axum::serve(listener, application).await {
             tracing::error!(%error, "KIAS API server stopped with an error");

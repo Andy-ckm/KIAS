@@ -43,7 +43,7 @@ pub async fn control_plane_authorization(
 fn required_role(method: &Method, path: &str) -> Role {
     if path == "/api/v1/config" || path.starts_with("/api/v1/config/") {
         Role::Admin
-    } else if matches!(*method, Method::GET | Method::HEAD | Method::OPTIONS) {
+    } else if method == Method::GET || method == Method::HEAD || method == Method::OPTIONS {
         Role::Viewer
     } else {
         Role::Operator

@@ -12,6 +12,7 @@ pub mod knowledge;
 pub mod metrics;
 pub mod nl_command;
 pub mod nodes;
+pub mod runs;
 pub mod scheduler;
 pub mod slow_trace;
 pub mod tier_routing;

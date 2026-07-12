@@ -145,6 +145,9 @@ async fn start_server(
     let agent_repository = Arc::new(kias_data_store::AgentRepository::new(
         api_repository.pool.clone(),
     ));
+    let task_repository = Arc::new(kias_data_store::TaskRepository::new(
+        api_repository.pool.clone(),
+    ));
     let idempotency_repository = Arc::new(kias_data_store::IdempotencyRepository::new(
         api_repository.pool.clone(),
     ));
@@ -156,6 +159,8 @@ async fn start_server(
         .with_persistence(sqlite_audit_log, dead_letter_queue)
         .with_idempotency_store(idempotency_repository)
         .with_agent_repository(agent_repository)
+        .await?
+        .with_run_repository(task_repository)
         .await?;
     let application = kias_api_server::routes::create_router(state);
 

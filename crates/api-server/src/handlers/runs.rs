@@ -5,7 +5,7 @@ use axum::Json;
 use serde::Deserialize;
 
 use crate::error::ApiError;
-use crate::models::run::StartRunRequest;
+use crate::models::run::{ReplayRunRequest, StartRunRequest};
 use crate::AppState;
 
 #[derive(Debug, Default, Deserialize)]
@@ -96,15 +96,17 @@ pub async fn cancel_run(
 pub async fn retry_run(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    Json(request): Json<ReplayRunRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let run = run_service(&state)?.retry(&id).await?;
+    let run = run_service(&state)?.retry(&id, request).await?;
     Ok((StatusCode::ACCEPTED, Json(run)))
 }
 
 pub async fn recover_run(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    Json(request): Json<ReplayRunRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let run = run_service(&state)?.recover(&id).await?;
+    let run = run_service(&state)?.recover(&id, request).await?;
     Ok((StatusCode::ACCEPTED, Json(run)))
 }

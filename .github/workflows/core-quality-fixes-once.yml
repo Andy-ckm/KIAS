@@ -1,0 +1,204 @@
+name: Apply reviewed Core quality fixes once
+
+on:
+  push:
+    branches:
+      - agent/privacy-hardening
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-core-quality-fixes-once
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/agent/privacy-hardening'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/privacy-hardening
+          persist-credentials: true
+
+      - name: Install stable Rust tooling
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Apply exact reviewed fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, count: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f"{path}: expected {count} matches, found {actual}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_exact(
+              "crates/tool-executor/src/builtin.rs",
+              '''        let result = tool.execute(serde_json::json!({"command": ""})).await;
+                  // Empty command should not panic - just return a result
+                  assert!(true); // Always true - just verifying no panic
+          ''',
+              '''        let result = tool.execute(serde_json::json!({"command": ""})).await;
+                  assert!(result.success);
+                  assert_eq!(result.metadata.as_ref().and_then(|value| value["exit_code"].as_i64()), Some(0));
+          ''',
+          )
+          replace_exact(
+              "crates/tool-executor/src/builtin.rs",
+              '''        // Test file write to a path that cannot be created (read-only location)
+                  let tool = FileWriteTool;
+                  let result = tool
+                      .execute(serde_json::json!({
+                          "path": "/root/impossible_file_12345.txt",
+                          "content": "test content"
+                      }))
+                      .await;
+                  // Should fail gracefully, not panic
+                  assert!(true); // Always true - just verifying no panic
+          ''',
+              '''        // /proc does not allow creating arbitrary regular files, including for root.
+                  let tool = FileWriteTool;
+                  let result = tool
+                      .execute(serde_json::json!({
+                          "path": "/proc/1/kias-impossible-file.txt",
+                          "content": "test content"
+                      }))
+                      .await;
+                  assert!(!result.success);
+                  assert!(result.error.is_some());
+          ''',
+          )
+          replace_exact(
+              "crates/tool-executor/src/vulnerability_scan.rs",
+              '''        let result = scanner.scan("shell", &params, &default_ctx());
+                  // This might not be caught since pattern is "chmod +s" not numeric
+                  // Just verify no panic
+                  // u64 is always >= 0, this assertion is always true
+          ''',
+              '''        let result = scanner.scan("shell", &params, &default_ctx());
+                  // Numeric setuid detection is not guaranteed yet, but the aggregate score
+                  // must remain internally consistent for every scan result.
+                  assert_eq!(result.overall_risk, result.risk.overall());
+          ''',
+          )
+          replace_exact(
+              "crates/controller/src/runtime_loop.rs",
+              '''    // ── Helper ──────────────────────────────────────────────────────────────
+
+              fn fast_config() -> RuntimeLoopConfig {
+                  RuntimeLoopConfig {
+                      max_rounds: 5,
+                      loop_timeout: Duration::from_secs(10),
+                      round_timeout: Duration::from_secs(5),
+                      quality_threshold: 0.8,
+                      stop_on_achieve: true,
+                      cooldown: Duration::ZERO,
+                  }
+              }
+
+          ''',
+              "",
+          )
+          replace_exact(
+              "crates/common/src/metrics.rs",
+              '.find(|mf| mf.get_name() == "kias_scheduler_latency_seconds")',
+              '.find(|mf| mf.name() == "kias_scheduler_latency_seconds")',
+          )
+          replace_exact(
+              "crates/common/src/tls.rs",
+              '''        let key = b"not a pem file";
+                  let err = validate_pem_files(cert, key.as_bytes()).unwrap_err();
+          ''',
+              '''        let key = b"not a pem file";
+                  let err = validate_pem_files(cert, key).unwrap_err();
+          ''',
+          )
+          PY
+
+          cargo fmt --all
+
+      - name: Test Core default surface
+        id: core_test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --locked --quiet 2>&1 | tee core-tests.log
+
+      - name: Lint Core default surface
+        id: core_clippy
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets --locked --message-format=short -- -D warnings 2>&1 | tee core-clippy.log
+
+      - name: Test complete workspace
+        id: workspace_test
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-features --locked --quiet 2>&1 | tee workspace-tests.log
+
+      - name: Upload validation diagnostics
+        if: steps.core_test.outcome != 'success' || steps.core_clippy.outcome != 'success' || steps.workspace_test.outcome != 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core-quality-fix-diagnostics
+          path: |
+            core-tests.log
+            core-clippy.log
+            workspace-tests.log
+          retention-days: 3
+
+      - name: Enforce validation
+        if: steps.core_test.outcome != 'success' || steps.core_clippy.outcome != 'success' || steps.workspace_test.outcome != 'success'
+        run: exit 1
+
+      - name: Remove one-shot workflow and stage changes
+        run: |
+          git rm .github/workflows/core-quality-fixes-once.yml
+          git add -A
+
+      - name: Enforce exact file allowlist
+        run: |
+          set -euo pipefail
+          unexpected=0
+          while IFS= read -r file; do
+            case "$file" in
+              crates/api-server/src/handlers/capabilities.rs|\
+              crates/api-server/src/middleware/authorization.rs|\
+              crates/api-server/src/routes/product.rs|\
+              crates/api-server/src/surfaces.rs|\
+              crates/common/src/metrics.rs|\
+              crates/common/src/tls.rs|\
+              crates/controller/src/runtime_loop.rs|\
+              crates/tool-executor/src/builtin.rs|\
+              crates/tool-executor/src/vulnerability_scan.rs|\
+              .github/workflows/core-quality-fixes-once.yml)
+                ;;
+              *)
+                echo "Unexpected quality-fix change: $file" >&2
+                unexpected=1
+                ;;
+            esac
+          done < <(git diff --cached --name-only)
+          test "$unexpected" -eq 0
+          git diff --cached --check
+
+      - name: Commit reviewed Core fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: make Core quality checks assert real behavior"
+          git push origin HEAD:agent/privacy-hardening

@@ -132,6 +132,9 @@ async fn start_server(
 
     let manager = KiasServiceManager::new(config.clone()).await?;
     let health = manager.health_check();
+    if !health.is_healthy() {
+        bail!("initial KIAS readiness check failed: {}", health.overall);
+    }
     tracing::info!(overall = %health.overall, uptime = health.uptime_secs, "Initial readiness check");
 
     let shutdown = manager.shutdown_handle();
@@ -145,7 +148,7 @@ async fn start_server(
     let api_config = config.clone();
     let sqlite_audit_log = Arc::new(manager.audit_log().clone());
     let dead_letter_queue = Arc::new(manager.dlq().clone());
-    let api_handle = tokio::spawn(async move {
+    let mut api_handle = tokio::spawn(async move {
         tracing::info!(address = %address, "KIAS API server listening");
 
         let state = kias_api_server::AppState::new(api_config)
@@ -153,26 +156,33 @@ async fn start_server(
             .with_persistence(sqlite_audit_log, dead_letter_queue);
         let application = kias_api_server::routes::create_router(state);
 
-        if let Err(error) = axum::serve(listener, application).await {
-            tracing::error!(%error, "KIAS API server stopped with an error");
-        }
+        axum::serve(listener, application).await
     });
 
     tracing::info!("KIAS control plane started");
     tracing::info!("Press Ctrl+C to initiate graceful shutdown");
 
-    let _ = shutdown
-        .wait_for_phase(
+    tokio::select! {
+        _ = shutdown.wait_for_phase(
             kias_common::graceful_shutdown::ShutdownPhase::Complete,
             std::time::Duration::from_secs(u64::MAX),
-        )
-        .await;
+        ) => {}
+        server_result = &mut api_handle => {
+            match server_result {
+                Ok(Ok(())) => bail!("KIAS API server stopped unexpectedly"),
+                Ok(Err(error)) => return Err(error).context("KIAS API server failed"),
+                Err(error) => return Err(error).context("KIAS API server task failed"),
+            }
+        }
+    }
 
     manager.shutdown().await?;
     tracing::info!("KIAS control plane shut down gracefully");
 
-    api_handle.abort();
-    let _ = signal_handle.await;
+    if !api_handle.is_finished() {
+        api_handle.abort();
+    }
+    signal_handle.abort();
 
     Ok(())
 }
@@ -189,17 +199,28 @@ fn validate_listener_security(host: &str, config: &kias_common::KiasConfig) -> a
             bail!("refusing a non-loopback listener while authentication is disabled");
         }
 
-        let proxy_acknowledged = std::env::var("KIAS_TRUSTED_TLS_PROXY")
-            .map(|value| value.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        if !proxy_acknowledged {
+        let proxy_acknowledged = env_flag("KIAS_TRUSTED_TLS_PROXY");
+        let local_container_mode = env_flag("KIAS_LOCAL_CONTAINER_MODE");
+        if !proxy_acknowledged && !local_container_mode {
             bail!(
-                "refusing plaintext public listener; place KIAS behind a trusted TLS proxy and set KIAS_TRUSTED_TLS_PROXY=true"
+                "refusing plaintext non-loopback listener; use a trusted TLS proxy or set KIAS_LOCAL_CONTAINER_MODE=true only when the container port is published to host loopback"
+            );
+        }
+
+        if local_container_mode && !proxy_acknowledged {
+            tracing::warn!(
+                "Local container mode permits a plaintext container listener; publish the host port to 127.0.0.1 only"
             );
         }
     }
 
     Ok(())
+}
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        .unwrap_or(false)
 }
 
 fn is_loopback_host(host: &str) -> bool {
@@ -236,5 +257,15 @@ mod tests {
         config.api_server.tls = true;
         let error = validate_listener_security("127.0.0.1", &config).unwrap_err();
         assert!(error.to_string().contains("native TLS"));
+    }
+
+    #[test]
+    fn environment_flags_are_explicit() {
+        let key = "KIAS_TEST_BOOLEAN_FLAG";
+        std::env::set_var(key, "yes");
+        assert!(env_flag(key));
+        std::env::set_var(key, "no");
+        assert!(!env_flag(key));
+        std::env::remove_var(key);
     }
 }

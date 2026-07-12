@@ -44,12 +44,7 @@ impl SurfaceConfig {
     pub fn profile(self) -> &'static str {
         if self.nl_commands || self.im || self.visualization {
             "labs-enabled"
-        } else if self.knowledge
-            || self.context
-            || self.a2a
-            || self.tier_routing
-            || self.realtime
-        {
+        } else if self.knowledge || self.context || self.a2a || self.tier_routing || self.realtime {
             "core-with-extensions"
         } else {
             "core"

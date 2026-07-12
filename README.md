@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml"><img src="https://github.com/Andy-ckm/KIAS/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Andy-ckm/KIAS/actions/workflows/runtime-smoke.yml"><img src="https://github.com/Andy-ckm/KIAS/actions/workflows/runtime-smoke.yml/badge.svg" alt="Runtime smoke"></a>
   <a href="https://github.com/Andy-ckm/KIAS/actions/workflows/codeql.yml"><img src="https://github.com/Andy-ckm/KIAS/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/Andy-ckm/KIAS"><img src="https://api.scorecard.dev/projects/github.com/Andy-ckm/KIAS/badge" alt="OpenSSF Scorecard"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
@@ -81,29 +82,67 @@ See [`docs/architecture.md`](docs/architecture.md) and [`docs/capability-maturit
 | Scheduling | load-aware, resource-aware and optional cache-affinity placement |
 | Workflows | DAG execution, conditional routing, fan-out, cancellation and checkpoints |
 | Evidence | metrics, traces, state transitions and pseudonymous audit records |
-| Recovery | durable state primitives, dead-letter handling and checkpoint-based continuation |
+| Recovery | durable Agent state, dead-letter handling and checkpoint-based continuation |
 | Security | redacted credential types, runtime secret references, TLS deployment checks and privacy gates |
 | Interoperability | model, tool and agent protocol interfaces behind explicit adapters |
 
 A capability appearing in the workspace does not imply that its route is enabled or its adapter is production-ready. Unsupported or incomplete security integrations must fail closed.
 
-## Authenticated quickstart
+## Fastest verified startup
+
+### Prerequisites
+
+- Docker Engine or Docker Desktop;
+- Docker Compose v2 (`docker compose`);
+- `curl`;
+- OpenSSL or Python 3 for local secret generation.
+
+### Start the API and Dashboard
+
+```bash
+git clone https://github.com/Andy-ckm/KIAS.git
+cd KIAS
+bash scripts/dev-up.sh
+```
+
+The startup helper generates an ignored local JWT signing secret, builds both images, waits for the API and Dashboard, issues an Operator token, and verifies the authenticated capability endpoint.
+
+Open:
+
+- Dashboard: `http://127.0.0.1:3000`
+- API health: `http://127.0.0.1:8080/health`
+- Operator token: `.kias-dev/operator-token`
+
+Paste the token into the Dashboard connection screen. The browser stores it only in the current tab through `sessionStorage`.
+
+Stop the local stack without deleting the data volume:
+
+```bash
+bash scripts/dev-down.sh
+```
+
+To delete local persisted data as well:
+
+```bash
+export KIAS_JWT_SECRET="$(cat .kias-dev/jwt-secret)"
+docker compose down --volumes
+```
+
+Both published ports bind to host loopback. The API container listens on `0.0.0.0` only inside the Docker network and refuses that mode unless authentication and the explicit local-container acknowledgement are active.
+
+## Native authenticated quickstart
 
 ### Prerequisites
 
 - a current stable Rust toolchain;
 - Git;
-- Node.js and npm for the optional Dashboard;
+- Node.js and npm only when running the Dashboard outside Docker;
 - OpenSSL or another secure random-value generator for local credentials.
 
-### 1. Build and test the default Core surface
+### 1. Build the default Core surface
 
 ```bash
-git clone https://github.com/Andy-ckm/KIAS.git
-cd KIAS
-
 cargo build --locked
-cargo test --locked
 ```
 
 ### 2. Generate a runtime signing secret and Operator token
@@ -115,15 +154,13 @@ export KIAS_API_SERVER__JWT_SECRET="$(openssl rand -hex 32)"
 export KIAS_OPERATOR_TOKEN="$(cargo run -q -p kias-main --bin kias --locked -- token --role operator)"
 ```
 
-`KIAS_OPERATOR_TOKEN` is only a shell variable in this example. Paste its value into the Dashboard connection screen or use it as `Authorization: Bearer <token>`.
-
 ### 3. Start the loopback-only control plane
 
 ```bash
 cargo run -p kias-main --bin kias --locked -- server
 ```
 
-In another terminal, export the same token and inspect the effective product contract:
+In another terminal, export the same secret and token, then inspect the effective product contract:
 
 ```bash
 curl -s \
@@ -131,7 +168,7 @@ curl -s \
   http://127.0.0.1:8080/api/v1/system/capabilities
 ```
 
-### 4. Start the Dashboard
+### 4. Run the Dashboard outside Docker
 
 ```bash
 cd dashboard
@@ -139,9 +176,24 @@ npm ci
 npm run dev
 ```
 
-Open the local Vite URL and paste the Operator token. The token is stored only in the current browser tab through `sessionStorage`.
+Open the local Vite URL and paste the Operator token.
 
-### Verify the complete workspace
+## Runtime evidence
+
+The `Runtime smoke` workflow does more than compile. On every relevant pull request it:
+
+1. builds the runnable binary;
+2. starts the authenticated Core control plane;
+3. issues an Operator JWT;
+4. creates an Agent;
+5. stops and restarts the process;
+6. verifies that the Agent is restored from SQLite and that secret environment values were not persisted;
+7. repeats the restart test through Docker Compose;
+8. shuts the stack down cleanly.
+
+This is evidence for the tested revision and environment, not a production certification.
+
+## Verify the complete workspace
 
 ```bash
 cargo check --workspace --all-features --locked
@@ -193,7 +245,7 @@ Default project expectations are:
 - raw external payload retention is disabled by default;
 - audit subjects are pseudonymous where direct identity is unnecessary;
 - tool execution is restricted by explicit policy and isolation;
-- dependency, static-analysis, secret, privacy, and provenance checks run in CI.
+- dependency, static-analysis, secret, privacy, provenance, and runtime smoke checks run in CI.
 
 Read [`SECURITY.md`](SECURITY.md), [`PRIVACY.md`](PRIVACY.md), and [`docs/threat-model.md`](docs/threat-model.md) before deployment.
 
@@ -203,11 +255,12 @@ The project uses pre-1.0 semantic versioning. Interfaces may change while securi
 
 The repository configures the following quality gates:
 
+- runtime startup, authentication, restart persistence, and graceful-shutdown smoke tests;
 - Core tests and Clippy with warnings denied;
 - complete-workspace build and tests;
 - Rust formatting;
 - machine-enforced Core, Extensions, and Labs dependency boundaries;
-- Dashboard dependency, lint, and production-build checks;
+- Dashboard dependency, lint, production-build, and container checks;
 - CodeQL static analysis;
 - OpenSSF Scorecard analysis;
 - dependency audit and update automation;

@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
 import {
   clearOperatorToken,
@@ -15,21 +7,7 @@ import {
   setOperatorToken,
 } from '../api/client';
 import type { ProductCapabilities } from '../types/capabilities';
-
-interface ProductContextValue {
-  capabilities: ProductCapabilities;
-  disconnect: () => void;
-}
-
-const ProductContext = createContext<ProductContextValue | null>(null);
-
-export function useProductContext(): ProductContextValue {
-  const context = useContext(ProductContext);
-  if (!context) {
-    throw new Error('useProductContext must be used inside AuthGate');
-  }
-  return context;
-}
+import { ProductContext } from './ProductContext';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [capabilities, setCapabilities] = useState<ProductCapabilities | null>(null);
@@ -37,7 +15,34 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const verify = useCallback(async () => {
+  useEffect(() => {
+    let active = true;
+
+    getCapabilities()
+      .then(response => {
+        if (active) {
+          setCapabilities(response);
+          setError(null);
+        }
+      })
+      .catch(cause => {
+        if (active) {
+          setCapabilities(null);
+          setError(cause instanceof Error ? cause.message : 'Unable to connect to KIAS');
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function verifyToken() {
     setLoading(true);
     setError(null);
     try {
@@ -49,16 +54,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void verify();
-  }, [verify]);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setOperatorToken(token);
-    await verify();
+    await verifyToken();
   }
 
   function disconnect() {

@@ -18,7 +18,7 @@ async-trait = "0.1"
 thiserror = { workspace = true }
 regex = { workspace = true }
 base64 = "0.22"
-hmac = "0.12"
+hmac = "0.13"
 zeroize = { workspace = true }
 libc = "0.2"
 

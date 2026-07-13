@@ -1,0 +1,152 @@
+name: CI recovery export
+
+on:
+  push:
+    branches:
+      - agent/ci-recovery
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-recovery-export
+  cancel-in-progress: true
+
+jobs:
+  export-and-test:
+    name: Export and verify recovery candidate
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -D warnings
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: agent/ci-recovery
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install stable Rust tooling
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Build recovery candidate
+        id: candidate_build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          (
+            set -euxo pipefail
+            python3 scripts/export_ci_recovery.py
+            python3 scripts/export_ci_test_contract_fixes.py
+            python3 scripts/export_ci_integration_contract_fixes_v2.py
+            python3 scripts/export_ci_last_contract_fix.py
+            python3 scripts/export_ci_search_fallback_fix_v2.py
+            python3 scripts/export_ci_clippy_fix.py
+            python3 scripts/export_ci_mcp_transport_fix.py
+            python3 scripts/export_ci_sqlx_version_fix.py
+            python3 scripts/export_ci_sqlite_binding_fix.py
+            python3 scripts/export_ci_sqlx_row_mapping_fix.py
+            python3 scripts/export_ci_sqlx_feature_unification.py
+            python3 scripts/export_ci_sqlx_sqlite_facade.py
+            cargo update -p rusqlite@0.31.0 --precise 0.32.1
+            cargo update -p sqlx-core --precise 0.8.6
+            cargo update -p sqlx-sqlite --precise 0.8.6
+            if grep -Eq '^name = "(sqlx|rsa|sqlx-mysql|sqlx-postgres|sqlx-macros|sqlx-macros-core)"$' Cargo.lock; then
+              echo 'Unexpected SQLx umbrella/macro/multi-database/RSA dependency remains in Cargo.lock' >&2
+              grep -En '^name = "(sqlx|rsa|sqlx-mysql|sqlx-postgres|sqlx-macros|sqlx-macros-core)"$' Cargo.lock >&2
+              cargo tree -e features -i sqlx || true
+              cargo tree -e features -i sqlx-macros || true
+              cargo tree -e features -i sqlx-mysql || true
+              cargo tree -e features -i sqlx-postgres || true
+              cargo tree -e features -i rsa || true
+              exit 1
+            fi
+            cargo fmt --all
+            git diff --check
+          ) 2>&1 | tee recovery-build.log
+
+      - name: Upload candidate-build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-build-diagnostics
+          path: recovery-build.log
+          retention-days: 3
+
+      - name: Enforce candidate build
+        if: steps.candidate_build.outcome == 'failure'
+        run: exit 1
+
+      - name: Package exact recovery candidate
+        run: |
+          set -euxo pipefail
+          mkdir -p recovery-export/files
+          git diff --name-only --diff-filter=ACMRTUXB -z | tar --null -T - -czf recovery-export/changed-files.tar.gz
+          git diff --name-only --diff-filter=D > recovery-export/deleted-files.txt
+          git diff --binary > recovery-export/recovery.patch
+          git diff --stat > recovery-export/recovery.stat
+          git status --short > recovery-export/recovery.status
+
+      - name: Upload recovery candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-candidate
+          path: recovery-export
+          retention-days: 3
+
+      - name: Test Core default surface
+        id: core_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --locked 2>&1 | tee core-tests.log
+
+      - name: Lint Core default surface
+        id: core_clippy
+        if: steps.core_tests.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets -- -D warnings 2>&1 | tee core-clippy.log
+
+      - name: Test complete workspace and MCP HTTP feature
+        id: workspace_tests
+        if: steps.core_tests.outcome == 'success' && steps.core_clippy.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cargo test --workspace --locked 2>&1 | tee workspace-tests.log
+          cargo test -p kias-mcp-protocol --features http --locked 2>&1 | tee -a workspace-tests.log
+
+      - name: Upload validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-recovery-validation
+          path: |
+            core-tests.log
+            core-clippy.log
+            workspace-tests.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Enforce validation
+        if: always()
+        run: |
+          test '${{ steps.core_tests.outcome }}' = success
+          test '${{ steps.core_clippy.outcome }}' = success
+          test '${{ steps.workspace_tests.outcome }}' = success

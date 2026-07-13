@@ -147,7 +147,7 @@ rand = "0.8"
 regex = "1"
 
 # JWT
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 
 # Internal crates
 kias-common = { path = "crates/common" }

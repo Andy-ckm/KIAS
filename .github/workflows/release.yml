@@ -68,7 +68,7 @@ jobs:
           )
 
       - name: Generate signed build provenance
-        uses: actions/attest-build-provenance@21b787db45d5d4b6fc776b99a247a6493082d1fd # v4.1.1
+        uses: actions/attest-build-provenance@e3fe62ef559997059fe8380e7d2b4c909e2d65f4 # v4.1.1
         with:
           subject-path: dist/*.tar.gz
 

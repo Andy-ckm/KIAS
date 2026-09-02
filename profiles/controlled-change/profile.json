@@ -1,0 +1,41 @@
+{
+  "profile_version": "controlled-change-harness/1.0",
+  "status": "labs",
+  "intended_use": "Synthetic reference profile for controlled, approval-gated change execution",
+  "non_claims": [
+    "Not a regulatory certification",
+    "Not an electronic-signature system",
+    "Not authorization to modify production systems"
+  ],
+  "states": [
+    "draft",
+    "submitted",
+    "impact_assessed",
+    "awaiting_approval",
+    "approved",
+    "implementing",
+    "verifying",
+    "closed",
+    "rejected",
+    "rolled_back"
+  ],
+  "high_impact_actions": ["approve", "implement", "close", "rollback"],
+  "required_separation_of_duties": {
+    "approve": ["requester", "approver"],
+    "close": ["implementer", "verifier"]
+  },
+  "required_evidence": {
+    "approve": ["impact_assessment", "risk_assessment", "implementation_plan", "rollback_plan"],
+    "implement": ["approval_record", "precheck_result"],
+    "close": ["verification_result", "postcheck_result"]
+  },
+  "llm_boundary": {
+    "allowed": ["summarize", "identify_missing_facts", "draft_questions", "explain_rules"],
+    "forbidden": ["approve", "sign", "implement", "waive_evidence", "close"]
+  },
+  "recovery": {
+    "checkpoint_each_transition": true,
+    "resume_requires_hash_verification": true,
+    "duplicate_side_effects_forbidden": true
+  }
+}

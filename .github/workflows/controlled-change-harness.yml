@@ -1,0 +1,50 @@
+name: Controlled change harness
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "demo/controlled_change_harness.py"
+      - "demo/ccr-demo.sh"
+      - "demo/test-controlled-change-harness.sh"
+      - "profiles/controlled-change/**"
+      - "docs/reference-profile-controlled-change-harness.md"
+      - ".github/workflows/controlled-change-harness.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "demo/controlled_change_harness.py"
+      - "demo/ccr-demo.sh"
+      - "demo/test-controlled-change-harness.sh"
+      - "profiles/controlled-change/**"
+      - "docs/reference-profile-controlled-change-harness.md"
+      - ".github/workflows/controlled-change-harness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scenario-contracts:
+    name: Policy, evidence, idempotency, and hash contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Compile Python reference
+        run: python3 -m py_compile demo/controlled_change_harness.py
+
+      - name: Validate shell wrappers
+        run: |
+          bash -n demo/ccr-demo.sh
+          bash -n demo/test-controlled-change-harness.sh
+
+      - name: Exercise positive and negative scenarios
+        run: bash demo/test-controlled-change-harness.sh

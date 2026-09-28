@@ -141,7 +141,7 @@ validator = { version = "0.19", features = ["derive"] }
 async-trait = "0.1"
 
 # Random
-rand = "0.8"
+rand = "0.10"
 
 # Regex
 regex = "1"
